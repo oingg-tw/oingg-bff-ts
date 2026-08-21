@@ -3,8 +3,10 @@ import { getAuth, type Auth } from "firebase-admin/auth";
 
 let app: App | undefined;
 
+const DEFAULT_SERVICE_ACCOUNT_PATH = "serviceAccountKey.json";
+
 /**
- * Initializes the firebase-admin app from service account credentials.
+ * Initializes the firebase-admin app from a service account key file.
  * Call once during startup, before any other firebase-admin usage.
  */
 export function initFirebase(): App {
@@ -18,19 +20,10 @@ export function initFirebase(): App {
     return app;
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  // Env files store the private key with literal "\n" sequences; restore real newlines.
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error(
-      "Missing Firebase credentials. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY.",
-    );
-  }
+  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH ?? DEFAULT_SERVICE_ACCOUNT_PATH;
 
   app = initializeApp({
-    credential: cert({ projectId, clientEmail, privateKey }),
+    credential: cert(serviceAccountPath),
   });
   return app;
 }
