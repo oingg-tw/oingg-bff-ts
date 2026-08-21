@@ -1,5 +1,6 @@
 import express from "ultimate-express";
 import { authRouter } from "./domains/auth/index.js";
+import { stockRouter } from "./domains/stock/index.js";
 import { startedAt, systemRouter } from "./domains/system/index.js";
 import { userRouter } from "./domains/user/index.js";
 import { errorHandler, notFoundHandler } from "./shared/errorHandler.js";
@@ -24,6 +25,7 @@ export function createApp() {
   app.use("/system", systemRouter);
   app.use("/auth", authRouter);
   app.use("/users", userRouter);
+  app.use("/stocks", stockRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
