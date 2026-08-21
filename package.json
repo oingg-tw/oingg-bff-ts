@@ -4,6 +4,7 @@
   "description": "BFF service aggregating data from multiple Neon databases, built on ultimate-express",
   "type": "module",
   "main": "dist/index.js",
+  "packageManager": "pnpm@11.22.0",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
