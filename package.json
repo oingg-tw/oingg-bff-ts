@@ -1,0 +1,26 @@
+{
+  "name": "oingg-bff-ts",
+  "version": "1.0.0",
+  "description": "BFF service aggregating data from multiple Neon databases, built on ultimate-express",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "firebase-admin": "^14.3.0",
+    "pg": "^8.23.0",
+    "ultimate-express": "^2.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
+  }
+}

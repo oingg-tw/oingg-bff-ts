@@ -1,0 +1,24 @@
+{
+    "compilerOptions": { /* Base Options: */
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "target": "ES2022",
+        "allowJs": true,
+        "resolveJsonModule": true,
+        "moduleDetection": "force",
+        "isolatedModules": true, /* Strictness */
+        "strict": true,
+        "noUncheckedIndexedAccess": true, /* Module settings for Node.js ESM projects that use a bundler/runner like tsx */
+        "module": "ESNext",
+        "moduleResolution": "Bundler", /* Build options */
+        "outDir": "dist",
+        "rootDir": "src"
+    },
+    "include": [
+        "src/**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}
