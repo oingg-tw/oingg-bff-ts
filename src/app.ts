@@ -3,6 +3,7 @@ import { authRouter } from "./domains/auth/index.js";
 import { stockRouter } from "./domains/stock/index.js";
 import { startedAt, systemRouter } from "./domains/system/index.js";
 import { userRouter } from "./domains/user/index.js";
+import { watchlistRouter } from "./domains/watchlist/index.js";
 import { errorHandler, notFoundHandler } from "./shared/errorHandler.js";
 
 export function createApp() {
@@ -26,6 +27,7 @@ export function createApp() {
   app.use("/auth", authRouter);
   app.use("/users", userRouter);
   app.use("/stocks", stockRouter);
+  app.use("/watchlist", watchlistRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
