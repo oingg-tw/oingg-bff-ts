@@ -1,11 +1,16 @@
 import { createApp } from "./app.js";
 import { initFirebase } from "./adapters/firebase/index.js";
 import { closeNeonPools, initNeonPools } from "./adapters/neon/index.js";
+import { syncFilterCatalog } from "./domains/filterCatalog/index.js";
 import { env } from "./shared/env.js";
 
 function main(): void {
   initFirebase();
   initNeonPools();
+
+  syncFilterCatalog().catch((error: unknown) => {
+    console.error("Failed to sync filter catalog from filters service:", error);
+  });
 
   const app = createApp();
 

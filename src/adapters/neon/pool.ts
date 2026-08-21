@@ -28,13 +28,10 @@ export function initNeonPools(env: NodeJS.ProcessEnv = process.env): void {
   }
 
   for (const [name, connectionString] of connections) {
-    pools.set(
-      name,
-      new Pool({
-        connectionString,
-        ssl: { rejectUnauthorized: true },
-      }),
-    );
+    // TLS behavior comes entirely from each URL's own `sslmode` (use verify-full) — pg overwrites
+    // any `ssl` option passed here with what it parses from the connection string, so setting one
+    // here would be silently ignored whenever a connectionString is also given.
+    pools.set(name, new Pool({ connectionString }));
   }
 }
 
