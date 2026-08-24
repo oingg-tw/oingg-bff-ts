@@ -1,11 +1,6 @@
 import { AppError } from "../../shared/errorHandler.js";
+import { requireEnv } from "../../shared/env.js";
 import type { FilterCategory } from "./filterCatalog.types.js";
-
-const DEFAULT_FILTERS_SERVICE_URL = "http://localhost:5000";
-
-function getFiltersServiceUrl(): string {
-  return process.env.FILTERS_SERVICE_URL ?? DEFAULT_FILTERS_SERVICE_URL;
-}
 
 function isFilterCatalogResponse(body: unknown): body is { categories: FilterCategory[] } {
   return (
@@ -17,7 +12,7 @@ function isFilterCatalogResponse(body: unknown): body is { categories: FilterCat
 
 /** Fetches the filter category/metric/field catalog from oingg-analysis-ts's `/filters` endpoint. */
 export async function fetchFilterCatalog(): Promise<FilterCategory[]> {
-  const url = new URL("/filters", getFiltersServiceUrl());
+  const url = new URL("/filters", requireEnv("FILTERS_SERVICE_URL"));
   const response = await fetch(url);
 
   if (!response.ok) {

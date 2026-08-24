@@ -1,3 +1,4 @@
+import { Prisma } from "../../generated/prisma/client.js";
 import { AppError } from "../../shared/errorHandler.js";
 import { getStockQuote } from "../stock/index.js";
 import {
@@ -9,10 +10,11 @@ import {
 } from "./watchlist.repository.js";
 import type { WatchlistItem } from "./watchlist.types.js";
 
-const UNIQUE_VIOLATION = "23505";
+/** Prisma's error code for a unique constraint violation (wraps Postgres's own 23505). */
+const UNIQUE_CONSTRAINT_VIOLATION = "P2002";
 
 function isUniqueViolation(error: unknown): boolean {
-  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === UNIQUE_VIOLATION;
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_CONSTRAINT_VIOLATION;
 }
 
 async function assertSymbolExists(symbol: string): Promise<void> {

@@ -1,11 +1,10 @@
 import { fetchFilterCatalog } from "./filterCatalog.client.js";
-import { ensureFilterCatalogSchema, replaceFilterCatalog } from "./filterCatalog.repository.js";
+import { replaceFilterCatalog } from "./filterCatalog.repository.js";
 
 const RETRY_DELAY_MS = 30_000;
 
 /** Fetches the filter catalog from the filters service and stores it in the BFF's own database. */
 export async function syncFilterCatalog(): Promise<void> {
-  await ensureFilterCatalogSchema();
   const categories = await fetchFilterCatalog();
   await replaceFilterCatalog(categories);
 

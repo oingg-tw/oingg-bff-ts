@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  // The default ESM output omits file extensions on relative imports, which Node's strict ESM
+  // resolver rejects when running compiled output directly with `node` (not a bundler). This project
+  // adds ".js" to all its own relative imports for the same reason — match it here too.
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Filter catalog, synced from oingg-analysis-ts's /filters endpoint at startup (see src/domains/filterCatalog).
+model FilterCategory {
+  key     String         @id
+  name    String
+  metrics FilterMetric[]
+
+  @@map("filter_category")
+}
+
+model FilterMetric {
+  key         String              @map("key")
+  categoryKey String              @map("category_key")
+  name        String
+  path        String
+  category    FilterCategory      @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
+  fields      FilterMetricField[]
+
+  @@id([key])
+  @@map("filter_metric")
+}
+
+model FilterMetricField {
+  metricKey String       @map("metric_key")
+  key       String
+  name      String
+  period    String
+  metric    FilterMetric @relation(fields: [metricKey], references: [key], onDelete: Cascade)
+
+  @@id([metricKey, key])
+  @@map("filter_metric_field")
+}
+
+/// A user's stock watchlist (see src/domains/watchlist).
+model WatchlistItem {
+  id          Int      @id @default(autoincrement())
+  firebaseUid String   @map("firebase_uid")
+  symbol      String
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([firebaseUid, symbol])
+  @@index([firebaseUid])
+  @@map("watchlist_item")
+}

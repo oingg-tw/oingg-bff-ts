@@ -1,6 +1,8 @@
 allowBuilds:
   '@firebase/util': true
+  '@prisma/engines': true
   esbuild: true
+  prisma: true
   protobufjs: true
 # ultimate-express depends on uWebSockets.js, which is only distributed via
 # GitHub (not published to the npm registry), so it appears as a git-sourced
