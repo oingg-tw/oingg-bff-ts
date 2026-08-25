@@ -1,6 +1,8 @@
 allowBuilds:
   '@firebase/util': true
   '@prisma/engines': true
+  # @scarf/scarf is swagger-ui-dist's install-telemetry pinger, not needed for Swagger UI to work.
+  '@scarf/scarf': false
   esbuild: true
   prisma: true
   protobufjs: true

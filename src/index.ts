@@ -16,6 +16,7 @@ async function main(): Promise<void> {
 
   const server = app.listen(env.port, () => {
     console.log(`oingg-bff-ts listening on port ${env.port} (${env.nodeEnv})`);
+    console.log(`API docs available at http://localhost:${env.port}/api-docs`);
   });
 
   const shutdown = async (signal: string): Promise<void> => {
