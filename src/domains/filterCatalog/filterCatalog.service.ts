@@ -1,7 +1,13 @@
 import { fetchFilterCatalog } from "./filterCatalog.client.js";
-import { replaceFilterCatalog } from "./filterCatalog.repository.js";
+import { listFilterCatalog, replaceFilterCatalog } from "./filterCatalog.repository.js";
+import type { FilterCategory } from "./filterCatalog.types.js";
 
 const RETRY_DELAY_MS = 30_000;
+
+/** Serves the catalog to the frontend from our own DB — never proxies live to oingg-analysis-ts. */
+export async function getFilterCatalog(): Promise<FilterCategory[]> {
+  return listFilterCatalog();
+}
 
 /** Fetches the filter catalog from the filters service and stores it in the BFF's own database. */
 export async function syncFilterCatalog(): Promise<void> {

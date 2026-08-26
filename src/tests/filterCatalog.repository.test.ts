@@ -67,23 +67,35 @@ describe("replaceFilterCatalog", () => {
 
     expect(mockTx.filterCategory.createMany).toHaveBeenCalledWith({
       data: [
-        { key: "profitability", name: "Profitability" },
-        { key: "guru", name: "Guru" },
+        { key: "profitability", name: "Profitability", position: 0 },
+        { key: "guru", name: "Guru", position: 1 },
       ],
     });
 
     expect(mockTx.filterMetric.createMany).toHaveBeenCalledWith({
       data: [
-        { key: "eps", categoryKey: "profitability", name: "EPS", path: "/profitability/eps" },
-        { key: "grahamNumber", categoryKey: "guru", name: "Graham Number", path: "/guru/graham-number" },
+        { key: "eps", categoryKey: "profitability", name: "EPS", path: "/profitability/eps", position: 0 },
+        {
+          key: "grahamNumber",
+          categoryKey: "guru",
+          name: "Graham Number",
+          path: "/guru/graham-number",
+          position: 0,
+        },
       ],
     });
 
     expect(mockTx.filterMetricField.createMany).toHaveBeenCalledWith({
       data: [
-        { metricKey: "eps", key: "epsQuarterly", name: "EPS (quarterly)", period: "quarterly" },
-        { metricKey: "eps", key: "epsTtm", name: "EPS (TTM)", period: "ttm" },
-        { metricKey: "grahamNumber", key: "grahamNumber", name: "Graham Number", period: "ttm" },
+        { metricKey: "eps", key: "epsQuarterly", name: "EPS (quarterly)", period: "quarterly", position: 0 },
+        { metricKey: "eps", key: "epsTtm", name: "EPS (TTM)", period: "ttm", position: 1 },
+        {
+          metricKey: "grahamNumber",
+          key: "grahamNumber",
+          name: "Graham Number",
+          period: "ttm",
+          position: 0,
+        },
       ],
     });
   });

@@ -12,10 +12,14 @@ datasource db {
 }
 
 /// Filter catalog, synced from oingg-analysis-ts's /filters endpoint at startup (see src/domains/filterCatalog).
+/// `position` mirrors this row's index in the source /filters array, so GET /filters on this service
+/// can reproduce the same category/metric/field ordering the frontend would get from oingg-analysis-ts
+/// directly — the source order matters for UX (e.g. "profitability" before more niche categories).
 model FilterCategory {
-  key     String         @id
-  name    String
-  metrics FilterMetric[]
+  key      String         @id
+  name     String
+  position Int
+  metrics  FilterMetric[]
 
   @@map("filter_category")
 }
@@ -25,6 +29,7 @@ model FilterMetric {
   categoryKey String              @map("category_key")
   name        String
   path        String
+  position    Int
   category    FilterCategory      @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
   fields      FilterMetricField[]
 
@@ -37,6 +42,7 @@ model FilterMetricField {
   key       String
   name      String
   period    String
+  position  Int
   metric    FilterMetric @relation(fields: [metricKey], references: [key], onDelete: Cascade)
 
   columnPreferences ScreenerColumnPreference[]

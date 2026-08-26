@@ -32,6 +32,31 @@ export async function findFilterField(metricKey: string, fieldKey: string): Prom
   };
 }
 
+/** Full catalog for the frontend (GET /filters), in the same category→metric→field shape and order as the source /filters response. */
+export async function listFilterCatalog(): Promise<FilterCategory[]> {
+  const prisma = getPrismaClient();
+  const categories = await prisma.filterCategory.findMany({
+    orderBy: { position: "asc" },
+    include: {
+      metrics: {
+        orderBy: { position: "asc" },
+        include: { fields: { orderBy: { position: "asc" } } },
+      },
+    },
+  });
+
+  return categories.map((category) => ({
+    key: category.key,
+    name: category.name,
+    metrics: category.metrics.map((metric) => ({
+      key: metric.key,
+      name: metric.name,
+      path: metric.path,
+      fields: metric.fields.map((field) => ({ key: field.key, name: field.name, period: field.period })),
+    })),
+  }));
+}
+
 /**
  * Wipes and rewrites the whole catalog in one transaction — it's a small, fully-replaced snapshot,
  * not incrementally updated data.
@@ -43,24 +68,30 @@ export async function findFilterField(metricKey: string, fieldKey: string): Prom
 export async function replaceFilterCatalog(categories: FilterCategory[]): Promise<void> {
   const prisma = getPrismaClient();
 
-  const categoryRows = categories.map((category) => ({ key: category.key, name: category.name }));
+  const categoryRows = categories.map((category, position) => ({
+    key: category.key,
+    name: category.name,
+    position,
+  }));
 
   const metricRows = categories.flatMap((category) =>
-    category.metrics.map((metric) => ({
+    category.metrics.map((metric, position) => ({
       key: metric.key,
       categoryKey: category.key,
       name: metric.name,
       path: metric.path,
+      position,
     })),
   );
 
   const fieldRows = categories.flatMap((category) =>
     category.metrics.flatMap((metric) =>
-      metric.fields.map((field) => ({
+      metric.fields.map((field, position) => ({
         metricKey: metric.key,
         key: field.key,
         name: field.name,
         period: field.period,
+        position,
       })),
     ),
   );
