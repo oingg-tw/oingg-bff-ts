@@ -1,6 +1,37 @@
 import { getPrismaClient } from "../../adapters/neon/index.js";
 import type { FilterCategory } from "./filterCatalog.types.js";
 
+export interface FilterFieldLookup {
+  categoryKey: string;
+  metricKey: string;
+  metricName: string;
+  fieldKey: string;
+  fieldName: string;
+  period: string;
+}
+
+/** Looks up a single catalog field by (metricKey, fieldKey) — used to validate screener filters/columns. */
+export async function findFilterField(metricKey: string, fieldKey: string): Promise<FilterFieldLookup | null> {
+  const prisma = getPrismaClient();
+  const field = await prisma.filterMetricField.findFirst({
+    where: { metricKey, key: fieldKey },
+    include: { metric: true },
+  });
+
+  if (!field) {
+    return null;
+  }
+
+  return {
+    categoryKey: field.metric.categoryKey,
+    metricKey: field.metric.key,
+    metricName: field.metric.name,
+    fieldKey: field.key,
+    fieldName: field.name,
+    period: field.period,
+  };
+}
+
 /**
  * Wipes and rewrites the whole catalog in one transaction — it's a small, fully-replaced snapshot,
  * not incrementally updated data.

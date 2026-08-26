@@ -39,6 +39,8 @@ model FilterMetricField {
   period    String
   metric    FilterMetric @relation(fields: [metricKey], references: [key], onDelete: Cascade)
 
+  columnPreferences ScreenerColumnPreference[]
+
   @@id([metricKey, key])
   @@map("filter_metric_field")
 }
@@ -55,4 +57,22 @@ model WatchlistItem {
   @@unique([firebaseUid, symbol])
   @@index([firebaseUid])
   @@map("watchlist_item")
+}
+
+/// A user's chosen display columns for /screener results (see src/domains/screener). References
+/// FilterMetricField so a column preference can never point at a field that doesn't exist in the
+/// catalog, and is auto-cleaned up (cascade) if oingg-analysis-ts ever removes that field/metric.
+model ScreenerColumnPreference {
+  id          Int      @id @default(autoincrement())
+  firebaseUid String   @map("firebase_uid")
+  metricKey   String   @map("metric_key")
+  fieldKey    String   @map("field_key")
+  position    Int
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  field FilterMetricField @relation(fields: [metricKey, fieldKey], references: [metricKey, key], onDelete: Cascade)
+
+  @@unique([firebaseUid, metricKey, fieldKey])
+  @@index([firebaseUid])
+  @@map("screener_column_preference")
 }

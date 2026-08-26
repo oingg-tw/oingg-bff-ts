@@ -13,17 +13,21 @@ export async function syncFilterCatalog(): Promise<void> {
 }
 
 /**
- * Fire-and-forget sync with indefinite retry. The filters service (oingg-analysis-ts) may still be
+ * Fire-and-forget sync with a single retry. The filters service (oingg-analysis-ts) may still be
  * booting or briefly unreachable — that's not fatal: the BFF keeps serving whatever catalog it already
- * has (or none yet) and just tries again later, instead of blocking startup or crashing over it.
- * Call once at startup.
+ * has (or none yet). One retry covers "just needed a moment to boot"; if it still fails after that,
+ * give up until the next server restart instead of retrying forever. Call once at startup.
  */
-export function startFilterCatalogSync(): void {
+export function startFilterCatalogSync(retriesLeft = 1): void {
   syncFilterCatalog().catch((error: unknown) => {
-    console.warn(
-      `Filter catalog sync failed, keeping existing data and retrying in ${RETRY_DELAY_MS / 1000}s:`,
-      error,
-    );
-    setTimeout(startFilterCatalogSync, RETRY_DELAY_MS);
+    if (retriesLeft > 0) {
+      console.warn(
+        `Filter catalog sync failed, keeping existing data and retrying in ${RETRY_DELAY_MS / 1000}s:`,
+        error,
+      );
+      setTimeout(() => startFilterCatalogSync(retriesLeft - 1), RETRY_DELAY_MS);
+    } else {
+      console.error("Filter catalog sync failed again, giving up until the next restart:", error);
+    }
   });
 }
