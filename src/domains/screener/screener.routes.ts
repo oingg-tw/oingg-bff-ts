@@ -4,6 +4,7 @@ import { toFieldRefString } from "../../shared/fieldRef.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
 import { runScreener } from "./screener.service.js";
+import { parseScreenerFilters } from "./screenerFilterInput.js";
 import { listColumnPreferences } from "./screenerColumns.repository.js";
 import type { ScreenerFilter } from "./screener.types.js";
 
@@ -18,42 +19,8 @@ function requireUser(req: AuthenticatedRequest): string {
   return req.user.uid;
 }
 
-function parseNullableNumber(value: unknown, path: string): number | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  if (typeof value !== "number") {
-    throw new AppError(`${path} must be a number or null`, 400);
-  }
-  return value;
-}
-
 function parseFilters(body: unknown): ScreenerFilter[] {
-  const filters = (body as { filters?: unknown } | null)?.filters;
-  if (!Array.isArray(filters)) {
-    throw new AppError('"filters" must be an array', 400);
-  }
-
-  return filters.map((raw, index) => {
-    if (typeof raw !== "object" || raw === null) {
-      throw new AppError(`filters[${index}] must be an object`, 400);
-    }
-    const { field, min, max, exclude } = raw as Record<string, unknown>;
-
-    if (typeof field !== "string" || field.trim() === "") {
-      throw new AppError(`filters[${index}].field is required`, 400);
-    }
-    if (exclude !== undefined && typeof exclude !== "boolean") {
-      throw new AppError(`filters[${index}].exclude must be a boolean`, 400);
-    }
-
-    return {
-      field,
-      min: parseNullableNumber(min, `filters[${index}].min`),
-      max: parseNullableNumber(max, `filters[${index}].max`),
-      exclude: exclude ?? false,
-    };
-  });
+  return parseScreenerFilters((body as { filters?: unknown } | null)?.filters);
 }
 
 /**

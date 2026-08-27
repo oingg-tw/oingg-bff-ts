@@ -46,6 +46,7 @@ model FilterMetricField {
   metric    FilterMetric @relation(fields: [metricKey], references: [key], onDelete: Cascade)
 
   columnPreferences ScreenerColumnPreference[]
+  presetFilters     ScreenerPresetFilter[]
 
   @@id([metricKey, key])
   @@map("filter_metric_field")
@@ -81,4 +82,40 @@ model ScreenerColumnPreference {
   @@unique([firebaseUid, metricKey, fieldKey])
   @@index([firebaseUid])
   @@map("screener_column_preference")
+}
+
+/// A user's named, saved combination of screener filters (e.g. "績優股" = ROE > 30 AND grossMarginTtm >
+/// 60) — see src/domains/screener. GET /screener/presets/:id/run re-runs the saved filters and returns
+/// both the matching stocks and the filter definition in one response, so the frontend only needs the id.
+model ScreenerPreset {
+  id          Int      @id @default(autoincrement())
+  firebaseUid String   @map("firebase_uid")
+  name        String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  filters ScreenerPresetFilter[]
+
+  @@unique([firebaseUid, name])
+  @@index([firebaseUid])
+  @@map("screener_preset")
+}
+
+/// One filter condition within a ScreenerPreset. References FilterMetricField for the same reason
+/// ScreenerColumnPreference does — a saved filter can never point at a field the catalog doesn't have.
+model ScreenerPresetFilter {
+  id        Int     @id @default(autoincrement())
+  presetId  Int     @map("preset_id")
+  metricKey String  @map("metric_key")
+  fieldKey  String  @map("field_key")
+  min       Float?
+  max       Float?
+  exclude   Boolean @default(false)
+  position  Int
+
+  preset ScreenerPreset    @relation(fields: [presetId], references: [id], onDelete: Cascade)
+  field  FilterMetricField @relation(fields: [metricKey, fieldKey], references: [metricKey, key], onDelete: Cascade)
+
+  @@index([presetId])
+  @@map("screener_preset_filter")
 }
