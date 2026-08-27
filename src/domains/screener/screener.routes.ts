@@ -1,11 +1,10 @@
 import { Router } from "ultimate-express";
 import { AppError } from "../../shared/errorHandler.js";
-import { toFieldRefString } from "../../shared/fieldRef.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
 import { runScreener } from "./screener.service.js";
+import { resolveScreenerColumns } from "./columnPresets.service.js";
 import { parseScreenerFilters } from "./screenerFilterInput.js";
-import { listColumnPreferences } from "./screenerColumns.repository.js";
 import type { ScreenerFilter } from "./screener.types.js";
 
 export const screenerRouter = Router();
@@ -23,6 +22,17 @@ function parseFilters(body: unknown): ScreenerFilter[] {
   return parseScreenerFilters((body as { filters?: unknown } | null)?.filters);
 }
 
+function parseOptionalColumnPresetId(body: unknown): number | undefined {
+  const value = (body as { columnPresetId?: unknown } | null)?.columnPresetId;
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+    throw new AppError('"columnPresetId" must be a positive integer', 400);
+  }
+  return value;
+}
+
 /**
  * @swagger
  * /screener:
@@ -31,8 +41,12 @@ function parseFilters(body: unknown): ScreenerFilter[] {
  *     description: >
  *       field 格式為 "<metricKey>.<fieldKey>"（例如 "margins.grossMarginTtm"），對應 GET /filters
  *       回傳的分類/指標/欄位目錄。每個指標會取該股票最新一筆合併報表（非子公司）的數值來比對，
- *       不同指標之間用 AND 合併。回傳的欄位由使用者透過 GET/PUT /screener/columns 設定的偏好決定，
- *       沒設定就只回傳 symbol。
+ *       不同指標之間用 AND 合併。
+ *
+ *       顯示欄位由 columnPresetId 決定：有給就用那組（見 GET /screener/column-presets）；沒給就用
+ *       使用者自己設的預設欄位組合（isDefault=true 那組）；使用者也沒有預設組合的話，用系統內建的
+ *       常用欄位（股價、PER、PBR、殖利率）。回應的 columnPresetId 會標明實際套用的是哪一組
+ *       （null 代表用的是系統內建，不是使用者自己儲存的組合）。
  *     tags:
  *       - Screener
  *     security:
@@ -69,23 +83,28 @@ function parseFilters(body: unknown): ScreenerFilter[] {
  *                       type: boolean
  *                       default: false
  *                       description: false（預設）＝保留 min~max 範圍內的股票；true＝反過來，保留範圍外的股票
+ *               columnPresetId:
+ *                 type: integer
+ *                 nullable: true
+ *                 description: 要用哪組顯示欄位（見上方說明），省略則自動選一組。
  *     responses:
  *       200:
- *         description: 符合條件的股票清單，附上使用者設定的顯示欄位數值。
+ *         description: 符合條件的股票清單，附上顯示欄位數值，以及實際套用的 columnPresetId。
  *       400:
  *         description: 請求格式錯誤，或 field 不存在於 filterCatalog。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
+ *       404:
+ *         description: 指定的 columnPresetId 不存在，或不屬於目前登入的使用者。
  *       501:
  *         description: field 對應的指標存在於 filterCatalog，但這個服務還沒接上 analysis DB 對應的表。
  */
 screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const filters = parseFilters(req.body);
+  const requestedColumnPresetId = parseOptionalColumnPresetId(req.body);
 
-  const columnPreferences = await listColumnPreferences(firebaseUid);
-  const columns = columnPreferences.map((c) => ({ field: toFieldRefString(c.metricKey, c.fieldKey) }));
-
+  const { columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, requestedColumnPresetId);
   const result = await runScreener(filters, columns);
-  res.json(result);
+  res.json({ ...result, columnPresetId });
 });

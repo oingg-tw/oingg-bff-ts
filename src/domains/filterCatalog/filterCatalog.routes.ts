@@ -12,7 +12,8 @@ export const filterCatalogRouter = Router();
  *       從本服務自己的資料庫回傳（啟動時已從 oingg-analysis-ts 的 /filters 同步過來），
  *       不會即時打 oingg-analysis-ts。分類/指標/欄位的排序跟原始 /filters 回應一致。
  *       前端可以用這支 API 動態組出 screener 的篩選條件 UI 跟欄位選擇 UI（field 格式為
- *       "<metricKey>.<fieldKey>"，直接對應 POST /screener 跟 PUT /screener/columns 需要的格式）。
+ *       "<metricKey>.<fieldKey>"，直接對應 POST /screener 跟 POST/PATCH /screener/column-presets 需要的格式；
+ *       "stock.price" 是唯一的例外——來自 twse/tpex，不在這份目錄裡，但一樣可以當 screener 的顯示欄位）。
  *     tags:
  *       - Screener
  *     responses:

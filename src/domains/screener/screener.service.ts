@@ -1,12 +1,15 @@
 import { queryNeon } from "../../adapters/neon/index.js";
 import { findFilterField } from "../filterCatalog/index.js";
+import { getStockQuote } from "../stock/index.js";
 import { AppError } from "../../shared/errorHandler.js";
 import { parseFieldRef } from "../../shared/fieldRef.js";
 import { ANALYSIS_METRIC_TABLES } from "./analysisMetricTables.js";
-import type { ScreenerColumnRef, ScreenerFilter, ScreenerResult } from "./screener.types.js";
+import { SPECIAL_COLUMNS } from "./columnField.js";
+import type { ScreenerColumnRef, ScreenerFilter, ScreenerResult, ScreenerResultColumn } from "./screener.types.js";
 
 const ANALYSIS_DB = "analysis";
 const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/;
+const STOCK_PRICE_FIELD = "stock.price";
 
 function toSnakeCase(camelCase: string): string {
   return camelCase.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
@@ -29,7 +32,8 @@ interface ResolvedRef {
   fieldName: string;
 }
 
-async function resolveFieldRef(field: string): Promise<ResolvedRef> {
+/** Resolves a filterCatalog field (analysis DB only) — used for filters, and for catalog display columns. */
+async function resolveCatalogFieldRef(field: string): Promise<ResolvedRef> {
   const { metricKey, fieldKey } = parseFieldRef(field);
   const lookup = await findFilterField(metricKey, fieldKey);
   if (!lookup) {
@@ -56,12 +60,21 @@ interface ResolvedFilter extends ResolvedRef {
 
 const cteAlias = (metricKey: string) => `m_${metricKey}`;
 
+/** Fetches each symbol's latest close price (twse/tpex) for the "stock.price" special column. Not part of the analysis DB, so it's a separate lookup merged in after the main query. */
+async function fetchStockPrices(symbols: string[]): Promise<Map<string, string | null>> {
+  const quotes = await Promise.all(symbols.map((symbol) => getStockQuote(symbol)));
+  return new Map(symbols.map((symbol, index) => [symbol, quotes[index]?.price?.close ?? null]));
+}
+
 /**
  * Screens companies by filterCatalog metrics stored in the "analysis" Neon DB. Each involved metric
  * gets its own CTE picking each symbol's single latest row (see analysisMetricTables.ts); metrics with
  * an active filter are INNER JOINed (a stock without data there can't pass the filter), display-only
  * metrics are LEFT JOINed (shown as null rather than dropping the stock). Requires at least one filter
  * so there's always an anchor table — an empty-filters "list everything" mode isn't supported yet.
+ *
+ * Filtering is scoped to the analysis DB (filterCatalog fields only); `columns` may additionally include
+ * "stock.price" (see columnField.ts), which is fetched separately from twse/tpex and merged into results.
  */
 export async function runScreener(
   filters: ScreenerFilter[],
@@ -71,15 +84,18 @@ export async function runScreener(
     throw new AppError("At least one filter is required", 400);
   }
 
+  const specialColumns = columns.filter((c) => c.field in SPECIAL_COLUMNS);
+  const catalogColumnRefs = columns.filter((c) => !(c.field in SPECIAL_COLUMNS));
+
   const resolvedFilters: ResolvedFilter[] = await Promise.all(
     filters.map(async (filter) => ({
-      ...(await resolveFieldRef(filter.field)),
+      ...(await resolveCatalogFieldRef(filter.field)),
       min: filter.min,
       max: filter.max,
       exclude: filter.exclude,
     })),
   );
-  const resolvedColumns = await Promise.all(columns.map((c) => resolveFieldRef(c.field)));
+  const resolvedColumns = await Promise.all(catalogColumnRefs.map((c) => resolveCatalogFieldRef(c.field)));
 
   const metricColumns = new Map<string, Set<string>>();
   const filterMetricKeys = new Set<string>();
@@ -157,11 +173,28 @@ export async function runScreener(
 
   const result = await queryNeon<Record<string, unknown>>(ANALYSIS_DB, sql, params);
 
+  const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
+  const pricesBySymbol = wantsStockPrice
+    ? await fetchStockPrices(result.rows.map((row) => row.symbol as string))
+    : null;
+
+  const resultColumns: ScreenerResultColumn[] = resolvedColumns.map((c) => ({
+    field: c.field,
+    metricName: c.metricName,
+    fieldName: c.fieldName,
+  }));
+  if (wantsStockPrice) {
+    resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
+  }
+
   return {
     count: result.rows.length,
-    columns: resolvedColumns.map((c) => ({ field: c.field, metricName: c.metricName, fieldName: c.fieldName })),
+    columns: resultColumns,
     results: result.rows.map((row) => {
       const { symbol, ...values } = row;
+      if (pricesBySymbol) {
+        values[STOCK_PRICE_FIELD] = pricesBySymbol.get(symbol as string) ?? null;
+      }
       return { symbol: symbol as string, values };
     }),
   };

@@ -9,6 +9,7 @@ vi.mock("../domains/screener/screenerPresets.repository.js", () => ({
   deletePreset: vi.fn(),
   findPreset: vi.fn(),
   listPresets: vi.fn(),
+  setLastColumnPreset: vi.fn(),
   updatePreset: vi.fn(),
 }));
 
@@ -16,18 +17,19 @@ vi.mock("../domains/screener/screener.service.js", () => ({
   runScreener: vi.fn(),
 }));
 
-vi.mock("../domains/screener/screenerColumns.repository.js", () => ({
-  listColumnPreferences: vi.fn(),
+vi.mock("../domains/screener/columnPresets.service.js", () => ({
+  resolveScreenerColumns: vi.fn(),
 }));
 
 import { Prisma } from "../generated/prisma/client.js";
 import { findFilterField } from "../domains/filterCatalog/index.js";
+import { resolveScreenerColumns } from "../domains/screener/columnPresets.service.js";
 import { runScreener } from "../domains/screener/screener.service.js";
-import { listColumnPreferences } from "../domains/screener/screenerColumns.repository.js";
 import {
   createPreset,
   deletePreset,
   findPreset,
+  setLastColumnPreset,
   updatePreset,
 } from "../domains/screener/screenerPresets.repository.js";
 import {
@@ -60,6 +62,7 @@ const MARGIN_FIELD: Lookup = {
 const SAMPLE_ROW = {
   id: 1,
   name: "績優股",
+  lastColumnPresetId: null,
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
   filters: [
@@ -79,8 +82,9 @@ beforeEach(() => {
   vi.mocked(updatePreset).mockReset();
   vi.mocked(findPreset).mockReset();
   vi.mocked(deletePreset).mockReset();
+  vi.mocked(setLastColumnPreset).mockReset();
   vi.mocked(runScreener).mockReset();
-  vi.mocked(listColumnPreferences).mockReset();
+  vi.mocked(resolveScreenerColumns).mockReset();
 });
 
 describe("addPreset", () => {
@@ -164,6 +168,12 @@ describe("getPresetOrThrow / removePreset", () => {
   });
 });
 
+const SAMPLE_SCREENER_RESULT = {
+  count: 1,
+  columns: [{ field: "marketRatios.peRatio", metricName: "Market Ratios", fieldName: "PER" }],
+  results: [{ symbol: "2330", values: { "marketRatios.peRatio": "27.82" } }],
+};
+
 describe("runPreset", () => {
   it("throws 404 when the preset doesn't exist for this user", async () => {
     vi.mocked(findPreset).mockResolvedValue(null);
@@ -171,17 +181,18 @@ describe("runPreset", () => {
     expect(runScreener).not.toHaveBeenCalled();
   });
 
-  it("runs the screener with the preset's filters and the user's current column preferences, returning both", async () => {
+  it("with no columnPresetId and no last-used one, resolves columns with undefined (falls to user default/system default)", async () => {
     vi.mocked(findPreset).mockResolvedValue(SAMPLE_ROW);
-    vi.mocked(listColumnPreferences).mockResolvedValue([{ metricKey: "marketRatios", fieldKey: "peRatio", position: 0 }]);
-    vi.mocked(runScreener).mockResolvedValue({
-      count: 1,
-      columns: [{ field: "marketRatios.peRatio", metricName: "Market Ratios", fieldName: "PER" }],
-      results: [{ symbol: "2330", values: { "marketRatios.peRatio": "27.82" } }],
+    vi.mocked(resolveScreenerColumns).mockResolvedValue({
+      columnPresetId: null,
+      columns: [{ field: "marketRatios.peRatio" }],
     });
+    vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
     const result = await runPreset("uid1", 1);
 
+    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", undefined);
+    expect(setLastColumnPreset).not.toHaveBeenCalled();
     expect(runScreener).toHaveBeenCalledWith(
       [
         { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
@@ -190,6 +201,29 @@ describe("runPreset", () => {
       [{ field: "marketRatios.peRatio" }],
     );
     expect(result.preset.name).toBe("績優股");
-    expect(result.screener.results).toEqual([{ symbol: "2330", values: { "marketRatios.peRatio": "27.82" } }]);
+    expect(result.columnPresetId).toBeNull();
+  });
+
+  it("with no explicit columnPresetId, falls back to the preset's last-used column preset", async () => {
+    vi.mocked(findPreset).mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: 7 });
+    vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: 7, columns: [] });
+    vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
+
+    await runPreset("uid1", 1);
+
+    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", 7);
+    expect(setLastColumnPreset).not.toHaveBeenCalled();
+  });
+
+  it("with an explicit columnPresetId, uses it and remembers it as the preset's new last-used column preset", async () => {
+    vi.mocked(findPreset).mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: 7 });
+    vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: 9, columns: [] });
+    vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
+
+    const result = await runPreset("uid1", 1, 9);
+
+    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", 9);
+    expect(setLastColumnPreset).toHaveBeenCalledWith("uid1", 1, 9);
+    expect(result.columnPresetId).toBe(9);
   });
 });

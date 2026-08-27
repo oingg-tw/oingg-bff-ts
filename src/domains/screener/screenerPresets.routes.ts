@@ -161,7 +161,7 @@ screenerPresetsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
  * /screener/presets/{id}:
  *   patch:
  *     summary: 更新篩選組合的名稱和／或條件
- *     description: filters 有給的話是整組覆蓋（不是增量），跟 PUT /screener/columns 同樣邏輯。
+ *     description: filters 有給的話是整組覆蓋（不是增量），跟 PATCH /screener/column-presets/{id} 的 columns 同樣邏輯。
  *     tags:
  *       - Screener
  *     security:
@@ -249,6 +249,17 @@ screenerPresetsRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
   res.status(204).end();
 });
 
+function parseOptionalColumnPresetIdQuery(raw: unknown): number | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new AppError(`Invalid columnPresetId "${String(raw)}"`, 400);
+  }
+  return value;
+}
+
 /**
  * @swagger
  * /screener/presets/{id}/run:
@@ -256,7 +267,11 @@ screenerPresetsRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
  *     summary: 用已儲存的篩選組合查詢股票——只要帶 id
  *     description: >
  *       一次回傳這組篩選條件本身（preset）跟符合條件的股票（screener），前端不用另外組 filters。
- *       顯示欄位一樣依使用者目前用 PUT /screener/columns 設定的偏好決定。
+ *
+ *       顯示欄位解析順序：query 給的 columnPresetId（有給的話，也會記成這組 preset「下次預設顯示」
+ *       的欄位組合，也就是切換一次、之後重開一樣是這個）→ 這組 preset 上次檢視用的欄位組合 → 使用者
+ *       自己的預設欄位組合 → 系統內建常用欄位（股價、PER、PBR、殖利率）。回應的 columnPresetId 標明
+ *       實際套用的是哪一組（null 代表系統內建）。
  *     tags:
  *       - Screener
  *     security:
@@ -267,17 +282,25 @@ screenerPresetsRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
  *         required: true
  *         schema:
  *           type: integer
+ *       - in: query
+ *         name: columnPresetId
+ *         schema:
+ *           type: integer
+ *         description: 切換成用這組欄位組合檢視，並記成這個 preset 下次的預設欄位組合。
  *     responses:
  *       200:
- *         description: preset（名稱與條件）+ screener 結果（count/columns/results）。
+ *         description: preset（名稱與條件）+ screener 結果（count/columns/results）+ 實際套用的 columnPresetId。
+ *       400:
+ *         description: columnPresetId 不是合法的正整數。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  *       404:
- *         description: 不存在，或不屬於目前登入的使用者。
+ *         description: preset 不存在／不屬於使用者，或指定的 columnPresetId 不存在／不屬於使用者。
  */
 screenerPresetsRouter.get("/:id/run", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const id = parseId(req.params.id ?? "");
-  const result = await runPreset(firebaseUid, id);
+  const columnPresetId = parseOptionalColumnPresetIdQuery(req.query.columnPresetId);
+  const result = await runPreset(firebaseUid, id, columnPresetId);
   res.json(result);
 });

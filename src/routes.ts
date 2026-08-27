@@ -37,5 +37,7 @@ routes.use("/auth", authRouter); // GET /auth/me
 routes.use("/users", userRouter); // GET /users/me
 routes.use("/stocks", stockRouter); // GET /stocks/:symbol
 routes.use("/watchlist", watchlistRouter); // GET/POST /watchlist, GET/PATCH/DELETE /watchlist/:id
-routes.use("/screener", screenerRoutes); // POST /screener, GET/PUT /screener/columns
+// POST /screener; GET/POST /screener/column-presets, GET/PATCH/DELETE /screener/column-presets/:id;
+// GET/POST /screener/presets, GET/PATCH/DELETE /screener/presets/:id, GET /screener/presets/:id/run
+routes.use("/screener", screenerRoutes);
 routes.use("/filters", filterCatalogRouter); // GET /filters

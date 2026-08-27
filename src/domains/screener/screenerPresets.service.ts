@@ -2,14 +2,15 @@ import { Prisma } from "../../generated/prisma/client.js";
 import { AppError } from "../../shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
 import { findFilterField } from "../filterCatalog/index.js";
+import { resolveScreenerColumns } from "./columnPresets.service.js";
 import { runScreener } from "./screener.service.js";
 import type { ScreenerFilter, ScreenerResult } from "./screener.types.js";
-import { listColumnPreferences } from "./screenerColumns.repository.js";
 import {
   createPreset,
   deletePreset,
   findPreset,
   listPresets,
+  setLastColumnPreset,
   updatePreset,
   type PresetFilterInput,
   type PresetRow,
@@ -32,6 +33,7 @@ export interface PresetView {
   id: number;
   name: string;
   filters: PresetFilterView[];
+  lastColumnPresetId: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,6 +48,7 @@ function toView(row: PresetRow): PresetView {
       max: f.max,
       exclude: f.exclude,
     })),
+    lastColumnPresetId: row.lastColumnPresetId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -124,20 +127,34 @@ export async function removePreset(firebaseUid: string, id: number): Promise<voi
   }
 }
 
-/** Re-runs a saved preset's filters (with the user's current column preferences) and returns both. */
+/**
+ * Re-runs a saved preset's filters and returns both the filter definition and the matching stocks.
+ *
+ * Column resolution order: an explicit `columnPresetId` (and when given, it's saved as this preset's
+ * new "last viewed with" column preset, i.e. switching columns sticks for next time) → else the column
+ * preset this filter combo was last viewed with → else the user's own default column preset → else the
+ * hardcoded system default.
+ */
 export async function runPreset(
   firebaseUid: string,
   id: number,
-): Promise<{ preset: PresetView; screener: ScreenerResult }> {
+  columnPresetId?: number,
+): Promise<{ preset: PresetView; screener: ScreenerResult; columnPresetId: number | null }> {
   const row = await findPreset(firebaseUid, id);
   if (!row) {
     throw new AppError(`Screener preset ${id} not found`, 404);
   }
   const preset = toView(row);
 
-  const columnPreferences = await listColumnPreferences(firebaseUid);
-  const columns = columnPreferences.map((c) => ({ field: toFieldRefString(c.metricKey, c.fieldKey) }));
+  const resolved = await resolveScreenerColumns(
+    firebaseUid,
+    columnPresetId ?? preset.lastColumnPresetId ?? undefined,
+  );
 
-  const screener = await runScreener(preset.filters, columns);
-  return { preset, screener };
+  if (columnPresetId !== undefined) {
+    await setLastColumnPreset(firebaseUid, id, resolved.columnPresetId ?? columnPresetId);
+  }
+
+  const screener = await runScreener(preset.filters, resolved.columns);
+  return { preset, screener, columnPresetId: resolved.columnPresetId };
 }

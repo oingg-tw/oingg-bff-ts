@@ -45,8 +45,7 @@ model FilterMetricField {
   position  Int
   metric    FilterMetric @relation(fields: [metricKey], references: [key], onDelete: Cascade)
 
-  columnPreferences ScreenerColumnPreference[]
-  presetFilters     ScreenerPresetFilter[]
+  presetFilters ScreenerPresetFilter[]
 
   @@id([metricKey, key])
   @@map("filter_metric_field")
@@ -66,22 +65,39 @@ model WatchlistItem {
   @@map("watchlist_item")
 }
 
-/// A user's chosen display columns for /screener results (see src/domains/screener). References
-/// FilterMetricField so a column preference can never point at a field that doesn't exist in the
-/// catalog, and is auto-cleaned up (cascade) if oingg-analysis-ts ever removes that field/metric.
-model ScreenerColumnPreference {
+/// A user's named, reusable set of display columns for /screener results (see src/domains/screener) —
+/// independent from ScreenerPreset (filter combos); a ScreenerPreset just remembers the last one it was
+/// viewed with (see ScreenerPreset.lastColumnPreset). `field` is a plain string, not FK'd to
+/// FilterMetricField, because it can also be a "special" non-catalog field (currently just
+/// "stock.price", joined in from the twse/tpex price tables) — validity is checked in the service layer
+/// instead. At most one preset per user should have `isDefault: true` (enforced in code, not the DB);
+/// it's what /screener falls back to when no columnPresetId is given and there's no hardcoded fallback.
+model ColumnPreset {
   id          Int      @id @default(autoincrement())
   firebaseUid String   @map("firebase_uid")
-  metricKey   String   @map("metric_key")
-  fieldKey    String   @map("field_key")
-  position    Int
+  name        String
+  isDefault   Boolean  @default(false) @map("is_default")
   createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
-  field FilterMetricField @relation(fields: [metricKey, fieldKey], references: [metricKey, key], onDelete: Cascade)
+  columns              ColumnPresetField[]
+  lastViewedByScreener ScreenerPreset[]    @relation("LastColumnPreset")
 
-  @@unique([firebaseUid, metricKey, fieldKey])
+  @@unique([firebaseUid, name])
   @@index([firebaseUid])
-  @@map("screener_column_preference")
+  @@map("column_preset")
+}
+
+model ColumnPresetField {
+  id       Int    @id @default(autoincrement())
+  presetId Int    @map("preset_id")
+  field    String
+  position Int
+
+  preset ColumnPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
+
+  @@index([presetId])
+  @@map("column_preset_field")
 }
 
 /// A user's named, saved combination of screener filters (e.g. "績優股" = ROE > 30 AND grossMarginTtm >
@@ -95,6 +111,11 @@ model ScreenerPreset {
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   filters ScreenerPresetFilter[]
+
+  // Remembers whichever ColumnPreset this filter combo was last viewed with, so re-opening it
+  // (GET /screener/presets/:id/run with no columnPresetId) shows the same columns as last time.
+  lastColumnPresetId Int?          @map("last_column_preset_id")
+  lastColumnPreset   ColumnPreset? @relation("LastColumnPreset", fields: [lastColumnPresetId], references: [id], onDelete: SetNull)
 
   @@unique([firebaseUid, name])
   @@index([firebaseUid])

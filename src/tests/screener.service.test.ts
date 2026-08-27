@@ -8,8 +8,13 @@ vi.mock("../domains/filterCatalog/index.js", () => ({
   findFilterField: vi.fn(),
 }));
 
+vi.mock("../domains/stock/index.js", () => ({
+  getStockQuote: vi.fn(),
+}));
+
 import { queryNeon } from "../adapters/neon/index.js";
 import { findFilterField } from "../domains/filterCatalog/index.js";
+import { getStockQuote } from "../domains/stock/index.js";
 import { runScreener } from "../domains/screener/screener.service.js";
 
 type Lookup = Awaited<ReturnType<typeof findFilterField>>;
@@ -48,6 +53,7 @@ beforeEach(() => {
   vi.mocked(findFilterField).mockImplementation(async (metricKey, fieldKey) => {
     return KNOWN_FIELDS[`${metricKey}.${fieldKey}`] ?? null;
   });
+  vi.mocked(getStockQuote).mockReset();
 });
 
 describe("runScreener", () => {
@@ -114,5 +120,31 @@ describe("runScreener", () => {
     expect(sql).toContain("LEFT JOIN m_roe ON m_roe.symbol = m_margins.symbol");
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
     expect(result.results).toEqual([{ symbol: "2330", values: { "roe.roeTtmPct": "10.98" } }]);
+  });
+
+  it('merges in "stock.price" (a special, non-catalog column) from twse/tpex instead of the analysis DB', async () => {
+    vi.mocked(queryNeon).mockResolvedValue({ rows: [{ symbol: "2330" }, { symbol: "2317" }] } as never);
+    vi.mocked(getStockQuote).mockImplementation(async (symbol) => {
+      if (symbol === "2330") {
+        return { symbol, market: "twse", price: { tradeDate: "2026-08-18", close: "2350.0000" }, valuation: null };
+      }
+      return { symbol, market: "twse", price: null, valuation: null };
+    });
+
+    const result = await runScreener(
+      [{ field: "margins.grossMarginTtm", min: 20, max: null, exclude: false }],
+      [{ field: "stock.price" }],
+    );
+
+    // "stock.price" must never leak into the analysis-DB SQL — it isn't a filterCatalog field.
+    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
+    expect(sql).not.toContain("stock");
+    expect(getStockQuote).toHaveBeenCalledWith("2330");
+    expect(getStockQuote).toHaveBeenCalledWith("2317");
+    expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價" });
+    expect(result.results).toEqual([
+      { symbol: "2330", values: { "stock.price": "2350.0000" } },
+      { symbol: "2317", values: { "stock.price": null } },
+    ]);
   });
 });

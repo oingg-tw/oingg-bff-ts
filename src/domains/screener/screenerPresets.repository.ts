@@ -12,6 +12,7 @@ export interface PresetRow {
   id: number;
   name: string;
   filters: PresetFilterRow[];
+  lastColumnPresetId: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,6 +30,7 @@ const FILTERS_ORDER = { position: "asc" as const };
 function toPresetRow(preset: {
   id: number;
   name: string;
+  lastColumnPresetId: number | null;
   createdAt: Date;
   updatedAt: Date;
   filters: Array<{ metricKey: string; fieldKey: string; min: number | null; max: number | null; exclude: boolean }>;
@@ -36,6 +38,7 @@ function toPresetRow(preset: {
   return {
     id: preset.id,
     name: preset.name,
+    lastColumnPresetId: preset.lastColumnPresetId,
     createdAt: preset.createdAt.toISOString(),
     updatedAt: preset.updatedAt.toISOString(),
     filters: preset.filters.map((f) => ({
@@ -148,4 +151,14 @@ export async function deletePreset(firebaseUid: string, id: number): Promise<boo
   const prisma = getPrismaClient();
   const result = await prisma.screenerPreset.deleteMany({ where: { firebaseUid, id } });
   return result.count > 0;
+}
+
+/** Remembers which ColumnPreset this ScreenerPreset was last viewed with (see runPreset). */
+export async function setLastColumnPreset(
+  firebaseUid: string,
+  id: number,
+  columnPresetId: number,
+): Promise<void> {
+  const prisma = getPrismaClient();
+  await prisma.screenerPreset.updateMany({ where: { firebaseUid, id }, data: { lastColumnPresetId: columnPresetId } });
 }
