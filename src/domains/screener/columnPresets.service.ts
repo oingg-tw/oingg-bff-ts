@@ -121,44 +121,17 @@ export async function removeColumnPreset(firebaseUid: string, id: number): Promi
   }
 }
 
-/** Out-of-the-box columns for users who haven't set up any column preset yet. */
+/**
+ * Out-of-the-box columns for users who haven't set up any column preset yet — a plain code constant,
+ * deliberately not materialized into a per-user DB row (see addPreset's docstring for why). Changing
+ * this array changes the default for every such user immediately, no data migration needed.
+ */
 export const SYSTEM_DEFAULT_COLUMNS: ScreenerColumnRef[] = [
   { field: "stock.price" },
   { field: "marketRatios.peRatio" },
   { field: "marketRatios.pbRatio" },
   { field: "marketRatios.dividendYieldPct" },
 ];
-
-const DEFAULT_COLUMN_PRESET_NAME = "常用欄位";
-
-/**
- * Ensures the user has a default ColumnPreset, creating one from SYSTEM_DEFAULT_COLUMNS (stock price,
- * PER, PBR, dividend yield) if they don't have one yet. Called when a user creates their first
- * ScreenerPreset, so it starts out already showing something useful instead of a bare symbol list.
- * Returns null only if auto-creation itself failed (e.g. a same-named non-default preset already
- * exists) — callers should treat that as "couldn't set one up automatically", not fail the caller's
- * own operation over a side effect.
- */
-export async function ensureDefaultColumnPreset(firebaseUid: string): Promise<ColumnPresetView | null> {
-  const existing = await findDefaultColumnPreset(firebaseUid);
-  if (existing) {
-    return toView(existing);
-  }
-
-  try {
-    return await addColumnPreset(
-      firebaseUid,
-      DEFAULT_COLUMN_PRESET_NAME,
-      SYSTEM_DEFAULT_COLUMNS.map((c) => c.field),
-      true,
-    );
-  } catch (error) {
-    if (error instanceof AppError) {
-      return null;
-    }
-    throw error;
-  }
-}
 
 export interface ResolvedScreenerColumns {
   columnPresetId: number | null;
@@ -168,7 +141,11 @@ export interface ResolvedScreenerColumns {
 /**
  * Resolves which columns a screener call should display: an explicit columnPresetId (404 if it
  * doesn't exist/isn't the caller's), else the user's own `isDefault` preset, else the hardcoded
- * system default. `columnPresetId: null` in the result means "no real preset was used" (system default).
+ * system default. `columnPresetId: null` in the result means "no real preset's columns are being
+ * shown" (system default) — including when a resolved preset exists but has zero columns saved:
+ * matching stocks must never come back as bare symbols with no field data attached, so an empty
+ * preset (explicit, default, or "last used") falls through to the system default same as no preset
+ * at all, rather than being honored as "show nothing".
  */
 export async function resolveScreenerColumns(
   firebaseUid: string,
@@ -179,12 +156,14 @@ export async function resolveScreenerColumns(
     if (!preset) {
       throw new AppError(`Column preset ${columnPresetId} not found`, 404);
     }
-    return { columnPresetId: preset.id, columns: preset.columns.map((field) => ({ field })) };
-  }
-
-  const defaultPreset = await findDefaultColumnPreset(firebaseUid);
-  if (defaultPreset) {
-    return { columnPresetId: defaultPreset.id, columns: defaultPreset.columns.map((field) => ({ field })) };
+    if (preset.columns.length > 0) {
+      return { columnPresetId: preset.id, columns: preset.columns.map((field) => ({ field })) };
+    }
+  } else {
+    const defaultPreset = await findDefaultColumnPreset(firebaseUid);
+    if (defaultPreset && defaultPreset.columns.length > 0) {
+      return { columnPresetId: defaultPreset.id, columns: defaultPreset.columns.map((field) => ({ field })) };
+    }
   }
 
   return { columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS };

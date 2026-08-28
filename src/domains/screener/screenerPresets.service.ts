@@ -2,7 +2,7 @@ import { Prisma } from "../../generated/prisma/client.js";
 import { AppError } from "../../shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
 import { findFilterField } from "../filterCatalog/index.js";
-import { ensureDefaultColumnPreset, resolveScreenerColumns } from "./columnPresets.service.js";
+import { resolveScreenerColumns } from "./columnPresets.service.js";
 import { runScreener } from "./screener.service.js";
 import type { ScreenerFilter, ScreenerResult } from "./screener.types.js";
 import {
@@ -82,9 +82,12 @@ export async function getPresetOrThrow(firebaseUid: string, id: number): Promise
 }
 
 /**
- * Creates a preset and auto-assigns it the user's default column preset (creating one from the
- * system default columns — stock price, PER, PBR, dividend yield — if they don't have one yet), so a
- * freshly created preset shows something useful on first run instead of a bare symbol list.
+ * Creates a preset. `lastColumnPresetId` starts out null — deliberately not auto-assigned to a
+ * materialized ColumnPreset row. Leaving it null means a fresh preset falls through to
+ * resolveScreenerColumns's live SYSTEM_DEFAULT_COLUMNS fallback every time it's run, so changing that
+ * constant in code updates the default for every such user at once. Materializing a per-user row here
+ * instead would freeze in whatever the default was at creation time — already-created rows wouldn't
+ * pick up a later change to the constant, defeating the point of a single shared default.
  */
 export async function addPreset(
   firebaseUid: string,
@@ -93,23 +96,15 @@ export async function addPreset(
 ): Promise<PresetView> {
   const resolved = await resolveFilters(filters);
 
-  let row: PresetRow;
   try {
-    row = await createPreset(firebaseUid, name, resolved);
+    const row = await createPreset(firebaseUid, name, resolved);
+    return toView(row);
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw new AppError(`You already have a preset named "${name}"`, 409);
     }
     throw error;
   }
-
-  const defaultColumnPreset = await ensureDefaultColumnPreset(firebaseUid);
-  if (defaultColumnPreset) {
-    await setLastColumnPreset(firebaseUid, row.id, defaultColumnPreset.id);
-    row = { ...row, lastColumnPresetId: defaultColumnPreset.id };
-  }
-
-  return toView(row);
 }
 
 export async function editPreset(

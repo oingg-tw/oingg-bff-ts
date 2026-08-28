@@ -130,4 +130,25 @@ describe("resolveScreenerColumns", () => {
 
     expect(result).toEqual({ columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS });
   });
+
+  // Regression test: matching stocks must never come back as bare symbols with no field data.
+  // An explicit columnPresetId that resolves to a real but empty ("columns": []) preset — e.g. a tab
+  // the user created and never filled in — used to be honored as-is, so /screener would return
+  // `values: {}` for every result even though companies matched. It must fall through to the system
+  // default instead, exactly as if no preset had been found at all.
+  it("falls through to the system default when the explicit columnPresetId resolves to a preset with zero columns", async () => {
+    vi.mocked(findColumnPreset).mockResolvedValue({ ...SAMPLE_ROW, id: 6, name: "欄位組合 1", columns: [] });
+
+    const result = await resolveScreenerColumns("uid1", 6);
+
+    expect(result).toEqual({ columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS });
+  });
+
+  it("falls through to the system default when the user's own default preset has zero columns", async () => {
+    vi.mocked(findDefaultColumnPreset).mockResolvedValue({ ...SAMPLE_ROW, columns: [] });
+
+    const result = await resolveScreenerColumns("uid1");
+
+    expect(result).toEqual({ columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS });
+  });
 });

@@ -18,13 +18,12 @@ vi.mock("../domains/screener/screener.service.js", () => ({
 }));
 
 vi.mock("../domains/screener/columnPresets.service.js", () => ({
-  ensureDefaultColumnPreset: vi.fn(),
   resolveScreenerColumns: vi.fn(),
 }));
 
 import { Prisma } from "../generated/prisma/client.js";
 import { findFilterField } from "../domains/filterCatalog/index.js";
-import { ensureDefaultColumnPreset, resolveScreenerColumns } from "../domains/screener/columnPresets.service.js";
+import { resolveScreenerColumns } from "../domains/screener/columnPresets.service.js";
 import { runScreener } from "../domains/screener/screener.service.js";
 import {
   createPreset,
@@ -86,8 +85,6 @@ beforeEach(() => {
   vi.mocked(setLastColumnPreset).mockReset();
   vi.mocked(runScreener).mockReset();
   vi.mocked(resolveScreenerColumns).mockReset();
-  vi.mocked(ensureDefaultColumnPreset).mockReset();
-  vi.mocked(ensureDefaultColumnPreset).mockResolvedValue(null);
 });
 
 describe("addPreset", () => {
@@ -133,32 +130,17 @@ describe("addPreset", () => {
     ).rejects.toMatchObject({ statusCode: 409 });
   });
 
-  it("auto-assigns the user's default column preset to a freshly created preset", async () => {
+  // Regression test: a prior version of addPreset auto-created a per-user ColumnPreset row and
+  // pointed lastColumnPresetId at it. That materializes the default at creation time — a later change
+  // to SYSTEM_DEFAULT_COLUMNS would then never reach already-created users. addPreset must leave column
+  // presets alone entirely; the live constant is only ever read at run time (see columnPresets.service.ts).
+  it("never touches column presets — lastColumnPresetId stays whatever the repository returns (usually null)", async () => {
     vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
-    vi.mocked(ensureDefaultColumnPreset).mockResolvedValue({
-      id: 42,
-      name: "常用欄位",
-      isDefault: true,
-      columns: [],
-      createdAt: "2026-08-28T00:00:00.000Z",
-      updatedAt: "2026-08-28T00:00:00.000Z",
-    });
-
-    const result = await addPreset("uid1", "績優股", []);
-
-    expect(ensureDefaultColumnPreset).toHaveBeenCalledWith("uid1");
-    expect(setLastColumnPreset).toHaveBeenCalledWith("uid1", SAMPLE_ROW.id, 42);
-    expect(result.lastColumnPresetId).toBe(42);
-  });
-
-  it("still succeeds if auto-assigning a default column preset fails (e.g. a name conflict)", async () => {
-    vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
-    vi.mocked(ensureDefaultColumnPreset).mockResolvedValue(null);
 
     const result = await addPreset("uid1", "績優股", []);
 
     expect(setLastColumnPreset).not.toHaveBeenCalled();
-    expect(result.id).toBe(SAMPLE_ROW.id);
+    expect(result.lastColumnPresetId).toBe(SAMPLE_ROW.lastColumnPresetId);
   });
 });
 

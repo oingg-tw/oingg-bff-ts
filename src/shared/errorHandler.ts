@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "ultimate-express";
+import { env } from "./env.js";
 
 export class AppError extends Error {
   readonly statusCode: number;
@@ -25,7 +26,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
       console.error(err);
     }
     res.status(err.statusCode).json({
-      error: { message: err.message, details: err.details },
+      error: { message: err.message, details: env.isProduction ? undefined : err.details },
     });
     return;
   }
