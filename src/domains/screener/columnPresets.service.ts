@@ -129,6 +129,37 @@ export const SYSTEM_DEFAULT_COLUMNS: ScreenerColumnRef[] = [
   { field: "marketRatios.dividendYieldPct" },
 ];
 
+const DEFAULT_COLUMN_PRESET_NAME = "常用欄位";
+
+/**
+ * Ensures the user has a default ColumnPreset, creating one from SYSTEM_DEFAULT_COLUMNS (stock price,
+ * PER, PBR, dividend yield) if they don't have one yet. Called when a user creates their first
+ * ScreenerPreset, so it starts out already showing something useful instead of a bare symbol list.
+ * Returns null only if auto-creation itself failed (e.g. a same-named non-default preset already
+ * exists) — callers should treat that as "couldn't set one up automatically", not fail the caller's
+ * own operation over a side effect.
+ */
+export async function ensureDefaultColumnPreset(firebaseUid: string): Promise<ColumnPresetView | null> {
+  const existing = await findDefaultColumnPreset(firebaseUid);
+  if (existing) {
+    return toView(existing);
+  }
+
+  try {
+    return await addColumnPreset(
+      firebaseUid,
+      DEFAULT_COLUMN_PRESET_NAME,
+      SYSTEM_DEFAULT_COLUMNS.map((c) => c.field),
+      true,
+    );
+  } catch (error) {
+    if (error instanceof AppError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export interface ResolvedScreenerColumns {
   columnPresetId: number | null;
   columns: ScreenerColumnRef[];

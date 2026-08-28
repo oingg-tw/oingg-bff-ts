@@ -75,6 +75,19 @@ describe("runScreener", () => {
     ).rejects.toMatchObject({ statusCode: 501 });
   });
 
+  // Regression test: a row with a null report_date/trade_date (e.g. a failed/incomplete compute
+  // upstream in oingg-analysis-ts — observed for real on symbols "1101"/"9999" in profitability_roe)
+  // must never win "latest per symbol" over a properly dated row. Postgres sorts NULLs as the
+  // largest value by default, so a bare `ORDER BY report_date DESC` would put the broken row first.
+  it("excludes rows with a null latestOrderColumn from the CTE, so a broken row never wins DISTINCT ON as \"latest\"", async () => {
+    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
+
+    await runScreener([{ field: "margins.grossMarginTtm", min: 20, max: null, exclude: false }], []);
+
+    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
+    expect(sql).toContain('WHERE "report_date" IS NOT NULL AND data_type');
+  });
+
   it("queries the analysis pool with an INNER JOIN per filtered metric and a normal-mode range condition", async () => {
     vi.mocked(queryNeon).mockResolvedValue({ rows: [{ symbol: "2330" }] } as never);
 

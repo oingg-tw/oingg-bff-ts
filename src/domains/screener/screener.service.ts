@@ -124,7 +124,12 @@ export async function runScreener(
       throw new AppError(`Metric "${metricKey}" isn't wired up to the analysis database yet`, 501);
     }
     const cols = [...(metricColumns.get(metricKey) ?? [])].map((column) => `"${column}"`).join(", ");
-    const whereClause = table.latestFilter ? `WHERE ${table.latestFilter}` : "";
+    // A row with a null latestOrderColumn (e.g. a failed/incomplete compute upstream) must never win
+    // "latest" over a real dated row — Postgres sorts NULLs as highest by default, so DESC would put
+    // it first. Excluding null-dated rows outright is what actually prevents that, not just relying
+    // on ORDER BY ... NULLS LAST (that only fixes ties, not "null looks newest than every real date").
+    const conditions = [`"${table.latestOrderColumn}" IS NOT NULL`, ...(table.latestFilter ? [table.latestFilter] : [])];
+    const whereClause = `WHERE ${conditions.join(" AND ")}`;
     return `${cteAlias(metricKey)} AS (
       SELECT DISTINCT ON (symbol) symbol, ${cols}
       FROM ${table.table}

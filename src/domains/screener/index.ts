@@ -12,6 +12,7 @@ export { runScreener } from "./screener.service.js";
 export {
   addColumnPreset,
   editColumnPreset,
+  ensureDefaultColumnPreset,
   getColumnPresetOrThrow,
   getColumnPresets,
   removeColumnPreset,

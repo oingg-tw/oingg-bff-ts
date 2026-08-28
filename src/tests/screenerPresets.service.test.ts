@@ -18,12 +18,13 @@ vi.mock("../domains/screener/screener.service.js", () => ({
 }));
 
 vi.mock("../domains/screener/columnPresets.service.js", () => ({
+  ensureDefaultColumnPreset: vi.fn(),
   resolveScreenerColumns: vi.fn(),
 }));
 
 import { Prisma } from "../generated/prisma/client.js";
 import { findFilterField } from "../domains/filterCatalog/index.js";
-import { resolveScreenerColumns } from "../domains/screener/columnPresets.service.js";
+import { ensureDefaultColumnPreset, resolveScreenerColumns } from "../domains/screener/columnPresets.service.js";
 import { runScreener } from "../domains/screener/screener.service.js";
 import {
   createPreset,
@@ -85,6 +86,8 @@ beforeEach(() => {
   vi.mocked(setLastColumnPreset).mockReset();
   vi.mocked(runScreener).mockReset();
   vi.mocked(resolveScreenerColumns).mockReset();
+  vi.mocked(ensureDefaultColumnPreset).mockReset();
+  vi.mocked(ensureDefaultColumnPreset).mockResolvedValue(null);
 });
 
 describe("addPreset", () => {
@@ -128,6 +131,34 @@ describe("addPreset", () => {
     await expect(
       addPreset("uid1", "績優股", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]),
     ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("auto-assigns the user's default column preset to a freshly created preset", async () => {
+    vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
+    vi.mocked(ensureDefaultColumnPreset).mockResolvedValue({
+      id: 42,
+      name: "常用欄位",
+      isDefault: true,
+      columns: [],
+      createdAt: "2026-08-28T00:00:00.000Z",
+      updatedAt: "2026-08-28T00:00:00.000Z",
+    });
+
+    const result = await addPreset("uid1", "績優股", []);
+
+    expect(ensureDefaultColumnPreset).toHaveBeenCalledWith("uid1");
+    expect(setLastColumnPreset).toHaveBeenCalledWith("uid1", SAMPLE_ROW.id, 42);
+    expect(result.lastColumnPresetId).toBe(42);
+  });
+
+  it("still succeeds if auto-assigning a default column preset fails (e.g. a name conflict)", async () => {
+    vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
+    vi.mocked(ensureDefaultColumnPreset).mockResolvedValue(null);
+
+    const result = await addPreset("uid1", "績優股", []);
+
+    expect(setLastColumnPreset).not.toHaveBeenCalled();
+    expect(result.id).toBe(SAMPLE_ROW.id);
   });
 });
 
