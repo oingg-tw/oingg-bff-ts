@@ -1,6 +1,6 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { AppError } from "../../shared/errorHandler.js";
-import { resolveColumnField } from "./columnField.js";
+import { resolveColumnFields } from "./columnField.js";
 import {
   createColumnPreset,
   deleteColumnPreset,
@@ -34,12 +34,11 @@ export interface ColumnPresetView {
 }
 
 async function toView(row: ColumnPresetRow): Promise<ColumnPresetView> {
-  const columns = await Promise.all(
-    row.columns.map(async (field): Promise<ColumnPresetColumnView> => {
-      const info = await resolveColumnField(field);
-      return { field, metricName: info?.metricName ?? field, fieldName: info?.fieldName ?? field };
-    }),
-  );
+  const infoByField = await resolveColumnFields(row.columns);
+  const columns = row.columns.map((field): ColumnPresetColumnView => {
+    const info = infoByField.get(field);
+    return { field, metricName: info?.metricName ?? field, fieldName: info?.fieldName ?? field };
+  });
   return {
     id: row.id,
     name: row.name,
@@ -51,9 +50,9 @@ async function toView(row: ColumnPresetRow): Promise<ColumnPresetView> {
 }
 
 async function validateFields(fields: string[]): Promise<void> {
+  const infoByField = await resolveColumnFields(fields);
   for (const field of fields) {
-    const info = await resolveColumnField(field);
-    if (!info) {
+    if (!infoByField.get(field)) {
       throw new AppError(`Unknown column field "${field}"`, 400);
     }
   }

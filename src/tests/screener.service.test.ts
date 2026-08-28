@@ -5,19 +5,19 @@ vi.mock("../adapters/neon/index.js", () => ({
 }));
 
 vi.mock("../domains/filterCatalog/index.js", () => ({
-  findFilterField: vi.fn(),
+  findFilterFields: vi.fn(),
 }));
 
 vi.mock("../domains/stock/index.js", () => ({
-  getStockQuote: vi.fn(),
+  getLatestClosePrices: vi.fn(),
 }));
 
 import { queryNeon } from "../adapters/neon/index.js";
-import { findFilterField } from "../domains/filterCatalog/index.js";
-import { getStockQuote } from "../domains/stock/index.js";
+import { findFilterFields } from "../domains/filterCatalog/index.js";
+import { getLatestClosePrices } from "../domains/stock/index.js";
 import { runScreener } from "../domains/screener/screener.service.js";
 
-type Lookup = Awaited<ReturnType<typeof findFilterField>>;
+type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
 
 const KNOWN_FIELDS: Record<string, Lookup> = {
   "margins.grossMarginTtm": {
@@ -49,11 +49,13 @@ const KNOWN_FIELDS: Record<string, Lookup> = {
 
 beforeEach(() => {
   vi.mocked(queryNeon).mockReset();
-  vi.mocked(findFilterField).mockReset();
-  vi.mocked(findFilterField).mockImplementation(async (metricKey, fieldKey) => {
-    return KNOWN_FIELDS[`${metricKey}.${fieldKey}`] ?? null;
-  });
-  vi.mocked(getStockQuote).mockReset();
+  vi.mocked(findFilterFields).mockReset();
+  vi.mocked(findFilterFields).mockImplementation(async (refs) =>
+    refs
+      .map((ref) => KNOWN_FIELDS[`${ref.metricKey}.${ref.fieldKey}`] ?? null)
+      .filter((f): f is Lookup => f !== null),
+  );
+  vi.mocked(getLatestClosePrices).mockReset();
 });
 
 describe("runScreener", () => {
@@ -137,12 +139,7 @@ describe("runScreener", () => {
 
   it('merges in "stock.price" (a special, non-catalog column) from twse/tpex instead of the analysis DB', async () => {
     vi.mocked(queryNeon).mockResolvedValue({ rows: [{ symbol: "2330" }, { symbol: "2317" }] } as never);
-    vi.mocked(getStockQuote).mockImplementation(async (symbol) => {
-      if (symbol === "2330") {
-        return { symbol, market: "twse", price: { tradeDate: "2026-08-18", close: "2350.0000" }, valuation: null };
-      }
-      return { symbol, market: "twse", price: null, valuation: null };
-    });
+    vi.mocked(getLatestClosePrices).mockResolvedValue(new Map([["2330", "2350.0000"]]));
 
     const result = await runScreener(
       [{ field: "margins.grossMarginTtm", min: 20, max: null, exclude: false }],
@@ -152,12 +149,34 @@ describe("runScreener", () => {
     // "stock.price" must never leak into the analysis-DB SQL — it isn't a filterCatalog field.
     const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
     expect(sql).not.toContain("stock");
-    expect(getStockQuote).toHaveBeenCalledWith("2330");
-    expect(getStockQuote).toHaveBeenCalledWith("2317");
+    // One batched call for the whole result set, not one call per symbol.
+    expect(getLatestClosePrices).toHaveBeenCalledTimes(1);
+    expect(getLatestClosePrices).toHaveBeenCalledWith(["2330", "2317"]);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價" });
     expect(result.results).toEqual([
       { symbol: "2330", values: { "stock.price": "2350.0000" } },
       { symbol: "2317", values: { "stock.price": null } },
+    ]);
+  });
+
+  // Regression test: filters and display columns used to each be resolved against the filter catalog
+  // one at a time (one query per field). Must be a single batched lookup covering both.
+  it("resolves all filter and column fields in a single batched catalog lookup", async () => {
+    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
+
+    await runScreener(
+      [
+        { field: "margins.grossMarginTtm", min: 20, max: null, exclude: false },
+        { field: "roe.roeTtmPct", min: null, max: 30, exclude: false },
+      ],
+      [{ field: "roe.roeTtmPct" }],
+    );
+
+    expect(findFilterFields).toHaveBeenCalledTimes(1);
+    expect(findFilterFields).toHaveBeenCalledWith([
+      { field: "margins.grossMarginTtm", metricKey: "margins", fieldKey: "grossMarginTtm" },
+      { field: "roe.roeTtmPct", metricKey: "roe", fieldKey: "roeTtmPct" },
+      { field: "roe.roeTtmPct", metricKey: "roe", fieldKey: "roeTtmPct" },
     ]);
   });
 });

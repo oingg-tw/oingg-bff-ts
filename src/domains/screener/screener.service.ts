@@ -1,8 +1,8 @@
 import { queryNeon } from "../../adapters/neon/index.js";
-import { findFilterField } from "../filterCatalog/index.js";
-import { getStockQuote } from "../stock/index.js";
+import { findFilterFields } from "../filterCatalog/index.js";
+import { getLatestClosePrices } from "../stock/index.js";
 import { AppError } from "../../shared/errorHandler.js";
-import { parseFieldRef } from "../../shared/fieldRef.js";
+import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
 import { ANALYSIS_METRIC_TABLES } from "./analysisMetricTables.js";
 import { SPECIAL_COLUMNS } from "./columnField.js";
 import type { ScreenerColumnRef, ScreenerFilter, ScreenerResult, ScreenerResultColumn } from "./screener.types.js";
@@ -32,24 +32,33 @@ interface ResolvedRef {
   fieldName: string;
 }
 
-/** Resolves a filterCatalog field (analysis DB only) — used for filters, and for catalog display columns. */
-async function resolveCatalogFieldRef(field: string): Promise<ResolvedRef> {
-  const { metricKey, fieldKey } = parseFieldRef(field);
-  const lookup = await findFilterField(metricKey, fieldKey);
-  if (!lookup) {
-    throw new AppError(`Unknown filter field "${field}"`, 400);
-  }
-  if (!ANALYSIS_METRIC_TABLES[metricKey]) {
-    throw new AppError(`Metric "${metricKey}" isn't wired up to the analysis database yet`, 501);
-  }
-  return {
-    metricKey,
-    fieldKey,
-    field,
-    column: toSafeColumn(fieldKey),
-    metricName: lookup.metricName,
-    fieldName: lookup.fieldName,
-  };
+/**
+ * Resolves filterCatalog fields (analysis DB only) — used for filters, and for catalog display columns.
+ * Looks all of them up in a single batched query rather than one query per field: a screener call with
+ * several filters and display columns used to fire one findFilterField round trip per field.
+ */
+async function resolveCatalogFieldRefs(fields: string[]): Promise<ResolvedRef[]> {
+  const refs = fields.map((field) => ({ field, ...parseFieldRef(field) }));
+  const found = await findFilterFields(refs);
+  const foundByKey = new Map(found.map((f) => [toFieldRefString(f.metricKey, f.fieldKey), f]));
+
+  return refs.map((ref) => {
+    const lookup = foundByKey.get(toFieldRefString(ref.metricKey, ref.fieldKey));
+    if (!lookup) {
+      throw new AppError(`Unknown filter field "${ref.field}"`, 400);
+    }
+    if (!ANALYSIS_METRIC_TABLES[ref.metricKey]) {
+      throw new AppError(`Metric "${ref.metricKey}" isn't wired up to the analysis database yet`, 501);
+    }
+    return {
+      metricKey: ref.metricKey,
+      fieldKey: ref.fieldKey,
+      field: ref.field,
+      column: toSafeColumn(ref.fieldKey),
+      metricName: lookup.metricName,
+      fieldName: lookup.fieldName,
+    };
+  });
 }
 
 interface ResolvedFilter extends ResolvedRef {
@@ -59,12 +68,6 @@ interface ResolvedFilter extends ResolvedRef {
 }
 
 const cteAlias = (metricKey: string) => `m_${metricKey}`;
-
-/** Fetches each symbol's latest close price (twse/tpex) for the "stock.price" special column. Not part of the analysis DB, so it's a separate lookup merged in after the main query. */
-async function fetchStockPrices(symbols: string[]): Promise<Map<string, string | null>> {
-  const quotes = await Promise.all(symbols.map((symbol) => getStockQuote(symbol)));
-  return new Map(symbols.map((symbol, index) => [symbol, quotes[index]?.price?.close ?? null]));
-}
 
 /**
  * Screens companies by filterCatalog metrics stored in the "analysis" Neon DB. Each involved metric
@@ -87,15 +90,17 @@ export async function runScreener(
   const specialColumns = columns.filter((c) => c.field in SPECIAL_COLUMNS);
   const catalogColumnRefs = columns.filter((c) => !(c.field in SPECIAL_COLUMNS));
 
-  const resolvedFilters: ResolvedFilter[] = await Promise.all(
-    filters.map(async (filter) => ({
-      ...(await resolveCatalogFieldRef(filter.field)),
-      min: filter.min,
-      max: filter.max,
-      exclude: filter.exclude,
-    })),
-  );
-  const resolvedColumns = await Promise.all(catalogColumnRefs.map((c) => resolveCatalogFieldRef(c.field)));
+  const allRefs = await resolveCatalogFieldRefs([
+    ...filters.map((f) => f.field),
+    ...catalogColumnRefs.map((c) => c.field),
+  ]);
+  const resolvedFilters: ResolvedFilter[] = allRefs.slice(0, filters.length).map((ref, i) => ({
+    ...ref,
+    min: filters[i]!.min,
+    max: filters[i]!.max,
+    exclude: filters[i]!.exclude,
+  }));
+  const resolvedColumns = allRefs.slice(filters.length);
 
   const metricColumns = new Map<string, Set<string>>();
   const filterMetricKeys = new Set<string>();
@@ -180,7 +185,7 @@ export async function runScreener(
 
   const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
   const pricesBySymbol = wantsStockPrice
-    ? await fetchStockPrices(result.rows.map((row) => row.symbol as string))
+    ? await getLatestClosePrices(result.rows.map((row) => row.symbol as string))
     : null;
 
   const resultColumns: ScreenerResultColumn[] = resolvedColumns.map((c) => ({

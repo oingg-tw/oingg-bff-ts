@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../domains/filterCatalog/index.js", () => ({
-  findFilterField: vi.fn(),
+  findFilterFields: vi.fn(),
 }));
 
 vi.mock("../domains/screener/columnPresets.repository.js", () => ({
@@ -14,7 +14,7 @@ vi.mock("../domains/screener/columnPresets.repository.js", () => ({
 }));
 
 import { Prisma } from "../generated/prisma/client.js";
-import { findFilterField } from "../domains/filterCatalog/index.js";
+import { findFilterFields } from "../domains/filterCatalog/index.js";
 import {
   createColumnPreset,
   findColumnPreset,
@@ -28,7 +28,7 @@ import {
   resolveScreenerColumns,
 } from "../domains/screener/columnPresets.service.js";
 
-type Lookup = Awaited<ReturnType<typeof findFilterField>>;
+type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
 
 const PER_FIELD: Lookup = {
   categoryKey: "valuation",
@@ -36,6 +36,15 @@ const PER_FIELD: Lookup = {
   metricName: "Market Ratios",
   fieldKey: "peRatio",
   fieldName: "PER",
+  period: "daily",
+};
+
+const PBR_FIELD: Lookup = {
+  categoryKey: "valuation",
+  metricKey: "marketRatios",
+  metricName: "Market Ratios",
+  fieldKey: "pbRatio",
+  fieldName: "PBR",
   period: "daily",
 };
 
@@ -49,11 +58,16 @@ const SAMPLE_ROW = {
 };
 
 beforeEach(() => {
-  vi.mocked(findFilterField).mockReset();
-  vi.mocked(findFilterField).mockImplementation(async (metricKey, fieldKey) => {
-    if (metricKey === "marketRatios" && fieldKey === "peRatio") return PER_FIELD;
-    return null;
-  });
+  vi.mocked(findFilterFields).mockReset();
+  vi.mocked(findFilterFields).mockImplementation(async (refs) =>
+    refs
+      .map((ref) => {
+        if (ref.metricKey === "marketRatios" && ref.fieldKey === "peRatio") return PER_FIELD;
+        if (ref.metricKey === "marketRatios" && ref.fieldKey === "pbRatio") return PBR_FIELD;
+        return null;
+      })
+      .filter((f): f is Lookup => f !== null),
+  );
   vi.mocked(createColumnPreset).mockReset();
   vi.mocked(updateColumnPreset).mockReset();
   vi.mocked(findColumnPreset).mockReset();
@@ -77,6 +91,33 @@ describe("addColumnPreset", () => {
   it("rejects a field that is neither a catalog field nor a special field", async () => {
     await expect(addColumnPreset("uid1", "x", ["nope.nope"], false)).rejects.toMatchObject({ statusCode: 400 });
     expect(createColumnPreset).not.toHaveBeenCalled();
+  });
+
+  // Regression test: fields used to be validated one at a time (one query per field, sequentially
+  // awaited even). Must be a single batched lookup regardless of how many fields are given — every
+  // call findFilterFields receives here should carry all the catalog fields at once, never one at a time.
+  it("validates all fields in a single batched lookup, not one query per field", async () => {
+    vi.mocked(createColumnPreset).mockResolvedValue({
+      ...SAMPLE_ROW,
+      columns: ["marketRatios.peRatio", "marketRatios.pbRatio", "stock.price"],
+    });
+
+    await addColumnPreset(
+      "uid1",
+      "常用欄位",
+      ["marketRatios.peRatio", "marketRatios.pbRatio", "stock.price"],
+      false,
+    );
+
+    // validateFields (input) + toView (the created row's own columns) — 2 calls total, each batched
+    // to cover both catalog fields at once rather than one call per field.
+    expect(findFilterFields).toHaveBeenCalledTimes(2);
+    for (const call of vi.mocked(findFilterFields).mock.calls) {
+      expect(call[0]).toEqual([
+        { field: "marketRatios.peRatio", metricKey: "marketRatios", fieldKey: "peRatio" },
+        { field: "marketRatios.pbRatio", metricKey: "marketRatios", fieldKey: "pbRatio" },
+      ]);
+    }
   });
 
   it("turns a duplicate name (Prisma P2002) into a 409", async () => {

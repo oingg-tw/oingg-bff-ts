@@ -5,7 +5,7 @@ vi.mock("../adapters/neon/index.js", () => ({
 }));
 
 import { queryNeon } from "../adapters/neon/index.js";
-import { getStockQuote } from "../domains/stock/stock.service.js";
+import { getLatestClosePrices, getStockQuote } from "../domains/stock/stock.service.js";
 
 const emptyResult = { rows: [] };
 
@@ -59,5 +59,37 @@ describe("getStockQuote", () => {
     const quote = await getStockQuote("NOPE");
 
     expect(quote).toBeNull();
+  });
+});
+
+// Regression test: the screener used to fetch each matched symbol's price with a separate
+// getStockQuote() call — a 50-row result fired 200 individual queries (2 markets x 2 tables x 50
+// symbols). getLatestClosePrices() must cover the whole symbol list in one query per market instead.
+describe("getLatestClosePrices", () => {
+  beforeEach(() => {
+    vi.mocked(queryNeon).mockReset();
+  });
+
+  it("issues exactly one query per market regardless of how many symbols are requested", async () => {
+    vi.mocked(queryNeon).mockImplementation(async (market) => {
+      if (market === "twse") {
+        return { rows: [{ symbol: "2330", close: "2410.0000" }] } as never;
+      }
+      return { rows: [{ symbol: "1240", close: "15.5000" }] } as never;
+    });
+
+    const prices = await getLatestClosePrices(["2330", "1240", "9999"]);
+
+    expect(queryNeon).toHaveBeenCalledTimes(2);
+    expect(prices.get("2330")).toBe("2410.0000");
+    expect(prices.get("1240")).toBe("15.5000");
+    expect(prices.has("9999")).toBe(false);
+  });
+
+  it("returns an empty map without querying when given no symbols", async () => {
+    const prices = await getLatestClosePrices([]);
+
+    expect(queryNeon).not.toHaveBeenCalled();
+    expect(prices.size).toBe(0);
   });
 });
