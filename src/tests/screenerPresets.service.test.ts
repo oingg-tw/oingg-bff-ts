@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../domains/filterCatalog/index.js", () => ({
-  findFilterField: vi.fn(),
+  findFilterFields: vi.fn(),
 }));
 
 vi.mock("../domains/screener/screenerPresets.repository.js", () => ({
@@ -22,7 +22,7 @@ vi.mock("../domains/screener/columnPresets.service.js", () => ({
 }));
 
 import { Prisma } from "../generated/prisma/client.js";
-import { findFilterField } from "../domains/filterCatalog/index.js";
+import { findFilterFields } from "../domains/filterCatalog/index.js";
 import { resolveScreenerColumns } from "../domains/screener/columnPresets.service.js";
 import { runScreener } from "../domains/screener/screener.service.js";
 import {
@@ -40,7 +40,7 @@ import {
   runPreset,
 } from "../domains/screener/screenerPresets.service.js";
 
-type Lookup = Awaited<ReturnType<typeof findFilterField>>;
+type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
 
 const ROE_FIELD: Lookup = {
   categoryKey: "profitability",
@@ -72,12 +72,16 @@ const SAMPLE_ROW = {
 };
 
 beforeEach(() => {
-  vi.mocked(findFilterField).mockReset();
-  vi.mocked(findFilterField).mockImplementation(async (metricKey, fieldKey) => {
-    if (metricKey === "roe" && fieldKey === "roeTtmPct") return ROE_FIELD;
-    if (metricKey === "margins" && fieldKey === "grossMarginTtm") return MARGIN_FIELD;
-    return null;
-  });
+  vi.mocked(findFilterFields).mockReset();
+  vi.mocked(findFilterFields).mockImplementation(async (refs) =>
+    refs
+      .map((ref) => {
+        if (ref.metricKey === "roe" && ref.fieldKey === "roeTtmPct") return ROE_FIELD;
+        if (ref.metricKey === "margins" && ref.fieldKey === "grossMarginTtm") return MARGIN_FIELD;
+        return null;
+      })
+      .filter((f): f is Lookup => f !== null),
+  );
   vi.mocked(createPreset).mockReset();
   vi.mocked(updatePreset).mockReset();
   vi.mocked(findPreset).mockReset();
@@ -114,6 +118,23 @@ describe("addPreset", () => {
     expect(createPreset).toHaveBeenCalledWith("uid1", "績優股", [
       { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
       { metricKey: "margins", fieldKey: "grossMarginTtm", min: 60, max: null, exclude: false },
+    ]);
+  });
+
+  // Regression test: fields used to be validated one at a time (one query per filter), which multiplied
+  // network round trips to the remote app DB by the filter count. Must be a single batched lookup.
+  it("validates all filter fields in a single batched lookup, not one query per filter", async () => {
+    vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
+
+    await addPreset("uid1", "績優股", [
+      { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
+      { field: "margins.grossMarginTtm", min: 60, max: null, exclude: false },
+    ]);
+
+    expect(findFilterFields).toHaveBeenCalledTimes(1);
+    expect(findFilterFields).toHaveBeenCalledWith([
+      { metricKey: "roe", fieldKey: "roeTtmPct" },
+      { metricKey: "margins", fieldKey: "grossMarginTtm" },
     ]);
   });
 

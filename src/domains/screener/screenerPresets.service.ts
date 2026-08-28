@@ -1,7 +1,7 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { AppError } from "../../shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
-import { findFilterField } from "../filterCatalog/index.js";
+import { findFilterFields } from "../filterCatalog/index.js";
 import { resolveScreenerColumns } from "./columnPresets.service.js";
 import { runScreener } from "./screener.service.js";
 import type { ScreenerFilter, ScreenerResult } from "./screener.types.js";
@@ -54,18 +54,25 @@ function toView(row: PresetRow): PresetView {
   };
 }
 
-/** Validates every filter's field exists in the catalog and resolves it to (metricKey, fieldKey). */
+/**
+ * Validates every filter's field exists in the catalog and resolves it to (metricKey, fieldKey).
+ *
+ * Looks all fields up in a single batched query rather than one query per filter — the app DB is a
+ * remote Neon Postgres, so a preset with several filters used to pay one full network round trip per
+ * filter just for validation.
+ */
 async function resolveFilters(filters: ScreenerFilter[]): Promise<PresetFilterInput[]> {
-  return Promise.all(
-    filters.map(async (filter) => {
-      const { metricKey, fieldKey } = parseFieldRef(filter.field);
-      const lookup = await findFilterField(metricKey, fieldKey);
-      if (!lookup) {
-        throw new AppError(`Unknown filter field "${filter.field}"`, 400);
-      }
-      return { metricKey, fieldKey, min: filter.min, max: filter.max, exclude: filter.exclude };
-    }),
-  );
+  const refs = filters.map((filter) => parseFieldRef(filter.field));
+  const found = await findFilterFields(refs);
+  const foundKeys = new Set(found.map((f) => toFieldRefString(f.metricKey, f.fieldKey)));
+
+  return filters.map((filter, i) => {
+    const { metricKey, fieldKey } = refs[i]!;
+    if (!foundKeys.has(toFieldRefString(metricKey, fieldKey))) {
+      throw new AppError(`Unknown filter field "${filter.field}"`, 400);
+    }
+    return { metricKey, fieldKey, min: filter.min, max: filter.max, exclude: filter.exclude };
+  });
 }
 
 export async function getPresets(firebaseUid: string): Promise<PresetView[]> {

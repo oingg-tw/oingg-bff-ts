@@ -10,26 +10,43 @@ export interface FilterFieldLookup {
   period: string;
 }
 
+export interface FieldRefInput {
+  metricKey: string;
+  fieldKey: string;
+}
+
 /** Looks up a single catalog field by (metricKey, fieldKey) — used to validate screener filters/columns. */
 export async function findFilterField(metricKey: string, fieldKey: string): Promise<FilterFieldLookup | null> {
+  const [field] = await findFilterFields([{ metricKey, fieldKey }]);
+  return field ?? null;
+}
+
+/**
+ * Looks up several catalog fields in one round trip instead of one query per field — the app DB is a
+ * remote Neon Postgres, so validating e.g. a 5-filter preset one field at a time paid 5x the network
+ * round-trip latency for no benefit (even run concurrently via Promise.all, since each concurrent query
+ * still needs its own connection out to Neon). Returns only the fields that were found; callers compare
+ * against what they asked for to report which ones are missing.
+ */
+export async function findFilterFields(refs: FieldRefInput[]): Promise<FilterFieldLookup[]> {
+  if (refs.length === 0) {
+    return [];
+  }
+
   const prisma = getPrismaClient();
-  const field = await prisma.filterMetricField.findFirst({
-    where: { metricKey, key: fieldKey },
+  const fields = await prisma.filterMetricField.findMany({
+    where: { OR: refs.map((ref) => ({ metricKey: ref.metricKey, key: ref.fieldKey })) },
     include: { metric: true },
   });
 
-  if (!field) {
-    return null;
-  }
-
-  return {
+  return fields.map((field) => ({
     categoryKey: field.metric.categoryKey,
     metricKey: field.metric.key,
     metricName: field.metric.name,
     fieldKey: field.key,
     fieldName: field.name,
     period: field.period,
-  };
+  }));
 }
 
 /** Full catalog for the frontend (GET /filters), in the same category→metric→field shape and order as the source /filters response. */
