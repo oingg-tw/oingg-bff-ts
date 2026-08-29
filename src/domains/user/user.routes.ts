@@ -11,7 +11,7 @@ export const userRouter = Router();
  * /users/me:
  *   get:
  *     summary: 查詢目前登入使用者的 user profile
- *     description: 依 Firebase token 的 uid 查詢 NEON_DB_MOPS_URL 中的 users 表（見 user.service.ts）。
+ *     description: 依 Firebase token 的 uid 查詢 MAIN_DATABASE_URL 中的 users 表（見 user.service.ts）。
  *     tags:
  *       - User
  *     security:

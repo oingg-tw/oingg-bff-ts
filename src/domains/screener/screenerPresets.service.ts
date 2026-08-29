@@ -93,6 +93,9 @@ const DEFAULT_PRESET_FILTERS: ScreenerFilter[] = [
   { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
 ];
 
+/** Base name for a newly created preset — the frontend creates first, then renames via PATCH. */
+const DEFAULT_PRESET_NAME = "未命名";
+
 const MAX_NAME_SUFFIX_ATTEMPTS = 1000;
 
 /**
@@ -124,19 +127,17 @@ async function pickAvailableName(firebaseUid: string, name: string): Promise<str
  * `filters` defaults to ROE > 30 (DEFAULT_PRESET_FILTERS) when the caller passes an empty array,
  * rather than saving an empty preset.
  *
- * `name` never causes a conflict error: if it's taken, this falls back to `name 2`, `name 3`, etc.
- * (pickAvailableName), same as how a file explorer names a new file. The isUniqueViolation retry loop
- * only guards the race where another request grabs the picked name between the check and the insert.
+ * There's no `name` input — the frontend creates first and renames via PATCH afterwards — so every
+ * new preset starts from DEFAULT_PRESET_NAME ("未命名"), falling back to "未命名 2", "未命名 3", etc.
+ * (pickAvailableName) the same way a file explorer names a new file, never erroring on a collision.
+ * The isUniqueViolation retry loop only guards the race where another request grabs the picked name
+ * between the check and the insert.
  */
-export async function addPreset(
-  firebaseUid: string,
-  name: string,
-  filters: ScreenerFilter[],
-): Promise<PresetView> {
+export async function addPreset(firebaseUid: string, filters: ScreenerFilter[]): Promise<PresetView> {
   const resolved = await resolveFilters(filters.length > 0 ? filters : DEFAULT_PRESET_FILTERS);
 
   for (let attempt = 0; attempt < MAX_NAME_SUFFIX_ATTEMPTS; attempt++) {
-    const candidateName = await pickAvailableName(firebaseUid, name);
+    const candidateName = await pickAvailableName(firebaseUid, DEFAULT_PRESET_NAME);
     try {
       const row = await createPreset(firebaseUid, candidateName, resolved);
       return toView(row);
@@ -146,7 +147,7 @@ export async function addPreset(
       }
     }
   }
-  throw new AppError(`Could not find an available name for "${name}"`, 409);
+  throw new AppError(`Could not find an available name for "${DEFAULT_PRESET_NAME}"`, 409);
 }
 
 export async function editPreset(

@@ -2,7 +2,7 @@ import { queryNeon } from "../../adapters/neon/index.js";
 import { AppError } from "../../shared/errorHandler.js";
 import type { UserProfile } from "./user.types.js";
 
-/** Name of the Neon pool (NEON_DB_MAIN_URL) that owns the user profile table. */
+/** Name of the Neon pool (MAIN_DATABASE_URL) that owns the user profile table. */
 const USER_DB = "main";
 
 interface UserRow {

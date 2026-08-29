@@ -31,9 +31,12 @@ function parseId(raw: string): number {
   return id;
 }
 
-function parseName(value: unknown): string {
+function parseOptionalName(value: unknown): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
   if (typeof value !== "string" || value.trim() === "") {
-    throw new AppError('"name" is required', 400);
+    throw new AppError('"name" must be a non-empty string', 400);
   }
   return value.trim();
 }
@@ -65,9 +68,10 @@ screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
  *   post:
  *     summary: 儲存一組新的篩選組合
  *     description: >
- *       例如 name="績優股"、filters=[{field:"roe.roeTtmPct",min:30,max:null},{field:"margins.grossMarginTtm",min:60,max:null}]。
- *       filters 格式跟 POST /screener 完全一樣。name 撞名不會報錯——跟電腦新增檔案一樣，會自動改成
- *       "name 2"、"name 3"...，取第一個還沒用過的名稱。
+ *       沒有 name 參數——新建立的組合一律取名「未命名」（撞名的話依序改成「未命名 2」「未命名 3」...，
+ *       跟電腦新增檔案一樣不會報錯），前端請之後再用 PATCH /screener/presets/{id} 改名。
+ *       例如 filters=[{field:"roe.roeTtmPct",min:30,max:null},{field:"margins.grossMarginTtm",min:60,max:null}]，
+ *       格式跟 POST /screener 完全一樣。
  *     tags:
  *       - Screener
  *     security:
@@ -79,12 +83,8 @@ screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
  *           schema:
  *             type: object
  *             required:
- *               - name
  *               - filters
  *             properties:
- *               name:
- *                 type: string
- *                 example: "績優股"
  *               filters:
  *                 type: array
  *                 description: 可以是空陣列——此時會預設套用 ROE > 30（roe.roeTtmPct），之後可再用 PATCH 覆蓋條件。
@@ -109,19 +109,18 @@ screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
  *                       default: false
  *     responses:
  *       201:
- *         description: 新增成功的篩選組合。
+ *         description: 新增成功的篩選組合（name 固定是「未命名」或其變體）。
  *       400:
- *         description: 缺少 name/filters，或有 field 不存在於 filterCatalog。
+ *         description: 缺少 filters，或有 field 不存在於 filterCatalog。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  */
 screenerPresetsRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
-  const body = req.body as { name?: unknown; filters?: unknown } | null;
-  const name = parseName(body?.name);
+  const body = req.body as { filters?: unknown } | null;
   const filters = parseScreenerFilters(body?.filters);
 
-  const preset = await addPreset(firebaseUid, name, filters);
+  const preset = await addPreset(firebaseUid, filters);
   res.status(201).json({ preset });
 });
 
@@ -212,7 +211,7 @@ screenerPresetsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
   const body = req.body as { name?: unknown; filters?: unknown } | null;
 
   const preset = await editPreset(firebaseUid, id, {
-    name: body?.name === undefined ? undefined : parseName(body.name),
+    name: parseOptionalName(body?.name),
     filters: body?.filters === undefined ? undefined : parseScreenerFilters(body.filters),
   });
   res.json({ preset });

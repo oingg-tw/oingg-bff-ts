@@ -1,13 +1,15 @@
 import { Pool, type QueryResultRow } from "pg";
 
-const NEON_DB_URL_PATTERN = /^NEON_DB_(.+)_URL$/;
+// Matches `<NAME>_DATABASE_URL` for any <NAME>. APP is excluded: APP_DATABASE_URL is
+// Prisma-managed (see adapters/neon/prismaClient.ts) and isn't part of this raw pg pool registry.
+const DATABASE_URL_PATTERN = /^(?!APP_)(.+)_DATABASE_URL$/;
 
 const pools = new Map<string, Pool>();
 
 function discoverConnectionStrings(env: NodeJS.ProcessEnv): Map<string, string> {
   const connections = new Map<string, string>();
   for (const [key, value] of Object.entries(env)) {
-    const match = NEON_DB_URL_PATTERN.exec(key);
+    const match = DATABASE_URL_PATTERN.exec(key);
     if (match?.[1] && value) {
       connections.set(match[1].toLowerCase(), value);
     }
@@ -16,14 +18,14 @@ function discoverConnectionStrings(env: NodeJS.ProcessEnv): Map<string, string> 
 }
 
 /**
- * Discovers every `NEON_DB_<NAME>_URL` environment variable and opens a
- * connection pool for each one. Call once during app startup.
+ * Discovers every `<NAME>_DATABASE_URL` environment variable (except `APP_DATABASE_URL`)
+ * and opens a connection pool for each one. Call once during app startup.
  */
 export function initNeonPools(env: NodeJS.ProcessEnv = process.env): void {
   const connections = discoverConnectionStrings(env);
   if (connections.size === 0) {
     throw new Error(
-      "No Neon database connections configured. Set at least one NEON_DB_<NAME>_URL environment variable.",
+      "No Neon database connections configured. Set at least one <NAME>_DATABASE_URL environment variable.",
     );
   }
 

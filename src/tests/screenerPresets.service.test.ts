@@ -98,16 +98,16 @@ describe("addPreset", () => {
   it("defaults an empty filter list to ROE > 30", async () => {
     vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
 
-    await addPreset("uid1", "空白清單", []);
+    await addPreset("uid1", []);
 
-    expect(createPreset).toHaveBeenCalledWith("uid1", "空白清單", [
+    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名", [
       { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
     ]);
   });
 
   it("rejects a filter whose field doesn't exist in the catalog", async () => {
     await expect(
-      addPreset("uid1", "績優股", [{ field: "nope.nope", min: 1, max: null, exclude: false }]),
+      addPreset("uid1", [{ field: "nope.nope", min: 1, max: null, exclude: false }]),
     ).rejects.toMatchObject({ statusCode: 400 });
     expect(createPreset).not.toHaveBeenCalled();
   });
@@ -115,12 +115,12 @@ describe("addPreset", () => {
   it("resolves each field to metricKey/fieldKey before saving", async () => {
     vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
 
-    await addPreset("uid1", "績優股", [
+    await addPreset("uid1", [
       { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
       { field: "margins.grossMarginTtm", min: 60, max: null, exclude: false },
     ]);
 
-    expect(createPreset).toHaveBeenCalledWith("uid1", "績優股", [
+    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名", [
       { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
       { metricKey: "margins", fieldKey: "grossMarginTtm", min: 60, max: null, exclude: false },
     ]);
@@ -131,7 +131,7 @@ describe("addPreset", () => {
   it("validates all filter fields in a single batched lookup, not one query per filter", async () => {
     vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
 
-    await addPreset("uid1", "績優股", [
+    await addPreset("uid1", [
       { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
       { field: "margins.grossMarginTtm", min: 60, max: null, exclude: false },
     ]);
@@ -143,34 +143,28 @@ describe("addPreset", () => {
     ]);
   });
 
-  it("falls back to 'name 2' when the requested name is already taken, instead of erroring", async () => {
-    vi.mocked(listPresets).mockResolvedValue([{ ...SAMPLE_ROW, name: "績優股" }]);
-    vi.mocked(createPreset).mockResolvedValue({ ...SAMPLE_ROW, name: "績優股 2" });
+  it("falls back to '未命名 2' when '未命名' is already taken, instead of erroring", async () => {
+    vi.mocked(listPresets).mockResolvedValue([{ ...SAMPLE_ROW, name: "未命名" }]);
+    vi.mocked(createPreset).mockResolvedValue({ ...SAMPLE_ROW, name: "未命名 2" });
 
-    const result = await addPreset("uid1", "績優股", [
-      { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
-    ]);
+    const result = await addPreset("uid1", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]);
 
-    expect(createPreset).toHaveBeenCalledWith("uid1", "績優股 2", [
+    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名 2", [
       { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
     ]);
-    expect(result.name).toBe("績優股 2");
+    expect(result.name).toBe("未命名 2");
   });
 
-  it("keeps incrementing past multiple taken suffixes ('name', 'name 2', ... -> 'name 3')", async () => {
+  it("keeps incrementing past multiple taken suffixes ('未命名', '未命名 2', ... -> '未命名 3')", async () => {
     vi.mocked(listPresets).mockResolvedValue([
-      { ...SAMPLE_ROW, name: "績優股" },
-      { ...SAMPLE_ROW, name: "績優股 2" },
+      { ...SAMPLE_ROW, name: "未命名" },
+      { ...SAMPLE_ROW, name: "未命名 2" },
     ]);
-    vi.mocked(createPreset).mockResolvedValue({ ...SAMPLE_ROW, name: "績優股 3" });
+    vi.mocked(createPreset).mockResolvedValue({ ...SAMPLE_ROW, name: "未命名 3" });
 
-    await addPreset("uid1", "績優股", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]);
+    await addPreset("uid1", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]);
 
-    expect(createPreset).toHaveBeenCalledWith(
-      "uid1",
-      "績優股 3",
-      expect.anything(),
-    );
+    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名 3", expect.anything());
   });
 
   // Regression: a stale name-availability check (checked once, then inserted) could still race with a
@@ -186,9 +180,7 @@ describe("addPreset", () => {
       )
       .mockResolvedValueOnce(SAMPLE_ROW);
 
-    const result = await addPreset("uid1", "績優股", [
-      { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
-    ]);
+    const result = await addPreset("uid1", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]);
 
     expect(createPreset).toHaveBeenCalledTimes(2);
     expect(result.name).toBe(SAMPLE_ROW.name);
@@ -201,7 +193,7 @@ describe("addPreset", () => {
   it("never touches column presets — lastColumnPresetId stays whatever the repository returns (usually null)", async () => {
     vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
 
-    const result = await addPreset("uid1", "績優股", []);
+    const result = await addPreset("uid1", []);
 
     expect(setLastColumnPreset).not.toHaveBeenCalled();
     expect(result.lastColumnPresetId).toBe(SAMPLE_ROW.lastColumnPresetId);

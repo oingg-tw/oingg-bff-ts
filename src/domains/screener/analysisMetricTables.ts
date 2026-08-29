@@ -1,5 +1,5 @@
 export interface AnalysisMetricTable {
-  /** Table name in the analysis Neon DB (NEON_DB_ANALYSIS_URL). */
+  /** Table name in the analysis Neon DB (ANALYSIS_DATABASE_URL). */
   table: string;
   /** Column to sort by (desc) to pick each symbol's single latest row. */
   latestOrderColumn: string;
