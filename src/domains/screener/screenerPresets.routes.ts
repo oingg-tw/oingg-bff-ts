@@ -66,7 +66,8 @@ screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
  *     summary: 儲存一組新的篩選組合
  *     description: >
  *       例如 name="績優股"、filters=[{field:"roe.roeTtmPct",min:30,max:null},{field:"margins.grossMarginTtm",min:60,max:null}]。
- *       filters 格式跟 POST /screener 完全一樣。同一使用者底下 name 不能重複。
+ *       filters 格式跟 POST /screener 完全一樣。name 撞名不會報錯——跟電腦新增檔案一樣，會自動改成
+ *       "name 2"、"name 3"...，取第一個還沒用過的名稱。
  *     tags:
  *       - Screener
  *     security:
@@ -86,7 +87,7 @@ screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
  *                 example: "績優股"
  *               filters:
  *                 type: array
- *                 description: 可以是空陣列（先建立組合、之後再用 PATCH 補條件）。
+ *                 description: 可以是空陣列——此時會預設套用 ROE > 30（roe.roeTtmPct），之後可再用 PATCH 覆蓋條件。
  *                 items:
  *                   type: object
  *                   required:
@@ -113,8 +114,6 @@ screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
  *         description: 缺少 name/filters，或有 field 不存在於 filterCatalog。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
- *       409:
- *         description: 已經有同名的篩選組合。
  */
 screenerPresetsRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);

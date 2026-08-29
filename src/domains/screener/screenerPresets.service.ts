@@ -88,6 +88,31 @@ export async function getPresetOrThrow(firebaseUid: string, id: number): Promise
   return toView(row);
 }
 
+/** Out-of-the-box condition for a preset created with no filters — ROE > 30. */
+const DEFAULT_PRESET_FILTERS: ScreenerFilter[] = [
+  { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
+];
+
+const MAX_NAME_SUFFIX_ATTEMPTS = 1000;
+
+/**
+ * Picks a free name for a new preset the same way a file explorer names a new file: `name` itself if
+ * nobody's using it yet, else `name 2`, `name 3`, ... — never an error just because `name` collides.
+ */
+async function pickAvailableName(firebaseUid: string, name: string): Promise<string> {
+  const existing = new Set((await listPresets(firebaseUid)).map((row) => row.name));
+  if (!existing.has(name)) {
+    return name;
+  }
+  for (let suffix = 2; suffix < MAX_NAME_SUFFIX_ATTEMPTS; suffix++) {
+    const candidate = `${name} ${suffix}`;
+    if (!existing.has(candidate)) {
+      return candidate;
+    }
+  }
+  throw new AppError(`Could not find an available name for "${name}"`, 409);
+}
+
 /**
  * Creates a preset. `lastColumnPresetId` starts out null — deliberately not auto-assigned to a
  * materialized ColumnPreset row. Leaving it null means a fresh preset falls through to
@@ -95,23 +120,33 @@ export async function getPresetOrThrow(firebaseUid: string, id: number): Promise
  * constant in code updates the default for every such user at once. Materializing a per-user row here
  * instead would freeze in whatever the default was at creation time — already-created rows wouldn't
  * pick up a later change to the constant, defeating the point of a single shared default.
+ *
+ * `filters` defaults to ROE > 30 (DEFAULT_PRESET_FILTERS) when the caller passes an empty array,
+ * rather than saving an empty preset.
+ *
+ * `name` never causes a conflict error: if it's taken, this falls back to `name 2`, `name 3`, etc.
+ * (pickAvailableName), same as how a file explorer names a new file. The isUniqueViolation retry loop
+ * only guards the race where another request grabs the picked name between the check and the insert.
  */
 export async function addPreset(
   firebaseUid: string,
   name: string,
   filters: ScreenerFilter[],
 ): Promise<PresetView> {
-  const resolved = await resolveFilters(filters);
+  const resolved = await resolveFilters(filters.length > 0 ? filters : DEFAULT_PRESET_FILTERS);
 
-  try {
-    const row = await createPreset(firebaseUid, name, resolved);
-    return toView(row);
-  } catch (error) {
-    if (isUniqueViolation(error)) {
-      throw new AppError(`You already have a preset named "${name}"`, 409);
+  for (let attempt = 0; attempt < MAX_NAME_SUFFIX_ATTEMPTS; attempt++) {
+    const candidateName = await pickAvailableName(firebaseUid, name);
+    try {
+      const row = await createPreset(firebaseUid, candidateName, resolved);
+      return toView(row);
+    } catch (error) {
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
     }
-    throw error;
   }
+  throw new AppError(`Could not find an available name for "${name}"`, 409);
 }
 
 export async function editPreset(

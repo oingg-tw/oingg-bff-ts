@@ -29,6 +29,7 @@ import {
   createPreset,
   deletePreset,
   findPreset,
+  listPresets,
   setLastColumnPreset,
   updatePreset,
 } from "../domains/screener/screenerPresets.repository.js";
@@ -85,6 +86,8 @@ beforeEach(() => {
   vi.mocked(createPreset).mockReset();
   vi.mocked(updatePreset).mockReset();
   vi.mocked(findPreset).mockReset();
+  vi.mocked(listPresets).mockReset();
+  vi.mocked(listPresets).mockResolvedValue([]);
   vi.mocked(deletePreset).mockReset();
   vi.mocked(setLastColumnPreset).mockReset();
   vi.mocked(runScreener).mockReset();
@@ -92,12 +95,14 @@ beforeEach(() => {
 });
 
 describe("addPreset", () => {
-  it("allows an empty filter list (a preset can be created before its filters are added)", async () => {
-    vi.mocked(createPreset).mockResolvedValue({ ...SAMPLE_ROW, filters: [] });
+  it("defaults an empty filter list to ROE > 30", async () => {
+    vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
 
     await addPreset("uid1", "空白清單", []);
 
-    expect(createPreset).toHaveBeenCalledWith("uid1", "空白清單", []);
+    expect(createPreset).toHaveBeenCalledWith("uid1", "空白清單", [
+      { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
+    ]);
   });
 
   it("rejects a filter whose field doesn't exist in the catalog", async () => {
@@ -138,17 +143,55 @@ describe("addPreset", () => {
     ]);
   });
 
-  it("turns a duplicate preset name (Prisma P2002) into a 409", async () => {
-    vi.mocked(createPreset).mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
-        code: "P2002",
-        clientVersion: "test",
-      }),
-    );
+  it("falls back to 'name 2' when the requested name is already taken, instead of erroring", async () => {
+    vi.mocked(listPresets).mockResolvedValue([{ ...SAMPLE_ROW, name: "績優股" }]);
+    vi.mocked(createPreset).mockResolvedValue({ ...SAMPLE_ROW, name: "績優股 2" });
 
-    await expect(
-      addPreset("uid1", "績優股", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]),
-    ).rejects.toMatchObject({ statusCode: 409 });
+    const result = await addPreset("uid1", "績優股", [
+      { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
+    ]);
+
+    expect(createPreset).toHaveBeenCalledWith("uid1", "績優股 2", [
+      { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
+    ]);
+    expect(result.name).toBe("績優股 2");
+  });
+
+  it("keeps incrementing past multiple taken suffixes ('name', 'name 2', ... -> 'name 3')", async () => {
+    vi.mocked(listPresets).mockResolvedValue([
+      { ...SAMPLE_ROW, name: "績優股" },
+      { ...SAMPLE_ROW, name: "績優股 2" },
+    ]);
+    vi.mocked(createPreset).mockResolvedValue({ ...SAMPLE_ROW, name: "績優股 3" });
+
+    await addPreset("uid1", "績優股", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]);
+
+    expect(createPreset).toHaveBeenCalledWith(
+      "uid1",
+      "績優股 3",
+      expect.anything(),
+    );
+  });
+
+  // Regression: a stale name-availability check (checked once, then inserted) could still race with a
+  // concurrent request grabbing the same name in between. The P2002 from the DB's unique constraint
+  // must trigger a retry, not surface as an error straight to the caller.
+  it("retries with a fresh name pick if the insert itself hits a unique-constraint race (P2002)", async () => {
+    vi.mocked(createPreset)
+      .mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+          code: "P2002",
+          clientVersion: "test",
+        }),
+      )
+      .mockResolvedValueOnce(SAMPLE_ROW);
+
+    const result = await addPreset("uid1", "績優股", [
+      { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
+    ]);
+
+    expect(createPreset).toHaveBeenCalledTimes(2);
+    expect(result.name).toBe(SAMPLE_ROW.name);
   });
 
   // Regression test: a prior version of addPreset auto-created a per-user ColumnPreset row and
