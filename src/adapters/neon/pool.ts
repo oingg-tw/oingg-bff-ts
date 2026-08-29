@@ -1,8 +1,9 @@
 import { Pool, type QueryResultRow } from "pg";
 
-// Matches `<NAME>_DATABASE_URL` for any <NAME>. APP is excluded: APP_DATABASE_URL is
-// Prisma-managed (see adapters/neon/prismaClient.ts) and isn't part of this raw pg pool registry.
-const DATABASE_URL_PATTERN = /^(?!APP_)(.+)_DATABASE_URL$/;
+// Matches `<NAME>_DATABASE_URL` for any <NAME>. The bare `DATABASE_URL` (this service's own,
+// Prisma-managed DB — see adapters/neon/prismaClient.ts) has no `<NAME>_` prefix, so it never
+// matches and is never swept into this raw pg pool registry.
+const DATABASE_URL_PATTERN = /^(.+)_DATABASE_URL$/;
 
 const pools = new Map<string, Pool>();
 
@@ -18,8 +19,8 @@ function discoverConnectionStrings(env: NodeJS.ProcessEnv): Map<string, string> 
 }
 
 /**
- * Discovers every `<NAME>_DATABASE_URL` environment variable (except `APP_DATABASE_URL`)
- * and opens a connection pool for each one. Call once during app startup.
+ * Discovers every `<NAME>_DATABASE_URL` environment variable and opens a
+ * connection pool for each one. Call once during app startup.
  */
 export function initNeonPools(env: NodeJS.ProcessEnv = process.env): void {
   const connections = discoverConnectionStrings(env);
