@@ -10,7 +10,8 @@ screenerRoutes.use("/presets", screenerPresetsRouter);
 screenerRoutes.use("/templates", presetTemplatesRouter);
 screenerRoutes.use("/", screenerRouter);
 
-export { runScreener } from "./screener.service.js";
+export { runRanking, runScreener } from "./screener.service.js";
+export type { RankingResult } from "./screener.service.js";
 export {
   addColumnPreset,
   editColumnPreset,

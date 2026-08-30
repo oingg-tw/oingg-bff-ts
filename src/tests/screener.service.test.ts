@@ -15,7 +15,7 @@ vi.mock("../domains/stock/index.js", () => ({
 import { queryNeon } from "../adapters/neon/index.js";
 import { findFilterFields } from "../domains/filterCatalog/index.js";
 import { getLatestClosePrices } from "../domains/stock/index.js";
-import { runScreener } from "../domains/screener/screener.service.js";
+import { runRanking, runScreener } from "../domains/screener/screener.service.js";
 import type { Pagination } from "../domains/screener/pagination.js";
 
 const DEFAULT_PAGINATION: Pagination = { page: 1, pageSize: 50 };
@@ -260,5 +260,92 @@ describe("runScreener", () => {
       expect(result.totalPages).toBe(0);
       expect(result.results).toEqual([]);
     });
+  });
+});
+
+describe("runRanking", () => {
+  it("orders by the ranked field's own value (not symbol), excludes nulls, and has no threshold params — just LIMIT", async () => {
+    vi.mocked(queryNeon).mockResolvedValue({
+      rows: [
+        { symbol: "2330", "roe.roeTtmPct": "30.5" },
+        { symbol: "2317", "roe.roeTtmPct": "25.1" },
+      ],
+    } as never);
+
+    const result = await runRanking("roe.roeTtmPct", "desc", 10, []);
+
+    const [db, sql, params] = vi.mocked(queryNeon).mock.calls[0]!;
+    expect(db).toBe("analysis");
+    expect(sql).toContain('WHERE m_roe."roe_ttm_pct" IS NOT NULL');
+    // The CTE's own internal "ORDER BY symbol, ... DESC" (picking each symbol's latest row) is expected
+    // and unrelated — what matters is the outer query's final ORDER BY sorts by the ranked value itself.
+    expect(sql).toMatch(/\)\s*SELECT[\s\S]*ORDER BY m_roe\."roe_ttm_pct" DESC/);
+    // No filter thresholds to parameterize — the only param is the LIMIT.
+    expect(params).toEqual([10]);
+
+    expect(result.field).toBe("roe.roeTtmPct");
+    expect(result.direction).toBe("desc");
+    expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
+    expect(result.results).toEqual([
+      { symbol: "2330", values: { "roe.roeTtmPct": "30.5" } },
+      { symbol: "2317", values: { "roe.roeTtmPct": "25.1" } },
+    ]);
+  });
+
+  it('sorts ASC for "lowest first" rankings (e.g. lowest P/E)', async () => {
+    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
+
+    await runRanking("roe.roeTtmPct", "asc", 5, []);
+
+    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
+    expect(sql).toMatch(/ORDER BY m_roe\."roe_ttm_pct" ASC/);
+  });
+
+  it("rejects a field the filter catalog doesn't know about", async () => {
+    await expect(runRanking("nope.nope", "desc", 10, [])).rejects.toMatchObject({ statusCode: 400 });
+    expect(queryNeon).not.toHaveBeenCalled();
+  });
+
+  it("rejects a catalog field whose metric isn't wired up to the analysis DB yet", async () => {
+    await expect(runRanking("unwired.someField", "desc", 10, [])).rejects.toMatchObject({ statusCode: 501 });
+  });
+
+  it("adds extra display columns via LEFT JOIN, same as runScreener, without disturbing the ranking", async () => {
+    vi.mocked(queryNeon).mockResolvedValue({
+      rows: [{ symbol: "2330", "roe.roeTtmPct": "30.5", "grossMargin.grossMarginTtm": "55.2" }],
+    } as never);
+
+    const result = await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "grossMargin.grossMarginTtm" }]);
+
+    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
+    expect(sql).toContain("LEFT JOIN m_grossMargin ON m_grossMargin.symbol = m_roe.symbol");
+    expect(result.columns).toContainEqual({
+      field: "grossMargin.grossMarginTtm",
+      metricName: "Margins",
+      fieldName: "Gross Margin (TTM)",
+    });
+    expect(result.results[0]?.values).toMatchObject({ "grossMargin.grossMarginTtm": "55.2" });
+  });
+
+  it('merges "stock.price" into results the same way runScreener does', async () => {
+    vi.mocked(queryNeon).mockResolvedValue({ rows: [{ symbol: "2330", "roe.roeTtmPct": "30.5" }] } as never);
+    vi.mocked(getLatestClosePrices).mockResolvedValue(new Map([["2330", "2410.0000"]]));
+
+    const result = await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "stock.price" }]);
+
+    expect(getLatestClosePrices).toHaveBeenCalledWith(["2330"]);
+    expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價" });
+    expect(result.results[0]?.values).toMatchObject({ "stock.price": "2410.0000" });
+  });
+
+  it("caps the query at exactly LIMIT rows with no pagination metadata (not the paginated ScreenerResult shape)", async () => {
+    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
+
+    const result = await runRanking("roe.roeTtmPct", "desc", 3, []);
+
+    expect(vi.mocked(queryNeon).mock.calls[0]![1]).toMatch(/LIMIT \$1::int/);
+    expect(vi.mocked(queryNeon).mock.calls[0]![2]).toEqual([3]);
+    expect(result).not.toHaveProperty("count");
+    expect(result).not.toHaveProperty("page");
   });
 });

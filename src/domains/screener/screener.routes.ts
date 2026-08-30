@@ -3,11 +3,14 @@ import { AppError } from "../../shared/errorHandler.js";
 import { parseUuidParam } from "../../shared/uuid.js";
 import { optionalAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
-import { runScreener } from "./screener.service.js";
+import { runRanking, runScreener } from "./screener.service.js";
 import { resolveScreenerColumns } from "./columnPresets.service.js";
 import { parsePagination } from "./pagination.js";
 import { parseScreenerFilters } from "./screenerFilterInput.js";
-import type { ScreenerFilter } from "./screener.types.js";
+import type { ScreenerColumnRef, ScreenerFilter } from "./screener.types.js";
+
+const DEFAULT_RANKING_LIMIT = 10;
+const MAX_RANKING_LIMIT = 50;
 
 export const screenerRouter = Router();
 
@@ -120,4 +123,99 @@ screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const { columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, requestedColumnPresetId);
   const result = await runScreener(filters, columns, pagination);
   res.json({ ...result, columnPresetId });
+});
+
+function parseRankingDirection(raw: unknown): "asc" | "desc" {
+  if (raw === undefined) {
+    return "desc";
+  }
+  if (raw !== "asc" && raw !== "desc") {
+    throw new AppError('"direction" must be "asc" or "desc"', 400);
+  }
+  return raw;
+}
+
+function parseRankingLimit(raw: unknown): number {
+  if (raw === undefined) {
+    return DEFAULT_RANKING_LIMIT;
+  }
+  const value = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new AppError('"limit" must be a positive integer', 400);
+  }
+  if (value > MAX_RANKING_LIMIT) {
+    throw new AppError(`"limit" must be at most ${MAX_RANKING_LIMIT}`, 400);
+  }
+  return value;
+}
+
+function parseRankingColumns(raw: unknown): ScreenerColumnRef[] {
+  if (raw === undefined) {
+    return [];
+  }
+  if (typeof raw !== "string" || raw.trim() === "") {
+    throw new AppError('"columns" must be a comma-separated string of fields', 400);
+  }
+  return raw
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean)
+    .map((field) => ({ field }));
+}
+
+/**
+ * @swagger
+ * /screener/ranking:
+ *   get:
+ *     summary: 依單一指標排行（例如殖利率最高、本益比最低）——給首頁卡片用，不是完整篩選
+ *     description: >
+ *       不需要登入。只依 `field` 這一個指標排序，沒有門檻條件，`direction=asc` 由小到大（例如本益比、
+ *       股價淨值比越低越好）、`direction=desc`（預設）由大到小（例如殖利率越高越好）。排行欄位本身一定
+ *       會被排除 null（沒有這個數字的公司不會出現），也一定會出現在回傳的 columns/values 裡；`columns`
+ *       可以額外加逗號分隔的顯示欄位（含 "stock.price"）。
+ *     tags:
+ *       - Screener
+ *     parameters:
+ *       - in: query
+ *         name: field
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "dividendYield.dividendYieldPct"
+ *       - in: query
+ *         name: direction
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: 最多 50。
+ *       - in: query
+ *         name: columns
+ *         schema:
+ *           type: string
+ *         description: 逗號分隔的額外顯示欄位，例如 "stock.price"。
+ *     responses:
+ *       200:
+ *         description: 排行結果（不分頁，就是前 limit 名）。
+ *       400:
+ *         description: 缺少 field，field 不存在於 filterCatalog，或 direction/limit/columns 格式錯誤。
+ *       501:
+ *         description: field 對應的指標存在於 filterCatalog，但這個服務還沒接上 analysis DB 對應的表。
+ */
+screenerRouter.get("/ranking", async (req, res) => {
+  const field = req.query.field;
+  if (typeof field !== "string" || field.trim() === "") {
+    throw new AppError('"field" query parameter is required', 400);
+  }
+  const direction = parseRankingDirection(req.query.direction);
+  const limit = parseRankingLimit(req.query.limit);
+  const columns = parseRankingColumns(req.query.columns);
+
+  const result = await runRanking(field, direction, limit, columns);
+  res.json(result);
 });

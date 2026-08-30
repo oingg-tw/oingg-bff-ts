@@ -6,7 +6,13 @@ import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
 import { ANALYSIS_METRIC_TABLES } from "./analysisMetricTables.js";
 import { SPECIAL_COLUMNS } from "./columnField.js";
 import type { Pagination } from "./pagination.js";
-import type { ScreenerColumnRef, ScreenerFilter, ScreenerResult, ScreenerResultColumn } from "./screener.types.js";
+import type {
+  ScreenerColumnRef,
+  ScreenerFilter,
+  ScreenerResult,
+  ScreenerResultColumn,
+  ScreenerResultRow,
+} from "./screener.types.js";
 
 const ANALYSIS_DB = "analysis";
 const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/;
@@ -81,6 +87,72 @@ interface ResolvedFilter extends ResolvedRef {
 
 const cteAlias = (metricKey: string) => `m_${metricKey}`;
 
+interface MetricCtes {
+  ctes: string[];
+  joinClauses: string[];
+  anchor: string;
+}
+
+/**
+ * Builds one CTE per involved metric (each picking a symbol's single latest row — see
+ * analysisMetricTables.ts) plus the JOIN clauses linking them to the anchor. Shared by runScreener
+ * (anchor = the first required/filtered metric) and runRanking (anchor = the metric being ranked).
+ * `requiredMetricKeys[0]` is always the anchor table everything else joins against; anything in
+ * `requiredMetricKeys` after that is INNER JOINed (a stock missing that data is dropped), anything in
+ * `metricColumns` but not `requiredMetricKeys` is LEFT JOINed (shown as null, doesn't drop the stock).
+ */
+function buildMetricCtes(metricColumns: Map<string, Set<string>>, requiredMetricKeys: string[]): MetricCtes {
+  const anchor = requiredMetricKeys[0];
+  if (!anchor) {
+    throw new AppError("At least one metric is required to anchor the query", 500);
+  }
+  const requiredSet = new Set(requiredMetricKeys);
+
+  const ctes = [...metricColumns.entries()].map(([metricKey, columns]) => {
+    const table = ANALYSIS_METRIC_TABLES[metricKey];
+    if (!table) {
+      throw new AppError(`Metric "${metricKey}" isn't wired up to the analysis database yet`, 501);
+    }
+    const cols = [...columns].map((column) => `"${column}"`).join(", ");
+    // A row with a null latestOrderColumn (e.g. a failed/incomplete compute upstream) must never win
+    // "latest" over a real dated row — Postgres sorts NULLs as highest by default, so DESC would put
+    // it first. Excluding null-dated rows outright is what actually prevents that, not just relying
+    // on ORDER BY ... NULLS LAST (that only fixes ties, not "null looks newest than every real date").
+    const conditions = [`"${table.latestOrderColumn}" IS NOT NULL`, ...(table.latestFilter ? [table.latestFilter] : [])];
+    return `${cteAlias(metricKey)} AS (
+      SELECT DISTINCT ON (symbol) symbol, ${cols}
+      FROM ${table.table}
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY symbol, "${table.latestOrderColumn}" DESC
+    )`;
+  });
+
+  const joinClauses = [
+    ...requiredMetricKeys
+      .slice(1)
+      .map((key) => `INNER JOIN ${cteAlias(key)} ON ${cteAlias(key)}.symbol = ${cteAlias(anchor)}.symbol`),
+    ...[...metricColumns.keys()]
+      .filter((key) => !requiredSet.has(key))
+      .map((key) => `LEFT JOIN ${cteAlias(key)} ON ${cteAlias(key)}.symbol = ${cteAlias(anchor)}.symbol`),
+  ];
+
+  return { ctes, joinClauses, anchor };
+}
+
+/** Shared by runScreener/runRanking: merges "stock.price" (twse/tpex, not the analysis DB) into result rows. */
+async function mergeStockPrices(
+  rows: Array<{ symbol: string; values: Record<string, unknown> }>,
+  wantsStockPrice: boolean,
+): Promise<void> {
+  if (!wantsStockPrice) {
+    return;
+  }
+  const pricesBySymbol = await getLatestClosePrices(rows.map((row) => row.symbol));
+  for (const row of rows) {
+    row.values[STOCK_PRICE_FIELD] = pricesBySymbol.get(row.symbol) ?? null;
+  }
+}
+
 /**
  * Screens companies by filterCatalog metrics stored in the "analysis" Neon DB. Each involved metric
  * gets its own CTE picking each symbol's single latest row (see analysisMetricTables.ts); metrics with
@@ -132,42 +204,7 @@ export async function runScreener(
     metricColumns.get(c.metricKey)?.add(c.column);
   }
 
-  const metricKeys = [...metricColumns.keys()];
-  const requiredMetricKeys = [...filterMetricKeys];
-  const displayOnlyMetricKeys = metricKeys.filter((key) => !filterMetricKeys.has(key));
-  const anchor = requiredMetricKeys[0];
-  if (!anchor) {
-    throw new AppError("At least one filter is required", 400);
-  }
-
-  const ctes = metricKeys.map((metricKey) => {
-    const table = ANALYSIS_METRIC_TABLES[metricKey];
-    if (!table) {
-      throw new AppError(`Metric "${metricKey}" isn't wired up to the analysis database yet`, 501);
-    }
-    const cols = [...(metricColumns.get(metricKey) ?? [])].map((column) => `"${column}"`).join(", ");
-    // A row with a null latestOrderColumn (e.g. a failed/incomplete compute upstream) must never win
-    // "latest" over a real dated row — Postgres sorts NULLs as highest by default, so DESC would put
-    // it first. Excluding null-dated rows outright is what actually prevents that, not just relying
-    // on ORDER BY ... NULLS LAST (that only fixes ties, not "null looks newest than every real date").
-    const conditions = [`"${table.latestOrderColumn}" IS NOT NULL`, ...(table.latestFilter ? [table.latestFilter] : [])];
-    const whereClause = `WHERE ${conditions.join(" AND ")}`;
-    return `${cteAlias(metricKey)} AS (
-      SELECT DISTINCT ON (symbol) symbol, ${cols}
-      FROM ${table.table}
-      ${whereClause}
-      ORDER BY symbol, "${table.latestOrderColumn}" DESC
-    )`;
-  });
-
-  const joinClauses = [
-    ...requiredMetricKeys
-      .slice(1)
-      .map((key) => `INNER JOIN ${cteAlias(key)} ON ${cteAlias(key)}.symbol = ${cteAlias(anchor)}.symbol`),
-    ...displayOnlyMetricKeys.map(
-      (key) => `LEFT JOIN ${cteAlias(key)} ON ${cteAlias(key)}.symbol = ${cteAlias(anchor)}.symbol`,
-    ),
-  ];
+  const { ctes, joinClauses, anchor } = buildMetricCtes(metricColumns, [...filterMetricKeys]);
 
   const params: Array<number | null> = [];
   // Every $n is cast to ::numeric explicitly — left untyped, Postgres can fail to resolve the
@@ -207,11 +244,7 @@ export async function runScreener(
   const result = await queryNeon<Record<string, unknown>>(ANALYSIS_DB, sql, params);
 
   const totalCount = result.rows.length > 0 ? Number(result.rows[0]!.__totalCount) : 0;
-
   const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
-  const pricesBySymbol = wantsStockPrice
-    ? await getLatestClosePrices(result.rows.map((row) => row.symbol as string))
-    : null;
 
   const resultColumns: ScreenerResultColumn[] = resolvedColumns.map((c) => ({
     field: c.field,
@@ -222,18 +255,89 @@ export async function runScreener(
     resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
   }
 
+  const results = result.rows.map((row) => {
+    const { symbol, __totalCount, ...values } = row;
+    return { symbol: symbol as string, values };
+  });
+  await mergeStockPrices(results, wantsStockPrice);
+
   return {
     count: totalCount,
     page: pagination.page,
     pageSize: pagination.pageSize,
     totalPages: Math.ceil(totalCount / pagination.pageSize),
     columns: resultColumns,
-    results: result.rows.map((row) => {
-      const { symbol, __totalCount, ...values } = row;
-      if (pricesBySymbol) {
-        values[STOCK_PRICE_FIELD] = pricesBySymbol.get(symbol as string) ?? null;
-      }
-      return { symbol: symbol as string, values };
-    }),
+    results,
   };
+}
+
+export interface RankingResult {
+  field: string;
+  direction: "asc" | "desc";
+  columns: ScreenerResultColumn[];
+  results: ScreenerResultRow[];
+}
+
+/**
+ * Top-N ranking by a single metric (e.g. "highest dividend yield", "lowest P/E") — for homepage cards,
+ * not the full screener. Reuses the same CTE/JOIN machinery as runScreener, but the ranked field itself
+ * is the anchor (and is required to be non-null, via the same "latest row" CTE plus an explicit
+ * IS NOT NULL condition) instead of coming from a threshold filter — a ranking has no threshold, just an
+ * ORDER BY and a LIMIT. `columns` may add extra display fields (including "stock.price") the same way
+ * runScreener's do; the ranked field itself is always included whether or not it's also requested.
+ */
+export async function runRanking(
+  field: string,
+  direction: "asc" | "desc",
+  limit: number,
+  columns: ScreenerColumnRef[],
+): Promise<RankingResult> {
+  const specialColumns = columns.filter((c) => c.field in SPECIAL_COLUMNS);
+  const catalogColumnRefs = columns.filter((c) => !(c.field in SPECIAL_COLUMNS) && c.field !== field);
+
+  const allRefs = await resolveCatalogFieldRefs([field, ...catalogColumnRefs.map((c) => c.field)]);
+  const [rankedRef, ...extraColumnRefs] = allRefs as [ResolvedRef, ...ResolvedRef[]];
+
+  const metricColumns = new Map<string, Set<string>>();
+  metricColumns.set(rankedRef.metricKey, new Set([rankedRef.column]));
+  for (const c of extraColumnRefs) {
+    if (!metricColumns.has(c.metricKey)) metricColumns.set(c.metricKey, new Set());
+    metricColumns.get(c.metricKey)?.add(c.column);
+  }
+
+  const { ctes, joinClauses, anchor } = buildMetricCtes(metricColumns, [rankedRef.metricKey]);
+
+  const rankedColRef = `${cteAlias(rankedRef.metricKey)}."${rankedRef.column}"`;
+  const selectColumns = extraColumnRefs
+    .map((c) => `${cteAlias(c.metricKey)}."${c.column}" AS "${c.field}"`)
+    .join(", ");
+
+  const sql = `
+    WITH ${ctes.join(",\n")}
+    SELECT ${cteAlias(anchor)}.symbol AS symbol, ${rankedColRef} AS "${rankedRef.field}"${selectColumns ? `, ${selectColumns}` : ""}
+    FROM ${cteAlias(anchor)}
+    ${joinClauses.join("\n")}
+    WHERE ${rankedColRef} IS NOT NULL
+    ORDER BY ${rankedColRef} ${direction === "asc" ? "ASC" : "DESC"}
+    LIMIT $1::int
+  `;
+
+  const result = await queryNeon<Record<string, unknown>>(ANALYSIS_DB, sql, [limit]);
+
+  const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
+  const resultColumns: ScreenerResultColumn[] = [
+    { field: rankedRef.field, metricName: rankedRef.metricName, fieldName: rankedRef.fieldName },
+    ...extraColumnRefs.map((c) => ({ field: c.field, metricName: c.metricName, fieldName: c.fieldName })),
+  ];
+  if (wantsStockPrice) {
+    resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
+  }
+
+  const results = result.rows.map((row) => {
+    const { symbol, ...values } = row;
+    return { symbol: symbol as string, values };
+  });
+  await mergeStockPrices(results, wantsStockPrice);
+
+  return { field, direction, columns: resultColumns, results };
 }
