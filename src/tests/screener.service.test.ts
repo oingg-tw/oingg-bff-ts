@@ -48,6 +48,17 @@ const KNOWN_FIELDS: Record<string, Lookup> = {
     fieldName: "Some Field",
     period: "snapshot",
   },
+  // Regression fixture: "beta1Y" is where the naive "insert _ before every uppercase letter" column-name
+  // rule broke (produced "beta1_y" instead of the real column "beta_1y") — a digit immediately followed
+  // by an uppercase unit letter ("1Y" = 1-year) is one glued suffix, not two separate segments.
+  "beta.beta1Y": {
+    categoryKey: "risk",
+    metricKey: "beta",
+    metricName: "Beta",
+    fieldKey: "beta1Y",
+    fieldName: "Beta (1Y)",
+    period: "snapshot",
+  },
 };
 
 beforeEach(() => {
@@ -117,6 +128,20 @@ describe("runScreener", () => {
     expect(sql).toMatch(/IS NOT NULL AND \(\$1::numeric IS NULL OR .*>= \$1::numeric\)/);
     // Trailing pair is LIMIT/OFFSET (pageSize 50, offset 0 for page 1).
     expect(params).toEqual([20, null, null, 30, 50, 0]);
+  });
+
+  // Regression test: a digit immediately followed by an uppercase "unit" letter (e.g. "1Y" in "beta1Y",
+  // meaning 1-year) must become "_1y", not "1_y" — the naive "insert _ before every uppercase" rule
+  // produced the invalid column "beta1_y" instead of the real one, "beta_1y" (found via real DB
+  // verification when wiring up the beta metric for the PresetTemplate seed data).
+  it('maps a field key like "beta1Y" to the real column "beta_1y", not "beta1_y"', async () => {
+    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
+
+    await runScreener([{ field: "beta.beta1Y", min: 0, max: null, exclude: false }], [], DEFAULT_PAGINATION);
+
+    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
+    expect(sql).toContain('"beta_1y"');
+    expect(sql).not.toContain("beta1_y");
   });
 
   it("builds an outside-range condition when exclude is true", async () => {

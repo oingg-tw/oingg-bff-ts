@@ -12,8 +12,19 @@ const ANALYSIS_DB = "analysis";
 const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/;
 const STOCK_PRICE_FIELD = "stock.price";
 
+/**
+ * Converts a filterCatalog field key to its analysis-DB column name. A plain "insert _ before every
+ * uppercase letter" rule breaks on keys like "beta1Y" (a number immediately followed by an uppercase
+ * unit letter, e.g. "1Y" = 1-year) — that gives "beta1_y", but the real column is "beta_1y" (found via
+ * real DB verification when wiring up the `beta` metric). analysis-ts's convention treats a
+ * digit+uppercase-letter suffix like "1Y"/"5D" as one glued unit that just lowercases in place, with the
+ * underscore going before the digit instead of before the uppercase letter.
+ */
 function toSnakeCase(camelCase: string): string {
-  return camelCase.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  return camelCase
+    .replace(/([a-z])(\d)/g, "$1_$2")
+    .replace(/(?<!\d)[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+    .replace(/[A-Z]/g, (letter) => letter.toLowerCase());
 }
 
 function toSafeColumn(fieldKey: string): string {

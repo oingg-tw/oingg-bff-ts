@@ -35,11 +35,16 @@ function daily(table: string): AnalysisMetricTable {
  * per/pbr/dividendYield, liquidityRatio -> currentRatio/quickRatio/cashRatio, turnoverRatio -> five
  * *TurnoverRatio metrics plus four new *Days/cashConversionCycle metrics, cashFlowPerShare ->
  * ocfPerShare/fcfPerShare) — the underlying tables and columns didn't change, only how the catalog
- * groups them, so this is a rename/split of catalog keys, not a new backing table per key. A handful of
- * genuinely new metrics (technical indicators, quant scores: rsi/macd/beta/altmanZScore/etc.) also
- * appeared in the catalog with real tables now (technicals_*, guru_*, portfolio_beta, valuation_ev_ebitda
- * /p_fcf/psr, profitability_dupont) but aren't wired up here yet — deliberately out of scope for this
- * pass, they correctly 501 rather than being guessed at.
+ * groups them, so this is a rename/split of catalog keys, not a new backing table per key.
+ *
+ * altmanZScore/piotroskiFScore/beta wired up 2026-08-30 (needed for the PresetTemplate seed data —
+ * see src/domains/screener/presetTemplates.ts) after verifying their real tables/columns. beta is
+ * market-derived (no quarterly report behind it — no data_type/subsidiary_company_id columns, keyed by
+ * as_of_date instead of report_date), so it uses its own inline table def rather than quarterly()/daily().
+ * A further handful of technical indicators and quant scores (rsi/macd/ma/kd/bollingerBands/atr/bias/
+ * evEbitda/pFcf/psr/dupont/nissimPenmanRnoa/ohlsonOScore/zmijewskiScore/beneishMScore) still have real
+ * tables in the catalog but aren't wired up here — none of the seeded preset templates need them yet;
+ * wire up on demand rather than guessing ahead of an actual use.
  */
 export const ANALYSIS_METRIC_TABLES: Record<string, AnalysisMetricTable> = {
   accrualsRatio: quarterly("cash_flow_accruals_ratio"),
@@ -81,4 +86,7 @@ export const ANALYSIS_METRIC_TABLES: Record<string, AnalysisMetricTable> = {
   per: daily("valuation_market_ratios"),
   pbr: daily("valuation_market_ratios"),
   dividendYield: daily("valuation_market_ratios"),
+  altmanZScore: quarterly("guru_altman_z_score"),
+  piotroskiFScore: quarterly("guru_piotroski_f_score"),
+  beta: { table: "portfolio_beta", latestOrderColumn: "as_of_date" },
 };
