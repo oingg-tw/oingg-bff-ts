@@ -1,4 +1,5 @@
 import { getPrismaClient } from "../../adapters/neon/index.js";
+import { Prisma } from "../../generated/prisma/client.js";
 import type { FilterCategory } from "./filterCatalog.types.js";
 
 export interface FilterFieldLookup {
@@ -75,12 +76,21 @@ export async function listFilterCatalog(): Promise<FilterCategory[]> {
 }
 
 /**
- * Wipes and rewrites the whole catalog in one transaction — it's a small, fully-replaced snapshot,
- * not incrementally updated data.
+ * Upserts the whole catalog by natural key (category key / metric key / [metricKey, fieldKey]) and
+ * deletes only rows genuinely absent from the new catalog — NOT a delete-everything-then-recreate.
  *
- * Uses createMany per table (not one create() per row) so this stays at 4 queries regardless of
- * catalog size — looping individual create()s here once blew past Prisma's 5s interactive-transaction
- * timeout against a real (non-localhost) Neon connection once the catalog grew past a couple categories.
+ * This used to `deleteMany()` + `createMany()` every table on every sync (called once at every server
+ * startup, see startFilterCatalogSync). FilterMetricField has `onDelete: Cascade` into
+ * ScreenerPresetFilter (a saved preset can't reference a field the catalog doesn't have), so deleting
+ * and recreating a field — even with the exact same key and data — destroyed every user's saved filter
+ * conditions on every restart; ScreenerPreset rows survived with an empty `filters` array. Upserting in
+ * place keeps a kept field's row (and therefore its id) untouched, so existing ScreenerPresetFilter rows
+ * pointing at it are never cascaded away. A field that's genuinely removed upstream is still deleted
+ * (correctly cascading away any preset filter that referenced it — it has nothing left to point at).
+ *
+ * Each of the three upserts and three deletes is a single batched statement (not one query per row),
+ * for the same reason the old createMany-per-table version was — Prisma's interactive-transaction
+ * timeout against a real Neon connection.
  */
 export async function replaceFilterCatalog(categories: FilterCategory[]): Promise<void> {
   const prisma = getPrismaClient();
@@ -114,9 +124,45 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
   );
 
   await prisma.$transaction(async (tx) => {
-    await tx.filterCategory.deleteMany();
-    await tx.filterCategory.createMany({ data: categoryRows });
-    await tx.filterMetric.createMany({ data: metricRows });
-    await tx.filterMetricField.createMany({ data: fieldRows });
+    if (categoryRows.length > 0) {
+      await tx.$executeRaw`
+        INSERT INTO filter_category (key, name, position)
+        VALUES ${Prisma.join(categoryRows.map((c) => Prisma.sql`(${c.key}, ${c.name}, ${c.position})`))}
+        ON CONFLICT (key) DO UPDATE SET name = EXCLUDED.name, position = EXCLUDED.position
+      `;
+    }
+
+    if (metricRows.length > 0) {
+      await tx.$executeRaw`
+        INSERT INTO filter_metric (key, category_key, name, path, position)
+        VALUES ${Prisma.join(
+          metricRows.map((m) => Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.position})`),
+        )}
+        ON CONFLICT (key) DO UPDATE SET
+          category_key = EXCLUDED.category_key, name = EXCLUDED.name, path = EXCLUDED.path, position = EXCLUDED.position
+      `;
+    }
+
+    if (fieldRows.length > 0) {
+      await tx.$executeRaw`
+        INSERT INTO filter_metric_field (metric_key, key, name, period, position)
+        VALUES ${Prisma.join(
+          fieldRows.map((f) => Prisma.sql`(${f.metricKey}, ${f.key}, ${f.name}, ${f.period}, ${f.position})`),
+        )}
+        ON CONFLICT (metric_key, key) DO UPDATE SET
+          name = EXCLUDED.name, period = EXCLUDED.period, position = EXCLUDED.position
+      `;
+    }
+
+    // Deepest first: a field/metric/category genuinely dropped from the new catalog is deleted here
+    // (cascading away any preset filter that pointed at it), rather than earlier as part of a blanket wipe.
+    await tx.filterMetricField.deleteMany({
+      where:
+        fieldRows.length > 0
+          ? { NOT: { OR: fieldRows.map((f) => ({ metricKey: f.metricKey, key: f.key })) } }
+          : {},
+    });
+    await tx.filterMetric.deleteMany({ where: { key: { notIn: metricRows.map((m) => m.key) } } });
+    await tx.filterCategory.deleteMany({ where: { key: { notIn: categoryRows.map((c) => c.key) } } });
   });
 }
