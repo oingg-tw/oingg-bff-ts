@@ -11,7 +11,7 @@ export const userRouter = Router();
  * /users/me:
  *   get:
  *     summary: 查詢目前登入使用者的 user profile
- *     description: 依 Firebase token 的 uid 查詢 MAIN_DATABASE_URL 中的 users 表（見 user.service.ts）。
+ *     description: 依 Firebase token 的 uid 查詢這個服務自己 DB 裡的 users 表（見 user.service.ts）。目前沒有 signup/首次登入自動建檔流程，查無資料回 404。
  *     tags:
  *       - User
  *     security:

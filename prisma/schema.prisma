@@ -51,6 +51,23 @@ model FilterMetricField {
   @@map("filter_metric_field")
 }
 
+/// A minimal per-user profile row, keyed by Firebase uid (see src/domains/user, GET /users/me).
+/// Read-only from this service's side — nothing here creates a row yet (no signup/first-login flow
+/// exists), so a Firebase-authenticated caller with no row here still gets a 404 from /users/me.
+/// Previously `findUserByFirebaseUid` looked this up via `queryNeon("main", ...)` against a
+/// `MAIN_DATABASE_URL` Neon pool that was never configured in .env — every /users/me call threw
+/// "No Neon database pool registered" instead of resolving one way or the other. Moved to live in this
+/// service's own Prisma-managed DB instead, matching where every other per-user table already lives.
+model User {
+  id          String   @id @default(cuid())
+  firebaseUid String   @unique @map("firebase_uid")
+  email       String?
+  displayName String?  @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
 /// A user's stock watchlist (see src/domains/watchlist).
 model WatchlistItem {
   id          Int      @id @default(autoincrement())
