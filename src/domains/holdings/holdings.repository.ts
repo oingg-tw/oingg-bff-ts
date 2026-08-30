@@ -23,7 +23,7 @@ export async function listHoldings(firebaseUid: string): Promise<Holding[]> {
   return rows.map(toHolding);
 }
 
-export async function findHolding(firebaseUid: string, id: number): Promise<Holding | null> {
+export async function findHolding(firebaseUid: string, id: string): Promise<Holding | null> {
   const prisma = getPrismaClient();
   const row = await prisma.holding.findFirst({ where: { firebaseUid, id } });
   return row ? toHolding(row) : null;
@@ -49,7 +49,7 @@ export interface HoldingUpdate {
 
 export async function updateHolding(
   firebaseUid: string,
-  id: number,
+  id: string,
   update: HoldingUpdate,
 ): Promise<Holding | null> {
   const prisma = getPrismaClient();
@@ -60,7 +60,7 @@ export async function updateHolding(
   return findHolding(firebaseUid, id);
 }
 
-export async function deleteHolding(firebaseUid: string, id: number): Promise<boolean> {
+export async function deleteHolding(firebaseUid: string, id: string): Promise<boolean> {
   const prisma = getPrismaClient();
   const result = await prisma.holding.deleteMany({ where: { firebaseUid, id } });
   return result.count > 0;

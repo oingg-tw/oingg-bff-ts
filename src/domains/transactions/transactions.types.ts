@@ -1,7 +1,7 @@
 export type TransactionAction = "BUY" | "SELL";
 
 export interface StockTransaction {
-  id: number;
+  id: string;
   symbol: string;
   action: TransactionAction;
   quantity: number;

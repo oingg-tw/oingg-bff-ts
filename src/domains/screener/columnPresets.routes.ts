@@ -1,5 +1,6 @@
 import { Router } from "ultimate-express";
 import { AppError } from "../../shared/errorHandler.js";
+import { parseUuidParam } from "../../shared/uuid.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
 import {
@@ -21,12 +22,8 @@ function requireUser(req: AuthenticatedRequest): string {
   return req.user.uid;
 }
 
-function parseId(raw: string): number {
-  const id = Number(raw);
-  if (!Number.isInteger(id) || id <= 0) {
-    throw new AppError(`Invalid column preset id "${raw}"`, 400);
-  }
-  return id;
+function parseId(raw: string): string {
+  return parseUuidParam(raw, "column preset");
 }
 
 function parseName(value: unknown): string {
@@ -118,7 +115,7 @@ columnPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
  *                   properties:
  *                     field:
  *                       type: string
- *                       example: "marketRatios.peRatio"
+ *                       example: "per.peRatio"
  *     responses:
  *       201:
  *         description: 新增成功的欄位組合。
@@ -154,7 +151,8 @@ columnPresetsRouter.post("/", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: 欄位組合。
@@ -185,7 +183,8 @@ columnPresetsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     requestBody:
  *       content:
  *         application/json:
@@ -243,7 +242,8 @@ columnPresetsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       204:
  *         description: 刪除成功，無回應內容。

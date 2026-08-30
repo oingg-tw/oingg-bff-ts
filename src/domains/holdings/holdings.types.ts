@@ -1,5 +1,5 @@
 export interface Holding {
-  id: number;
+  id: string;
   symbol: string;
   quantity: number;
   averageCost: string;

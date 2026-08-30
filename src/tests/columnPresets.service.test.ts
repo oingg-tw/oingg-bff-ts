@@ -32,27 +32,30 @@ type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
 
 const PER_FIELD: Lookup = {
   categoryKey: "valuation",
-  metricKey: "marketRatios",
-  metricName: "Market Ratios",
+  metricKey: "per",
+  metricName: "本益比 PER",
   fieldKey: "peRatio",
-  fieldName: "PER",
+  fieldName: "本益比 PER",
   period: "daily",
 };
 
 const PBR_FIELD: Lookup = {
   categoryKey: "valuation",
-  metricKey: "marketRatios",
-  metricName: "Market Ratios",
+  metricKey: "pbr",
+  metricName: "股價淨值比 PBR",
   fieldKey: "pbRatio",
-  fieldName: "PBR",
+  fieldName: "股價淨值比 PBR",
   period: "daily",
 };
 
+const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
+const OTHER_ID = "aaaaaaaa-0000-4000-8000-000000000006";
+
 const SAMPLE_ROW = {
-  id: 1,
+  id: SAMPLE_ID,
   name: "常用欄位",
   isDefault: false,
-  columns: ["marketRatios.peRatio", "stock.price"],
+  columns: ["per.peRatio", "stock.price"],
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
 };
@@ -62,8 +65,8 @@ beforeEach(() => {
   vi.mocked(findFilterFields).mockImplementation(async (refs) =>
     refs
       .map((ref) => {
-        if (ref.metricKey === "marketRatios" && ref.fieldKey === "peRatio") return PER_FIELD;
-        if (ref.metricKey === "marketRatios" && ref.fieldKey === "pbRatio") return PBR_FIELD;
+        if (ref.metricKey === "per" && ref.fieldKey === "peRatio") return PER_FIELD;
+        if (ref.metricKey === "pbr" && ref.fieldKey === "pbRatio") return PBR_FIELD;
         return null;
       })
       .filter((f): f is Lookup => f !== null),
@@ -78,14 +81,9 @@ describe("addColumnPreset", () => {
   it("accepts the special stock.price field alongside catalog fields", async () => {
     vi.mocked(createColumnPreset).mockResolvedValue(SAMPLE_ROW);
 
-    await addColumnPreset("uid1", "常用欄位", ["marketRatios.peRatio", "stock.price"], false);
+    await addColumnPreset("uid1", "常用欄位", ["per.peRatio", "stock.price"], false);
 
-    expect(createColumnPreset).toHaveBeenCalledWith(
-      "uid1",
-      "常用欄位",
-      ["marketRatios.peRatio", "stock.price"],
-      false,
-    );
+    expect(createColumnPreset).toHaveBeenCalledWith("uid1", "常用欄位", ["per.peRatio", "stock.price"], false);
   });
 
   it("rejects a field that is neither a catalog field nor a special field", async () => {
@@ -99,23 +97,18 @@ describe("addColumnPreset", () => {
   it("validates all fields in a single batched lookup, not one query per field", async () => {
     vi.mocked(createColumnPreset).mockResolvedValue({
       ...SAMPLE_ROW,
-      columns: ["marketRatios.peRatio", "marketRatios.pbRatio", "stock.price"],
+      columns: ["per.peRatio", "pbr.pbRatio", "stock.price"],
     });
 
-    await addColumnPreset(
-      "uid1",
-      "常用欄位",
-      ["marketRatios.peRatio", "marketRatios.pbRatio", "stock.price"],
-      false,
-    );
+    await addColumnPreset("uid1", "常用欄位", ["per.peRatio", "pbr.pbRatio", "stock.price"], false);
 
     // validateFields (input) + toView (the created row's own columns) — 2 calls total, each batched
     // to cover both catalog fields at once rather than one call per field.
     expect(findFilterFields).toHaveBeenCalledTimes(2);
     for (const call of vi.mocked(findFilterFields).mock.calls) {
       expect(call[0]).toEqual([
-        { field: "marketRatios.peRatio", metricKey: "marketRatios", fieldKey: "peRatio" },
-        { field: "marketRatios.pbRatio", metricKey: "marketRatios", fieldKey: "pbRatio" },
+        { field: "per.peRatio", metricKey: "per", fieldKey: "peRatio" },
+        { field: "pbr.pbRatio", metricKey: "pbr", fieldKey: "pbRatio" },
       ]);
     }
   });
@@ -134,7 +127,9 @@ describe("addColumnPreset", () => {
 describe("editColumnPreset", () => {
   it("throws 404 when the repository finds no matching row", async () => {
     vi.mocked(updateColumnPreset).mockResolvedValue(null);
-    await expect(editColumnPreset("uid1", 999, { name: "x" })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(editColumnPreset("uid1", "missing-uuid", { name: "x" })).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 });
 
@@ -142,18 +137,18 @@ describe("resolveScreenerColumns", () => {
   it("uses an explicit columnPresetId when given", async () => {
     vi.mocked(findColumnPreset).mockResolvedValue(SAMPLE_ROW);
 
-    const result = await resolveScreenerColumns("uid1", 1);
+    const result = await resolveScreenerColumns("uid1", SAMPLE_ID);
 
-    expect(findColumnPreset).toHaveBeenCalledWith("uid1", 1);
+    expect(findColumnPreset).toHaveBeenCalledWith("uid1", SAMPLE_ID);
     expect(result).toEqual({
-      columnPresetId: 1,
-      columns: [{ field: "marketRatios.peRatio" }, { field: "stock.price" }],
+      columnPresetId: SAMPLE_ID,
+      columns: [{ field: "per.peRatio" }, { field: "stock.price" }],
     });
   });
 
   it("throws 404 when the explicit columnPresetId doesn't exist for this user", async () => {
     vi.mocked(findColumnPreset).mockResolvedValue(null);
-    await expect(resolveScreenerColumns("uid1", 999)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(resolveScreenerColumns("uid1", "missing-uuid")).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("falls back to the user's default column preset when no id is given", async () => {
@@ -161,7 +156,7 @@ describe("resolveScreenerColumns", () => {
 
     const result = await resolveScreenerColumns("uid1");
 
-    expect(result.columnPresetId).toBe(1);
+    expect(result.columnPresetId).toBe(SAMPLE_ID);
   });
 
   it("falls back to the hardcoded system default when there's no id and no user default", async () => {
@@ -178,9 +173,9 @@ describe("resolveScreenerColumns", () => {
   // `values: {}` for every result even though companies matched. It must fall through to the system
   // default instead, exactly as if no preset had been found at all.
   it("falls through to the system default when the explicit columnPresetId resolves to a preset with zero columns", async () => {
-    vi.mocked(findColumnPreset).mockResolvedValue({ ...SAMPLE_ROW, id: 6, name: "欄位組合 1", columns: [] });
+    vi.mocked(findColumnPreset).mockResolvedValue({ ...SAMPLE_ROW, id: OTHER_ID, name: "欄位組合 1", columns: [] });
 
-    const result = await resolveScreenerColumns("uid1", 6);
+    const result = await resolveScreenerColumns("uid1", OTHER_ID);
 
     expect(result).toEqual({ columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS });
   });

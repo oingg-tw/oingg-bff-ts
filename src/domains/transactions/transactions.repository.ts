@@ -31,7 +31,7 @@ export async function listTransactions(firebaseUid: string, symbol?: string): Pr
   return rows.map(toStockTransaction);
 }
 
-export async function findTransaction(firebaseUid: string, id: number): Promise<StockTransaction | null> {
+export async function findTransaction(firebaseUid: string, id: string): Promise<StockTransaction | null> {
   const prisma = getPrismaClient();
   const row = await prisma.stockTransaction.findFirst({ where: { firebaseUid, id } });
   return row ? toStockTransaction(row) : null;
@@ -68,7 +68,7 @@ export interface TransactionUpdate {
 
 export async function updateTransaction(
   firebaseUid: string,
-  id: number,
+  id: string,
   update: TransactionUpdate,
 ): Promise<StockTransaction | null> {
   const prisma = getPrismaClient();
@@ -83,7 +83,7 @@ export async function updateTransaction(
   return findTransaction(firebaseUid, id);
 }
 
-export async function deleteTransaction(firebaseUid: string, id: number): Promise<boolean> {
+export async function deleteTransaction(firebaseUid: string, id: string): Promise<boolean> {
   const prisma = getPrismaClient();
   const result = await prisma.stockTransaction.deleteMany({ where: { firebaseUid, id } });
   return result.count > 0;

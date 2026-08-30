@@ -31,10 +31,10 @@ export interface PresetFilterView {
 }
 
 export interface PresetView {
-  id: number;
+  id: string;
   name: string;
   filters: PresetFilterView[];
-  lastColumnPresetId: number | null;
+  lastColumnPresetId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,7 +81,7 @@ export async function getPresets(firebaseUid: string): Promise<PresetView[]> {
   return rows.map(toView);
 }
 
-export async function getPresetOrThrow(firebaseUid: string, id: number): Promise<PresetView> {
+export async function getPresetOrThrow(firebaseUid: string, id: string): Promise<PresetView> {
   const row = await findPreset(firebaseUid, id);
   if (!row) {
     throw new AppError(`Screener preset ${id} not found`, 404);
@@ -153,7 +153,7 @@ export async function addPreset(firebaseUid: string, filters: ScreenerFilter[]):
 
 export async function editPreset(
   firebaseUid: string,
-  id: number,
+  id: string,
   update: { name?: string; filters?: ScreenerFilter[] },
 ): Promise<PresetView> {
   const resolvedFilters = update.filters !== undefined ? await resolveFilters(update.filters) : undefined;
@@ -172,7 +172,7 @@ export async function editPreset(
   }
 }
 
-export async function removePreset(firebaseUid: string, id: number): Promise<void> {
+export async function removePreset(firebaseUid: string, id: string): Promise<void> {
   const deleted = await deletePreset(firebaseUid, id);
   if (!deleted) {
     throw new AppError(`Screener preset ${id} not found`, 404);
@@ -189,10 +189,10 @@ export async function removePreset(firebaseUid: string, id: number): Promise<voi
  */
 export async function runPreset(
   firebaseUid: string,
-  id: number,
+  id: string,
   pagination: Pagination,
-  columnPresetId?: number,
-): Promise<{ preset: PresetView; screener: ScreenerResult; columnPresetId: number | null }> {
+  columnPresetId?: string,
+): Promise<{ preset: PresetView; screener: ScreenerResult; columnPresetId: string | null }> {
   const row = await findPreset(firebaseUid, id);
   if (!row) {
     throw new AppError(`Screener preset ${id} not found`, 404);

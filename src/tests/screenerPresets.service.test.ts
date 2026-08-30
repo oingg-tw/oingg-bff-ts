@@ -53,22 +53,26 @@ const ROE_FIELD: Lookup = {
 };
 const MARGIN_FIELD: Lookup = {
   categoryKey: "profitability",
-  metricKey: "margins",
-  metricName: "Margins",
+  metricKey: "grossMargin",
+  metricName: "Gross Margin",
   fieldKey: "grossMarginTtm",
   fieldName: "Gross Margin (TTM)",
   period: "ttm",
 };
 
+const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
+const COLUMN_PRESET_ID = "bbbbbbbb-0000-4000-8000-000000000007";
+const OTHER_COLUMN_PRESET_ID = "bbbbbbbb-0000-4000-8000-000000000009";
+
 const SAMPLE_ROW = {
-  id: 1,
+  id: SAMPLE_ID,
   name: "績優股",
   lastColumnPresetId: null,
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
   filters: [
     { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
-    { metricKey: "margins", fieldKey: "grossMarginTtm", min: 60, max: null, exclude: false },
+    { metricKey: "grossMargin", fieldKey: "grossMarginTtm", min: 60, max: null, exclude: false },
   ],
 };
 
@@ -78,7 +82,7 @@ beforeEach(() => {
     refs
       .map((ref) => {
         if (ref.metricKey === "roe" && ref.fieldKey === "roeTtmPct") return ROE_FIELD;
-        if (ref.metricKey === "margins" && ref.fieldKey === "grossMarginTtm") return MARGIN_FIELD;
+        if (ref.metricKey === "grossMargin" && ref.fieldKey === "grossMarginTtm") return MARGIN_FIELD;
         return null;
       })
       .filter((f): f is Lookup => f !== null),
@@ -117,12 +121,12 @@ describe("addPreset", () => {
 
     await addPreset("uid1", [
       { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
-      { field: "margins.grossMarginTtm", min: 60, max: null, exclude: false },
+      { field: "grossMargin.grossMarginTtm", min: 60, max: null, exclude: false },
     ]);
 
     expect(createPreset).toHaveBeenCalledWith("uid1", "未命名", [
       { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
-      { metricKey: "margins", fieldKey: "grossMarginTtm", min: 60, max: null, exclude: false },
+      { metricKey: "grossMargin", fieldKey: "grossMarginTtm", min: 60, max: null, exclude: false },
     ]);
   });
 
@@ -133,13 +137,13 @@ describe("addPreset", () => {
 
     await addPreset("uid1", [
       { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
-      { field: "margins.grossMarginTtm", min: 60, max: null, exclude: false },
+      { field: "grossMargin.grossMarginTtm", min: 60, max: null, exclude: false },
     ]);
 
     expect(findFilterFields).toHaveBeenCalledTimes(1);
     expect(findFilterFields).toHaveBeenCalledWith([
       { metricKey: "roe", fieldKey: "roeTtmPct" },
-      { metricKey: "margins", fieldKey: "grossMarginTtm" },
+      { metricKey: "grossMargin", fieldKey: "grossMarginTtm" },
     ]);
   });
 
@@ -204,14 +208,14 @@ describe("editPreset", () => {
   it("allows replacing filters with an empty array", async () => {
     vi.mocked(updatePreset).mockResolvedValue({ ...SAMPLE_ROW, filters: [] });
 
-    await editPreset("uid1", 1, { filters: [] });
+    await editPreset("uid1", SAMPLE_ID, { filters: [] });
 
-    expect(updatePreset).toHaveBeenCalledWith("uid1", 1, { name: undefined, filters: [] });
+    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, { name: undefined, filters: [] });
   });
 
   it("throws 404 when the repository finds no matching row", async () => {
     vi.mocked(updatePreset).mockResolvedValue(null);
-    await expect(editPreset("uid1", 999, { name: "x" })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(editPreset("uid1", "missing-uuid", { name: "x" })).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("turns a duplicate name conflict into 409", async () => {
@@ -221,19 +225,19 @@ describe("editPreset", () => {
         clientVersion: "test",
       }),
     );
-    await expect(editPreset("uid1", 1, { name: "重複" })).rejects.toMatchObject({ statusCode: 409 });
+    await expect(editPreset("uid1", SAMPLE_ID, { name: "重複" })).rejects.toMatchObject({ statusCode: 409 });
   });
 });
 
 describe("getPresetOrThrow / removePreset", () => {
   it("getPresetOrThrow throws 404 when not found", async () => {
     vi.mocked(findPreset).mockResolvedValue(null);
-    await expect(getPresetOrThrow("uid1", 999)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(getPresetOrThrow("uid1", "missing-uuid")).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("removePreset throws 404 when nothing was deleted", async () => {
     vi.mocked(deletePreset).mockResolvedValue(false);
-    await expect(removePreset("uid1", 999)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(removePreset("uid1", "missing-uuid")).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 
@@ -242,8 +246,8 @@ const SAMPLE_SCREENER_RESULT = {
   page: 1,
   pageSize: 50,
   totalPages: 1,
-  columns: [{ field: "marketRatios.peRatio", metricName: "Market Ratios", fieldName: "PER" }],
-  results: [{ symbol: "2330", values: { "marketRatios.peRatio": "27.82" } }],
+  columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER" }],
+  results: [{ symbol: "2330", values: { "per.peRatio": "27.82" } }],
 };
 
 const DEFAULT_PAGINATION = { page: 1, pageSize: 50 };
@@ -251,7 +255,9 @@ const DEFAULT_PAGINATION = { page: 1, pageSize: 50 };
 describe("runPreset", () => {
   it("throws 404 when the preset doesn't exist for this user", async () => {
     vi.mocked(findPreset).mockResolvedValue(null);
-    await expect(runPreset("uid1", 999, DEFAULT_PAGINATION)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(runPreset("uid1", "missing-uuid", DEFAULT_PAGINATION)).rejects.toMatchObject({
+      statusCode: 404,
+    });
     expect(runScreener).not.toHaveBeenCalled();
   });
 
@@ -259,20 +265,20 @@ describe("runPreset", () => {
     vi.mocked(findPreset).mockResolvedValue(SAMPLE_ROW);
     vi.mocked(resolveScreenerColumns).mockResolvedValue({
       columnPresetId: null,
-      columns: [{ field: "marketRatios.peRatio" }],
+      columns: [{ field: "per.peRatio" }],
     });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    const result = await runPreset("uid1", 1, DEFAULT_PAGINATION);
+    const result = await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION);
 
     expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", undefined);
     expect(setLastColumnPreset).not.toHaveBeenCalled();
     expect(runScreener).toHaveBeenCalledWith(
       [
         { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
-        { field: "margins.grossMarginTtm", min: 60, max: null, exclude: false },
+        { field: "grossMargin.grossMarginTtm", min: 60, max: null, exclude: false },
       ],
-      [{ field: "marketRatios.peRatio" }],
+      [{ field: "per.peRatio" }],
       DEFAULT_PAGINATION,
     );
     expect(result.preset.name).toBe("績優股");
@@ -280,26 +286,26 @@ describe("runPreset", () => {
   });
 
   it("with no explicit columnPresetId, falls back to the preset's last-used column preset", async () => {
-    vi.mocked(findPreset).mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: 7 });
-    vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: 7, columns: [] });
+    vi.mocked(findPreset).mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID });
+    vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: COLUMN_PRESET_ID, columns: [] });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    await runPreset("uid1", 1, DEFAULT_PAGINATION);
+    await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION);
 
-    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", 7);
+    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", COLUMN_PRESET_ID);
     expect(setLastColumnPreset).not.toHaveBeenCalled();
   });
 
   it("with an explicit columnPresetId, uses it and remembers it as the preset's new last-used column preset", async () => {
-    vi.mocked(findPreset).mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: 7 });
-    vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: 9, columns: [] });
+    vi.mocked(findPreset).mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID });
+    vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: OTHER_COLUMN_PRESET_ID, columns: [] });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    const result = await runPreset("uid1", 1, DEFAULT_PAGINATION, 9);
+    const result = await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION, OTHER_COLUMN_PRESET_ID);
 
-    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", 9);
-    expect(setLastColumnPreset).toHaveBeenCalledWith("uid1", 1, 9);
-    expect(result.columnPresetId).toBe(9);
+    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", OTHER_COLUMN_PRESET_ID);
+    expect(setLastColumnPreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, OTHER_COLUMN_PRESET_ID);
+    expect(result.columnPresetId).toBe(OTHER_COLUMN_PRESET_ID);
   });
 
   it("forwards page/pageSize through to runScreener", async () => {
@@ -307,7 +313,7 @@ describe("runPreset", () => {
     vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: null, columns: [] });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    await runPreset("uid1", 1, { page: 2, pageSize: 10 });
+    await runPreset("uid1", SAMPLE_ID, { page: 2, pageSize: 10 });
 
     expect(runScreener).toHaveBeenCalledWith(expect.anything(), expect.anything(), { page: 2, pageSize: 10 });
   });

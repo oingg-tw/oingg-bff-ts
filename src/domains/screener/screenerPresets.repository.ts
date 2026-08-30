@@ -9,10 +9,10 @@ export interface PresetFilterRow {
 }
 
 export interface PresetRow {
-  id: number;
+  id: string;
   name: string;
   filters: PresetFilterRow[];
-  lastColumnPresetId: number | null;
+  lastColumnPresetId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,9 +28,9 @@ export interface PresetFilterInput {
 const FILTERS_ORDER = { position: "asc" as const };
 
 function toPresetRow(preset: {
-  id: number;
+  id: string;
   name: string;
-  lastColumnPresetId: number | null;
+  lastColumnPresetId: string | null;
   createdAt: Date;
   updatedAt: Date;
   filters: Array<{ metricKey: string; fieldKey: string; min: number | null; max: number | null; exclude: boolean }>;
@@ -61,7 +61,7 @@ export async function listPresets(firebaseUid: string): Promise<PresetRow[]> {
   return presets.map(toPresetRow);
 }
 
-export async function findPreset(firebaseUid: string, id: number): Promise<PresetRow | null> {
+export async function findPreset(firebaseUid: string, id: string): Promise<PresetRow | null> {
   const prisma = getPrismaClient();
   const preset = await prisma.screenerPreset.findFirst({
     where: { firebaseUid, id },
@@ -104,7 +104,7 @@ export interface PresetUpdate {
 /** Updates the name and/or replaces the whole filter set (not incremental) for a preset the user owns. */
 export async function updatePreset(
   firebaseUid: string,
-  id: number,
+  id: string,
   update: PresetUpdate,
 ): Promise<PresetRow | null> {
   const prisma = getPrismaClient();
@@ -147,7 +147,7 @@ export async function updatePreset(
   });
 }
 
-export async function deletePreset(firebaseUid: string, id: number): Promise<boolean> {
+export async function deletePreset(firebaseUid: string, id: string): Promise<boolean> {
   const prisma = getPrismaClient();
   const result = await prisma.screenerPreset.deleteMany({ where: { firebaseUid, id } });
   return result.count > 0;
@@ -156,8 +156,8 @@ export async function deletePreset(firebaseUid: string, id: number): Promise<boo
 /** Remembers which ColumnPreset this ScreenerPreset was last viewed with (see runPreset). */
 export async function setLastColumnPreset(
   firebaseUid: string,
-  id: number,
-  columnPresetId: number,
+  id: string,
+  columnPresetId: string,
 ): Promise<void> {
   const prisma = getPrismaClient();
   await prisma.screenerPreset.updateMany({ where: { firebaseUid, id }, data: { lastColumnPresetId: columnPresetId } });

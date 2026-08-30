@@ -27,8 +27,10 @@ import {
   removeWatchlistItem,
 } from "../domains/watchlist/watchlist.service.js";
 
+const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
+
 const SAMPLE_ITEM = {
-  id: 1,
+  id: SAMPLE_ID,
   symbol: "2330",
   note: null,
   createdAt: "2026-08-24T00:00:00.000Z",
@@ -96,13 +98,13 @@ describe("getWatchlistItemOrThrow", () => {
   it("throws a 404 when the item doesn't exist (or belongs to a different user)", async () => {
     vi.mocked(findWatchlistItem).mockResolvedValue(null);
 
-    await expect(getWatchlistItemOrThrow("uid1", 999)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(getWatchlistItemOrThrow("uid1", "missing-uuid")).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("returns the item when found", async () => {
     vi.mocked(findWatchlistItem).mockResolvedValue(SAMPLE_ITEM);
 
-    await expect(getWatchlistItemOrThrow("uid1", 1)).resolves.toEqual(SAMPLE_ITEM);
+    await expect(getWatchlistItemOrThrow("uid1", SAMPLE_ID)).resolves.toEqual(SAMPLE_ITEM);
   });
 });
 
@@ -110,14 +112,14 @@ describe("editWatchlistItemNote", () => {
   it("throws a 404 when the update matched no row (wrong owner or missing id)", async () => {
     vi.mocked(updateWatchlistItemNote).mockReset().mockResolvedValue(null);
 
-    await expect(editWatchlistItemNote("uid1", 1, "new note")).rejects.toMatchObject({ statusCode: 404 });
+    await expect(editWatchlistItemNote("uid1", SAMPLE_ID, "new note")).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("returns the updated item on success", async () => {
     const updated = { ...SAMPLE_ITEM, note: "new note" };
     vi.mocked(updateWatchlistItemNote).mockReset().mockResolvedValue(updated);
 
-    await expect(editWatchlistItemNote("uid1", 1, "new note")).resolves.toEqual(updated);
+    await expect(editWatchlistItemNote("uid1", SAMPLE_ID, "new note")).resolves.toEqual(updated);
   });
 });
 
@@ -125,12 +127,12 @@ describe("removeWatchlistItem", () => {
   it("throws a 404 when nothing was deleted", async () => {
     vi.mocked(deleteWatchlistItem).mockReset().mockResolvedValue(false);
 
-    await expect(removeWatchlistItem("uid1", 1)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(removeWatchlistItem("uid1", SAMPLE_ID)).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("resolves silently when the row was deleted", async () => {
     vi.mocked(deleteWatchlistItem).mockReset().mockResolvedValue(true);
 
-    await expect(removeWatchlistItem("uid1", 1)).resolves.toBeUndefined();
+    await expect(removeWatchlistItem("uid1", SAMPLE_ID)).resolves.toBeUndefined();
   });
 });

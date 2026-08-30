@@ -21,7 +21,7 @@ export async function listWatchlistItems(firebaseUid: string): Promise<Watchlist
   return rows.map(toWatchlistItem);
 }
 
-export async function findWatchlistItem(firebaseUid: string, id: number): Promise<WatchlistItem | null> {
+export async function findWatchlistItem(firebaseUid: string, id: string): Promise<WatchlistItem | null> {
   const prisma = getPrismaClient();
   const row = await prisma.watchlistItem.findFirst({ where: { firebaseUid, id } });
   return row ? toWatchlistItem(row) : null;
@@ -39,7 +39,7 @@ export async function createWatchlistItem(
 
 export async function updateWatchlistItemNote(
   firebaseUid: string,
-  id: number,
+  id: string,
   note: string | null,
 ): Promise<WatchlistItem | null> {
   const prisma = getPrismaClient();
@@ -50,7 +50,7 @@ export async function updateWatchlistItemNote(
   return findWatchlistItem(firebaseUid, id);
 }
 
-export async function deleteWatchlistItem(firebaseUid: string, id: number): Promise<boolean> {
+export async function deleteWatchlistItem(firebaseUid: string, id: string): Promise<boolean> {
   const prisma = getPrismaClient();
   const result = await prisma.watchlistItem.deleteMany({ where: { firebaseUid, id } });
   return result.count > 0;

@@ -1,5 +1,5 @@
 export interface WatchlistItem {
-  id: number;
+  id: string;
   symbol: string;
   note: string | null;
   createdAt: string;

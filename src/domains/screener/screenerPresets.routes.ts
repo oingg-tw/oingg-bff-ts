@@ -1,5 +1,6 @@
 import { Router } from "ultimate-express";
 import { AppError } from "../../shared/errorHandler.js";
+import { parseUuidParam } from "../../shared/uuid.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
 import { parsePagination } from "./pagination.js";
@@ -24,12 +25,8 @@ function requireUser(req: AuthenticatedRequest): string {
   return req.user.uid;
 }
 
-function parseId(raw: string): number {
-  const id = Number(raw);
-  if (!Number.isInteger(id) || id <= 0) {
-    throw new AppError(`Invalid preset id "${raw}"`, 400);
-  }
-  return id;
+function parseId(raw: string): string {
+  return parseUuidParam(raw, "preset");
 }
 
 function parseOptionalName(value: unknown): string | undefined {
@@ -71,7 +68,7 @@ screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
  *     description: >
  *       沒有 name 參數——新建立的組合一律取名「未命名」（撞名的話依序改成「未命名 2」「未命名 3」...，
  *       跟電腦新增檔案一樣不會報錯），前端請之後再用 PATCH /screener/presets/{id} 改名。
- *       例如 filters=[{field:"roe.roeTtmPct",min:30,max:null},{field:"margins.grossMarginTtm",min:60,max:null}]，
+ *       例如 filters=[{field:"roe.roeTtmPct",min:30,max:null},{field:"grossMargin.grossMarginTtm",min:60,max:null}]，
  *       格式跟 POST /screener 完全一樣。
  *     tags:
  *       - Screener
@@ -139,7 +136,8 @@ screenerPresetsRouter.post("/", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: 篩選組合的名稱與 filters。
@@ -170,7 +168,8 @@ screenerPresetsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     requestBody:
  *       content:
  *         application/json:
@@ -232,7 +231,8 @@ screenerPresetsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       204:
  *         description: 刪除成功，無回應內容。
@@ -248,15 +248,14 @@ screenerPresetsRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
   res.status(204).end();
 });
 
-function parseOptionalColumnPresetIdQuery(raw: unknown): number | undefined {
+function parseOptionalColumnPresetIdQuery(raw: unknown): string | undefined {
   if (raw === undefined) {
     return undefined;
   }
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value <= 0) {
+  if (typeof raw !== "string") {
     throw new AppError(`Invalid columnPresetId "${String(raw)}"`, 400);
   }
-  return value;
+  return parseUuidParam(raw, "column preset");
 }
 
 /**
@@ -280,11 +279,13 @@ function parseOptionalColumnPresetIdQuery(raw: unknown): number | undefined {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *       - in: query
  *         name: columnPresetId
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *         description: 切換成用這組欄位組合檢視，並記成這個 preset 下次的預設欄位組合。
  *       - in: query
  *         name: page
@@ -302,7 +303,7 @@ function parseOptionalColumnPresetIdQuery(raw: unknown): number | undefined {
  *       200:
  *         description: preset（名稱與條件）+ screener 結果（count/page/pageSize/totalPages/columns/results）+ 實際套用的 columnPresetId。
  *       400:
- *         description: columnPresetId、page 或 pageSize 不是合法的正整數。
+ *         description: columnPresetId 不是合法的 UUID，或 page/pageSize 不是合法的正整數。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  *       404:

@@ -1,5 +1,6 @@
 import { Router } from "ultimate-express";
 import { AppError } from "../../shared/errorHandler.js";
+import { parseUuidParam } from "../../shared/uuid.js";
 import { optionalAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
 import { runScreener } from "./screener.service.js";
@@ -20,15 +21,15 @@ function parseFilters(body: unknown): ScreenerFilter[] {
   return parseScreenerFilters((body as { filters?: unknown } | null)?.filters);
 }
 
-function parseOptionalColumnPresetId(body: unknown): number | undefined {
+function parseOptionalColumnPresetId(body: unknown): string | undefined {
   const value = (body as { columnPresetId?: unknown } | null)?.columnPresetId;
   if (value === undefined || value === null) {
     return undefined;
   }
-  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
-    throw new AppError('"columnPresetId" must be a positive integer', 400);
+  if (typeof value !== "string") {
+    throw new AppError('"columnPresetId" must be a UUID string', 400);
   }
-  return value;
+  return parseUuidParam(value, "column preset");
 }
 
 /**
@@ -39,7 +40,7 @@ function parseOptionalColumnPresetId(body: unknown): number | undefined {
  *     description: >
  *       不需要登入即可使用（僅儲存為具名 preset 才需要，見 POST /screener/presets）。
  *
- *       field 格式為 "<metricKey>.<fieldKey>"（例如 "margins.grossMarginTtm"），對應 GET /filters
+ *       field 格式為 "<metricKey>.<fieldKey>"（例如 "grossMargin.grossMarginTtm"），對應 GET /filters
  *       回傳的分類/指標/欄位目錄。每個指標會取該股票最新一筆合併報表（非子公司）的數值來比對，
  *       不同指標之間用 AND 合併。
  *
@@ -71,7 +72,7 @@ function parseOptionalColumnPresetId(body: unknown): number | undefined {
  *                   properties:
  *                     field:
  *                       type: string
- *                       example: "margins.grossMarginTtm"
+ *                       example: "grossMargin.grossMarginTtm"
  *                     min:
  *                       type: number
  *                       nullable: true
@@ -85,7 +86,8 @@ function parseOptionalColumnPresetId(body: unknown): number | undefined {
  *                       default: false
  *                       description: false（預設）＝保留 min~max 範圍內的股票；true＝反過來，保留範圍外的股票
  *               columnPresetId:
- *                 type: integer
+ *                 type: string
+ *                 format: uuid
  *                 nullable: true
  *                 description: 要用哪組顯示欄位（見上方說明），省略則自動選一組。
  *               page:

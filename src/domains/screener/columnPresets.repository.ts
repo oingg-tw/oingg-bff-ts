@@ -1,7 +1,7 @@
 import { getPrismaClient } from "../../adapters/neon/index.js";
 
 export interface ColumnPresetRow {
-  id: number;
+  id: string;
   name: string;
   isDefault: boolean;
   columns: string[];
@@ -12,7 +12,7 @@ export interface ColumnPresetRow {
 const COLUMNS_ORDER = { position: "asc" as const };
 
 function toRow(preset: {
-  id: number;
+  id: string;
   name: string;
   isDefault: boolean;
   createdAt: Date;
@@ -39,7 +39,7 @@ export async function listColumnPresets(firebaseUid: string): Promise<ColumnPres
   return presets.map(toRow);
 }
 
-export async function findColumnPreset(firebaseUid: string, id: number): Promise<ColumnPresetRow | null> {
+export async function findColumnPreset(firebaseUid: string, id: string): Promise<ColumnPresetRow | null> {
   const prisma = getPrismaClient();
   const preset = await prisma.columnPreset.findFirst({
     where: { firebaseUid, id },
@@ -91,7 +91,7 @@ export interface ColumnPresetUpdate {
 /** Updates name/isDefault and/or replaces the whole column set (not incremental) for a preset the user owns. */
 export async function updateColumnPreset(
   firebaseUid: string,
-  id: number,
+  id: string,
   update: ColumnPresetUpdate,
 ): Promise<ColumnPresetRow | null> {
   const prisma = getPrismaClient();
@@ -134,7 +134,7 @@ export async function updateColumnPreset(
   });
 }
 
-export async function deleteColumnPreset(firebaseUid: string, id: number): Promise<boolean> {
+export async function deleteColumnPreset(firebaseUid: string, id: string): Promise<boolean> {
   const prisma = getPrismaClient();
   const result = await prisma.columnPreset.deleteMany({ where: { firebaseUid, id } });
   return result.count > 0;

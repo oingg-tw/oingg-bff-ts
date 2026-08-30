@@ -25,7 +25,7 @@ export interface ColumnPresetColumnView {
 }
 
 export interface ColumnPresetView {
-  id: number;
+  id: string;
   name: string;
   isDefault: boolean;
   columns: ColumnPresetColumnView[];
@@ -63,7 +63,7 @@ export async function getColumnPresets(firebaseUid: string): Promise<ColumnPrese
   return Promise.all(rows.map(toView));
 }
 
-export async function getColumnPresetOrThrow(firebaseUid: string, id: number): Promise<ColumnPresetView> {
+export async function getColumnPresetOrThrow(firebaseUid: string, id: string): Promise<ColumnPresetView> {
   const row = await findColumnPreset(firebaseUid, id);
   if (!row) {
     throw new AppError(`Column preset ${id} not found`, 404);
@@ -92,7 +92,7 @@ export async function addColumnPreset(
 
 export async function editColumnPreset(
   firebaseUid: string,
-  id: number,
+  id: string,
   update: { name?: string; columns?: string[]; isDefault?: boolean },
 ): Promise<ColumnPresetView> {
   if (update.columns !== undefined) {
@@ -113,7 +113,7 @@ export async function editColumnPreset(
   }
 }
 
-export async function removeColumnPreset(firebaseUid: string, id: number): Promise<void> {
+export async function removeColumnPreset(firebaseUid: string, id: string): Promise<void> {
   const deleted = await deleteColumnPreset(firebaseUid, id);
   if (!deleted) {
     throw new AppError(`Column preset ${id} not found`, 404);
@@ -133,7 +133,7 @@ export const SYSTEM_DEFAULT_COLUMNS: ScreenerColumnRef[] = [
 ];
 
 export interface ResolvedScreenerColumns {
-  columnPresetId: number | null;
+  columnPresetId: string | null;
   columns: ScreenerColumnRef[];
 }
 
@@ -152,7 +152,7 @@ export interface ResolvedScreenerColumns {
  */
 export async function resolveScreenerColumns(
   firebaseUid: string | undefined,
-  columnPresetId?: number,
+  columnPresetId?: string,
 ): Promise<ResolvedScreenerColumns> {
   if (!firebaseUid) {
     return { columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS };

@@ -28,7 +28,7 @@ export async function getWatchlist(firebaseUid: string): Promise<WatchlistItem[]
   return listWatchlistItems(firebaseUid);
 }
 
-export async function getWatchlistItemOrThrow(firebaseUid: string, id: number): Promise<WatchlistItem> {
+export async function getWatchlistItemOrThrow(firebaseUid: string, id: string): Promise<WatchlistItem> {
   const item = await findWatchlistItem(firebaseUid, id);
   if (!item) {
     throw new AppError(`Watchlist item ${id} not found`, 404);
@@ -55,7 +55,7 @@ export async function addWatchlistItem(
 
 export async function editWatchlistItemNote(
   firebaseUid: string,
-  id: number,
+  id: string,
   note: string | null,
 ): Promise<WatchlistItem> {
   const item = await updateWatchlistItemNote(firebaseUid, id, note);
@@ -65,7 +65,7 @@ export async function editWatchlistItemNote(
   return item;
 }
 
-export async function removeWatchlistItem(firebaseUid: string, id: number): Promise<void> {
+export async function removeWatchlistItem(firebaseUid: string, id: string): Promise<void> {
   const deleted = await deleteWatchlistItem(firebaseUid, id);
   if (!deleted) {
     throw new AppError(`Watchlist item ${id} not found`, 404);

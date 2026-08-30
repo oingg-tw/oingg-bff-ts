@@ -48,7 +48,7 @@ export async function getTransactions(firebaseUid: string, symbol?: string): Pro
   return listTransactions(firebaseUid, symbol);
 }
 
-export async function getTransactionOrThrow(firebaseUid: string, id: number): Promise<StockTransaction> {
+export async function getTransactionOrThrow(firebaseUid: string, id: string): Promise<StockTransaction> {
   const transaction = await findTransaction(firebaseUid, id);
   if (!transaction) {
     throw new AppError(`Transaction ${id} not found`, 404);
@@ -70,7 +70,7 @@ export async function addTransaction(firebaseUid: string, input: TransactionInpu
 
 export async function editTransaction(
   firebaseUid: string,
-  id: number,
+  id: string,
   update: TransactionUpdate,
 ): Promise<StockTransaction> {
   if (update.action !== undefined) {
@@ -99,7 +99,7 @@ export async function editTransaction(
   return transaction;
 }
 
-export async function removeTransaction(firebaseUid: string, id: number): Promise<void> {
+export async function removeTransaction(firebaseUid: string, id: string): Promise<void> {
   const deleted = await deleteTransaction(firebaseUid, id);
   if (!deleted) {
     throw new AppError(`Transaction ${id} not found`, 404);

@@ -1,5 +1,6 @@
 import { Router } from "ultimate-express";
 import { AppError } from "../../shared/errorHandler.js";
+import { parseUuidParam } from "../../shared/uuid.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
 import {
@@ -21,12 +22,8 @@ function requireUser(req: AuthenticatedRequest): string {
   return req.user.uid;
 }
 
-function parseId(raw: string): number {
-  const id = Number(raw);
-  if (!Number.isInteger(id) || id <= 0) {
-    throw new AppError(`Invalid watchlist item id "${raw}"`, 400);
-  }
-  return id;
+function parseId(raw: string): string {
+  return parseUuidParam(raw, "watchlist item");
 }
 
 function parseNote(body: unknown): string | null {
@@ -125,12 +122,13 @@ watchlistRouter.post("/", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: 自選股項目。
  *       400:
- *         description: id 不是合法的正整數。
+ *         description: id 不是合法的 UUID。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  *       404:
@@ -158,7 +156,8 @@ watchlistRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     requestBody:
  *       content:
  *         application/json:
@@ -172,7 +171,7 @@ watchlistRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
  *       200:
  *         description: 更新後的自選股項目。
  *       400:
- *         description: id 不是合法的正整數，或 note 型別不是字串。
+ *         description: id 不是合法的 UUID，或 note 型別不是字串。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  *       404:
@@ -199,12 +198,13 @@ watchlistRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       204:
  *         description: 刪除成功，無回應內容。
  *       400:
- *         description: id 不是合法的正整數。
+ *         description: id 不是合法的 UUID。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  *       404:

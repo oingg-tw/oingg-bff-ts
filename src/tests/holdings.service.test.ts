@@ -22,8 +22,10 @@ import {
 } from "../domains/holdings/holdings.repository.js";
 import { addHolding, editHolding, getHoldingOrThrow, removeHolding } from "../domains/holdings/holdings.service.js";
 
+const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
+
 const SAMPLE_HOLDING = {
-  id: 1,
+  id: SAMPLE_ID,
   symbol: "2330",
   quantity: 1000,
   averageCost: "550.5000",
@@ -80,12 +82,12 @@ describe("getHoldingOrThrow", () => {
 
   it("throws a 404 when the holding doesn't exist (or belongs to a different user)", async () => {
     vi.mocked(findHolding).mockResolvedValue(null);
-    await expect(getHoldingOrThrow("uid1", 999)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(getHoldingOrThrow("uid1", "missing-uuid")).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("returns the holding when found", async () => {
     vi.mocked(findHolding).mockResolvedValue(SAMPLE_HOLDING);
-    await expect(getHoldingOrThrow("uid1", 1)).resolves.toEqual(SAMPLE_HOLDING);
+    await expect(getHoldingOrThrow("uid1", SAMPLE_ID)).resolves.toEqual(SAMPLE_HOLDING);
   });
 });
 
@@ -93,20 +95,20 @@ describe("editHolding", () => {
   beforeEachReset();
 
   it("rejects an invalid quantity/averageCost before hitting the database", async () => {
-    await expect(editHolding("uid1", 1, { quantity: -5 })).rejects.toMatchObject({ statusCode: 400 });
-    await expect(editHolding("uid1", 1, { averageCost: -1 })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(editHolding("uid1", SAMPLE_ID, { quantity: -5 })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(editHolding("uid1", SAMPLE_ID, { averageCost: -1 })).rejects.toMatchObject({ statusCode: 400 });
     expect(updateHolding).not.toHaveBeenCalled();
   });
 
   it("throws a 404 when the update matched no row", async () => {
     vi.mocked(updateHolding).mockResolvedValue(null);
-    await expect(editHolding("uid1", 1, { note: "x" })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(editHolding("uid1", SAMPLE_ID, { note: "x" })).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("returns the updated holding on success", async () => {
     const updated = { ...SAMPLE_HOLDING, quantity: 2000 };
     vi.mocked(updateHolding).mockResolvedValue(updated);
-    await expect(editHolding("uid1", 1, { quantity: 2000 })).resolves.toEqual(updated);
+    await expect(editHolding("uid1", SAMPLE_ID, { quantity: 2000 })).resolves.toEqual(updated);
   });
 });
 
@@ -115,12 +117,12 @@ describe("removeHolding", () => {
 
   it("throws a 404 when nothing was deleted", async () => {
     vi.mocked(deleteHolding).mockResolvedValue(false);
-    await expect(removeHolding("uid1", 1)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(removeHolding("uid1", SAMPLE_ID)).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("resolves silently when the row was deleted", async () => {
     vi.mocked(deleteHolding).mockResolvedValue(true);
-    await expect(removeHolding("uid1", 1)).resolves.toBeUndefined();
+    await expect(removeHolding("uid1", SAMPLE_ID)).resolves.toBeUndefined();
   });
 });
 

@@ -1,5 +1,6 @@
 import { Router } from "ultimate-express";
 import { AppError } from "../../shared/errorHandler.js";
+import { parseUuidParam } from "../../shared/uuid.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
 import { addHolding, editHolding, getHoldingOrThrow, getHoldings, removeHolding } from "./holdings.service.js";
@@ -16,12 +17,8 @@ function requireUser(req: AuthenticatedRequest): string {
   return req.user.uid;
 }
 
-function parseId(raw: string): number {
-  const id = Number(raw);
-  if (!Number.isInteger(id) || id <= 0) {
-    throw new AppError(`Invalid holding id "${raw}"`, 400);
-  }
-  return id;
+function parseId(raw: string): string {
+  return parseUuidParam(raw, "holding");
 }
 
 function parseNote(note: unknown): string | null {
@@ -139,12 +136,13 @@ holdingsRouter.post("/", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       200:
  *         description: 持股資料。
  *       400:
- *         description: id 不是合法的正整數。
+ *         description: id 不是合法的 UUID。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  *       404:
@@ -172,7 +170,8 @@ holdingsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     requestBody:
  *       content:
  *         application/json:
@@ -190,7 +189,7 @@ holdingsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
  *       200:
  *         description: 更新後的持股。
  *       400:
- *         description: id 不是合法的正整數，或欄位型別/數值不合法。
+ *         description: id 不是合法的 UUID，或欄位型別/數值不合法。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  *       404:
@@ -236,12 +235,13 @@ holdingsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
+ *           type: string
+ *           format: uuid
  *     responses:
  *       204:
  *         description: 刪除成功，無回應內容。
  *       400:
- *         description: id 不是合法的正整數。
+ *         description: id 不是合法的 UUID。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  *       404:
