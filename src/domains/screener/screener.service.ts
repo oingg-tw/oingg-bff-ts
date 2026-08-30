@@ -5,6 +5,7 @@ import { AppError } from "../../shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
 import { ANALYSIS_METRIC_TABLES } from "./analysisMetricTables.js";
 import { SPECIAL_COLUMNS } from "./columnField.js";
+import type { Pagination } from "./pagination.js";
 import type { ScreenerColumnRef, ScreenerFilter, ScreenerResult, ScreenerResultColumn } from "./screener.types.js";
 
 const ANALYSIS_DB = "analysis";
@@ -78,10 +79,15 @@ const cteAlias = (metricKey: string) => `m_${metricKey}`;
  *
  * Filtering is scoped to the analysis DB (filterCatalog fields only); `columns` may additionally include
  * "stock.price" (see columnField.ts), which is fetched separately from twse/tpex and merged into results.
+ *
+ * Paginated via a single query: `COUNT(*) OVER()` reports the total match count alongside each returned
+ * row (Postgres evaluates window functions over the full WHERE-filtered set before LIMIT/OFFSET truncate
+ * it, so the count is unaffected by pagination) — avoids a second round-trip just to get a total.
  */
 export async function runScreener(
   filters: ScreenerFilter[],
   columns: ScreenerColumnRef[],
+  pagination: Pagination,
 ): Promise<ScreenerResult> {
   if (filters.length === 0) {
     throw new AppError("At least one filter is required", 400);
@@ -172,16 +178,24 @@ export async function runScreener(
     .map((c) => `${cteAlias(c.metricKey)}."${c.column}" AS "${c.field}"`)
     .join(", ");
 
+  params.push(pagination.pageSize);
+  const limitParam = `$${params.length}::int`;
+  params.push((pagination.page - 1) * pagination.pageSize);
+  const offsetParam = `$${params.length}::int`;
+
   const sql = `
     WITH ${ctes.join(",\n")}
-    SELECT ${cteAlias(anchor)}.symbol AS symbol${selectColumns ? `, ${selectColumns}` : ""}
+    SELECT ${cteAlias(anchor)}.symbol AS symbol${selectColumns ? `, ${selectColumns}` : ""}, COUNT(*) OVER() AS "__totalCount"
     FROM ${cteAlias(anchor)}
     ${joinClauses.join("\n")}
     WHERE ${whereConditions.join(" AND ")}
     ORDER BY symbol
+    LIMIT ${limitParam} OFFSET ${offsetParam}
   `;
 
   const result = await queryNeon<Record<string, unknown>>(ANALYSIS_DB, sql, params);
+
+  const totalCount = result.rows.length > 0 ? Number(result.rows[0]!.__totalCount) : 0;
 
   const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
   const pricesBySymbol = wantsStockPrice
@@ -198,10 +212,13 @@ export async function runScreener(
   }
 
   return {
-    count: result.rows.length,
+    count: totalCount,
+    page: pagination.page,
+    pageSize: pagination.pageSize,
+    totalPages: Math.ceil(totalCount / pagination.pageSize),
     columns: resultColumns,
     results: result.rows.map((row) => {
-      const { symbol, ...values } = row;
+      const { symbol, __totalCount, ...values } = row;
       if (pricesBySymbol) {
         values[STOCK_PRICE_FIELD] = pricesBySymbol.get(symbol as string) ?? null;
       }

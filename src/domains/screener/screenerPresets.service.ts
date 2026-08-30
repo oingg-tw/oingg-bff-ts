@@ -3,6 +3,7 @@ import { AppError } from "../../shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
 import { findFilterFields } from "../filterCatalog/index.js";
 import { resolveScreenerColumns } from "./columnPresets.service.js";
+import type { Pagination } from "./pagination.js";
 import { runScreener } from "./screener.service.js";
 import type { ScreenerFilter, ScreenerResult } from "./screener.types.js";
 import {
@@ -189,6 +190,7 @@ export async function removePreset(firebaseUid: string, id: number): Promise<voi
 export async function runPreset(
   firebaseUid: string,
   id: number,
+  pagination: Pagination,
   columnPresetId?: number,
 ): Promise<{ preset: PresetView; screener: ScreenerResult; columnPresetId: number | null }> {
   const row = await findPreset(firebaseUid, id);
@@ -206,6 +208,6 @@ export async function runPreset(
     await setLastColumnPreset(firebaseUid, id, resolved.columnPresetId ?? columnPresetId);
   }
 
-  const screener = await runScreener(preset.filters, resolved.columns);
+  const screener = await runScreener(preset.filters, resolved.columns, pagination);
   return { preset, screener, columnPresetId: resolved.columnPresetId };
 }

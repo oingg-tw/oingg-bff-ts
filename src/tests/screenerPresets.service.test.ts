@@ -239,14 +239,19 @@ describe("getPresetOrThrow / removePreset", () => {
 
 const SAMPLE_SCREENER_RESULT = {
   count: 1,
+  page: 1,
+  pageSize: 50,
+  totalPages: 1,
   columns: [{ field: "marketRatios.peRatio", metricName: "Market Ratios", fieldName: "PER" }],
   results: [{ symbol: "2330", values: { "marketRatios.peRatio": "27.82" } }],
 };
 
+const DEFAULT_PAGINATION = { page: 1, pageSize: 50 };
+
 describe("runPreset", () => {
   it("throws 404 when the preset doesn't exist for this user", async () => {
     vi.mocked(findPreset).mockResolvedValue(null);
-    await expect(runPreset("uid1", 999)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(runPreset("uid1", 999, DEFAULT_PAGINATION)).rejects.toMatchObject({ statusCode: 404 });
     expect(runScreener).not.toHaveBeenCalled();
   });
 
@@ -258,7 +263,7 @@ describe("runPreset", () => {
     });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    const result = await runPreset("uid1", 1);
+    const result = await runPreset("uid1", 1, DEFAULT_PAGINATION);
 
     expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", undefined);
     expect(setLastColumnPreset).not.toHaveBeenCalled();
@@ -268,6 +273,7 @@ describe("runPreset", () => {
         { field: "margins.grossMarginTtm", min: 60, max: null, exclude: false },
       ],
       [{ field: "marketRatios.peRatio" }],
+      DEFAULT_PAGINATION,
     );
     expect(result.preset.name).toBe("績優股");
     expect(result.columnPresetId).toBeNull();
@@ -278,7 +284,7 @@ describe("runPreset", () => {
     vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: 7, columns: [] });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    await runPreset("uid1", 1);
+    await runPreset("uid1", 1, DEFAULT_PAGINATION);
 
     expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", 7);
     expect(setLastColumnPreset).not.toHaveBeenCalled();
@@ -289,10 +295,20 @@ describe("runPreset", () => {
     vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: 9, columns: [] });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    const result = await runPreset("uid1", 1, 9);
+    const result = await runPreset("uid1", 1, DEFAULT_PAGINATION, 9);
 
     expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", 9);
     expect(setLastColumnPreset).toHaveBeenCalledWith("uid1", 1, 9);
     expect(result.columnPresetId).toBe(9);
+  });
+
+  it("forwards page/pageSize through to runScreener", async () => {
+    vi.mocked(findPreset).mockResolvedValue(SAMPLE_ROW);
+    vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: null, columns: [] });
+    vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
+
+    await runPreset("uid1", 1, { page: 2, pageSize: 10 });
+
+    expect(runScreener).toHaveBeenCalledWith(expect.anything(), expect.anything(), { page: 2, pageSize: 10 });
   });
 });

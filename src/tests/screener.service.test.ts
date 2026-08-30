@@ -16,13 +16,16 @@ import { queryNeon } from "../adapters/neon/index.js";
 import { findFilterFields } from "../domains/filterCatalog/index.js";
 import { getLatestClosePrices } from "../domains/stock/index.js";
 import { runScreener } from "../domains/screener/screener.service.js";
+import type { Pagination } from "../domains/screener/pagination.js";
+
+const DEFAULT_PAGINATION: Pagination = { page: 1, pageSize: 50 };
 
 type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
 
 const KNOWN_FIELDS: Record<string, Lookup> = {
-  "margins.grossMarginTtm": {
+  "grossMargin.grossMarginTtm": {
     categoryKey: "profitability",
-    metricKey: "margins",
+    metricKey: "grossMargin",
     metricName: "Margins",
     fieldKey: "grossMarginTtm",
     fieldName: "Gross Margin (TTM)",
@@ -60,20 +63,20 @@ beforeEach(() => {
 
 describe("runScreener", () => {
   it("rejects an empty filters array", async () => {
-    await expect(runScreener([], [])).rejects.toMatchObject({ statusCode: 400 });
+    await expect(runScreener([], [], DEFAULT_PAGINATION)).rejects.toMatchObject({ statusCode: 400 });
     expect(queryNeon).not.toHaveBeenCalled();
   });
 
   it("rejects a filter field that doesn't exist in the filter catalog", async () => {
     await expect(
-      runScreener([{ field: "nope.nope", min: 1, max: null, exclude: false }], []),
+      runScreener([{ field: "nope.nope", min: 1, max: null, exclude: false }], [], DEFAULT_PAGINATION),
     ).rejects.toMatchObject({ statusCode: 400 });
     expect(queryNeon).not.toHaveBeenCalled();
   });
 
   it("rejects a catalog field whose metric isn't wired up to the analysis DB yet", async () => {
     await expect(
-      runScreener([{ field: "unwired.someField", min: 1, max: null, exclude: false }], []),
+      runScreener([{ field: "unwired.someField", min: 1, max: null, exclude: false }], [], DEFAULT_PAGINATION),
     ).rejects.toMatchObject({ statusCode: 501 });
   });
 
@@ -84,7 +87,7 @@ describe("runScreener", () => {
   it("excludes rows with a null latestOrderColumn from the CTE, so a broken row never wins DISTINCT ON as \"latest\"", async () => {
     vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
 
-    await runScreener([{ field: "margins.grossMarginTtm", min: 20, max: null, exclude: false }], []);
+    await runScreener([{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }], [], DEFAULT_PAGINATION);
 
     const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
     expect(sql).toContain('WHERE "report_date" IS NOT NULL AND data_type');
@@ -95,10 +98,11 @@ describe("runScreener", () => {
 
     await runScreener(
       [
-        { field: "margins.grossMarginTtm", min: 20, max: null, exclude: false },
+        { field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false },
         { field: "roe.roeTtmPct", min: null, max: 30, exclude: false },
       ],
       [],
+      DEFAULT_PAGINATION,
     );
 
     expect(queryNeon).toHaveBeenCalledOnce();
@@ -106,33 +110,37 @@ describe("runScreener", () => {
     expect(db).toBe("analysis");
     expect(sql).toContain("FROM profitability_margins");
     expect(sql).toContain("FROM profitability_roe");
-    expect(sql).toContain("INNER JOIN m_roe ON m_roe.symbol = m_margins.symbol");
+    expect(sql).toContain("INNER JOIN m_roe ON m_roe.symbol = m_grossMargin.symbol");
     expect(sql).toContain("gross_margin_ttm");
     expect(sql).toContain("roe_ttm_pct");
     // Normal mode: value must be within [min, max].
     expect(sql).toMatch(/IS NOT NULL AND \(\$1::numeric IS NULL OR .*>= \$1::numeric\)/);
-    expect(params).toEqual([20, null, null, 30]);
+    // Trailing pair is LIMIT/OFFSET (pageSize 50, offset 0 for page 1).
+    expect(params).toEqual([20, null, null, 30, 50, 0]);
   });
 
   it("builds an outside-range condition when exclude is true", async () => {
     vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
 
-    await runScreener([{ field: "margins.grossMarginTtm", min: 20, max: null, exclude: true }], []);
+    await runScreener([{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: true }], [], DEFAULT_PAGINATION);
 
     const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
     expect(sql).toMatch(/IS NOT NULL AND \(\(\$1::numeric IS NOT NULL AND .*< \$1::numeric\)/);
   });
 
   it("LEFT JOINs a metric that's only requested as a display column, not filtered", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({ rows: [{ symbol: "2330", "roe.roeTtmPct": "10.98" }] } as never);
+    vi.mocked(queryNeon).mockResolvedValue({
+      rows: [{ symbol: "2330", "roe.roeTtmPct": "10.98", __totalCount: "1" }],
+    } as never);
 
     const result = await runScreener(
-      [{ field: "margins.grossMarginTtm", min: 20, max: null, exclude: false }],
+      [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
       [{ field: "roe.roeTtmPct" }],
+      DEFAULT_PAGINATION,
     );
 
     const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
-    expect(sql).toContain("LEFT JOIN m_roe ON m_roe.symbol = m_margins.symbol");
+    expect(sql).toContain("LEFT JOIN m_roe ON m_roe.symbol = m_grossMargin.symbol");
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
     expect(result.results).toEqual([{ symbol: "2330", values: { "roe.roeTtmPct": "10.98" } }]);
   });
@@ -142,8 +150,9 @@ describe("runScreener", () => {
     vi.mocked(getLatestClosePrices).mockResolvedValue(new Map([["2330", "2350.0000"]]));
 
     const result = await runScreener(
-      [{ field: "margins.grossMarginTtm", min: 20, max: null, exclude: false }],
+      [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
       [{ field: "stock.price" }],
+      DEFAULT_PAGINATION,
     );
 
     // "stock.price" must never leak into the analysis-DB SQL — it isn't a filterCatalog field.
@@ -166,17 +175,65 @@ describe("runScreener", () => {
 
     await runScreener(
       [
-        { field: "margins.grossMarginTtm", min: 20, max: null, exclude: false },
+        { field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false },
         { field: "roe.roeTtmPct", min: null, max: 30, exclude: false },
       ],
       [{ field: "roe.roeTtmPct" }],
+      DEFAULT_PAGINATION,
     );
 
     expect(findFilterFields).toHaveBeenCalledTimes(1);
     expect(findFilterFields).toHaveBeenCalledWith([
-      { field: "margins.grossMarginTtm", metricKey: "margins", fieldKey: "grossMarginTtm" },
+      { field: "grossMargin.grossMarginTtm", metricKey: "grossMargin", fieldKey: "grossMarginTtm" },
       { field: "roe.roeTtmPct", metricKey: "roe", fieldKey: "roeTtmPct" },
       { field: "roe.roeTtmPct", metricKey: "roe", fieldKey: "roeTtmPct" },
     ]);
+  });
+
+  describe("pagination", () => {
+    it("adds LIMIT/OFFSET params derived from page/pageSize and reports total/page/pageSize/totalPages from the window function", async () => {
+      vi.mocked(queryNeon).mockResolvedValue({
+        rows: [
+          { symbol: "2330", __totalCount: "120" },
+          { symbol: "2317", __totalCount: "120" },
+        ],
+      } as never);
+
+      const result = await runScreener(
+        [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
+        [],
+        { page: 3, pageSize: 2 },
+      );
+
+      const [, sql, params] = vi.mocked(queryNeon).mock.calls[0]!;
+      expect(sql).toContain('COUNT(*) OVER() AS "__totalCount"');
+      expect(sql).toMatch(/LIMIT \$\d+::int OFFSET \$\d+::int/);
+      // page 3, pageSize 2 -> offset 4. Filter params (min, max) come first, then [pageSize, offset].
+      expect(params).toEqual([20, null, 2, 4]);
+
+      expect(result.count).toBe(120);
+      expect(result.page).toBe(3);
+      expect(result.pageSize).toBe(2);
+      expect(result.totalPages).toBe(60);
+      // The internal window-function column must never leak into a row's values.
+      expect(result.results).toEqual([
+        { symbol: "2330", values: {} },
+        { symbol: "2317", values: {} },
+      ]);
+    });
+
+    it("reports count 0 and totalPages 0 when nothing matches, instead of NaN from an empty row set", async () => {
+      vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
+
+      const result = await runScreener(
+        [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
+        [],
+        { page: 1, pageSize: 50 },
+      );
+
+      expect(result.count).toBe(0);
+      expect(result.totalPages).toBe(0);
+      expect(result.results).toEqual([]);
+    });
   });
 });

@@ -127,9 +127,9 @@ export async function removeColumnPreset(firebaseUid: string, id: number): Promi
  */
 export const SYSTEM_DEFAULT_COLUMNS: ScreenerColumnRef[] = [
   { field: "stock.price" },
-  { field: "marketRatios.peRatio" },
-  { field: "marketRatios.pbRatio" },
-  { field: "marketRatios.dividendYieldPct" },
+  { field: "per.peRatio" },
+  { field: "pbr.pbRatio" },
+  { field: "dividendYield.dividendYieldPct" },
 ];
 
 export interface ResolvedScreenerColumns {

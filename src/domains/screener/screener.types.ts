@@ -23,7 +23,11 @@ export interface ScreenerResultRow {
 }
 
 export interface ScreenerResult {
+  /** Total number of matching companies across every page, not just this page's results.length. */
   count: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
   columns: ScreenerResultColumn[];
   results: ScreenerResultRow[];
 }

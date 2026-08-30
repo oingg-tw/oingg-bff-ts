@@ -4,6 +4,7 @@ import { optionalAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
 import { runScreener } from "./screener.service.js";
 import { resolveScreenerColumns } from "./columnPresets.service.js";
+import { parsePagination } from "./pagination.js";
 import { parseScreenerFilters } from "./screenerFilterInput.js";
 import type { ScreenerFilter } from "./screener.types.js";
 
@@ -87,11 +88,19 @@ function parseOptionalColumnPresetId(body: unknown): number | undefined {
  *                 type: integer
  *                 nullable: true
  *                 description: 要用哪組顯示欄位（見上方說明），省略則自動選一組。
+ *               page:
+ *                 type: integer
+ *                 default: 1
+ *                 description: 頁碼（從 1 開始）。
+ *               pageSize:
+ *                 type: integer
+ *                 default: 50
+ *                 description: 每頁筆數，最多 200。
  *     responses:
  *       200:
- *         description: 符合條件的股票清單，附上顯示欄位數值，以及實際套用的 columnPresetId。
+ *         description: 符合條件的股票清單（這一頁的部分），附上總筆數/頁碼/總頁數，以及實際套用的 columnPresetId。
  *       400:
- *         description: 請求格式錯誤，或 field 不存在於 filterCatalog。
+ *         description: 請求格式錯誤，field 不存在於 filterCatalog，或 page/pageSize 不合法。
  *       401:
  *         description: 帶了 Authorization header，但 token 無效或過期（完全不帶則視為匿名請求，不會 401）。
  *       404:
@@ -103,8 +112,10 @@ screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = req.user?.uid;
   const filters = parseFilters(req.body);
   const requestedColumnPresetId = parseOptionalColumnPresetId(req.body);
+  const body = req.body as { page?: unknown; pageSize?: unknown } | null;
+  const pagination = parsePagination(body?.page, body?.pageSize);
 
   const { columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, requestedColumnPresetId);
-  const result = await runScreener(filters, columns);
+  const result = await runScreener(filters, columns, pagination);
   res.json({ ...result, columnPresetId });
 });

@@ -2,6 +2,7 @@ import { Router } from "ultimate-express";
 import { AppError } from "../../shared/errorHandler.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
+import { parsePagination } from "./pagination.js";
 import { parseScreenerFilters } from "./screenerFilterInput.js";
 import {
   addPreset,
@@ -285,11 +286,23 @@ function parseOptionalColumnPresetIdQuery(raw: unknown): number | undefined {
  *         schema:
  *           type: integer
  *         description: 切換成用這組欄位組合檢視，並記成這個 preset 下次的預設欄位組合。
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: 頁碼（從 1 開始）。
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: 每頁筆數，最多 200。
  *     responses:
  *       200:
- *         description: preset（名稱與條件）+ screener 結果（count/columns/results）+ 實際套用的 columnPresetId。
+ *         description: preset（名稱與條件）+ screener 結果（count/page/pageSize/totalPages/columns/results）+ 實際套用的 columnPresetId。
  *       400:
- *         description: columnPresetId 不是合法的正整數。
+ *         description: columnPresetId、page 或 pageSize 不是合法的正整數。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  *       404:
@@ -299,6 +312,7 @@ screenerPresetsRouter.get("/:id/run", async (req: AuthenticatedRequest, res) => 
   const firebaseUid = requireUser(req);
   const id = parseId(req.params.id ?? "");
   const columnPresetId = parseOptionalColumnPresetIdQuery(req.query.columnPresetId);
-  const result = await runPreset(firebaseUid, id, columnPresetId);
+  const pagination = parsePagination(req.query.page, req.query.pageSize);
+  const result = await runPreset(firebaseUid, id, pagination, columnPresetId);
   res.json(result);
 });
