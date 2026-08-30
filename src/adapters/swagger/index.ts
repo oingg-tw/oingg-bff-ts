@@ -37,6 +37,8 @@ const options: swaggerJSDoc.Options = {
       { name: "User", description: "使用者資料" },
       { name: "Stock", description: "股票資料查詢——股價、本益比、本淨比、殖利率" },
       { name: "Watchlist", description: "使用者自選股清單 CRUD" },
+      { name: "Holdings", description: "使用者持股管理 CRUD（獨立維護，不從交易日誌自動計算）" },
+      { name: "Transactions", description: "交易日誌（買進／賣出交易紀錄）CRUD" },
       { name: "Screener", description: "依 filterCatalog 指標篩選個股，並依使用者設定的欄位偏好回傳結果" },
     ],
     components: {

@@ -122,6 +122,48 @@ model ScreenerPreset {
   @@map("screener_preset")
 }
 
+/// A user's current position in a stock (持股管理) — maintained independently of StockTransaction,
+/// not computed from it. Quantity/averageCost are whatever the user says they are; adjusting them after
+/// recording a trade in StockTransaction is a separate, manual step (see src/domains/holdings).
+model Holding {
+  id          Int      @id @default(autoincrement())
+  firebaseUid String   @map("firebase_uid")
+  symbol      String
+  quantity    Int
+  averageCost Decimal  @map("average_cost") @db.Decimal(18, 4)
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([firebaseUid, symbol])
+  @@index([firebaseUid])
+  @@map("holding")
+}
+
+enum TransactionAction {
+  BUY
+  SELL
+}
+
+/// A single buy/sell trade record (交易日誌) — a plain ledger entry, independent of Holding (see above).
+model StockTransaction {
+  id          Int               @id @default(autoincrement())
+  firebaseUid String            @map("firebase_uid")
+  symbol      String
+  action      TransactionAction
+  quantity    Int
+  price       Decimal           @db.Decimal(18, 4)
+  fee         Decimal           @default(0) @db.Decimal(18, 4)
+  tax         Decimal           @default(0) @db.Decimal(18, 4)
+  tradeDate   DateTime          @map("trade_date") @db.Date
+  note        String?
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at")
+
+  @@index([firebaseUid, tradeDate])
+  @@map("stock_transaction")
+}
+
 /// One filter condition within a ScreenerPreset. References FilterMetricField for the same reason
 /// ScreenerColumnPreference does — a saved filter can never point at a field the catalog doesn't have.
 model ScreenerPresetFilter {
