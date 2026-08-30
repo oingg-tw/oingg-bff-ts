@@ -1,4 +1,5 @@
 import { Router } from "ultimate-express";
+import { presetTemplatesRouter } from "../presetTemplates/index.js";
 import { columnPresetsRouter } from "./columnPresets.routes.js";
 import { screenerRouter } from "./screener.routes.js";
 import { screenerPresetsRouter } from "./screenerPresets.routes.js";
@@ -6,6 +7,7 @@ import { screenerPresetsRouter } from "./screenerPresets.routes.js";
 export const screenerRoutes = Router();
 screenerRoutes.use("/column-presets", columnPresetsRouter);
 screenerRoutes.use("/presets", screenerPresetsRouter);
+screenerRoutes.use("/templates", presetTemplatesRouter);
 screenerRoutes.use("/", screenerRouter);
 
 export { runScreener } from "./screener.service.js";

@@ -13,7 +13,8 @@
     "test": "vitest",
     "postinstall": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "seed:preset-templates": "tsx prisma/seedPresetTemplates.ts"
   },
   "license": "ISC",
   "dependencies": {

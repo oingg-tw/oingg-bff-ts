@@ -11,6 +11,41 @@ datasource db {
   provider = "postgresql"
 }
 
+enum PresetTemplateTier {
+  FREE
+  PAID
+}
+
+enum PresetTemplateStatus {
+  AVAILABLE
+  PENDING
+}
+
+/// A curated, shared screener filter template shown to every user — not owned by anyone, unlike
+/// ScreenerPreset (per-user, firebaseUid-scoped). Seeded from a competitor-research report
+/// (2026-08-30, see prisma/seedPresetTemplates.ts) recommending named strategy templates (guru
+/// strategies, quant factors, TW-specific chip signals, dividend/theme screens) as a discoverability
+/// aid, matching how incumbents' preset libraries work. `filters` is plain JSON (not FK'd to
+/// FilterMetricField like ScreenerPresetFilter) because a PENDING template's filters may reference a
+/// metric this ecosystem doesn't compute yet — see `status`/`pendingReason`.
+model PresetTemplate {
+  id            String               @id @default(uuid()) @db.Uuid
+  name          String               @unique
+  category      String
+  description   String
+  tier          PresetTemplateTier
+  status        PresetTemplateStatus
+  /// Why this template can't actually run yet — required (and only meaningful) when status = PENDING.
+  pendingReason String?              @map("pending_reason")
+  /// Array of { field, min, max, exclude } — same shape POST /screener accepts. Empty for PENDING templates.
+  filters       Json
+  position      Int
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @default(now()) @updatedAt @map("updated_at")
+
+  @@map("preset_template")
+}
+
 /// Filter catalog, synced from oingg-analysis-ts's /filters endpoint at startup (see src/domains/filterCatalog).
 /// `position` mirrors this row's index in the source /filters array, so GET /filters on this service
 /// can reproduce the same category/metric/field ordering the frontend would get from oingg-analysis-ts

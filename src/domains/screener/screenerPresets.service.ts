@@ -136,11 +136,33 @@ async function pickAvailableName(firebaseUid: string, name: string): Promise<str
  */
 export async function addPreset(firebaseUid: string, filters: ScreenerFilter[]): Promise<PresetView> {
   const resolved = await resolveFilters(filters.length > 0 ? filters : DEFAULT_PRESET_FILTERS);
+  return createPresetWithAvailableName(firebaseUid, DEFAULT_PRESET_NAME, resolved);
+}
 
+/**
+ * Same name-collision handling as addPreset (pickAvailableName + retry on a unique-constraint race),
+ * but starting from a caller-chosen base name instead of the hardcoded "未命名" — used when cloning a
+ * PresetTemplate into a user's own presets (see presetTemplates.service.ts), where the sensible starting
+ * name is the template's own name, not "未命名".
+ */
+export async function addPresetWithName(
+  firebaseUid: string,
+  name: string,
+  filters: ScreenerFilter[],
+): Promise<PresetView> {
+  const resolved = await resolveFilters(filters);
+  return createPresetWithAvailableName(firebaseUid, name, resolved);
+}
+
+async function createPresetWithAvailableName(
+  firebaseUid: string,
+  baseName: string,
+  resolvedFilters: PresetFilterInput[],
+): Promise<PresetView> {
   for (let attempt = 0; attempt < MAX_NAME_SUFFIX_ATTEMPTS; attempt++) {
-    const candidateName = await pickAvailableName(firebaseUid, DEFAULT_PRESET_NAME);
+    const candidateName = await pickAvailableName(firebaseUid, baseName);
     try {
-      const row = await createPreset(firebaseUid, candidateName, resolved);
+      const row = await createPreset(firebaseUid, candidateName, resolvedFilters);
       return toView(row);
     } catch (error) {
       if (!isUniqueViolation(error)) {
@@ -148,7 +170,7 @@ export async function addPreset(firebaseUid: string, filters: ScreenerFilter[]):
       }
     }
   }
-  throw new AppError(`Could not find an available name for "${DEFAULT_PRESET_NAME}"`, 409);
+  throw new AppError(`Could not find an available name for "${baseName}"`, 409);
 }
 
 export async function editPreset(
