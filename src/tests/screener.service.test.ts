@@ -10,12 +10,16 @@ vi.mock("../domains/filterCatalog/index.js", () => ({
 
 vi.mock("../domains/stock/index.js", () => ({
   getLatestClosePrices: vi.fn(),
-  getValuationRanking: vi.fn(),
+}));
+
+vi.mock("../domains/screener/valuationRanking.client.js", () => ({
+  fetchValuationRanking: vi.fn(),
 }));
 
 import { queryNeon } from "../adapters/neon/index.js";
 import { findFilterFields } from "../domains/filterCatalog/index.js";
-import { getLatestClosePrices, getValuationRanking } from "../domains/stock/index.js";
+import { getLatestClosePrices } from "../domains/stock/index.js";
+import { fetchValuationRanking } from "../domains/screener/valuationRanking.client.js";
 import { runRanking, runScreener } from "../domains/screener/screener.service.js";
 import type { Pagination } from "../domains/screener/pagination.js";
 
@@ -79,7 +83,7 @@ beforeEach(() => {
       .filter((f): f is Lookup => f !== null),
   );
   vi.mocked(getLatestClosePrices).mockReset();
-  vi.mocked(getValuationRanking).mockReset();
+  vi.mocked(fetchValuationRanking).mockReset();
 });
 
 describe("runScreener", () => {
@@ -360,19 +364,20 @@ describe("runRanking", () => {
   });
 
   // Regression coverage: per.peRatio/pbr.pbRatio/dividendYield.dividendYieldPct must bypass the
-  // analysis-DB CTE path entirely (valuation_market_ratios is only lazily populated, currently a
-  // couple of symbols) and go through getValuationRanking (twse+tpex daily_valuation, whole market)
-  // instead — see VALUATION_RANKING_FIELDS and runValuationRanking.
-  describe("valuation field override (per/pbr/dividendYield -> twse/tpex directly)", () => {
-    it("routes per.peRatio to getValuationRanking instead of querying the analysis DB", async () => {
-      vi.mocked(getValuationRanking).mockResolvedValue([
-        { symbol: "1240", value: "10.61" },
-        { symbol: "2330", value: "27.82" },
+  // analysis-DB CTE path entirely and delegate to oingg-analysis-ts's own GET /valuation/ranking
+  // (via fetchValuationRanking) instead — ranking is a second-order computation over raw market data
+  // (merge twse+tpex, exclude non-positive P/E or P/B, sort) that belongs to analysis-ts, not this BFF.
+  // See VALUATION_RANKING_FIELDS and runValuationRanking.
+  describe("valuation field override (per/pbr/dividendYield -> oingg-analysis-ts's ranking endpoint)", () => {
+    it("routes per.peRatio to fetchValuationRanking instead of querying the analysis DB directly", async () => {
+      vi.mocked(fetchValuationRanking).mockResolvedValue([
+        { symbol: "1240", value: 10.61 },
+        { symbol: "2330", value: 27.82 },
       ]);
 
       const result = await runRanking("per.peRatio", "asc", 10, []);
 
-      expect(getValuationRanking).toHaveBeenCalledWith("peRatio", "asc", 10);
+      expect(fetchValuationRanking).toHaveBeenCalledWith("peRatio", "asc", 10);
       expect(queryNeon).not.toHaveBeenCalled();
       expect(result).toEqual({
         field: "per.peRatio",
@@ -386,7 +391,7 @@ describe("runRanking", () => {
     });
 
     it("still merges stock.price in when requested alongside a valuation ranking", async () => {
-      vi.mocked(getValuationRanking).mockResolvedValue([{ symbol: "2330", value: "27.82" }]);
+      vi.mocked(fetchValuationRanking).mockResolvedValue([{ symbol: "2330", value: 27.82 }]);
       vi.mocked(getLatestClosePrices).mockResolvedValue(new Map([["2330", "2420.0000"]]));
 
       const result = await runRanking("per.peRatio", "asc", 10, [{ field: "stock.price" }]);
@@ -399,7 +404,7 @@ describe("runRanking", () => {
       await expect(
         runRanking("per.peRatio", "asc", 10, [{ field: "roe.roeTtmPct" }]),
       ).rejects.toMatchObject({ statusCode: 400 });
-      expect(getValuationRanking).not.toHaveBeenCalled();
+      expect(fetchValuationRanking).not.toHaveBeenCalled();
     });
   });
 });

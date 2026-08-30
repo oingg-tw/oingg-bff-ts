@@ -1,7 +1,6 @@
 import { queryNeon } from "../../adapters/neon/index.js";
 import { findFilterFields } from "../filterCatalog/index.js";
-import { getLatestClosePrices, getValuationRanking } from "../stock/index.js";
-import type { ValuationRankingMetric } from "../stock/index.js";
+import { getLatestClosePrices } from "../stock/index.js";
 import { AppError } from "../../shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
 import { ANALYSIS_METRIC_TABLES } from "./analysisMetricTables.js";
@@ -14,18 +13,20 @@ import type {
   ScreenerResultColumn,
   ScreenerResultRow,
 } from "./screener.types.js";
+import { fetchValuationRanking, type ValuationRankingMetric } from "./valuationRanking.client.js";
 
 const ANALYSIS_DB = "analysis";
 const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/;
 const STOCK_PRICE_FIELD = "stock.price";
 
 /**
- * Rankings for these three fields go straight to twse/tpex's own `daily_valuation` (see
- * getValuationRanking) instead of the analysis DB's `valuation_market_ratios` — that table is only
- * populated as oingg-analysis-ts lazily computes each symbol (currently just a couple of symbols), while
- * `daily_valuation` already has same-day figures for the whole market. Filtering/combining these fields
- * with OTHER analysis-DB metrics in the general screener still goes through the normal analysis-DB path
- * below — this override is ranking-only, where a single-metric, whole-market answer is what matters.
+ * Ranking is a second-order computation over raw market data, not something this BFF should own —
+ * oingg-analysis-ts's GET /valuation/ranking already does it (sort, limit, exclude non-positive P/E or
+ * P/B), covering both TWSE and TPEx. These three fields go there (see valuationRanking.client.ts)
+ * instead of the analysis DB's `valuation_market_ratios` (only lazily populated per-symbol, currently
+ * just a couple of symbols — the wrong table for a whole-market ranking regardless). Filtering/combining
+ * these fields with OTHER analysis-DB metrics in the general screener still goes through the normal
+ * analysis-DB path below — this override is ranking-only.
  */
 const VALUATION_RANKING_FIELDS: Record<string, ValuationRankingMetric> = {
   "per.peRatio": "peRatio",
@@ -363,8 +364,8 @@ export async function runRanking(
 }
 
 /**
- * The twse/tpex-backed ranking path for per.peRatio/pbr.pbRatio/dividendYield.dividendYieldPct — see
- * VALUATION_RANKING_FIELDS. Only "stock.price" can be combined with it as an extra column: any other
+ * The oingg-analysis-ts-backed ranking path for per.peRatio/pbr.pbRatio/dividendYield.dividendYieldPct —
+ * see VALUATION_RANKING_FIELDS. Only "stock.price" can be combined with it as an extra column: any other
  * field would need an analysis-DB join this path deliberately doesn't do (that's what the general
  * analysis-DB ranking path above, or the full /screener endpoint, is for).
  */
@@ -378,19 +379,20 @@ async function runValuationRanking(
   const unsupportedColumn = columns.find((c) => c.field !== STOCK_PRICE_FIELD);
   if (unsupportedColumn) {
     throw new AppError(
-      `"${unsupportedColumn.field}" can't be combined with a "${field}" ranking (sourced directly from ` +
-        `twse/tpex, not the analysis DB) — only "stock.price" is supported alongside it`,
+      `"${unsupportedColumn.field}" can't be combined with a "${field}" ranking (sourced from ` +
+        `oingg-analysis-ts's ranking endpoint, not this service's analysis-DB join) — only "stock.price" ` +
+        `is supported alongside it`,
       400,
     );
   }
 
   const [rankedRef] = await resolveCatalogFieldRefs([field]);
-  const rows = await getValuationRanking(metric, direction, limit);
+  const rows = await fetchValuationRanking(metric, direction, limit);
   const wantsStockPrice = columns.some((c) => c.field === STOCK_PRICE_FIELD);
 
   const results: ScreenerResultRow[] = rows.map((row) => ({
     symbol: row.symbol,
-    values: { [field]: row.value },
+    values: { [field]: String(row.value) },
   }));
   await mergeStockPrices(results, wantsStockPrice);
 
