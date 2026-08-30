@@ -29,6 +29,10 @@ model FilterMetric {
   categoryKey String              @map("category_key")
   name        String
   path        String
+  /// Definition tooltip text for this metric — nullable until oingg-analysis-ts's /filters starts sending it.
+  description String?
+  /// Data-source tooltip text for this metric — nullable until oingg-analysis-ts's /filters starts sending it.
+  source      String?
   position    Int
   category    FilterCategory      @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
   fields      FilterMetricField[]
@@ -42,6 +46,10 @@ model FilterMetricField {
   key       String
   name      String
   period    String
+  /// Definition tooltip text for this field — nullable until oingg-analysis-ts's /filters starts sending it.
+  description String?
+  /// Data-source tooltip text for this field — nullable until oingg-analysis-ts's /filters starts sending it.
+  source      String?
   position  Int
   metric    FilterMetric @relation(fields: [metricKey], references: [key], onDelete: Cascade)
 

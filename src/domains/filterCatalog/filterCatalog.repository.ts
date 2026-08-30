@@ -70,7 +70,15 @@ export async function listFilterCatalog(): Promise<FilterCategory[]> {
       key: metric.key,
       name: metric.name,
       path: metric.path,
-      fields: metric.fields.map((field) => ({ key: field.key, name: field.name, period: field.period })),
+      description: metric.description,
+      source: metric.source,
+      fields: metric.fields.map((field) => ({
+        key: field.key,
+        name: field.name,
+        period: field.period,
+        description: field.description,
+        source: field.source,
+      })),
     })),
   }));
 }
@@ -107,6 +115,8 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
       categoryKey: category.key,
       name: metric.name,
       path: metric.path,
+      description: metric.description ?? null,
+      source: metric.source ?? null,
       position,
     })),
   );
@@ -118,6 +128,8 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
         key: field.key,
         name: field.name,
         period: field.period,
+        description: field.description ?? null,
+        source: field.source ?? null,
         position,
       })),
     ),
@@ -134,23 +146,31 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
 
     if (metricRows.length > 0) {
       await tx.$executeRaw`
-        INSERT INTO filter_metric (key, category_key, name, path, position)
+        INSERT INTO filter_metric (key, category_key, name, path, description, source, position)
         VALUES ${Prisma.join(
-          metricRows.map((m) => Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.position})`),
+          metricRows.map(
+            (m) =>
+              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.position})`,
+          ),
         )}
         ON CONFLICT (key) DO UPDATE SET
-          category_key = EXCLUDED.category_key, name = EXCLUDED.name, path = EXCLUDED.path, position = EXCLUDED.position
+          category_key = EXCLUDED.category_key, name = EXCLUDED.name, path = EXCLUDED.path,
+          description = EXCLUDED.description, source = EXCLUDED.source, position = EXCLUDED.position
       `;
     }
 
     if (fieldRows.length > 0) {
       await tx.$executeRaw`
-        INSERT INTO filter_metric_field (metric_key, key, name, period, position)
+        INSERT INTO filter_metric_field (metric_key, key, name, period, description, source, position)
         VALUES ${Prisma.join(
-          fieldRows.map((f) => Prisma.sql`(${f.metricKey}, ${f.key}, ${f.name}, ${f.period}, ${f.position})`),
+          fieldRows.map(
+            (f) =>
+              Prisma.sql`(${f.metricKey}, ${f.key}, ${f.name}, ${f.period}, ${f.description}, ${f.source}, ${f.position})`,
+          ),
         )}
         ON CONFLICT (metric_key, key) DO UPDATE SET
-          name = EXCLUDED.name, period = EXCLUDED.period, position = EXCLUDED.position
+          name = EXCLUDED.name, period = EXCLUDED.period, description = EXCLUDED.description,
+          source = EXCLUDED.source, position = EXCLUDED.position
       `;
     }
 

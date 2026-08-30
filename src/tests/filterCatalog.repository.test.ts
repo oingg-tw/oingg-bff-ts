@@ -9,13 +9,14 @@ const mockTx = {
 
 const mockPrisma = {
   $transaction: vi.fn(async (callback: (tx: typeof mockTx) => Promise<void>) => callback(mockTx)),
+  filterCategory: { findMany: vi.fn() },
 };
 
 vi.mock("../adapters/neon/index.js", () => ({
   getPrismaClient: () => mockPrisma,
 }));
 
-import { replaceFilterCatalog } from "../domains/filterCatalog/filterCatalog.repository.js";
+import { listFilterCatalog, replaceFilterCatalog } from "../domains/filterCatalog/filterCatalog.repository.js";
 import type { FilterCategory } from "../domains/filterCatalog/filterCatalog.types.js";
 
 const SAMPLE_CATALOG: FilterCategory[] = [
@@ -47,6 +48,52 @@ const SAMPLE_CATALOG: FilterCategory[] = [
     ],
   },
 ];
+
+describe("listFilterCatalog", () => {
+  beforeEach(() => {
+    vi.mocked(mockPrisma.filterCategory.findMany).mockReset();
+  });
+
+  // Coverage for the description/source tooltip fields (added to support frontend info-icon tooltips
+  // per the "資料定義/來源透明" product ask) — must pass through to the /filters response, and default
+  // to null (not throw/omit) when a row hasn't been given one yet (the common case until
+  // oingg-analysis-ts's own /filters starts sending these).
+  it("passes description/source through for both metrics and fields, defaulting to null when unset", async () => {
+    vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
+      {
+        key: "profitability",
+        name: "Profitability",
+        position: 0,
+        metrics: [
+          {
+            key: "roe",
+            name: "ROE",
+            path: "/profitability/roe",
+            description: "股東權益報酬率，衡量股東投入資本的獲利效率。",
+            source: "MOPS 季報財務比率",
+            position: 0,
+            fields: [
+              { key: "roeTtmPct", name: "ROE", period: "ttm", description: null, source: null, position: 0 },
+            ],
+          },
+        ],
+      },
+    ] as never);
+
+    const result = await listFilterCatalog();
+
+    expect(result[0]?.metrics[0]).toMatchObject({
+      key: "roe",
+      description: "股東權益報酬率，衡量股東投入資本的獲利效率。",
+      source: "MOPS 季報財務比率",
+    });
+    expect(result[0]?.metrics[0]?.fields[0]).toMatchObject({
+      key: "roeTtmPct",
+      description: null,
+      source: null,
+    });
+  });
+});
 
 describe("replaceFilterCatalog", () => {
   beforeEach(() => {
