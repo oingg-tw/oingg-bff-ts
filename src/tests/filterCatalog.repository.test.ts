@@ -55,10 +55,12 @@ describe("listFilterCatalog", () => {
   });
 
   // Coverage for the description/source tooltip fields (added to support frontend info-icon tooltips
-  // per the "資料定義/來源透明" product ask) — must pass through to the /filters response, and default
-  // to null (not throw/omit) when a row hasn't been given one yet (the common case until
-  // oingg-analysis-ts's own /filters starts sending these).
-  it("passes description/source through for both metrics and fields, defaulting to null when unset", async () => {
+  // per the "資料定義/來源透明" product ask). oingg-analysis-ts's actual convention (confirmed with
+  // them directly) is to fill these in at the metric level only — the quarterly/TTM/etc. period
+  // variants of one metric share the same definition and source, so it's not repeated per field.
+  // A field without its own description/source must fall back to its metric's, so the frontend can
+  // always just read field.description/field.source without knowing this upstream convention.
+  it("falls back to the metric's description/source for a field that has none of its own", async () => {
     vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
       {
         key: "profitability",
@@ -89,9 +91,73 @@ describe("listFilterCatalog", () => {
     });
     expect(result[0]?.metrics[0]?.fields[0]).toMatchObject({
       key: "roeTtmPct",
-      description: null,
-      source: null,
+      description: "股東權益報酬率，衡量股東投入資本的獲利效率。",
+      source: "MOPS 季報財務比率",
     });
+  });
+
+  it("keeps a field's own description/source when it has one, rather than always preferring the metric's", async () => {
+    vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
+      {
+        key: "profitability",
+        name: "Profitability",
+        position: 0,
+        metrics: [
+          {
+            key: "roe",
+            name: "ROE",
+            path: "/profitability/roe",
+            description: "metric-level definition",
+            source: "metric-level source",
+            position: 0,
+            fields: [
+              {
+                key: "roeTtmPct",
+                name: "ROE",
+                period: "ttm",
+                description: "field-level definition",
+                source: "field-level source",
+                position: 0,
+              },
+            ],
+          },
+        ],
+      },
+    ] as never);
+
+    const result = await listFilterCatalog();
+
+    expect(result[0]?.metrics[0]?.fields[0]).toMatchObject({
+      description: "field-level definition",
+      source: "field-level source",
+    });
+  });
+
+  it("stays null when neither the field nor its metric has a description/source yet", async () => {
+    vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
+      {
+        key: "profitability",
+        name: "Profitability",
+        position: 0,
+        metrics: [
+          {
+            key: "roe",
+            name: "ROE",
+            path: "/profitability/roe",
+            description: null,
+            source: null,
+            position: 0,
+            fields: [
+              { key: "roeTtmPct", name: "ROE", period: "ttm", description: null, source: null, position: 0 },
+            ],
+          },
+        ],
+      },
+    ] as never);
+
+    const result = await listFilterCatalog();
+
+    expect(result[0]?.metrics[0]?.fields[0]).toMatchObject({ description: null, source: null });
   });
 });
 

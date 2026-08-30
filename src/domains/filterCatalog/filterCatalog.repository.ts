@@ -72,12 +72,16 @@ export async function listFilterCatalog(): Promise<FilterCategory[]> {
       path: metric.path,
       description: metric.description,
       source: metric.source,
+      // oingg-analysis-ts fills description/source at the metric level only (the different period
+      // variants of one metric — quarterly/TTM/etc — share the same definition and source, so it
+      // doesn't repeat itself per field). A field without its own falls back to its metric's, so the
+      // frontend can always just read field.description/field.source without knowing this convention.
       fields: metric.fields.map((field) => ({
         key: field.key,
         name: field.name,
         period: field.period,
-        description: field.description,
-        source: field.source,
+        description: field.description ?? metric.description,
+        source: field.source ?? metric.source,
       })),
     })),
   }));
