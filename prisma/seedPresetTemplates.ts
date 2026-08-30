@@ -71,6 +71,8 @@ const TEMPLATES: TemplateSeed[] = [
       filter("currentRatio.currentRatioPct", 150, null),
     ],
   },
+  // Blocked on: NNWC (=cash & equivalents + 0.75x receivables + 0.5x inventory - total liabilities, per
+  // share) has no verified backing computation anywhere in the ecosystem yet — see file docstring.
   {
     name: "葛拉漢 Net-Net 深度價值",
     category: "大師策略",
@@ -78,34 +80,40 @@ const TEMPLATES: TemplateSeed[] = [
     tier: "PAID",
     status: "PENDING",
     pendingReason:
-      "需要 NNWC（現金及約當現金＋0.75×應收款＋0.5×存貨－總負債，再除以股數）逐股計算，目前分析服務沒有這個指標。",
+      "NNWC（淨流動資產價值＝現金及約當現金＋0.75×應收款＋0.5×存貨－總負債，再除以股數）指標開發中，敬請期待。",
     filters: [],
   },
+  // Blocked on: screener only supports single-metric threshold filters, no ranking/composite-scoring
+  // mechanism to combine an EBIT/EV rank with an ROIC rank — see file docstring.
   {
     name: "Magic Formula 神奇公式",
     category: "大師策略",
     description: "Greenblatt 的神奇公式——高盈餘殖利率（EBIT/EV）與高資本報酬率（ROIC）排名後合併選股。",
     tier: "PAID",
     status: "PENDING",
-    pendingReason: "需要 EBIT/EV 與 ROIC 排名後合併計分，目前 screener 只支援單一指標門檻篩選，沒有排名/合併計分機制。",
+    pendingReason: "EBIT/EV 與 ROIC 排名合併計分的功能開發中，敬請期待。",
     filters: [],
   },
+  // Blocked on: analysis-ts's catalog has no earnings-growth-rate metric to compute PEG from — see file
+  // docstring.
   {
     name: "彼得林區成長價值",
     category: "大師策略",
     description: "GARP（合理價格成長股）——本益成長比（PEG）合理、營收與獲利同步成長、財務穩健。",
     tier: "FREE",
     status: "PENDING",
-    pendingReason: "PEG（本益比÷盈餘成長率）需要盈餘成長率指標，目前分析服務沒有直接計算這個成長率欄位。",
+    pendingReason: "PEG（本益比÷盈餘成長率）所需的盈餘成長率指標開發中，敬請期待。",
     filters: [],
   },
+  // Blocked on: 52-week-high distance / institutional buy-streak days / index-vs-moving-average are
+  // price-volume technicals and chip data — no service in the ecosystem ingests or computes these yet.
   {
     name: "CANSLIM 成長飛行",
     category: "大師策略",
     description: "歐尼爾 CANSLIM 動能成長法——高盈餘成長、股價靠近高點、法人與大盤同步偏多。",
     tier: "PAID",
     status: "PENDING",
-    pendingReason: "需要股價距52週高點、三大法人買超天數、大盤站上季線，這些是價量技術面與法人籌碼資料，目前生態系都還沒有。",
+    pendingReason: "此策略所需的價量技術面與法人籌碼資料開發中，敬請期待。",
     filters: [],
   },
   {
@@ -135,13 +143,15 @@ const TEMPLATES: TemplateSeed[] = [
     pendingReason: null,
     filters: [filter("dividendYield.dividendYieldPct", 5, null), filter("roe.roeTtmPct", 10, null)],
   },
+  // Blocked on: 52-week-high distance / recent average volume — analysis-ts's catalog is
+  // fundamentals/ratios only, no price-volume technicals yet.
   {
     name: "動能因子（相對強弱）",
     category: "量化因子",
     description: "股價相對強勢、靠近波段高點且量能放大——短中期動能選股。",
     tier: "FREE",
     status: "PENDING",
-    pendingReason: "需要股價距52週高點、近期均量等價量技術指標，分析服務目前以財報比率為主，還沒有這類技術面資料。",
+    pendingReason: "此策略所需的價量技術指標開發中，敬請期待。",
     filters: [],
   },
   {
@@ -153,58 +163,68 @@ const TEMPLATES: TemplateSeed[] = [
     pendingReason: null,
     filters: [filter("beta.beta1Y", null, 0.8)],
   },
+  // Blocked on: institutional (三大法人) buy/sell data — no service in the ecosystem ingests or
+  // computes this at all yet.
   {
     name: "三大法人連續買超",
     category: "台股籌碼面",
     description: "外資／投信／自營商合計連續買超的股票——籌碼面偏多訊號。",
     tier: "FREE",
     status: "PENDING",
-    pendingReason: "三大法人買賣超屬於籌碼面資料，目前整個 oingg 生態系都還沒有服務在擷取或計算這類資料。",
+    pendingReason: "三大法人買賣超籌碼資料開發中，敬請期待。",
     filters: [],
   },
+  // Blocked on: margin trading balance (融資融券餘額) — no service in the ecosystem ingests this yet.
   {
     name: "融資賣壓中小型股",
     category: "台股籌碼面",
     description: "融資餘額偏高、籌碼不穩定的中小型股——風險提示用，非做多建議。",
     tier: "PAID",
     status: "PENDING",
-    pendingReason: "融資融券餘額屬於籌碼面資料，目前生態系尚未建置。",
+    pendingReason: "融資融券餘額資料開發中，敬請期待。",
     filters: [],
   },
+  // Blocked on: needs a composite signal (institutional flow diverging from price) — no chip-flow data
+  // source in the ecosystem yet.
   {
     name: "主力出貨警示",
     category: "台股籌碼面",
     description: "法人籌碼與股價走勢出現背離、疑似主力出貨的訊號股。",
     tier: "PAID",
     status: "PENDING",
-    pendingReason: "主力出貨判斷需要法人籌碼與股價背離的複合訊號，目前生態系尚未有籌碼資料來源。",
+    pendingReason: "此策略所需的法人籌碼資料開發中，敬請期待。",
     filters: [],
   },
+  // Blocked on: same as above — no chip-flow data source in the ecosystem yet.
   {
     name: "主力吸貨觀察",
     category: "台股籌碼面",
     description: "法人籌碼轉為連續買超、股價同步上漲的疑似主力吸貨股。",
     tier: "PAID",
     status: "PENDING",
-    pendingReason: "同樣需要法人籌碼資料，目前生態系尚未建置。",
+    pendingReason: "此策略所需的法人籌碼資料開發中，敬請期待。",
     filters: [],
   },
+  // Blocked on: shareholder-distribution-table data (股權分散表, large-holder concentration) — no
+  // service in the ecosystem ingests this yet.
   {
     name: "大戶籌碼集中",
     category: "台股籌碼面",
     description: "大戶（超過400張）持股比例持續增加的股票，反映主力資金卡位。",
     tier: "PAID",
     status: "PENDING",
-    pendingReason: "大戶持股集中度屬於股權分散表資料，目前生態系尚未建置。",
+    pendingReason: "大戶持股集中度（股權分散表）資料開發中，敬請期待。",
     filters: [],
   },
+  // Blocked on: monthly-revenue YoY/MoM is a derived computation over raw monthly-revenue data that
+  // analysis-ts's metric catalog doesn't cover yet.
   {
     name: "營收動能",
     category: "台股籌碼面",
     description: "台股特色的月營收 YoY/MoM 動能篩選——用每月10日公告的營收數字提前捕捉基本面轉折。",
     tier: "FREE",
     status: "PENDING",
-    pendingReason: "月營收 YoY/MoM 是原始月營收資料的衍生計算，分析服務目前的指標目錄裡沒有涵蓋月營收動能類指標。",
+    pendingReason: "月營收 YoY/MoM 動能指標開發中，敬請期待。",
     filters: [],
   },
   {
@@ -220,32 +240,38 @@ const TEMPLATES: TemplateSeed[] = [
       filter("dividendPayoutRatio.payoutRatioTtm", null, 100),
     ],
   },
+  // Blocked on: needs ex-dividend/ex-rights event data plus after-the-fact price history to compare
+  // against — analysis-ts has no event-style data of this kind yet.
   {
     name: "除權息貼息股",
     category: "存股主題",
     description: "除權息後長期填不了息的股票——存股前的風險提示清單。",
     tier: "PAID",
     status: "PENDING",
-    pendingReason: "填息追蹤需要除權息事件與事後股價歷史比對，目前分析服務沒有這類事件式資料。",
+    pendingReason: "填息追蹤功能開發中，敬請期待。",
     filters: [],
   },
+  // Blocked on: KY-stock flag / financial-statement-warning flag are company-attribute tags — no
+  // service in the ecosystem has built this yet.
   {
     name: "排除地雷股",
     category: "存股主題",
     description: "排除 KY 股、財報遭警示等高風險標的，適合當任何策略的最後一道防線。",
     tier: "FREE",
     status: "PENDING",
-    pendingReason: "是否為 KY 股、財報是否遭警示，屬於公司屬性標記資料，目前生態系尚未建置。",
+    pendingReason: "排除地雷股所需的公司屬性標記開發中，敬請期待。",
     filters: [],
   },
+  // Blocked on: needs grouped ranking (compare within an industry classification), which is a different
+  // capability from screener's flat single-threshold filtering; industry classification data also isn't
+  // wired into filterCatalog yet.
   {
     name: "產業龍頭主題",
     category: "存股主題",
     description: "依產業分類挑出市值/獲利能力領先的龍頭股，做產業輪動或主題投資用。",
     tier: "PAID",
     status: "PENDING",
-    pendingReason:
-      "需要依產業分類分組比較，是分組排名功能，跟目前 screener 的單一門檻篩選機制不同；產業分類資料也還沒接入 filterCatalog。",
+    pendingReason: "依產業分類分組比較的功能開發中，敬請期待。",
     filters: [],
   },
 ];
