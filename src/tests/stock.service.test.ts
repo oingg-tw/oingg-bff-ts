@@ -5,7 +5,7 @@ vi.mock("../adapters/neon/index.js", () => ({
 }));
 
 import { queryNeon } from "../adapters/neon/index.js";
-import { getLatestClosePrices, getStockQuote } from "../domains/stock/stock.service.js";
+import { getLatestClosePrices, getStockQuote, getValuationRanking } from "../domains/stock/stock.service.js";
 
 const emptyResult = { rows: [] };
 
@@ -91,5 +91,60 @@ describe("getLatestClosePrices", () => {
 
     expect(queryNeon).not.toHaveBeenCalled();
     expect(prices.size).toBe(0);
+  });
+});
+
+// Regression coverage: this exists specifically because analysis-ts's own valuation_market_ratios
+// table is only lazily populated (a couple of symbols today), while twse/tpex's daily_valuation already
+// has whole-market same-day figures — see the comment on getValuationRanking. Confirmed with
+// oingg-analysis-ts directly that their own GET /valuation/ranking uses the same peRatio/pbRatio <= 0
+// exclusion rule (loss-making/negative-equity companies aren't "cheap") — kept consistent here.
+describe("getValuationRanking", () => {
+  beforeEach(() => {
+    vi.mocked(queryNeon).mockReset();
+  });
+
+  it("queries exactly one query per market and merges/re-sorts the combined top rows", async () => {
+    vi.mocked(queryNeon).mockImplementation(async (market) => {
+      if (market === "twse") {
+        return { rows: [{ symbol: "2330", value: "27.82" }, { symbol: "2317", value: "15.00" }] } as never;
+      }
+      return { rows: [{ symbol: "1240", value: "10.61" }] } as never;
+    });
+
+    const ranking = await getValuationRanking("peRatio", "asc", 2);
+
+    expect(queryNeon).toHaveBeenCalledTimes(2);
+    // Merged across both markets, re-sorted ascending, trimmed to the requested limit.
+    expect(ranking).toEqual([
+      { symbol: "1240", value: "10.61" },
+      { symbol: "2317", value: "15.00" },
+    ]);
+  });
+
+  it("excludes peRatio/pbRatio <= 0 (loss-making or negative book equity), but not dividendYield = 0", async () => {
+    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
+
+    await getValuationRanking("peRatio", "asc", 10);
+    expect(vi.mocked(queryNeon).mock.calls[0]![1]).toContain("value > 0");
+
+    vi.mocked(queryNeon).mockClear();
+    await getValuationRanking("dividendYield", "desc", 10);
+    expect(vi.mocked(queryNeon).mock.calls[0]![1]).toContain("value IS NOT NULL");
+    expect(vi.mocked(queryNeon).mock.calls[0]![1]).not.toContain("value > 0");
+  });
+
+  it("sorts DESC for highest-first rankings (e.g. highest dividend yield)", async () => {
+    vi.mocked(queryNeon).mockImplementation(async (market) => {
+      if (market === "twse") return { rows: [{ symbol: "A", value: "3.5" }] } as never;
+      return { rows: [{ symbol: "B", value: "5.0" }] } as never;
+    });
+
+    const ranking = await getValuationRanking("dividendYield", "desc", 2);
+
+    expect(ranking).toEqual([
+      { symbol: "B", value: "5.0" },
+      { symbol: "A", value: "3.5" },
+    ]);
   });
 });

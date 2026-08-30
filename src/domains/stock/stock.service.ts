@@ -103,3 +103,79 @@ export async function getLatestClosePrices(symbols: string[]): Promise<Map<strin
   }
   return merged;
 }
+
+export type ValuationRankingMetric = "peRatio" | "pbRatio" | "dividendYield";
+
+export interface ValuationRankingRow {
+  symbol: string;
+  value: string;
+}
+
+// peRatio/pbRatio <= 0 means a loss (negative EPS) or negative book equity, not "cheap" — it's a company
+// with a real financial problem, and letting it through would fill a "lowest P/E" ranking with distressed
+// companies instead of what the ranking is actually for. dividendYield has no equivalent negative case
+// (no dividend is 0, not negative), so it isn't excluded. Same rule oingg-analysis-ts's own
+// GET /valuation/ranking already uses (confirmed with them directly) — kept consistent on purpose.
+const EXCLUDE_NON_POSITIVE: Record<ValuationRankingMetric, boolean> = {
+  peRatio: true,
+  pbRatio: true,
+  dividendYield: false,
+};
+
+const VALUATION_RANKING_COLUMN: Record<ValuationRankingMetric, string> = {
+  peRatio: "peRatio",
+  pbRatio: "pbRatio",
+  dividendYield: "dividendYield",
+};
+
+async function findValuationRankingInMarket(
+  market: StockMarket,
+  metric: ValuationRankingMetric,
+  direction: "asc" | "desc",
+  limit: number,
+): Promise<ValuationRankingRow[]> {
+  const column = VALUATION_RANKING_COLUMN[metric];
+  const excludeNonPositive = EXCLUDE_NON_POSITIVE[metric];
+  const havingCondition = excludeNonPositive ? "value > 0" : "value IS NOT NULL";
+
+  const result = await queryNeon<{ symbol: string; value: string }>(
+    market,
+    `
+    SELECT symbol, value FROM (
+      SELECT DISTINCT ON (symbol) symbol, "${column}" AS value
+      FROM daily_valuation
+      WHERE "tradeDate" IS NOT NULL
+      ORDER BY symbol, "tradeDate" DESC
+    ) latest
+    WHERE ${havingCondition}
+    ORDER BY value ${direction === "asc" ? "ASC" : "DESC"}
+    LIMIT $1
+    `,
+    [limit],
+  );
+  return result.rows;
+}
+
+/**
+ * Top-N ranking by P/E, P/B, or dividend yield, queried directly from twse/tpex's own `daily_valuation`
+ * instead of the analysis DB's `valuation_market_ratios` — the latter is only populated as oingg-analysis-ts
+ * lazily computes each symbol, so it currently only covers a couple of symbols, while `daily_valuation`
+ * already has same-day figures for the whole market (~870-1080 TWSE symbols, ~670-890 TPEx, per real DB
+ * counts checked 2026-08-30). oingg-analysis-ts shipped its own GET /valuation/ranking the same day
+ * covering this exact use case, but from TWSE's `daily_valuation` only — this covers both markets, which
+ * a "market-wide ranking" needs. Each market is queried already sorted and LIMITed to `limit` rows (a
+ * valid streaming-merge: neither market can contribute more than `limit` rows to the true combined top-N),
+ * then merged and re-sorted in memory — cheap for at most 2*limit rows, avoids pulling every symbol.
+ */
+export async function getValuationRanking(
+  metric: ValuationRankingMetric,
+  direction: "asc" | "desc",
+  limit: number,
+): Promise<ValuationRankingRow[]> {
+  const perMarket = await Promise.all(
+    MARKETS.map((market) => findValuationRankingInMarket(market, metric, direction, limit)),
+  );
+  const merged = perMarket.flat();
+  merged.sort((a, b) => (direction === "asc" ? Number(a.value) - Number(b.value) : Number(b.value) - Number(a.value)));
+  return merged.slice(0, limit);
+}

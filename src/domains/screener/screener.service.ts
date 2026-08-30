@@ -1,6 +1,7 @@
 import { queryNeon } from "../../adapters/neon/index.js";
 import { findFilterFields } from "../filterCatalog/index.js";
-import { getLatestClosePrices } from "../stock/index.js";
+import { getLatestClosePrices, getValuationRanking } from "../stock/index.js";
+import type { ValuationRankingMetric } from "../stock/index.js";
 import { AppError } from "../../shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
 import { ANALYSIS_METRIC_TABLES } from "./analysisMetricTables.js";
@@ -17,6 +18,20 @@ import type {
 const ANALYSIS_DB = "analysis";
 const SAFE_IDENTIFIER = /^[a-z][a-z0-9_]*$/;
 const STOCK_PRICE_FIELD = "stock.price";
+
+/**
+ * Rankings for these three fields go straight to twse/tpex's own `daily_valuation` (see
+ * getValuationRanking) instead of the analysis DB's `valuation_market_ratios` — that table is only
+ * populated as oingg-analysis-ts lazily computes each symbol (currently just a couple of symbols), while
+ * `daily_valuation` already has same-day figures for the whole market. Filtering/combining these fields
+ * with OTHER analysis-DB metrics in the general screener still goes through the normal analysis-DB path
+ * below — this override is ranking-only, where a single-metric, whole-market answer is what matters.
+ */
+const VALUATION_RANKING_FIELDS: Record<string, ValuationRankingMetric> = {
+  "per.peRatio": "peRatio",
+  "pbr.pbRatio": "pbRatio",
+  "dividendYield.dividendYieldPct": "dividendYield",
+};
 
 /**
  * Converts a filterCatalog field key to its analysis-DB column name. A plain "insert _ before every
@@ -292,6 +307,11 @@ export async function runRanking(
   limit: number,
   columns: ScreenerColumnRef[],
 ): Promise<RankingResult> {
+  const valuationMetric = VALUATION_RANKING_FIELDS[field];
+  if (valuationMetric) {
+    return runValuationRanking(field, valuationMetric, direction, limit, columns);
+  }
+
   const specialColumns = columns.filter((c) => c.field in SPECIAL_COLUMNS);
   const catalogColumnRefs = columns.filter((c) => !(c.field in SPECIAL_COLUMNS) && c.field !== field);
 
@@ -338,6 +358,48 @@ export async function runRanking(
     return { symbol: symbol as string, values };
   });
   await mergeStockPrices(results, wantsStockPrice);
+
+  return { field, direction, columns: resultColumns, results };
+}
+
+/**
+ * The twse/tpex-backed ranking path for per.peRatio/pbr.pbRatio/dividendYield.dividendYieldPct — see
+ * VALUATION_RANKING_FIELDS. Only "stock.price" can be combined with it as an extra column: any other
+ * field would need an analysis-DB join this path deliberately doesn't do (that's what the general
+ * analysis-DB ranking path above, or the full /screener endpoint, is for).
+ */
+async function runValuationRanking(
+  field: string,
+  metric: ValuationRankingMetric,
+  direction: "asc" | "desc",
+  limit: number,
+  columns: ScreenerColumnRef[],
+): Promise<RankingResult> {
+  const unsupportedColumn = columns.find((c) => c.field !== STOCK_PRICE_FIELD);
+  if (unsupportedColumn) {
+    throw new AppError(
+      `"${unsupportedColumn.field}" can't be combined with a "${field}" ranking (sourced directly from ` +
+        `twse/tpex, not the analysis DB) — only "stock.price" is supported alongside it`,
+      400,
+    );
+  }
+
+  const [rankedRef] = await resolveCatalogFieldRefs([field]);
+  const rows = await getValuationRanking(metric, direction, limit);
+  const wantsStockPrice = columns.some((c) => c.field === STOCK_PRICE_FIELD);
+
+  const results: ScreenerResultRow[] = rows.map((row) => ({
+    symbol: row.symbol,
+    values: { [field]: row.value },
+  }));
+  await mergeStockPrices(results, wantsStockPrice);
+
+  const resultColumns: ScreenerResultColumn[] = [
+    { field, metricName: rankedRef!.metricName, fieldName: rankedRef!.fieldName },
+  ];
+  if (wantsStockPrice) {
+    resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
+  }
 
   return { field, direction, columns: resultColumns, results };
 }
