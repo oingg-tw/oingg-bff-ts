@@ -145,11 +145,19 @@ export interface ResolvedScreenerColumns {
  * matching stocks must never come back as bare symbols with no field data attached, so an empty
  * preset (explicit, default, or "last used") falls through to the system default same as no preset
  * at all, rather than being honored as "show nothing".
+ *
+ * `firebaseUid` is undefined for anonymous screener calls (guests aren't signed in, so they can't
+ * own a preset) — always the system default in that case, regardless of columnPresetId, since a
+ * column preset id can only ever resolve for the account that owns it.
  */
 export async function resolveScreenerColumns(
-  firebaseUid: string,
+  firebaseUid: string | undefined,
   columnPresetId?: number,
 ): Promise<ResolvedScreenerColumns> {
+  if (!firebaseUid) {
+    return { columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS };
+  }
+
   if (columnPresetId !== undefined) {
     const preset = await findColumnPreset(firebaseUid, columnPresetId);
     if (!preset) {

@@ -25,3 +25,28 @@ export async function requireAuth(req: AuthenticatedRequest, _res: Response, nex
     next(new AppError("Invalid or expired authentication token", 401, error instanceof Error ? error.message : undefined));
   }
 }
+
+/**
+ * Same token verification as requireAuth, but a missing Authorization header is allowed
+ * through as an anonymous request (req.user left unset) instead of a 401 — for routes that
+ * work for guests but personalize themselves when a valid token is present. A header that
+ * IS present and invalid still rejects with 401 rather than silently downgrading to
+ * anonymous, so a caller with an expired token gets a clear signal instead of quietly
+ * losing their identity.
+ */
+export async function optionalAuth(req: AuthenticatedRequest, _res: Response, next: NextFunction): Promise<void> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith(BEARER_PREFIX)) {
+    next();
+    return;
+  }
+
+  const idToken = authHeader.slice(BEARER_PREFIX.length);
+
+  try {
+    req.user = await getFirebaseAuth().verifyIdToken(idToken);
+    next();
+  } catch (error) {
+    next(new AppError("Invalid or expired authentication token", 401, error instanceof Error ? error.message : undefined));
+  }
+}
