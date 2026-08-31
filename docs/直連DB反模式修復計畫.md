@@ -5,6 +5,10 @@
 > 這是第二版計畫。第一版把 twse/tpex 的修復方向規劃成「twse-ts/tpex-ts 各自開查詢 API 給 bff 呼叫」——這個方向被推翻了：那本質上還是業務中台主動連去後台，只是把協定從 DB 換成 HTTP，沒有真的解決問題。正確方向是 **bff-ts 只跟 analysis-ts 講話，analysis-ts 負責鏡像 twse/tpex 的資料**。
 >
 > **只規劃，不動碼**——階段二需要 analysis-ts 真的投入開發，動工前要先跟對方 session 對齊規格。
+>
+> **更新（2026-08-31 稍晚）**：階段一的直連部分已經提前執行——使用者明確指示「現在馬上拔，接受這三個功能短期壞掉」，不等前置阻塞項解決。`stock.service.ts` 對 twse/tpex 的直連已移除，`getStockQuote()`／`GET /stocks/:symbol` 目前一律回 503（清楚說明原因，不是靜默失敗）；`getLatestClosePrices()` 優雅降級回傳空 map，screener/ranking 本身不受影響。下面「階段一」剩下的部分（analysis-ts 提供替代 API）還沒做，前置阻塞項也還沒解決。
+>
+> 另外，架構文件新增了**鐵律二**（數據中台不知道業務中台存在），這推翻了 filter catalog 原本規劃的「analysis-ts 主動通知」設計——那套機制已經拆除，改回 bff-ts 單向拉取。細節見 [業務中台與後台資料邊界架構.md](./業務中台與後台資料邊界架構.md)；這份文件只處理「直連 DB」問題，不重複討論同步方向。
 
 ## 目標架構
 
@@ -18,12 +22,12 @@ oingg-analysis-ts（數據中台）── 鏡像/彙整 ──▶ twse-ts / tpex
 
 bff-ts 修復完成後，唯一還會直連的資料庫只剩自己的 `DATABASE_URL`（使用者資料：holdings/transactions/watchlist/theme 偏好/screener 與 column presets）。`TWSE_DATABASE_URL`／`TPEX_DATABASE_URL`／`ANALYSIS_DATABASE_URL` 全部從 `.env` 移除，比照 `MOPS_DATABASE_URL` 已經做過的清理。
 
-## 現況：兩處違規
+## 現況
 
-| 現況 | 檔案 | 問題 |
+| 現況 | 檔案 | 狀態 |
 | :---- | :---- | :---- |
-| 直查 twse/tpex 的 `daily_price`／`daily_valuation` | `src/domains/stock/stock.service.ts` | 直接碰後台，鐵律絕對禁止 |
-| 直查 analysis-ts 自己 DB 裡的 30+ 張指標表（動態 CTE/JOIN） | `src/domains/screener/screener.service.ts`、`analysisMetricTables.ts` | 繞過 analysis-ts 的服務邊界直連它的 DB |
+| twse/tpex 的 `daily_price`／`daily_valuation` 直連 | `src/domains/stock/stock.service.ts` | **已移除**（2026-08-31）。替代 API 還沒做，功能暫時 503。 |
+| 直查 analysis-ts 自己 DB 裡的 30+ 張指標表（動態 CTE/JOIN） | `src/domains/screener/screener.service.ts`、`analysisMetricTables.ts` | 尚未處理，繞過 analysis-ts 的服務邊界直連它的 DB |
 
 ## 前置阻塞項：analysis-ts 對 twse/tpex 的鏡像目前不完整
 
