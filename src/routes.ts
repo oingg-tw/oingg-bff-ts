@@ -55,4 +55,4 @@ routes.use("/transactions", transactionsRouter); // GET/POST /transactions, GET/
 // GET/POST /screener/presets, GET/PATCH/DELETE /screener/presets/:id, GET /screener/presets/:id/run;
 // GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply
 routes.use("/screener", screenerRoutes);
-routes.use("/filters", filterCatalogRouter); // GET /filters; POST /filters/sync (server-to-server, TASK_SECRET)
+routes.use("/filters", filterCatalogRouter); // GET /filters

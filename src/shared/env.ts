@@ -21,18 +21,4 @@ export const env = {
     .filter(Boolean),
 };
 
-/**
- * dotenv already strips quotes from a `.env` file's own values, but other ways of setting env vars
- * (docker `--env-file`, Cloud Run/Render dashboard fields, etc.) don't — a secret pasted as
- * TASK_SECRET="xxx" would keep the literal quotes there and never match what a caller sends. Stripping
- * defensively at read-time normalizes both sources instead of trusting how each deploy target handles it.
- */
-function stripQuotes(value: string | undefined): string | undefined {
-  if (value === undefined) return undefined;
-  const trimmed = value.trim();
-  const isDoubleQuoted = trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"');
-  const isSingleQuoted = trimmed.length >= 2 && trimmed.startsWith("'") && trimmed.endsWith("'");
-  return isDoubleQuoted || isSingleQuoted ? trimmed.slice(1, -1) : trimmed;
-}
-
-export { requireEnv, stripQuotes };
+export { requireEnv };

@@ -25,12 +25,15 @@ export async function syncFilterCatalog(): Promise<FilterCatalogSyncSummary> {
 }
 
 /**
- * Fire-and-forget sync with a single retry. The filters service (oingg-analysis-ts) may still be
- * booting or briefly unreachable — that's not fatal: the BFF keeps serving whatever catalog it already
- * has (or none yet). One retry covers "just needed a moment to boot"; if it still fails after that,
- * give up rather than retrying forever.
+ * Fire-and-forget sync with a single retry, called once at startup. oingg-analysis-ts (數據中台) must
+ * never know oingg-bff-ts exists — there is deliberately no push/notify mechanism in the other
+ * direction, so bff-ts is the only side that can initiate keeping this catalog fresh. A previous
+ * version tried a POST /filters/sync endpoint for analysis-ts to call after its own catalog changed;
+ * that was removed because it required analysis-ts's code to know about and call bff-ts, violating this
+ * boundary. Until/unless a periodic re-sync is added, freshness is bounded by how often this process
+ * restarts.
  */
-function startFilterCatalogSync(retriesLeft = 1): void {
+export function startFilterCatalogSync(retriesLeft = 1): void {
   syncFilterCatalog().catch((error: unknown) => {
     if (retriesLeft > 0) {
       console.warn(
@@ -39,27 +42,7 @@ function startFilterCatalogSync(retriesLeft = 1): void {
       );
       setTimeout(() => startFilterCatalogSync(retriesLeft - 1), RETRY_DELAY_MS);
     } else {
-      console.error("Filter catalog sync failed again, giving up until oingg-analysis-ts pushes an update:", error);
+      console.error("Filter catalog sync failed again, giving up until the next restart:", error);
     }
   });
-}
-
-/**
- * Call once at startup — NOT an unconditional resync. Normal operation keeps the catalog fresh via
- * oingg-analysis-ts calling POST /filters/sync whenever its own catalog changes (see
- * filterCatalog.routes.ts); this service no longer proactively re-pulls on every restart. The one
- * exception is a brand-new deployment with an empty local catalog — nothing to fall back on until
- * analysis-ts happens to push next — so this still runs one bootstrap sync in that specific case,
- * fire-and-forget, never blocking or failing startup.
- */
-export async function bootstrapFilterCatalogIfEmpty(): Promise<void> {
-  try {
-    const existing = await listFilterCatalog();
-    if (existing.length === 0) {
-      console.log("Filter catalog is empty (first boot?) — running a one-time bootstrap sync from oingg-analysis-ts.");
-      startFilterCatalogSync();
-    }
-  } catch (error) {
-    console.warn("Could not check whether the filter catalog needs a bootstrap sync, skipping:", error);
-  }
 }
