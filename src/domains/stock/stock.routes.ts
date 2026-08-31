@@ -10,8 +10,9 @@ export const stockRouter = Router();
  *   get:
  *     summary: 查詢股票的最新股價、本益比、本淨比、殖利率
  *     description: >
- *       同時查 twse、tpex 兩個 Neon DB（上市/上櫃代號不重疊，哪邊有資料就回哪邊）。
- *       股價跟估值分開查最新一筆，不強制同一天——兩者缺值模式不同。
+ *       **暫時無法使用**：直連 twse/tpex 已依「bff-ts 只能跟 analysis-ts 講話」的架構規則移除，
+ *       analysis-ts 目前還沒有提供替代查詢 API（見 docs/直連DB反模式修復計畫.md），這是刻意接受的
+ *       短期功能退化，不是 bug。目前這支端點一律回 503。
  *     tags:
  *       - Stock
  *     parameters:
@@ -27,6 +28,8 @@ export const stockRouter = Router();
  *         description: 股價/估值資料，任一邊查無資料時對應欄位為 null。
  *       404:
  *         description: 上市、上櫃都查無此股票代號的任何資料。
+ *       503:
+ *         description: 功能暫時停用中，等待 analysis-ts 提供替代查詢 API。
  */
 stockRouter.get("/:symbol", async (req, res) => {
   const { symbol } = req.params;

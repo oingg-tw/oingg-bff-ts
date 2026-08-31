@@ -1,111 +1,36 @@
-import { queryNeon } from "../../adapters/neon/index.js";
-import type { StockMarket, StockPrice, StockQuote, StockValuation } from "./stock.types.js";
+import { AppError } from "../../shared/errorHandler.js";
+import type { StockQuote } from "./stock.types.js";
 
-const MARKETS: StockMarket[] = ["twse", "tpex"];
-
-interface PriceRow {
-  tradeDate: Date;
-  close: string | null;
-}
-
-interface ValuationRow {
-  tradeDate: Date;
-  peRatio: string | null;
-  pbRatio: string | null;
-  dividendYield: string | null;
-}
-
-function toDateString(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-async function findLatestPrice(market: StockMarket, symbol: string): Promise<StockPrice | null> {
-  const result = await queryNeon<PriceRow>(
-    market,
-    'select "tradeDate", close from daily_price where symbol = $1 order by "tradeDate" desc limit 1',
-    [symbol],
-  );
-  const row = result.rows[0];
-  return row ? { tradeDate: toDateString(row.tradeDate), close: row.close } : null;
-}
-
-async function findLatestValuation(market: StockMarket, symbol: string): Promise<StockValuation | null> {
-  const result = await queryNeon<ValuationRow>(
-    market,
-    'select "tradeDate", "peRatio", "pbRatio", "dividendYield" from daily_valuation where symbol = $1 order by "tradeDate" desc limit 1',
-    [symbol],
-  );
-  const row = result.rows[0];
-  return row
-    ? {
-        tradeDate: toDateString(row.tradeDate),
-        peRatio: row.peRatio,
-        pbRatio: row.pbRatio,
-        dividendYield: row.dividendYield,
-      }
-    : null;
-}
-
-async function findQuoteInMarket(market: StockMarket, symbol: string): Promise<StockQuote | null> {
-  const [price, valuation] = await Promise.all([
-    findLatestPrice(market, symbol),
-    findLatestValuation(market, symbol),
-  ]);
-
-  if (!price && !valuation) {
-    return null;
-  }
-
-  return { symbol, market, price, valuation };
-}
-
-/**
- * A symbol belongs to exactly one market (listed symbols don't overlap between
- * TWSE and TPEx), so both markets are checked in parallel and whichever has data wins.
- */
-export async function getStockQuote(symbol: string): Promise<StockQuote | null> {
-  const quotes = await Promise.all(MARKETS.map((market) => findQuoteInMarket(market, symbol)));
-  return quotes.find((quote) => quote !== null) ?? null;
-}
+const MIGRATION_NOTICE =
+  'Stock quote lookups are temporarily unavailable: direct access to twse/tpex was removed per the ' +
+  '"bff-ts only talks to analysis-ts" architecture rule, and analysis-ts does not yet expose a ' +
+  "replacement API (see docs/直連DB反模式修復計畫.md — blocked on analysis-ts's own twse/tpex mirror " +
+  "being incomplete). This is a deliberate, accepted short-term regression, not a bug to silently work " +
+  "around by reconnecting to twse/tpex directly.";
 
 export interface ClosePrice {
   close: string | null;
   tradeDate: string | null;
 }
 
-async function findLatestClosePricesInMarket(
-  market: StockMarket,
-  symbols: string[],
-): Promise<Map<string, ClosePrice>> {
-  const result = await queryNeon<{ symbol: string; close: string | null; tradeDate: Date }>(
-    market,
-    `select distinct on (symbol) symbol, close, "tradeDate"
-     from daily_price
-     where symbol = any($1)
-     order by symbol, "tradeDate" desc`,
-    [symbols],
-  );
-  return new Map(result.rows.map((row) => [row.symbol, { close: row.close, tradeDate: toDateString(row.tradeDate) }]));
+/**
+ * Was: check twse then tpex directly (a symbol belongs to exactly one market). Direct DB access to
+ * twse-ts/tpex-ts is no longer allowed (bff-ts may only talk to analysis-ts) — throws until
+ * analysis-ts exposes a replacement lookup API, rather than silently returning null (which would read
+ * as "unknown symbol" to every caller — holdings/transactions/watchlist symbol validation, GET
+ * /stocks/:symbol — and that would be actively misleading about why it's failing).
+ */
+export async function getStockQuote(_symbol: string): Promise<StockQuote | null> {
+  throw new AppError(MIGRATION_NOTICE, 503);
 }
 
 /**
- * Batched equivalent of calling getStockQuote() once per symbol for just the close price — used by the
- * screener to attach "stock.price" to a whole result set. One query per market (2 total) regardless of
- * how many symbols matched, instead of one query per symbol: a 50-row screener result used to fire 200
- * individual queries (2 markets x 2 tables x 50 symbols) at the twse/tpex DBs.
+ * Was: batched twse+tpex close-price lookup for the screener's "stock.price" display column. Direct DB
+ * access to twse-ts/tpex-ts is no longer allowed. Unlike getStockQuote, this degrades gracefully (empty
+ * map -> every symbol's stock.price shows as null) instead of throwing: "stock.price" is part of the
+ * system default columns, so throwing here would break the entire screener/ranking feature over a
+ * missing display column, not just the price lookup itself.
  */
-export async function getLatestClosePrices(symbols: string[]): Promise<Map<string, ClosePrice>> {
-  if (symbols.length === 0) {
-    return new Map();
-  }
-
-  const perMarket = await Promise.all(MARKETS.map((market) => findLatestClosePricesInMarket(market, symbols)));
-  const merged = new Map<string, ClosePrice>();
-  for (const marketPrices of perMarket) {
-    for (const [symbol, price] of marketPrices) {
-      merged.set(symbol, price);
-    }
-  }
-  return merged;
+export async function getLatestClosePrices(_symbols: string[]): Promise<Map<string, ClosePrice>> {
+  return new Map();
 }
-

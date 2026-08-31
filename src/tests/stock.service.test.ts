@@ -1,95 +1,35 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("../adapters/neon/index.js", () => ({
-  queryNeon: vi.fn(),
-}));
-
-import { queryNeon } from "../adapters/neon/index.js";
+import { describe, expect, it } from "vitest";
 import { getLatestClosePrices, getStockQuote } from "../domains/stock/stock.service.js";
 
-const emptyResult = { rows: [] };
+// Direct DB access to twse-ts/tpex-ts was removed 2026-08-31 per the "bff-ts only talks to
+// analysis-ts" architecture rule (see docs/業務中台與後台資料邊界架構.md). analysis-ts doesn't yet
+// expose a replacement lookup API (blocked on their own twse/tpex mirror being incomplete — see
+// docs/直連DB反模式修復計畫.md), so this is a deliberate, accepted short-term regression rather than a
+// bug. These tests lock in the *current* (temporary) behavior so a future PR wiring up the real
+// analysis-ts client has a clear diff to replace, not silent behavior drift.
 
 describe("getStockQuote", () => {
-  beforeEach(() => {
-    vi.mocked(queryNeon).mockReset();
-  });
-
-  it("returns the TWSE quote when TWSE has price and valuation data for the symbol", async () => {
-    vi.mocked(queryNeon).mockImplementation(async (market, sql) => {
-      if (market !== "twse") return emptyResult as never;
-      if (String(sql).includes("daily_price")) {
-        return { rows: [{ tradeDate: new Date("2026-08-18"), close: "2350.0000" }] } as never;
-      }
-      return {
-        rows: [{ tradeDate: new Date("2026-08-16"), peRatio: "27.82", pbRatio: "9.68", dividendYield: "0.92" }],
-      } as never;
-    });
-
-    const quote = await getStockQuote("2330");
-
-    expect(quote).toEqual({
-      symbol: "2330",
-      market: "twse",
-      price: { tradeDate: "2026-08-18", close: "2350.0000" },
-      valuation: { tradeDate: "2026-08-16", peRatio: "27.82", pbRatio: "9.68", dividendYield: "0.92" },
-    });
-  });
-
-  it("falls back to TPEx when TWSE has nothing for the symbol (listed symbols don't overlap between markets)", async () => {
-    vi.mocked(queryNeon).mockImplementation(async (market, sql) => {
-      if (market !== "tpex") return emptyResult as never;
-      if (String(sql).includes("daily_valuation")) {
-        return {
-          rows: [{ tradeDate: new Date("2026-08-19"), peRatio: "10.61", pbRatio: "1.68", dividendYield: "0.88" }],
-        } as never;
-      }
-      return emptyResult as never;
-    });
-
-    const quote = await getStockQuote("1240");
-
-    expect(quote?.market).toBe("tpex");
-    expect(quote?.price).toBeNull();
-    expect(quote?.valuation?.peRatio).toBe("10.61");
-  });
-
-  it("returns null when neither market has any data for the symbol", async () => {
-    vi.mocked(queryNeon).mockResolvedValue(emptyResult as never);
-
-    const quote = await getStockQuote("NOPE");
-
-    expect(quote).toBeNull();
+  // Throws (not a silent null) because a null return would look identical to "unknown symbol" to
+  // every caller (GET /stocks/:symbol, and holdings/transactions/watchlist symbol validation) —
+  // that would be actively misleading about why it's failing.
+  it("throws a 503 AppError explaining the migration block, for any symbol", async () => {
+    await expect(getStockQuote("2330")).rejects.toMatchObject({ statusCode: 503 });
   });
 });
 
-// Regression test: the screener used to fetch each matched symbol's price with a separate
-// getStockQuote() call — a 50-row result fired 200 individual queries (2 markets x 2 tables x 50
-// symbols). getLatestClosePrices() must cover the whole symbol list in one query per market instead.
 describe("getLatestClosePrices", () => {
-  beforeEach(() => {
-    vi.mocked(queryNeon).mockReset();
+  // Degrades gracefully (empty map, not a throw) because "stock.price" is part of the screener's
+  // system default columns — throwing here would break the entire screener/ranking feature over a
+  // missing display column, not just the price lookup itself.
+  it("returns an empty map regardless of input, instead of throwing", async () => {
+    const prices = await getLatestClosePrices(["2330", "1240"]);
+
+    expect(prices.size).toBe(0);
   });
 
-  it("issues exactly one query per market regardless of how many symbols are requested", async () => {
-    vi.mocked(queryNeon).mockImplementation(async (market) => {
-      if (market === "twse") {
-        return { rows: [{ symbol: "2330", close: "2410.0000", tradeDate: new Date("2026-08-28") }] } as never;
-      }
-      return { rows: [{ symbol: "1240", close: "15.5000", tradeDate: new Date("2026-08-27") }] } as never;
-    });
-
-    const prices = await getLatestClosePrices(["2330", "1240", "9999"]);
-
-    expect(queryNeon).toHaveBeenCalledTimes(2);
-    expect(prices.get("2330")).toEqual({ close: "2410.0000", tradeDate: "2026-08-28" });
-    expect(prices.get("1240")).toEqual({ close: "15.5000", tradeDate: "2026-08-27" });
-    expect(prices.has("9999")).toBe(false);
-  });
-
-  it("returns an empty map without querying when given no symbols", async () => {
+  it("returns an empty map for an empty symbol list too", async () => {
     const prices = await getLatestClosePrices([]);
 
-    expect(queryNeon).not.toHaveBeenCalled();
     expect(prices.size).toBe(0);
   });
 });
