@@ -2,8 +2,12 @@ import { Router } from "ultimate-express";
 import { AppError } from "../../shared/errorHandler.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
-import { getThemePreference, updateThemePreference } from "./theme.service.js";
-import type { MarketColorConvention, ThemeAccentColor, ThemeMode } from "./theme.types.js";
+import {
+  getThemePreference,
+  updateMarketColorConvention,
+  updateThemeAccentColor,
+  updateThemeMode,
+} from "./theme.service.js";
 import { getUserByFirebaseUidOrThrow } from "./user.service.js";
 
 export const userRouter = Router();
@@ -63,48 +67,109 @@ userRouter.get("/me/theme", requireAuth, async (req: AuthenticatedRequest, res) 
 
 /**
  * @swagger
- * /users/me/theme:
+ * /users/me/theme/mode:
  *   put:
- *     summary: 更新目前登入使用者的 UI 主題設定
- *     description: >
- *       mode／accentColor／marketColorConvention 皆選填，但至少要給一個；沒給的欄位維持原本設定（或系統預設）
- *       不變。marketColorConvention 決定漲跌顏色：ASIA（紅漲綠跌，台股慣例，系統預設）或 WESTERN（紅跌綠漲，
- *       歐美慣例）。
+ *     summary: 更新外觀模式（淺色／深色／跟隨系統）
  *     tags:
  *       - User
  *     security:
  *       - bearerAuth: []
  *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - mode
  *             properties:
  *               mode:
  *                 type: string
  *                 enum: [LIGHT, DARK, SYSTEM]
+ *     responses:
+ *       200:
+ *         description: 更新後的完整主題設定。
+ *       400:
+ *         description: mode 沒給，或不在允許的選項內。
+ *       401:
+ *         description: 缺少或無效的 Authorization header / token。
+ */
+userRouter.put("/me/theme/mode", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = req.body as { mode?: unknown } | null;
+  const theme = await updateThemeMode(firebaseUid, body?.mode);
+  res.json({ theme });
+});
+
+/**
+ * @swagger
+ * /users/me/theme/accent-color:
+ *   put:
+ *     summary: 更新主題色
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - accentColor
+ *             properties:
  *               accentColor:
  *                 type: string
  *                 enum: [BLUE, GREEN, PURPLE, ORANGE, RED, TEAL, GOLD]
+ *     responses:
+ *       200:
+ *         description: 更新後的完整主題設定。
+ *       400:
+ *         description: accentColor 沒給，或不在允許的選項內。
+ *       401:
+ *         description: 缺少或無效的 Authorization header / token。
+ */
+userRouter.put("/me/theme/accent-color", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = req.body as { accentColor?: unknown } | null;
+  const theme = await updateThemeAccentColor(firebaseUid, body?.accentColor);
+  res.json({ theme });
+});
+
+/**
+ * @swagger
+ * /users/me/theme/market-color-convention:
+ *   put:
+ *     summary: 更新漲跌顏色慣例
+ *     description: ASIA（紅漲綠跌，台股慣例，系統預設）或 WESTERN（紅跌綠漲，歐美慣例）。
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - marketColorConvention
+ *             properties:
  *               marketColorConvention:
  *                 type: string
  *                 enum: [ASIA, WESTERN]
  *     responses:
  *       200:
- *         description: 更新後的主題設定。
+ *         description: 更新後的完整主題設定。
  *       400:
- *         description: mode/accentColor/marketColorConvention 都沒給，或值不在允許的選項內。
+ *         description: marketColorConvention 沒給，或不在允許的選項內。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  */
-userRouter.put("/me/theme", requireAuth, async (req: AuthenticatedRequest, res) => {
+userRouter.put("/me/theme/market-color-convention", requireAuth, async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
-  const body = req.body as { mode?: unknown; accentColor?: unknown; marketColorConvention?: unknown } | null;
-
-  const theme = await updateThemePreference(firebaseUid, {
-    mode: body?.mode as ThemeMode | undefined,
-    accentColor: body?.accentColor as ThemeAccentColor | undefined,
-    marketColorConvention: body?.marketColorConvention as MarketColorConvention | undefined,
-  });
+  const body = req.body as { marketColorConvention?: unknown } | null;
+  const theme = await updateMarketColorConvention(firebaseUid, body?.marketColorConvention);
   res.json({ theme });
 });

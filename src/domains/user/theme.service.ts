@@ -1,12 +1,6 @@
 import { AppError } from "../../shared/errorHandler.js";
-import { findThemePreference, upsertThemePreference } from "./theme.repository.js";
-import type {
-  MarketColorConvention,
-  ThemeAccentColor,
-  ThemeMode,
-  ThemePreference,
-  ThemePreferenceUpdate,
-} from "./theme.types.js";
+import { findThemePreference, upsertThemePreference, type ThemePreferenceRow } from "./theme.repository.js";
+import type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreference } from "./theme.types.js";
 
 const VALID_MODES: ThemeMode[] = ["LIGHT", "DARK", "SYSTEM"];
 const VALID_ACCENT_COLORS: ThemeAccentColor[] = ["BLUE", "GREEN", "PURPLE", "ORANGE", "RED", "TEAL", "GOLD"];
@@ -51,8 +45,7 @@ function assertValidMarketColorConvention(
   }
 }
 
-export async function getThemePreference(firebaseUid: string): Promise<ThemePreference> {
-  const row = await findThemePreference(firebaseUid);
+function toThemePreference(row: ThemePreferenceRow | null): ThemePreference {
   return {
     mode: row?.mode ?? SYSTEM_DEFAULT_THEME.mode,
     accentColor: row?.accentColor ?? SYSTEM_DEFAULT_THEME.accentColor,
@@ -60,27 +53,31 @@ export async function getThemePreference(firebaseUid: string): Promise<ThemePref
   };
 }
 
-export async function updateThemePreference(
-  firebaseUid: string,
-  update: ThemePreferenceUpdate,
-): Promise<ThemePreference> {
-  if (update.mode === undefined && update.accentColor === undefined && update.marketColorConvention === undefined) {
-    throw new AppError('At least one of "mode", "accentColor", or "marketColorConvention" must be provided', 400);
-  }
-  if (update.mode !== undefined) {
-    assertValidMode(update.mode);
-  }
-  if (update.accentColor !== undefined) {
-    assertValidAccentColor(update.accentColor);
-  }
-  if (update.marketColorConvention !== undefined) {
-    assertValidMarketColorConvention(update.marketColorConvention);
-  }
+export async function getThemePreference(firebaseUid: string): Promise<ThemePreference> {
+  const row = await findThemePreference(firebaseUid);
+  return toThemePreference(row);
+}
 
-  const row = await upsertThemePreference(firebaseUid, update);
-  return {
-    mode: row.mode ?? SYSTEM_DEFAULT_THEME.mode,
-    accentColor: row.accentColor ?? SYSTEM_DEFAULT_THEME.accentColor,
-    marketColorConvention: row.marketColorConvention ?? SYSTEM_DEFAULT_THEME.marketColorConvention,
-  };
+/** 外觀模式 (light/dark/system) — its own endpoint, independent of accentColor/marketColorConvention. */
+export async function updateThemeMode(firebaseUid: string, mode: unknown): Promise<ThemePreference> {
+  assertValidMode(mode);
+  const row = await upsertThemePreference(firebaseUid, { mode });
+  return toThemePreference(row);
+}
+
+/** 主題色 (accent color) — its own endpoint, independent of mode/marketColorConvention. */
+export async function updateThemeAccentColor(firebaseUid: string, accentColor: unknown): Promise<ThemePreference> {
+  assertValidAccentColor(accentColor);
+  const row = await upsertThemePreference(firebaseUid, { accentColor });
+  return toThemePreference(row);
+}
+
+/** 漲跌顏色 (up/down price color convention) — its own endpoint, independent of mode/accentColor. */
+export async function updateMarketColorConvention(
+  firebaseUid: string,
+  marketColorConvention: unknown,
+): Promise<ThemePreference> {
+  assertValidMarketColorConvention(marketColorConvention);
+  const row = await upsertThemePreference(firebaseUid, { marketColorConvention });
+  return toThemePreference(row);
 }

@@ -6,7 +6,13 @@ vi.mock("../domains/user/theme.repository.js", () => ({
 }));
 
 import { findThemePreference, upsertThemePreference } from "../domains/user/theme.repository.js";
-import { getThemePreference, updateThemePreference, SYSTEM_DEFAULT_THEME } from "../domains/user/theme.service.js";
+import {
+  getThemePreference,
+  updateThemeMode,
+  updateThemeAccentColor,
+  updateMarketColorConvention,
+  SYSTEM_DEFAULT_THEME,
+} from "../domains/user/theme.service.js";
 
 describe("getThemePreference", () => {
   beforeEach(() => {
@@ -49,41 +55,48 @@ describe("getThemePreference", () => {
   });
 });
 
-describe("updateThemePreference", () => {
+// The three settings each have their own update entrypoint (three separate PUT endpoints) rather than
+// one combined partial-update call, so each is tested independently of the others' validation.
+describe("updateThemeMode", () => {
   beforeEach(() => {
     vi.mocked(upsertThemePreference).mockReset();
   });
 
-  it("rejects an update with none of mode/accentColor/marketColorConvention", async () => {
-    await expect(updateThemePreference("uid-1", {})).rejects.toMatchObject({ statusCode: 400 });
+  it("rejects a missing or invalid mode", async () => {
+    await expect(updateThemeMode("uid-1", undefined)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(updateThemeMode("uid-1", "NEON")).rejects.toMatchObject({ statusCode: 400 });
     expect(upsertThemePreference).not.toHaveBeenCalled();
   });
 
-  it("rejects a mode outside the allowed enum", async () => {
-    await expect(updateThemePreference("uid-1", { mode: "NEON" as never })).rejects.toMatchObject({
-      statusCode: 400,
+  it("upserts only the mode field and resolves the rest against defaults", async () => {
+    vi.mocked(upsertThemePreference).mockResolvedValue({ mode: "DARK", accentColor: null, marketColorConvention: null });
+
+    const theme = await updateThemeMode("uid-1", "DARK");
+
+    expect(upsertThemePreference).toHaveBeenCalledWith("uid-1", { mode: "DARK" });
+    expect(theme).toEqual({
+      mode: "DARK",
+      accentColor: SYSTEM_DEFAULT_THEME.accentColor,
+      marketColorConvention: SYSTEM_DEFAULT_THEME.marketColorConvention,
     });
+  });
+});
+
+describe("updateThemeAccentColor", () => {
+  beforeEach(() => {
+    vi.mocked(upsertThemePreference).mockReset();
+  });
+
+  it("rejects a missing or invalid accentColor", async () => {
+    await expect(updateThemeAccentColor("uid-1", undefined)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(updateThemeAccentColor("uid-1", "MAGENTA")).rejects.toMatchObject({ statusCode: 400 });
     expect(upsertThemePreference).not.toHaveBeenCalled();
   });
 
-  it("rejects an accentColor outside the allowed enum", async () => {
-    await expect(updateThemePreference("uid-1", { accentColor: "MAGENTA" as never })).rejects.toMatchObject({
-      statusCode: 400,
-    });
-    expect(upsertThemePreference).not.toHaveBeenCalled();
-  });
-
-  it("rejects a marketColorConvention outside the allowed enum", async () => {
-    await expect(
-      updateThemePreference("uid-1", { marketColorConvention: "EUROPE" as never }),
-    ).rejects.toMatchObject({ statusCode: 400 });
-    expect(upsertThemePreference).not.toHaveBeenCalled();
-  });
-
-  it("accepts GOLD as a valid accentColor", async () => {
+  it("accepts GOLD and upserts only the accentColor field", async () => {
     vi.mocked(upsertThemePreference).mockResolvedValue({ mode: null, accentColor: "GOLD", marketColorConvention: null });
 
-    const theme = await updateThemePreference("uid-1", { accentColor: "GOLD" });
+    const theme = await updateThemeAccentColor("uid-1", "GOLD");
 
     expect(upsertThemePreference).toHaveBeenCalledWith("uid-1", { accentColor: "GOLD" });
     expect(theme).toEqual({
@@ -92,34 +105,33 @@ describe("updateThemePreference", () => {
       marketColorConvention: SYSTEM_DEFAULT_THEME.marketColorConvention,
     });
   });
+});
 
-  it("accepts WESTERN as a valid marketColorConvention (swaps up/down colors for non-Asian users)", async () => {
+describe("updateMarketColorConvention", () => {
+  beforeEach(() => {
+    vi.mocked(upsertThemePreference).mockReset();
+  });
+
+  it("rejects a missing or invalid marketColorConvention", async () => {
+    await expect(updateMarketColorConvention("uid-1", undefined)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(updateMarketColorConvention("uid-1", "EUROPE")).rejects.toMatchObject({ statusCode: 400 });
+    expect(upsertThemePreference).not.toHaveBeenCalled();
+  });
+
+  it("accepts WESTERN and upserts only the marketColorConvention field", async () => {
     vi.mocked(upsertThemePreference).mockResolvedValue({
       mode: null,
       accentColor: null,
       marketColorConvention: "WESTERN",
     });
 
-    const theme = await updateThemePreference("uid-1", { marketColorConvention: "WESTERN" });
+    const theme = await updateMarketColorConvention("uid-1", "WESTERN");
 
     expect(upsertThemePreference).toHaveBeenCalledWith("uid-1", { marketColorConvention: "WESTERN" });
     expect(theme).toEqual({
       mode: SYSTEM_DEFAULT_THEME.mode,
       accentColor: SYSTEM_DEFAULT_THEME.accentColor,
       marketColorConvention: "WESTERN",
-    });
-  });
-
-  it("passes a partial update straight through to the repository (only the given field)", async () => {
-    vi.mocked(upsertThemePreference).mockResolvedValue({ mode: "DARK", accentColor: null, marketColorConvention: null });
-
-    const theme = await updateThemePreference("uid-1", { mode: "DARK" });
-
-    expect(upsertThemePreference).toHaveBeenCalledWith("uid-1", { mode: "DARK" });
-    expect(theme).toEqual({
-      mode: "DARK",
-      accentColor: SYSTEM_DEFAULT_THEME.accentColor,
-      marketColorConvention: SYSTEM_DEFAULT_THEME.marketColorConvention,
     });
   });
 });
