@@ -37,6 +37,15 @@ describe("fetchFilterCatalog", () => {
     expect(calledUrl.toString()).toBe("http://filters.test/filters");
   });
 
+  // Regression: found live when oingg-analysis-ts's dev server happened to be down while testing
+  // POST /filters/sync — fetch() itself throws for connection-level failures (refused/unreachable host),
+  // not a rejected-but-received HTTP response, so this surfaced as an uncaught 500 instead of a clean 502.
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
   it("throws a 502 AppError when the filters service responds with a non-2xx status", async () => {
     mockFetchOnce({ ok: false, status: 503, body: {} });
 

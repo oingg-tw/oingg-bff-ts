@@ -1,16 +1,17 @@
 import { createApp } from "./app.js";
 import { initFirebase } from "./adapters/firebase/index.js";
 import { closeNeonPools, closePrismaClient, initNeonPools } from "./adapters/neon/index.js";
-import { startFilterCatalogSync } from "./domains/filterCatalog/index.js";
+import { bootstrapFilterCatalogIfEmpty } from "./domains/filterCatalog/index.js";
 import { env } from "./shared/env.js";
 
 async function main(): Promise<void> {
   initFirebase();
   initNeonPools();
 
-  // Fire-and-forget sync from an external microservice that may still be booting or briefly down —
-  // never blocks startup or crashes the server; it retries on its own (see filterCatalog.service.ts).
-  startFilterCatalogSync();
+  // No longer an unconditional resync on every restart — oingg-analysis-ts now pushes updates via
+  // POST /filters/sync whenever its own catalog changes. This only bootstraps a genuinely empty local
+  // catalog (fresh deployment); fire-and-forget, never blocks or fails startup.
+  void bootstrapFilterCatalogIfEmpty();
 
   const app = createApp();
 

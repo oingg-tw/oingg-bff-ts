@@ -10,8 +10,10 @@ export const filterCatalogRouter = Router();
  *   get:
  *     summary: 列出目前可用來 filter/screener 的分類、指標、欄位目錄
  *     description: >
- *       從本服務自己的資料庫回傳（啟動時已從 oingg-analysis-ts 的 /filters 同步過來），
- *       不會即時打 oingg-analysis-ts。分類/指標/欄位的排序跟原始 /filters 回應一致。
+ *       從本服務自己的資料庫回傳，不會即時打 oingg-analysis-ts。目錄由 oingg-analysis-ts 在自己的
+ *       catalog 有變動時主動呼叫 POST /filters/sync 推送更新（見下方），不是這個服務定期或每次啟動去抓；
+ *       只有本地目錄完全是空的（例如全新部署）才會在啟動時自動跑一次性同步。分類/指標/欄位的排序跟原始
+ *       /filters 回應一致。
  *       前端可以用這支 API 動態組出 screener 的篩選條件 UI 跟欄位選擇 UI（field 格式為
  *       "<metricKey>.<fieldKey>"，直接對應 POST /screener 跟 POST/PATCH /screener/column-presets 需要的格式；
  *       "stock.price" 是唯一的例外——來自 twse/tpex，不在這份目錄裡，但一樣可以當 screener 的顯示欄位）。
@@ -36,11 +38,11 @@ filterCatalogRouter.get("/", async (_req, res) => {
  *   post:
  *     summary: 立即從 oingg-analysis-ts 重新同步 filter catalog（server-to-server，不給前端用）
  *     description: >
- *       這個服務原本只在啟動時同步一次 filter catalog，之後不會自動再抓。oingg-analysis-ts 更新自己的
- *       `/filters`（新增指標、補上 description/source 等）後，呼叫這支立即觸發重新同步，不用等我們重啟。
- *       這是一個「通知」端點，不是資料推送——實際資料還是這個服務自己向 oingg-analysis-ts 的 `/filters`
- *       重新拉一次（single source of truth 不變），呼叫方只需要送出通知、不需要附上目錄內容。
- *       用共用密鑰驗證，不是給前端呼叫的公開 API（見 x-task-secret header）。
+ *       這個服務不會自己主動去抓 filter catalog（除了本地目錄完全是空的那個一次性 bootstrap 例外）——
+ *       oingg-analysis-ts 更新自己的 `/filters`（新增指標、補上 description/source 等）後，呼叫這支
+ *       主動推播通知，觸發重新同步。這是一個「通知」端點，不是資料推送——實際資料還是這個服務自己向
+ *       oingg-analysis-ts 的 `/filters` 重新拉一次（single source of truth 不變），呼叫方只需要送出
+ *       通知、不需要附上目錄內容。用共用密鑰驗證，不是給前端呼叫的公開 API（見 x-task-secret header）。
  *     tags:
  *       - Screener
  *     parameters:

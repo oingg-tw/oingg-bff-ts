@@ -28,9 +28,9 @@ export async function syncFilterCatalog(): Promise<FilterCatalogSyncSummary> {
  * Fire-and-forget sync with a single retry. The filters service (oingg-analysis-ts) may still be
  * booting or briefly unreachable — that's not fatal: the BFF keeps serving whatever catalog it already
  * has (or none yet). One retry covers "just needed a moment to boot"; if it still fails after that,
- * give up until the next server restart instead of retrying forever. Call once at startup.
+ * give up rather than retrying forever.
  */
-export function startFilterCatalogSync(retriesLeft = 1): void {
+function startFilterCatalogSync(retriesLeft = 1): void {
   syncFilterCatalog().catch((error: unknown) => {
     if (retriesLeft > 0) {
       console.warn(
@@ -39,7 +39,27 @@ export function startFilterCatalogSync(retriesLeft = 1): void {
       );
       setTimeout(() => startFilterCatalogSync(retriesLeft - 1), RETRY_DELAY_MS);
     } else {
-      console.error("Filter catalog sync failed again, giving up until the next restart:", error);
+      console.error("Filter catalog sync failed again, giving up until oingg-analysis-ts pushes an update:", error);
     }
   });
+}
+
+/**
+ * Call once at startup — NOT an unconditional resync. Normal operation keeps the catalog fresh via
+ * oingg-analysis-ts calling POST /filters/sync whenever its own catalog changes (see
+ * filterCatalog.routes.ts); this service no longer proactively re-pulls on every restart. The one
+ * exception is a brand-new deployment with an empty local catalog — nothing to fall back on until
+ * analysis-ts happens to push next — so this still runs one bootstrap sync in that specific case,
+ * fire-and-forget, never blocking or failing startup.
+ */
+export async function bootstrapFilterCatalogIfEmpty(): Promise<void> {
+  try {
+    const existing = await listFilterCatalog();
+    if (existing.length === 0) {
+      console.log("Filter catalog is empty (first boot?) — running a one-time bootstrap sync from oingg-analysis-ts.");
+      startFilterCatalogSync();
+    }
+  } catch (error) {
+    console.warn("Could not check whether the filter catalog needs a bootstrap sync, skipping:", error);
+  }
 }

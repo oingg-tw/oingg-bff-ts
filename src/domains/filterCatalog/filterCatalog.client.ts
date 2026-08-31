@@ -13,7 +13,20 @@ function isFilterCatalogResponse(body: unknown): body is { categories: FilterCat
 /** Fetches the filter category/metric/field catalog from oingg-analysis-ts's `/filters` endpoint. */
 export async function fetchFilterCatalog(): Promise<FilterCategory[]> {
   const url = new URL("/filters", requireEnv("FILTERS_SERVICE_URL"));
-  const response = await fetch(url);
+
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    // fetch() itself throws (not a rejected-but-caught HTTP response) for connection-level failures —
+    // refused/unreachable host, DNS, timeout. Without this, that surfaces as a generic uncaught 500
+    // instead of a clear "the analysis service is down" 502 (same gap found and fixed in
+    // valuationRanking.client.ts's fetchValuationRanking — this one was missed at the time).
+    throw new AppError(
+      `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,
+      502,
+    );
+  }
 
   if (!response.ok) {
     throw new AppError(`Filters service returned ${response.status} for ${url.toString()}`, 502);
