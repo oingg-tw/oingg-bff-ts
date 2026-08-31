@@ -17,9 +17,21 @@ export interface ScreenerResultColumn {
   fieldName: string;
 }
 
+export interface ScreenerValue {
+  value: unknown;
+  /**
+   * The period/trading day this specific number describes (report_date for quarterly metrics,
+   * trade_date for daily/technical ones) — not when bff-ts queried it. Different symbols can
+   * legitimately have different asOfDate for the same field (e.g. one company hasn't filed this
+   * quarter's report yet). null when the underlying source has no such date (e.g. stock.price
+   * before a symbol has any price history).
+   */
+  asOfDate: string | null;
+}
+
 export interface ScreenerResultRow {
   symbol: string;
-  values: Record<string, unknown>;
+  values: Record<string, ScreenerValue>;
 }
 
 export interface ScreenerResult {

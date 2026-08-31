@@ -73,16 +73,16 @@ describe("getLatestClosePrices", () => {
   it("issues exactly one query per market regardless of how many symbols are requested", async () => {
     vi.mocked(queryNeon).mockImplementation(async (market) => {
       if (market === "twse") {
-        return { rows: [{ symbol: "2330", close: "2410.0000" }] } as never;
+        return { rows: [{ symbol: "2330", close: "2410.0000", tradeDate: new Date("2026-08-28") }] } as never;
       }
-      return { rows: [{ symbol: "1240", close: "15.5000" }] } as never;
+      return { rows: [{ symbol: "1240", close: "15.5000", tradeDate: new Date("2026-08-27") }] } as never;
     });
 
     const prices = await getLatestClosePrices(["2330", "1240", "9999"]);
 
     expect(queryNeon).toHaveBeenCalledTimes(2);
-    expect(prices.get("2330")).toBe("2410.0000");
-    expect(prices.get("1240")).toBe("15.5000");
+    expect(prices.get("2330")).toEqual({ close: "2410.0000", tradeDate: "2026-08-28" });
+    expect(prices.get("1240")).toEqual({ close: "15.5000", tradeDate: "2026-08-27" });
     expect(prices.has("9999")).toBe(false);
   });
 

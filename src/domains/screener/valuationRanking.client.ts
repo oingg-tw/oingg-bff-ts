@@ -8,12 +8,16 @@ export interface ValuationRankingRow {
   value: number;
 }
 
-interface AnalysisRankingResponse {
+export interface ValuationRankingResult {
+  /** The trading day this whole ranking is computed as of — one date for the entire ranking, not per-row. */
+  tradeDate: string | null;
   rankings: ValuationRankingRow[];
 }
 
-function isAnalysisRankingResponse(body: unknown): body is AnalysisRankingResponse {
-  return typeof body === "object" && body !== null && Array.isArray((body as { rankings?: unknown }).rankings);
+function isAnalysisRankingResponse(body: unknown): body is ValuationRankingResult {
+  if (typeof body !== "object" || body === null) return false;
+  const { rankings, tradeDate } = body as { rankings?: unknown; tradeDate?: unknown };
+  return Array.isArray(rankings) && (typeof tradeDate === "string" || tradeDate === null || tradeDate === undefined);
 }
 
 /**
@@ -28,7 +32,7 @@ export async function fetchValuationRanking(
   metric: ValuationRankingMetric,
   order: "asc" | "desc",
   limit: number,
-): Promise<ValuationRankingRow[]> {
+): Promise<ValuationRankingResult> {
   const url = new URL("/valuation/ranking", requireEnv("FILTERS_SERVICE_URL"));
   url.searchParams.set("metric", metric);
   url.searchParams.set("order", order);
@@ -55,5 +59,5 @@ export async function fetchValuationRanking(
     throw new AppError(`Analysis service response at ${url.toString()} is missing a "rankings" array`, 502);
   }
 
-  return body.rankings;
+  return { tradeDate: body.tradeDate ?? null, rankings: body.rankings };
 }

@@ -21,11 +21,13 @@ describe("fetchValuationRanking", () => {
   });
 
   it("calls oingg-analysis-ts's GET /valuation/ranking with metric/order/limit as query params", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(200, { rankings: [{ symbol: "2330", value: 27.82 }] }));
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, { tradeDate: "2026-08-28", rankings: [{ symbol: "2330", value: 27.82 }] }),
+    );
 
-    const rows = await fetchValuationRanking("peRatio", "asc", 10);
+    const result = await fetchValuationRanking("peRatio", "asc", 10);
 
-    expect(rows).toEqual([{ symbol: "2330", value: 27.82 }]);
+    expect(result).toEqual({ tradeDate: "2026-08-28", rankings: [{ symbol: "2330", value: 27.82 }] });
     const calledUrl = new URL(fetchMock.mock.calls[0]![0] as string | URL);
     expect(calledUrl.pathname).toBe("/valuation/ranking");
     expect(calledUrl.searchParams.get("metric")).toBe("peRatio");
@@ -55,9 +57,14 @@ describe("fetchValuationRanking", () => {
     await expect(fetchValuationRanking("dividendYield", "desc", 10)).rejects.toMatchObject({ statusCode: 502 });
   });
 
-  it("returns an empty array when the analysis service reports no data (empty rankings, not an error)", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(200, { rankings: [], warnings: ["no data for this date"] }));
+  it("returns an empty rankings array when the analysis service reports no data (not an error)", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, { tradeDate: null, rankings: [], warnings: ["no data for this date"] }),
+    );
 
-    await expect(fetchValuationRanking("dividendYield", "desc", 10)).resolves.toEqual([]);
+    await expect(fetchValuationRanking("dividendYield", "desc", 10)).resolves.toEqual({
+      tradeDate: null,
+      rankings: [],
+    });
   });
 });

@@ -102,6 +102,27 @@ interface ResolvedFilter extends ResolvedRef {
 }
 
 const cteAlias = (metricKey: string) => `m_${metricKey}`;
+const AS_OF_DATE_COLUMN = "__as_of_date";
+const asOfDateAlias = (field: string) => `${field}__asOfDate`;
+
+function toDateString(date: unknown): string | null {
+  if (date instanceof Date) {
+    return date.toISOString().slice(0, 10);
+  }
+  return typeof date === "string" ? date.slice(0, 10) : null;
+}
+
+/** Pairs each resolved column's raw value with the "{field}__asOfDate" column selected alongside it. */
+function buildValuesFromRow(
+  row: Record<string, unknown>,
+  fields: Array<{ field: string }>,
+): Record<string, { value: unknown; asOfDate: string | null }> {
+  const values: Record<string, { value: unknown; asOfDate: string | null }> = {};
+  for (const { field } of fields) {
+    values[field] = { value: row[field], asOfDate: toDateString(row[asOfDateAlias(field)]) };
+  }
+  return values;
+}
 
 interface MetricCtes {
   ctes: string[];
@@ -135,8 +156,11 @@ function buildMetricCtes(metricColumns: Map<string, Set<string>>, requiredMetric
     // it first. Excluding null-dated rows outright is what actually prevents that, not just relying
     // on ORDER BY ... NULLS LAST (that only fixes ties, not "null looks newest than every real date").
     const conditions = [`"${table.latestOrderColumn}" IS NOT NULL`, ...(table.latestFilter ? [table.latestFilter] : [])];
+    // Selects the same column already used to pick "latest" so callers can report which period/trading
+    // day each returned value describes — a raw passthrough of a column this query already reads, not a
+    // new computation (see the "why asOfDate lives here, not in analysis-ts" discussion this was added for).
     return `${cteAlias(metricKey)} AS (
-      SELECT DISTINCT ON (symbol) symbol, ${cols}
+      SELECT DISTINCT ON (symbol) symbol, "${table.latestOrderColumn}" AS "${AS_OF_DATE_COLUMN}", ${cols}
       FROM ${table.table}
       WHERE ${conditions.join(" AND ")}
       ORDER BY symbol, "${table.latestOrderColumn}" DESC
@@ -156,16 +180,14 @@ function buildMetricCtes(metricColumns: Map<string, Set<string>>, requiredMetric
 }
 
 /** Shared by runScreener/runRanking: merges "stock.price" (twse/tpex, not the analysis DB) into result rows. */
-async function mergeStockPrices(
-  rows: Array<{ symbol: string; values: Record<string, unknown> }>,
-  wantsStockPrice: boolean,
-): Promise<void> {
+async function mergeStockPrices(rows: ScreenerResultRow[], wantsStockPrice: boolean): Promise<void> {
   if (!wantsStockPrice) {
     return;
   }
   const pricesBySymbol = await getLatestClosePrices(rows.map((row) => row.symbol));
   for (const row of rows) {
-    row.values[STOCK_PRICE_FIELD] = pricesBySymbol.get(row.symbol) ?? null;
+    const price = pricesBySymbol.get(row.symbol);
+    row.values[STOCK_PRICE_FIELD] = { value: price?.close ?? null, asOfDate: price?.tradeDate ?? null };
   }
 }
 
@@ -239,7 +261,10 @@ export async function runScreener(
   });
 
   const selectColumns = resolvedColumns
-    .map((c) => `${cteAlias(c.metricKey)}."${c.column}" AS "${c.field}"`)
+    .flatMap((c) => [
+      `${cteAlias(c.metricKey)}."${c.column}" AS "${c.field}"`,
+      `${cteAlias(c.metricKey)}."${AS_OF_DATE_COLUMN}" AS "${asOfDateAlias(c.field)}"`,
+    ])
     .join(", ");
 
   params.push(pagination.pageSize);
@@ -271,10 +296,10 @@ export async function runScreener(
     resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
   }
 
-  const results = result.rows.map((row) => {
-    const { symbol, __totalCount, ...values } = row;
-    return { symbol: symbol as string, values };
-  });
+  const results = result.rows.map((row) => ({
+    symbol: row.symbol as string,
+    values: buildValuesFromRow(row, resolvedColumns),
+  }));
   await mergeStockPrices(results, wantsStockPrice);
 
   return {
@@ -329,13 +354,17 @@ export async function runRanking(
   const { ctes, joinClauses, anchor } = buildMetricCtes(metricColumns, [rankedRef.metricKey]);
 
   const rankedColRef = `${cteAlias(rankedRef.metricKey)}."${rankedRef.column}"`;
-  const selectColumns = extraColumnRefs
-    .map((c) => `${cteAlias(c.metricKey)}."${c.column}" AS "${c.field}"`)
+  const allColumnRefs = [rankedRef, ...extraColumnRefs];
+  const selectColumns = allColumnRefs
+    .flatMap((c) => [
+      `${cteAlias(c.metricKey)}."${c.column}" AS "${c.field}"`,
+      `${cteAlias(c.metricKey)}."${AS_OF_DATE_COLUMN}" AS "${asOfDateAlias(c.field)}"`,
+    ])
     .join(", ");
 
   const sql = `
     WITH ${ctes.join(",\n")}
-    SELECT ${cteAlias(anchor)}.symbol AS symbol, ${rankedColRef} AS "${rankedRef.field}"${selectColumns ? `, ${selectColumns}` : ""}
+    SELECT ${cteAlias(anchor)}.symbol AS symbol, ${selectColumns}
     FROM ${cteAlias(anchor)}
     ${joinClauses.join("\n")}
     WHERE ${rankedColRef} IS NOT NULL
@@ -346,18 +375,19 @@ export async function runRanking(
   const result = await queryNeon<Record<string, unknown>>(ANALYSIS_DB, sql, [limit]);
 
   const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
-  const resultColumns: ScreenerResultColumn[] = [
-    { field: rankedRef.field, metricName: rankedRef.metricName, fieldName: rankedRef.fieldName },
-    ...extraColumnRefs.map((c) => ({ field: c.field, metricName: c.metricName, fieldName: c.fieldName })),
-  ];
+  const resultColumns: ScreenerResultColumn[] = allColumnRefs.map((c) => ({
+    field: c.field,
+    metricName: c.metricName,
+    fieldName: c.fieldName,
+  }));
   if (wantsStockPrice) {
     resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
   }
 
-  const results = result.rows.map((row) => {
-    const { symbol, ...values } = row;
-    return { symbol: symbol as string, values };
-  });
+  const results = result.rows.map((row) => ({
+    symbol: row.symbol as string,
+    values: buildValuesFromRow(row, allColumnRefs),
+  }));
   await mergeStockPrices(results, wantsStockPrice);
 
   return { field, direction, columns: resultColumns, results };
@@ -387,12 +417,12 @@ async function runValuationRanking(
   }
 
   const [rankedRef] = await resolveCatalogFieldRefs([field]);
-  const rows = await fetchValuationRanking(metric, direction, limit);
+  const { tradeDate, rankings } = await fetchValuationRanking(metric, direction, limit);
   const wantsStockPrice = columns.some((c) => c.field === STOCK_PRICE_FIELD);
 
-  const results: ScreenerResultRow[] = rows.map((row) => ({
+  const results: ScreenerResultRow[] = rankings.map((row) => ({
     symbol: row.symbol,
-    values: { [field]: String(row.value) },
+    values: { [field]: { value: String(row.value), asOfDate: tradeDate } },
   }));
   await mergeStockPrices(results, wantsStockPrice);
 

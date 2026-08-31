@@ -169,7 +169,9 @@ describe("runScreener", () => {
 
   it("LEFT JOINs a metric that's only requested as a display column, not filtered", async () => {
     vi.mocked(queryNeon).mockResolvedValue({
-      rows: [{ symbol: "2330", "roe.roeTtmPct": "10.98", __totalCount: "1" }],
+      rows: [
+        { symbol: "2330", "roe.roeTtmPct": "10.98", "roe.roeTtmPct__asOfDate": "2026-06-30", __totalCount: "1" },
+      ],
     } as never);
 
     const result = await runScreener(
@@ -180,13 +182,19 @@ describe("runScreener", () => {
 
     const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
     expect(sql).toContain("LEFT JOIN m_roe ON m_roe.symbol = m_grossMargin.symbol");
+    // Every selected field is paired with its own "{field}__asOfDate" column (same CTE, same row).
+    expect(sql).toContain('AS "roe.roeTtmPct__asOfDate"');
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
-    expect(result.results).toEqual([{ symbol: "2330", values: { "roe.roeTtmPct": "10.98" } }]);
+    expect(result.results).toEqual([
+      { symbol: "2330", values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "2026-06-30" } } },
+    ]);
   });
 
   it('merges in "stock.price" (a special, non-catalog column) from twse/tpex instead of the analysis DB', async () => {
     vi.mocked(queryNeon).mockResolvedValue({ rows: [{ symbol: "2330" }, { symbol: "2317" }] } as never);
-    vi.mocked(getLatestClosePrices).mockResolvedValue(new Map([["2330", "2350.0000"]]));
+    vi.mocked(getLatestClosePrices).mockResolvedValue(
+      new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28" }]]),
+    );
 
     const result = await runScreener(
       [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
@@ -202,8 +210,8 @@ describe("runScreener", () => {
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330", "2317"]);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價" });
     expect(result.results).toEqual([
-      { symbol: "2330", values: { "stock.price": "2350.0000" } },
-      { symbol: "2317", values: { "stock.price": null } },
+      { symbol: "2330", values: { "stock.price": { value: "2350.0000", asOfDate: "2026-08-28" } } },
+      { symbol: "2317", values: { "stock.price": { value: null, asOfDate: null } } },
     ]);
   });
 
@@ -281,8 +289,8 @@ describe("runRanking", () => {
   it("orders by the ranked field's own value (not symbol), excludes nulls, and has no threshold params — just LIMIT", async () => {
     vi.mocked(queryNeon).mockResolvedValue({
       rows: [
-        { symbol: "2330", "roe.roeTtmPct": "30.5" },
-        { symbol: "2317", "roe.roeTtmPct": "25.1" },
+        { symbol: "2330", "roe.roeTtmPct": "30.5", "roe.roeTtmPct__asOfDate": "2026-06-30" },
+        { symbol: "2317", "roe.roeTtmPct": "25.1", "roe.roeTtmPct__asOfDate": "2026-03-31" },
       ],
     } as never);
 
@@ -300,9 +308,10 @@ describe("runRanking", () => {
     expect(result.field).toBe("roe.roeTtmPct");
     expect(result.direction).toBe("desc");
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
+    // Different symbols can legitimately have different asOfDate for the same field (one filed later).
     expect(result.results).toEqual([
-      { symbol: "2330", values: { "roe.roeTtmPct": "30.5" } },
-      { symbol: "2317", values: { "roe.roeTtmPct": "25.1" } },
+      { symbol: "2330", values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "2026-06-30" } } },
+      { symbol: "2317", values: { "roe.roeTtmPct": { value: "25.1", asOfDate: "2026-03-31" } } },
     ]);
   });
 
@@ -326,7 +335,15 @@ describe("runRanking", () => {
 
   it("adds extra display columns via LEFT JOIN, same as runScreener, without disturbing the ranking", async () => {
     vi.mocked(queryNeon).mockResolvedValue({
-      rows: [{ symbol: "2330", "roe.roeTtmPct": "30.5", "grossMargin.grossMarginTtm": "55.2" }],
+      rows: [
+        {
+          symbol: "2330",
+          "roe.roeTtmPct": "30.5",
+          "roe.roeTtmPct__asOfDate": "2026-06-30",
+          "grossMargin.grossMarginTtm": "55.2",
+          "grossMargin.grossMarginTtm__asOfDate": "2026-06-30",
+        },
+      ],
     } as never);
 
     const result = await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "grossMargin.grossMarginTtm" }]);
@@ -338,18 +355,26 @@ describe("runRanking", () => {
       metricName: "Margins",
       fieldName: "Gross Margin (TTM)",
     });
-    expect(result.results[0]?.values).toMatchObject({ "grossMargin.grossMarginTtm": "55.2" });
+    expect(result.results[0]?.values).toMatchObject({
+      "grossMargin.grossMarginTtm": { value: "55.2", asOfDate: "2026-06-30" },
+    });
   });
 
   it('merges "stock.price" into results the same way runScreener does', async () => {
-    vi.mocked(queryNeon).mockResolvedValue({ rows: [{ symbol: "2330", "roe.roeTtmPct": "30.5" }] } as never);
-    vi.mocked(getLatestClosePrices).mockResolvedValue(new Map([["2330", "2410.0000"]]));
+    vi.mocked(queryNeon).mockResolvedValue({
+      rows: [{ symbol: "2330", "roe.roeTtmPct": "30.5", "roe.roeTtmPct__asOfDate": "2026-06-30" }],
+    } as never);
+    vi.mocked(getLatestClosePrices).mockResolvedValue(
+      new Map([["2330", { close: "2410.0000", tradeDate: "2026-08-28" }]]),
+    );
 
     const result = await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "stock.price" }]);
 
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330"]);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價" });
-    expect(result.results[0]?.values).toMatchObject({ "stock.price": "2410.0000" });
+    expect(result.results[0]?.values).toMatchObject({
+      "stock.price": { value: "2410.0000", asOfDate: "2026-08-28" },
+    });
   });
 
   it("caps the query at exactly LIMIT rows with no pagination metadata (not the paginated ScreenerResult shape)", async () => {
@@ -370,10 +395,13 @@ describe("runRanking", () => {
   // See VALUATION_RANKING_FIELDS and runValuationRanking.
   describe("valuation field override (per/pbr/dividendYield -> oingg-analysis-ts's ranking endpoint)", () => {
     it("routes per.peRatio to fetchValuationRanking instead of querying the analysis DB directly", async () => {
-      vi.mocked(fetchValuationRanking).mockResolvedValue([
-        { symbol: "1240", value: 10.61 },
-        { symbol: "2330", value: 27.82 },
-      ]);
+      vi.mocked(fetchValuationRanking).mockResolvedValue({
+        tradeDate: "2026-08-28",
+        rankings: [
+          { symbol: "1240", value: 10.61 },
+          { symbol: "2330", value: 27.82 },
+        ],
+      });
 
       const result = await runRanking("per.peRatio", "asc", 10, []);
 
@@ -384,20 +412,27 @@ describe("runRanking", () => {
         direction: "asc",
         columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER" }],
         results: [
-          { symbol: "1240", values: { "per.peRatio": "10.61" } },
-          { symbol: "2330", values: { "per.peRatio": "27.82" } },
+          { symbol: "1240", values: { "per.peRatio": { value: "10.61", asOfDate: "2026-08-28" } } },
+          { symbol: "2330", values: { "per.peRatio": { value: "27.82", asOfDate: "2026-08-28" } } },
         ],
       });
     });
 
     it("still merges stock.price in when requested alongside a valuation ranking", async () => {
-      vi.mocked(fetchValuationRanking).mockResolvedValue([{ symbol: "2330", value: 27.82 }]);
-      vi.mocked(getLatestClosePrices).mockResolvedValue(new Map([["2330", "2420.0000"]]));
+      vi.mocked(fetchValuationRanking).mockResolvedValue({
+        tradeDate: "2026-08-28",
+        rankings: [{ symbol: "2330", value: 27.82 }],
+      });
+      vi.mocked(getLatestClosePrices).mockResolvedValue(
+        new Map([["2330", { close: "2420.0000", tradeDate: "2026-08-28" }]]),
+      );
 
       const result = await runRanking("per.peRatio", "asc", 10, [{ field: "stock.price" }]);
 
       expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價" });
-      expect(result.results[0]?.values).toMatchObject({ "stock.price": "2420.0000" });
+      expect(result.results[0]?.values).toMatchObject({
+        "stock.price": { value: "2420.0000", asOfDate: "2026-08-28" },
+      });
     });
 
     it("rejects combining a valuation ranking with any analysis-DB column other than stock.price", async () => {

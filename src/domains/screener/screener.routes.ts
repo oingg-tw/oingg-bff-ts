@@ -51,6 +51,10 @@ function parseOptionalColumnPresetId(body: unknown): string | undefined {
  *       沒給、但帶有效 Authorization header，就用該帳號自己設的預設欄位組合（isDefault=true 那組），
  *       找不到就用系統內建的常用欄位（股價、PER、PBR、殖利率）；未登入一律套用系統內建欄位。回應的
  *       columnPresetId 會標明實際套用的是哪一組（null 代表用的是系統內建，不是使用者自己儲存的組合）。
+ *
+ *       每個 results[].values 底下的欄位都是 `{ value, asOfDate }` 物件，不是純值——`asOfDate` 是這個
+ *       數字所屬的財報期末日或交易日（不是查詢當下時間），不同股票同一欄位可能是不同日期（例如某公司
+ *       財報還沒公布，抓到的還是上一季）。
  *     tags:
  *       - Screener
  *     security:
@@ -104,6 +108,63 @@ function parseOptionalColumnPresetId(body: unknown): string | undefined {
  *     responses:
  *       200:
  *         description: 符合條件的股票清單（這一頁的部分），附上總筆數/頁碼/總頁數，以及實際套用的 columnPresetId。
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
+ *                 pageSize:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 columnPresetId:
+ *                   type: string
+ *                   nullable: true
+ *                 columns:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       field:
+ *                         type: string
+ *                       metricName:
+ *                         type: string
+ *                       fieldName:
+ *                         type: string
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       symbol:
+ *                         type: string
+ *                       values:
+ *                         type: object
+ *                         description: 每個 key 是一個 field（例如 "per.peRatio"），value 固定是 { value, asOfDate } 物件。
+ *                         additionalProperties:
+ *                           type: object
+ *                           properties:
+ *                             value:
+ *                               nullable: true
+ *                             asOfDate:
+ *                               type: string
+ *                               nullable: true
+ *                               description: 該數字所屬的財報期末日／交易日，可能是 null（該來源沒有日期概念時）。
+ *             example:
+ *               count: 1
+ *               page: 1
+ *               pageSize: 50
+ *               totalPages: 1
+ *               columnPresetId: null
+ *               columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER" }]
+ *               results:
+ *                 - symbol: "2330"
+ *                   values:
+ *                     per.peRatio: { value: "27.82", asOfDate: "2026-08-16" }
  *       400:
  *         description: 請求格式錯誤，field 不存在於 filterCatalog，或 page/pageSize 不合法。
  *       401:
@@ -201,7 +262,20 @@ function parseRankingColumns(raw: unknown): ScreenerColumnRef[] {
  *         description: 逗號分隔的額外顯示欄位，例如 "stock.price"。
  *     responses:
  *       200:
- *         description: 排行結果（不分頁，就是前 limit 名）。
+ *         description: >
+ *           排行結果（不分頁，就是前 limit 名）。results[].values 底下每個欄位都是 { value, asOfDate }
+ *           物件（asOfDate 是該數字所屬的財報期末日／交易日，不同股票可能不同），shape 跟 POST /screener
+ *           一致。
+ *         content:
+ *           application/json:
+ *             example:
+ *               field: "roe.roeTtmPct"
+ *               direction: "desc"
+ *               columns: [{ field: "roe.roeTtmPct", metricName: "股東權益報酬率 ROE", fieldName: "ROE" }]
+ *               results:
+ *                 - symbol: "2330"
+ *                   values:
+ *                     roe.roeTtmPct: { value: "34.78", asOfDate: "2026-06-29" }
  *       400:
  *         description: 缺少 field，field 不存在於 filterCatalog，或 direction/limit/columns 格式錯誤。
  *       501:

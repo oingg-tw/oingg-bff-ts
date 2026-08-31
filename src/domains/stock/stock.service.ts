@@ -68,19 +68,24 @@ export async function getStockQuote(symbol: string): Promise<StockQuote | null> 
   return quotes.find((quote) => quote !== null) ?? null;
 }
 
+export interface ClosePrice {
+  close: string | null;
+  tradeDate: string | null;
+}
+
 async function findLatestClosePricesInMarket(
   market: StockMarket,
   symbols: string[],
-): Promise<Map<string, string | null>> {
-  const result = await queryNeon<{ symbol: string; close: string | null }>(
+): Promise<Map<string, ClosePrice>> {
+  const result = await queryNeon<{ symbol: string; close: string | null; tradeDate: Date }>(
     market,
-    `select distinct on (symbol) symbol, close
+    `select distinct on (symbol) symbol, close, "tradeDate"
      from daily_price
      where symbol = any($1)
      order by symbol, "tradeDate" desc`,
     [symbols],
   );
-  return new Map(result.rows.map((row) => [row.symbol, row.close]));
+  return new Map(result.rows.map((row) => [row.symbol, { close: row.close, tradeDate: toDateString(row.tradeDate) }]));
 }
 
 /**
@@ -89,16 +94,16 @@ async function findLatestClosePricesInMarket(
  * how many symbols matched, instead of one query per symbol: a 50-row screener result used to fire 200
  * individual queries (2 markets x 2 tables x 50 symbols) at the twse/tpex DBs.
  */
-export async function getLatestClosePrices(symbols: string[]): Promise<Map<string, string | null>> {
+export async function getLatestClosePrices(symbols: string[]): Promise<Map<string, ClosePrice>> {
   if (symbols.length === 0) {
     return new Map();
   }
 
   const perMarket = await Promise.all(MARKETS.map((market) => findLatestClosePricesInMarket(market, symbols)));
-  const merged = new Map<string, string | null>();
+  const merged = new Map<string, ClosePrice>();
   for (const marketPrices of perMarket) {
-    for (const [symbol, close] of marketPrices) {
-      merged.set(symbol, close);
+    for (const [symbol, price] of marketPrices) {
+      merged.set(symbol, price);
     }
   }
   return merged;
