@@ -52,8 +52,9 @@ function parseOptionalColumnPresetId(body: unknown): string | undefined {
  *       找不到就用系統內建的常用欄位（股價、PER、PBR、殖利率）；未登入一律套用系統內建欄位。回應的
  *       columnPresetId 會標明實際套用的是哪一組（null 代表用的是系統內建，不是使用者自己儲存的組合）。
  *
- *       每個 results[].values 底下的欄位都是 `{ value, asOfDate }` 物件，不是純值——`asOfDate` 是這個
- *       數字所屬的財報期末日或交易日（不是查詢當下時間），不同股票同一欄位可能是不同日期（例如某公司
+ *       每個 results[].values 底下的欄位都是 `{ value, asOfDate }` 物件，不是純值——不是查詢當下時間。
+ *       季報類指標（例如 roe）的 asOfDate 是 "{兩位數年}Q{季別}"（例如 "26Q2"）；日頻／技術指標
+ *       （例如 stock.price）則是實際日期（"YYYY-MM-DD"）。不同股票同一欄位可能不同（例如某公司
  *       財報還沒公布，抓到的還是上一季）。
  *     tags:
  *       - Screener
@@ -153,7 +154,10 @@ function parseOptionalColumnPresetId(body: unknown): string | undefined {
  *                             asOfDate:
  *                               type: string
  *                               nullable: true
- *                               description: 該數字所屬的財報期末日／交易日，可能是 null（該來源沒有日期概念時）。
+ *                               description: >
+ *                                 該數字所屬的期間。季報類指標是 "{兩位數年}Q{季別}"（例如 "26Q2"）；
+ *                                 日頻／技術指標是實際日期（"YYYY-MM-DD"）；可能是 null（該來源沒有
+ *                                 日期概念時）。
  *             example:
  *               count: 1
  *               page: 1
@@ -264,8 +268,9 @@ function parseRankingColumns(raw: unknown): ScreenerColumnRef[] {
  *       200:
  *         description: >
  *           排行結果（不分頁，就是前 limit 名）。results[].values 底下每個欄位都是 { value, asOfDate }
- *           物件（asOfDate 是該數字所屬的財報期末日／交易日，不同股票可能不同），shape 跟 POST /screener
- *           一致。
+ *           物件，shape 跟 POST /screener 一致。asOfDate 對季報類指標（例如 roe）是 "{兩位數年}Q{季別}"
+ *           格式（例如 "26Q2"），對日頻／技術指標（例如 stock.price、atr）則是實際日期
+ *           （"YYYY-MM-DD"）——不同股票同一欄位可能不同（例如某公司財報還沒公布）。
  *         content:
  *           application/json:
  *             example:
@@ -275,7 +280,7 @@ function parseRankingColumns(raw: unknown): ScreenerColumnRef[] {
  *               results:
  *                 - symbol: "2330"
  *                   values:
- *                     roe.roeTtmPct: { value: "34.78", asOfDate: "2026-06-29" }
+ *                     roe.roeTtmPct: { value: "34.78", asOfDate: "26Q2" }
  *       400:
  *         description: 缺少 field，field 不存在於 filterCatalog，或 direction/limit/columns 格式錯誤。
  *       501:
