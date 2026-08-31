@@ -1,17 +1,32 @@
 import { AppError } from "../../shared/errorHandler.js";
 import { findThemePreference, upsertThemePreference } from "./theme.repository.js";
-import type { ThemeAccentColor, ThemeMode, ThemePreference, ThemePreferenceUpdate } from "./theme.types.js";
+import type {
+  MarketColorConvention,
+  ThemeAccentColor,
+  ThemeMode,
+  ThemePreference,
+  ThemePreferenceUpdate,
+} from "./theme.types.js";
 
 const VALID_MODES: ThemeMode[] = ["LIGHT", "DARK", "SYSTEM"];
 const VALID_ACCENT_COLORS: ThemeAccentColor[] = ["BLUE", "GREEN", "PURPLE", "ORANGE", "RED", "TEAL", "GOLD"];
+const VALID_MARKET_COLOR_CONVENTIONS: MarketColorConvention[] = ["ASIA", "WESTERN"];
 
 /**
  * Out-of-the-box theme for users who haven't picked one yet — a plain code constant, resolved live
  * against whatever a user's row has (or doesn't have) rather than materialized into a per-user DB row
  * (see UserThemePreference's docstring for why). Changing this changes the default for every user who
  * hasn't explicitly overridden it, immediately, no data migration needed.
+ *
+ * marketColorConvention defaults to ASIA (red = up/gain, green = down/loss) since this platform is
+ * TWSE/TPEx-focused — a Taiwan user who never touches this setting should see the convention they
+ * already expect, not the US/Europe one.
  */
-export const SYSTEM_DEFAULT_THEME: ThemePreference = { mode: "SYSTEM", accentColor: "BLUE" };
+export const SYSTEM_DEFAULT_THEME: ThemePreference = {
+  mode: "SYSTEM",
+  accentColor: "BLUE",
+  marketColorConvention: "ASIA",
+};
 
 function assertValidMode(mode: unknown): asserts mode is ThemeMode {
   if (!VALID_MODES.includes(mode as ThemeMode)) {
@@ -25,11 +40,23 @@ function assertValidAccentColor(accentColor: unknown): asserts accentColor is Th
   }
 }
 
+function assertValidMarketColorConvention(
+  marketColorConvention: unknown,
+): asserts marketColorConvention is MarketColorConvention {
+  if (!VALID_MARKET_COLOR_CONVENTIONS.includes(marketColorConvention as MarketColorConvention)) {
+    throw new AppError(
+      `"marketColorConvention" must be one of ${VALID_MARKET_COLOR_CONVENTIONS.join(", ")}`,
+      400,
+    );
+  }
+}
+
 export async function getThemePreference(firebaseUid: string): Promise<ThemePreference> {
   const row = await findThemePreference(firebaseUid);
   return {
     mode: row?.mode ?? SYSTEM_DEFAULT_THEME.mode,
     accentColor: row?.accentColor ?? SYSTEM_DEFAULT_THEME.accentColor,
+    marketColorConvention: row?.marketColorConvention ?? SYSTEM_DEFAULT_THEME.marketColorConvention,
   };
 }
 
@@ -37,8 +64,8 @@ export async function updateThemePreference(
   firebaseUid: string,
   update: ThemePreferenceUpdate,
 ): Promise<ThemePreference> {
-  if (update.mode === undefined && update.accentColor === undefined) {
-    throw new AppError('At least one of "mode" or "accentColor" must be provided', 400);
+  if (update.mode === undefined && update.accentColor === undefined && update.marketColorConvention === undefined) {
+    throw new AppError('At least one of "mode", "accentColor", or "marketColorConvention" must be provided', 400);
   }
   if (update.mode !== undefined) {
     assertValidMode(update.mode);
@@ -46,10 +73,14 @@ export async function updateThemePreference(
   if (update.accentColor !== undefined) {
     assertValidAccentColor(update.accentColor);
   }
+  if (update.marketColorConvention !== undefined) {
+    assertValidMarketColorConvention(update.marketColorConvention);
+  }
 
   const row = await upsertThemePreference(firebaseUid, update);
   return {
     mode: row.mode ?? SYSTEM_DEFAULT_THEME.mode,
     accentColor: row.accentColor ?? SYSTEM_DEFAULT_THEME.accentColor,
+    marketColorConvention: row.marketColorConvention ?? SYSTEM_DEFAULT_THEME.marketColorConvention,
   };
 }

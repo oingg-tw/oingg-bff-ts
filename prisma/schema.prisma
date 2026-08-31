@@ -127,16 +127,23 @@ enum ThemeAccentColor {
   GOLD
 }
 
-/// A user's UI theme preference (see src/domains/user). mode/accentColor are nullable — null means
+/// ASIA = red is up/gain, green is down/loss (台股/亞洲慣例); WESTERN = the reverse (歐美慣例).
+enum MarketColorConvention {
+  ASIA
+  WESTERN
+}
+
+/// A user's UI theme preference (see src/domains/user). All fields are nullable — null means
 /// "not explicitly chosen, use the current system default" resolved live in the service layer (see
 /// SYSTEM_DEFAULT_THEME in theme.service.ts), not frozen into this row at write time. That way a user
-/// who only ever picked a mode still tracks any future change to the default accent color, instead of
-/// being stuck with whatever the default happened to be when their row was first created.
+/// who only ever picked one field still tracks any future change to the default for the others, instead
+/// of being stuck with whatever the default happened to be when their row was first created.
 model UserThemePreference {
-  firebaseUid String            @id @map("firebase_uid")
-  mode        ThemeMode?
-  accentColor ThemeAccentColor? @map("accent_color")
-  updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at")
+  firebaseUid           String                 @id @map("firebase_uid")
+  mode                  ThemeMode?
+  accentColor           ThemeAccentColor?      @map("accent_color")
+  marketColorConvention MarketColorConvention? @map("market_color_convention")
+  updatedAt             DateTime               @default(now()) @updatedAt @map("updated_at")
 
   @@map("user_theme_preference")
 }
