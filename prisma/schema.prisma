@@ -111,6 +111,35 @@ model User {
   @@map("users")
 }
 
+enum ThemeMode {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+enum ThemeAccentColor {
+  BLUE
+  GREEN
+  PURPLE
+  ORANGE
+  RED
+  TEAL
+}
+
+/// A user's UI theme preference (see src/domains/user). mode/accentColor are nullable — null means
+/// "not explicitly chosen, use the current system default" resolved live in the service layer (see
+/// SYSTEM_DEFAULT_THEME in theme.service.ts), not frozen into this row at write time. That way a user
+/// who only ever picked a mode still tracks any future change to the default accent color, instead of
+/// being stuck with whatever the default happened to be when their row was first created.
+model UserThemePreference {
+  firebaseUid String            @id @map("firebase_uid")
+  mode        ThemeMode?
+  accentColor ThemeAccentColor? @map("accent_color")
+  updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at")
+
+  @@map("user_theme_preference")
+}
+
 /// A user's stock watchlist (see src/domains/watchlist).
 model WatchlistItem {
   id          String   @id @default(uuid()) @db.Uuid

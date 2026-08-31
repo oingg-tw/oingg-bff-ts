@@ -45,7 +45,7 @@ routes.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 routes.use("/system", systemRouter); // GET /system/health
 routes.use("/auth", authRouter); // GET /auth/me
-routes.use("/users", userRouter); // GET /users/me
+routes.use("/users", userRouter); // GET /users/me, GET/PUT /users/me/theme
 routes.use("/stocks", stockRouter); // GET /stocks/:symbol
 routes.use("/watchlist", watchlistRouter); // GET/POST /watchlist, GET/PATCH/DELETE /watchlist/:id
 routes.use("/holdings", holdingsRouter); // GET/POST /holdings, GET/PATCH/DELETE /holdings/:id
