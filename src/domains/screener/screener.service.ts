@@ -64,6 +64,7 @@ interface ResolvedRef {
   column: string;
   metricName: string;
   fieldName: string;
+  asOfFormat: "date" | "quarter";
 }
 
 /**
@@ -81,7 +82,8 @@ async function resolveCatalogFieldRefs(fields: string[]): Promise<ResolvedRef[]>
     if (!lookup) {
       throw new AppError(`Unknown filter field "${ref.field}"`, 400);
     }
-    if (!ANALYSIS_METRIC_TABLES[ref.metricKey]) {
+    const table = ANALYSIS_METRIC_TABLES[ref.metricKey];
+    if (!table) {
       throw new AppError(`Metric "${ref.metricKey}" isn't wired up to the analysis database yet`, 501);
     }
     return {
@@ -91,6 +93,7 @@ async function resolveCatalogFieldRefs(fields: string[]): Promise<ResolvedRef[]>
       column: toSafeColumn(ref.fieldKey),
       metricName: lookup.metricName,
       fieldName: lookup.fieldName,
+      asOfFormat: table.asOfFormat ?? "date",
     };
   });
 }
@@ -103,7 +106,11 @@ interface ResolvedFilter extends ResolvedRef {
 
 const cteAlias = (metricKey: string) => `m_${metricKey}`;
 const AS_OF_DATE_COLUMN = "__as_of_date";
+const AS_OF_YEAR_COLUMN = "__as_of_year";
+const AS_OF_SEASON_COLUMN = "__as_of_season";
 const asOfDateAlias = (field: string) => `${field}__asOfDate`;
+const asOfYearAlias = (field: string) => `${field}__asOfYear`;
+const asOfSeasonAlias = (field: string) => `${field}__asOfSeason`;
 
 function toDateString(date: unknown): string | null {
   if (date instanceof Date) {
@@ -112,14 +119,37 @@ function toDateString(date: unknown): string | null {
   return typeof date === "string" ? date.slice(0, 10) : null;
 }
 
-/** Pairs each resolved column's raw value with the "{field}__asOfDate" column selected alongside it. */
+// oingg-analysis-ts's quarterly tables store `year` as the ROC/Minguo calendar year (民國年), not
+// Gregorian — verified against the real DB: profitability_roe has year=115 for report_date 2026-06-29
+// (115 + 1911 = 2026). Naively slicing the last 2 digits of the raw column gives "15Q2" instead of the
+// intended "26Q2" — must convert to Gregorian first.
+const ROC_TO_GREGORIAN_OFFSET = 1911;
+
+/** ROC year 115, season 2 -> "26Q2". Built from the row's own year/season integer columns, not parsed out of a date. */
+function toQuarterLabel(rocYear: unknown, season: unknown): string | null {
+  if (typeof rocYear !== "number" || typeof season !== "number") {
+    return null;
+  }
+  const gregorianYear = rocYear + ROC_TO_GREGORIAN_OFFSET;
+  return `${String(gregorianYear).slice(-2)}Q${season}`;
+}
+
+/**
+ * Pairs each resolved column's raw value with the as-of column(s) selected alongside it — a plain date
+ * (daily/technical/point-in-time metrics) or a "{yy}Q{season}" label built from the row's own year/season
+ * columns (quarterly-report metrics — see AnalysisMetricTable.asOfFormat).
+ */
 function buildValuesFromRow(
   row: Record<string, unknown>,
-  fields: Array<{ field: string }>,
+  fields: Array<{ field: string; asOfFormat: "date" | "quarter" }>,
 ): Record<string, { value: unknown; asOfDate: string | null }> {
   const values: Record<string, { value: unknown; asOfDate: string | null }> = {};
-  for (const { field } of fields) {
-    values[field] = { value: row[field], asOfDate: toDateString(row[asOfDateAlias(field)]) };
+  for (const { field, asOfFormat } of fields) {
+    const asOfDate =
+      asOfFormat === "quarter"
+        ? toQuarterLabel(row[asOfYearAlias(field)], row[asOfSeasonAlias(field)])
+        : toDateString(row[asOfDateAlias(field)]);
+    values[field] = { value: row[field], asOfDate };
   }
   return values;
 }
@@ -128,6 +158,17 @@ interface MetricCtes {
   ctes: string[];
   joinClauses: string[];
   anchor: string;
+}
+
+/** The as-of column(s) for one resolved field, aliased under that field's own name(s) — see asOfFormat. */
+function asOfSelectFor(c: Pick<ResolvedRef, "metricKey" | "field" | "asOfFormat">): string[] {
+  const alias = cteAlias(c.metricKey);
+  return c.asOfFormat === "quarter"
+    ? [
+        `${alias}."${AS_OF_YEAR_COLUMN}" AS "${asOfYearAlias(c.field)}"`,
+        `${alias}."${AS_OF_SEASON_COLUMN}" AS "${asOfSeasonAlias(c.field)}"`,
+      ]
+    : [`${alias}."${AS_OF_DATE_COLUMN}" AS "${asOfDateAlias(c.field)}"`];
 }
 
 /**
@@ -156,11 +197,16 @@ function buildMetricCtes(metricColumns: Map<string, Set<string>>, requiredMetric
     // it first. Excluding null-dated rows outright is what actually prevents that, not just relying
     // on ORDER BY ... NULLS LAST (that only fixes ties, not "null looks newest than every real date").
     const conditions = [`"${table.latestOrderColumn}" IS NOT NULL`, ...(table.latestFilter ? [table.latestFilter] : [])];
-    // Selects the same column already used to pick "latest" so callers can report which period/trading
-    // day each returned value describes — a raw passthrough of a column this query already reads, not a
-    // new computation (see the "why asOfDate lives here, not in analysis-ts" discussion this was added for).
+    // Selects extra column(s) so callers can report which period/trading day each returned value
+    // describes — a raw passthrough of columns this query already has access to, not a new computation
+    // (see AnalysisMetricTable.asOfFormat). Quarterly tables have their own year/season integer columns
+    // (part of the primary key) — select those directly rather than parsing report_date back apart.
+    const asOfSelect =
+      table.asOfFormat === "quarter"
+        ? `"year" AS "${AS_OF_YEAR_COLUMN}", "season" AS "${AS_OF_SEASON_COLUMN}"`
+        : `"${table.latestOrderColumn}" AS "${AS_OF_DATE_COLUMN}"`;
     return `${cteAlias(metricKey)} AS (
-      SELECT DISTINCT ON (symbol) symbol, "${table.latestOrderColumn}" AS "${AS_OF_DATE_COLUMN}", ${cols}
+      SELECT DISTINCT ON (symbol) symbol, ${asOfSelect}, ${cols}
       FROM ${table.table}
       WHERE ${conditions.join(" AND ")}
       ORDER BY symbol, "${table.latestOrderColumn}" DESC
@@ -261,10 +307,7 @@ export async function runScreener(
   });
 
   const selectColumns = resolvedColumns
-    .flatMap((c) => [
-      `${cteAlias(c.metricKey)}."${c.column}" AS "${c.field}"`,
-      `${cteAlias(c.metricKey)}."${AS_OF_DATE_COLUMN}" AS "${asOfDateAlias(c.field)}"`,
-    ])
+    .flatMap((c) => [`${cteAlias(c.metricKey)}."${c.column}" AS "${c.field}"`, ...asOfSelectFor(c)])
     .join(", ");
 
   params.push(pagination.pageSize);
@@ -356,10 +399,7 @@ export async function runRanking(
   const rankedColRef = `${cteAlias(rankedRef.metricKey)}."${rankedRef.column}"`;
   const allColumnRefs = [rankedRef, ...extraColumnRefs];
   const selectColumns = allColumnRefs
-    .flatMap((c) => [
-      `${cteAlias(c.metricKey)}."${c.column}" AS "${c.field}"`,
-      `${cteAlias(c.metricKey)}."${AS_OF_DATE_COLUMN}" AS "${asOfDateAlias(c.field)}"`,
-    ])
+    .flatMap((c) => [`${cteAlias(c.metricKey)}."${c.column}" AS "${c.field}"`, ...asOfSelectFor(c)])
     .join(", ");
 
   const sql = `

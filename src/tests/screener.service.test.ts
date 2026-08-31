@@ -167,10 +167,42 @@ describe("runScreener", () => {
     expect(sql).toMatch(/IS NOT NULL AND \(\(\$1::numeric IS NOT NULL AND .*< \$1::numeric\)/);
   });
 
+  // beta is a non-quarterly special table (as_of_date, no year/season columns) — its asOfDate must stay
+  // a plain date, not fall into the quarter-label branch used by quarterly() metrics like roe above.
+  it("keeps a plain date asOfDate for non-quarterly metrics like beta (no year/season columns)", async () => {
+    vi.mocked(queryNeon).mockResolvedValue({
+      rows: [{ symbol: "2330", "beta.beta1Y": "0.85", "beta.beta1Y__asOfDate": "2026-08-20", __totalCount: "1" }],
+    } as never);
+
+    const result = await runScreener(
+      [{ field: "beta.beta1Y", min: null, max: null, exclude: false }],
+      [{ field: "beta.beta1Y" }],
+      DEFAULT_PAGINATION,
+    );
+
+    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
+    expect(sql).toContain('AS "beta.beta1Y__asOfDate"');
+    expect(sql).not.toContain("beta.beta1Y__asOfYear");
+    expect(result.results).toEqual([
+      { symbol: "2330", values: { "beta.beta1Y": { value: "0.85", asOfDate: "2026-08-20" } } },
+    ]);
+  });
+
+  // Regression: roe is a quarterly() metric, so its asOfDate must be a "{yy}Q{season}" label built from
+  // the row's own year/season integer columns — not a formatted date. See analysisMetricTables.ts's
+  // asOfFormat: quarterly-report tables store year/season directly (part of their primary key), so this
+  // reads those two existing columns rather than parsing report_date back apart.
   it("LEFT JOINs a metric that's only requested as a display column, not filtered", async () => {
     vi.mocked(queryNeon).mockResolvedValue({
       rows: [
-        { symbol: "2330", "roe.roeTtmPct": "10.98", "roe.roeTtmPct__asOfDate": "2026-06-30", __totalCount: "1" },
+        {
+          symbol: "2330",
+          "roe.roeTtmPct": "10.98",
+          // 115 is the real column's ROC/Minguo year for 2026 (115 + 1911 = 2026) — see toQuarterLabel.
+          "roe.roeTtmPct__asOfYear": 115,
+          "roe.roeTtmPct__asOfSeason": 2,
+          __totalCount: "1",
+        },
       ],
     } as never);
 
@@ -182,12 +214,30 @@ describe("runScreener", () => {
 
     const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
     expect(sql).toContain("LEFT JOIN m_roe ON m_roe.symbol = m_grossMargin.symbol");
-    // Every selected field is paired with its own "{field}__asOfDate" column (same CTE, same row).
-    expect(sql).toContain('AS "roe.roeTtmPct__asOfDate"');
+    // Quarterly metrics select year/season directly (not a date column) for their as-of info.
+    expect(sql).toContain('AS "roe.roeTtmPct__asOfYear"');
+    expect(sql).toContain('AS "roe.roeTtmPct__asOfSeason"');
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
     expect(result.results).toEqual([
-      { symbol: "2330", values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "2026-06-30" } } },
+      { symbol: "2330", values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "26Q2" } } },
     ]);
+  });
+
+  // Regression test: caught live after shipping — oingg-analysis-ts's quarterly tables store `year` as
+  // the ROC/Minguo calendar year (民國年), not Gregorian. A naive slice(-2) of the raw column value
+  // turned ROC year 115 (= 2026 CE) into "15Q2" instead of "26Q2". Must add 1911 before formatting.
+  it("converts the ROC/Minguo year to Gregorian before building the quarter label (115 -> 26, not 15)", async () => {
+    vi.mocked(queryNeon).mockResolvedValue({
+      rows: [{ symbol: "2330", "roe.roeTtmPct": "34.78", "roe.roeTtmPct__asOfYear": 115, "roe.roeTtmPct__asOfSeason": 2 }],
+    } as never);
+
+    const result = await runScreener(
+      [{ field: "roe.roeTtmPct", min: null, max: null, exclude: false }],
+      [{ field: "roe.roeTtmPct" }],
+      DEFAULT_PAGINATION,
+    );
+
+    expect(result.results[0]?.values["roe.roeTtmPct"]?.asOfDate).toBe("26Q2");
   });
 
   it('merges in "stock.price" (a special, non-catalog column) from twse/tpex instead of the analysis DB', async () => {
@@ -289,8 +339,8 @@ describe("runRanking", () => {
   it("orders by the ranked field's own value (not symbol), excludes nulls, and has no threshold params — just LIMIT", async () => {
     vi.mocked(queryNeon).mockResolvedValue({
       rows: [
-        { symbol: "2330", "roe.roeTtmPct": "30.5", "roe.roeTtmPct__asOfDate": "2026-06-30" },
-        { symbol: "2317", "roe.roeTtmPct": "25.1", "roe.roeTtmPct__asOfDate": "2026-03-31" },
+        { symbol: "2330", "roe.roeTtmPct": "30.5", "roe.roeTtmPct__asOfYear": 115, "roe.roeTtmPct__asOfSeason": 2 },
+        { symbol: "2317", "roe.roeTtmPct": "25.1", "roe.roeTtmPct__asOfYear": 115, "roe.roeTtmPct__asOfSeason": 1 },
       ],
     } as never);
 
@@ -310,8 +360,8 @@ describe("runRanking", () => {
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
     // Different symbols can legitimately have different asOfDate for the same field (one filed later).
     expect(result.results).toEqual([
-      { symbol: "2330", values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "2026-06-30" } } },
-      { symbol: "2317", values: { "roe.roeTtmPct": { value: "25.1", asOfDate: "2026-03-31" } } },
+      { symbol: "2330", values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } },
+      { symbol: "2317", values: { "roe.roeTtmPct": { value: "25.1", asOfDate: "26Q1" } } },
     ]);
   });
 
@@ -339,9 +389,11 @@ describe("runRanking", () => {
         {
           symbol: "2330",
           "roe.roeTtmPct": "30.5",
-          "roe.roeTtmPct__asOfDate": "2026-06-30",
+          "roe.roeTtmPct__asOfYear": 115,
+          "roe.roeTtmPct__asOfSeason": 2,
           "grossMargin.grossMarginTtm": "55.2",
-          "grossMargin.grossMarginTtm__asOfDate": "2026-06-30",
+          "grossMargin.grossMarginTtm__asOfYear": 115,
+          "grossMargin.grossMarginTtm__asOfSeason": 2,
         },
       ],
     } as never);
@@ -356,13 +408,13 @@ describe("runRanking", () => {
       fieldName: "Gross Margin (TTM)",
     });
     expect(result.results[0]?.values).toMatchObject({
-      "grossMargin.grossMarginTtm": { value: "55.2", asOfDate: "2026-06-30" },
+      "grossMargin.grossMarginTtm": { value: "55.2", asOfDate: "26Q2" },
     });
   });
 
   it('merges "stock.price" into results the same way runScreener does', async () => {
     vi.mocked(queryNeon).mockResolvedValue({
-      rows: [{ symbol: "2330", "roe.roeTtmPct": "30.5", "roe.roeTtmPct__asOfDate": "2026-06-30" }],
+      rows: [{ symbol: "2330", "roe.roeTtmPct": "30.5", "roe.roeTtmPct__asOfYear": 115, "roe.roeTtmPct__asOfSeason": 2 }],
     } as never);
     vi.mocked(getLatestClosePrices).mockResolvedValue(
       new Map([["2330", { close: "2410.0000", tradeDate: "2026-08-28" }]]),

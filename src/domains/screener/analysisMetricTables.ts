@@ -5,13 +5,23 @@ export interface AnalysisMetricTable {
   latestOrderColumn: string;
   /** Extra WHERE applied before picking the latest row per symbol (e.g. consolidated, non-subsidiary only). */
   latestFilter?: string;
+  /**
+   * How to render the row's "as of" value for callers. "date" (default): format latestOrderColumn as
+   * YYYY-MM-DD — used for daily/technical/point-in-time tables where a specific trading day IS the
+   * meaningful granularity. "quarter": this table has its own `year`/`season` integer columns (every
+   * quarterly-report table does, as part of its primary key) — select those directly and render
+   * "{2-digit year}Q{season}" (e.g. "26Q2") instead, since which fiscal quarter a number is from is more
+   * useful to a user than its exact period-end date, and the two integer columns are a more direct source
+   * than parsing them back out of report_date.
+   */
+  asOfFormat?: "date" | "quarter";
 }
 
 /** Quarterly-report metric tables: keyed by symbol+year+season+dataType+subsidiaryCompanyId, report_date is the period end. Screening uses the latest consolidated (dataType='2'), parent-company (no subsidiary) row per symbol. */
 const CONSOLIDATED_PARENT_ONLY = "data_type = '2' AND subsidiary_company_id = ''";
 
 function quarterly(table: string): AnalysisMetricTable {
-  return { table, latestOrderColumn: "report_date", latestFilter: CONSOLIDATED_PARENT_ONLY };
+  return { table, latestOrderColumn: "report_date", latestFilter: CONSOLIDATED_PARENT_ONLY, asOfFormat: "quarter" };
 }
 
 /** Daily market data, not tied to a quarterly report — keyed by symbol+tradeDate instead of report_date. */
