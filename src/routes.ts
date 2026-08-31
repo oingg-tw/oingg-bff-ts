@@ -53,6 +53,7 @@ routes.use("/holdings", holdingsRouter); // GET/POST /holdings, GET/PATCH/DELETE
 routes.use("/transactions", transactionsRouter); // GET/POST /transactions, GET/PATCH/DELETE /transactions/:id
 // POST /screener; GET/POST /screener/column-presets, GET/PATCH/DELETE /screener/column-presets/:id;
 // GET/POST /screener/presets, GET/PATCH/DELETE /screener/presets/:id, GET /screener/presets/:id/run;
-// GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply
+// GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply;
+// GET /screener/display-settings, PUT /screener/display-settings/show-as-of-date
 routes.use("/screener", screenerRoutes);
 routes.use("/filters", filterCatalogRouter); // GET /filters

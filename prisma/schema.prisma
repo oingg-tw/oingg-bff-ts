@@ -151,6 +151,19 @@ model UserThemePreference {
   @@map("user_theme_preference")
 }
 
+/// A user's screener display preferences (see src/domains/screener/displaySettings.*) — separate from
+/// UserThemePreference (general UI look) and ScreenerPreset (saved filter combos)/ColumnPreset (saved
+/// display columns) — this is about how a shown value renders, not which values/columns are shown.
+/// showAsOfDate nullable — null means "not explicitly chosen, use the current system default" resolved
+/// live in the service layer, same reasoning as UserThemePreference's fields.
+model ScreenerDisplaySettings {
+  firebaseUid  String   @id @map("firebase_uid")
+  showAsOfDate Boolean? @map("show_as_of_date")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("screener_display_settings")
+}
+
 /// A user's stock watchlist (see src/domains/watchlist).
 model WatchlistItem {
   id          String   @id @default(uuid()) @db.Uuid
