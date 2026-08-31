@@ -9,13 +9,19 @@ export async function getFilterCatalog(): Promise<FilterCategory[]> {
   return listFilterCatalog();
 }
 
+export interface FilterCatalogSyncSummary {
+  categoryCount: number;
+  metricCount: number;
+}
+
 /** Fetches the filter catalog from the filters service and stores it in the BFF's own database. */
-export async function syncFilterCatalog(): Promise<void> {
+export async function syncFilterCatalog(): Promise<FilterCatalogSyncSummary> {
   const categories = await fetchFilterCatalog();
   await replaceFilterCatalog(categories);
 
   const metricCount = categories.reduce((sum, category) => sum + category.metrics.length, 0);
   console.log(`Synced filter catalog: ${categories.length} categories, ${metricCount} metrics`);
+  return { categoryCount: categories.length, metricCount };
 }
 
 /**
