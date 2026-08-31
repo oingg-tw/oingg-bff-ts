@@ -124,6 +124,7 @@ enum ThemeAccentColor {
   ORANGE
   RED
   TEAL
+  GOLD
 }
 
 /// A user's UI theme preference (see src/domains/user). mode/accentColor are nullable — null means

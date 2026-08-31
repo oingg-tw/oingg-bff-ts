@@ -64,6 +64,15 @@ describe("updateThemePreference", () => {
     expect(upsertThemePreference).not.toHaveBeenCalled();
   });
 
+  it("accepts GOLD as a valid accentColor", async () => {
+    vi.mocked(upsertThemePreference).mockResolvedValue({ mode: null, accentColor: "GOLD" });
+
+    const theme = await updateThemePreference("uid-1", { accentColor: "GOLD" });
+
+    expect(upsertThemePreference).toHaveBeenCalledWith("uid-1", { accentColor: "GOLD" });
+    expect(theme).toEqual({ mode: SYSTEM_DEFAULT_THEME.mode, accentColor: "GOLD" });
+  });
+
   it("passes a partial update straight through to the repository (only the given field)", async () => {
     vi.mocked(upsertThemePreference).mockResolvedValue({ mode: "DARK", accentColor: null });
 

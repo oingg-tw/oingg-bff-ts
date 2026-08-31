@@ -82,7 +82,7 @@ userRouter.get("/me/theme", requireAuth, async (req: AuthenticatedRequest, res) 
  *                 enum: [LIGHT, DARK, SYSTEM]
  *               accentColor:
  *                 type: string
- *                 enum: [BLUE, GREEN, PURPLE, ORANGE, RED, TEAL]
+ *                 enum: [BLUE, GREEN, PURPLE, ORANGE, RED, TEAL, GOLD]
  *     responses:
  *       200:
  *         description: 更新後的主題設定。

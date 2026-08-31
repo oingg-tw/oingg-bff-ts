@@ -3,7 +3,7 @@ import { findThemePreference, upsertThemePreference } from "./theme.repository.j
 import type { ThemeAccentColor, ThemeMode, ThemePreference, ThemePreferenceUpdate } from "./theme.types.js";
 
 const VALID_MODES: ThemeMode[] = ["LIGHT", "DARK", "SYSTEM"];
-const VALID_ACCENT_COLORS: ThemeAccentColor[] = ["BLUE", "GREEN", "PURPLE", "ORANGE", "RED", "TEAL"];
+const VALID_ACCENT_COLORS: ThemeAccentColor[] = ["BLUE", "GREEN", "PURPLE", "ORANGE", "RED", "TEAL", "GOLD"];
 
 /**
  * Out-of-the-box theme for users who haven't picked one yet — a plain code constant, resolved live
