@@ -56,7 +56,30 @@ userRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: 主題設定（mode + accentColor）。
+ *         description: >
+ *           主題設定，包在 "theme" 這個 key 底下（不是扁平物件）——見 schema。
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 theme:
+ *                   type: object
+ *                   properties:
+ *                     mode:
+ *                       type: string
+ *                       enum: [LIGHT, DARK, SYSTEM]
+ *                     accentColor:
+ *                       type: string
+ *                       enum: [BLUE, GREEN, PURPLE, ORANGE, RED, TEAL, GOLD]
+ *                     marketColorConvention:
+ *                       type: string
+ *                       enum: [ASIA, WESTERN, ACCESSIBLE]
+ *             example:
+ *               theme:
+ *                 mode: DARK
+ *                 accentColor: PURPLE
+ *                 marketColorConvention: ASIA
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  */
@@ -88,7 +111,30 @@ userRouter.get("/me/theme", requireAuth, async (req: AuthenticatedRequest, res) 
  *                 enum: [LIGHT, DARK, SYSTEM]
  *     responses:
  *       200:
- *         description: 更新後的完整主題設定。
+ *         description: >
+ *           更新後的完整主題設定，包在 "theme" 這個 key 底下（跟 GET /users/me/theme 同一個 shape）。
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 theme:
+ *                   type: object
+ *                   properties:
+ *                     mode:
+ *                       type: string
+ *                       enum: [LIGHT, DARK, SYSTEM]
+ *                     accentColor:
+ *                       type: string
+ *                       enum: [BLUE, GREEN, PURPLE, ORANGE, RED, TEAL, GOLD]
+ *                     marketColorConvention:
+ *                       type: string
+ *                       enum: [ASIA, WESTERN, ACCESSIBLE]
+ *             example:
+ *               theme:
+ *                 mode: DARK
+ *                 accentColor: PURPLE
+ *                 marketColorConvention: ASIA
  *       400:
  *         description: mode 沒給，或不在允許的選項內。
  *       401:
@@ -124,7 +170,30 @@ userRouter.put("/me/theme/mode", requireAuth, async (req: AuthenticatedRequest, 
  *                 enum: [BLUE, GREEN, PURPLE, ORANGE, RED, TEAL, GOLD]
  *     responses:
  *       200:
- *         description: 更新後的完整主題設定。
+ *         description: >
+ *           更新後的完整主題設定，包在 "theme" 這個 key 底下（跟 GET /users/me/theme 同一個 shape）。
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 theme:
+ *                   type: object
+ *                   properties:
+ *                     mode:
+ *                       type: string
+ *                       enum: [LIGHT, DARK, SYSTEM]
+ *                     accentColor:
+ *                       type: string
+ *                       enum: [BLUE, GREEN, PURPLE, ORANGE, RED, TEAL, GOLD]
+ *                     marketColorConvention:
+ *                       type: string
+ *                       enum: [ASIA, WESTERN, ACCESSIBLE]
+ *             example:
+ *               theme:
+ *                 mode: DARK
+ *                 accentColor: PURPLE
+ *                 marketColorConvention: ASIA
  *       400:
  *         description: accentColor 沒給，或不在允許的選項內。
  *       401:
@@ -161,7 +230,30 @@ userRouter.put("/me/theme/accent-color", requireAuth, async (req: AuthenticatedR
  *                 enum: [ASIA, WESTERN, ACCESSIBLE]
  *     responses:
  *       200:
- *         description: 更新後的完整主題設定。
+ *         description: >
+ *           更新後的完整主題設定，包在 "theme" 這個 key 底下（跟 GET /users/me/theme 同一個 shape）。
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 theme:
+ *                   type: object
+ *                   properties:
+ *                     mode:
+ *                       type: string
+ *                       enum: [LIGHT, DARK, SYSTEM]
+ *                     accentColor:
+ *                       type: string
+ *                       enum: [BLUE, GREEN, PURPLE, ORANGE, RED, TEAL, GOLD]
+ *                     marketColorConvention:
+ *                       type: string
+ *                       enum: [ASIA, WESTERN, ACCESSIBLE]
+ *             example:
+ *               theme:
+ *                 mode: DARK
+ *                 accentColor: PURPLE
+ *                 marketColorConvention: ASIA
  *       400:
  *         description: marketColorConvention 沒給，或不在允許的選項內。
  *       401:
