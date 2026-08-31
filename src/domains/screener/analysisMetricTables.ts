@@ -41,10 +41,18 @@ function daily(table: string): AnalysisMetricTable {
  * see src/domains/screener/presetTemplates.ts) after verifying their real tables/columns. beta is
  * market-derived (no quarterly report behind it — no data_type/subsidiary_company_id columns, keyed by
  * as_of_date instead of report_date), so it uses its own inline table def rather than quarterly()/daily().
+ *
+ * nissimPenmanRnoa wired up 2026-08-31 on demand (a real screener/column request hit the "isn't wired up
+ * yet" 501). Ordinary quarterly() table — verified guru_nissim_penman_rnoa's real columns via
+ * information_schema (rnoa_quarterly_pct, rnoa_quarterly_annualized_pct, rnoa_ttm_pct, flev,
+ * nbc_quarterly_pct, nbc_ttm_pct, spread_quarterly_pct, spread_ttm_pct, reconstructed_roe_quarterly_pct,
+ * reconstructed_roe_ttm_pct, actual_roe_quarterly_pct, actual_roe_ttm_pct — all plain camelCase->snake_case,
+ * no digit-suffix edge case like beta1Y).
+ *
  * A further handful of technical indicators and quant scores (rsi/macd/ma/kd/bollingerBands/atr/bias/
- * evEbitda/pFcf/psr/dupont/nissimPenmanRnoa/ohlsonOScore/zmijewskiScore/beneishMScore) still have real
- * tables in the catalog but aren't wired up here — none of the seeded preset templates need them yet;
- * wire up on demand rather than guessing ahead of an actual use.
+ * evEbitda/pFcf/psr/dupont/ohlsonOScore/zmijewskiScore/beneishMScore) still have real tables in the
+ * catalog but aren't wired up here — none of the seeded preset templates need them yet; wire up on
+ * demand rather than guessing ahead of an actual use.
  */
 export const ANALYSIS_METRIC_TABLES: Record<string, AnalysisMetricTable> = {
   accrualsRatio: quarterly("cash_flow_accruals_ratio"),
@@ -89,4 +97,5 @@ export const ANALYSIS_METRIC_TABLES: Record<string, AnalysisMetricTable> = {
   altmanZScore: quarterly("guru_altman_z_score"),
   piotroskiFScore: quarterly("guru_piotroski_f_score"),
   beta: { table: "portfolio_beta", latestOrderColumn: "as_of_date" },
+  nissimPenmanRnoa: quarterly("guru_nissim_penman_rnoa"),
 };
