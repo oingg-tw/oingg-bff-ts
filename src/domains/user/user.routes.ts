@@ -48,7 +48,7 @@ userRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
  *   get:
  *     summary: 查詢目前登入使用者的 UI 主題設定
  *     description: >
- *       尚未設定過的欄位回傳系統預設值（mode: SYSTEM, accentColor: BLUE, marketColorConvention: ASIA），
+ *       尚未設定過的欄位回傳系統預設值（mode: SYSTEM, accentColor: GOLD, marketColorConvention: ASIA），
  *       不是寫死在使用者資料裡的快照——之後調整系統預設，沒特別設定過的使用者會直接跟著變。
  *     tags:
  *       - User
@@ -142,7 +142,7 @@ userRouter.put("/me/theme/accent-color", requireAuth, async (req: AuthenticatedR
  * /users/me/theme/market-color-convention:
  *   put:
  *     summary: 更新漲跌顏色慣例
- *     description: ASIA（紅漲綠跌，台股慣例，系統預設）或 WESTERN（紅跌綠漲，歐美慣例）。
+ *     description: ASIA（紅漲綠跌，台股慣例，系統預設）、WESTERN（紅跌綠漲，歐美慣例），或 ACCESSIBLE（色盲友善藍橘配色，取代紅綠）。
  *     tags:
  *       - User
  *     security:
@@ -158,7 +158,7 @@ userRouter.put("/me/theme/accent-color", requireAuth, async (req: AuthenticatedR
  *             properties:
  *               marketColorConvention:
  *                 type: string
- *                 enum: [ASIA, WESTERN]
+ *                 enum: [ASIA, WESTERN, ACCESSIBLE]
  *     responses:
  *       200:
  *         description: 更新後的完整主題設定。

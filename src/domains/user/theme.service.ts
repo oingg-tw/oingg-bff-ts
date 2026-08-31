@@ -4,13 +4,17 @@ import type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreferenc
 
 const VALID_MODES: ThemeMode[] = ["LIGHT", "DARK", "SYSTEM"];
 const VALID_ACCENT_COLORS: ThemeAccentColor[] = ["BLUE", "GREEN", "PURPLE", "ORANGE", "RED", "TEAL", "GOLD"];
-const VALID_MARKET_COLOR_CONVENTIONS: MarketColorConvention[] = ["ASIA", "WESTERN"];
+const VALID_MARKET_COLOR_CONVENTIONS: MarketColorConvention[] = ["ASIA", "WESTERN", "ACCESSIBLE"];
 
 /**
  * Out-of-the-box theme for users who haven't picked one yet — a plain code constant, resolved live
  * against whatever a user's row has (or doesn't have) rather than materialized into a per-user DB row
  * (see UserThemePreference's docstring for why). Changing this changes the default for every user who
- * hasn't explicitly overridden it, immediately, no data migration needed.
+ * hasn't explicitly overridden it, immediately, no data migration needed — a user who already explicitly
+ * chose BLUE keeps BLUE.
+ *
+ * accentColor defaults to GOLD — the app's actual brand color (logo/accent are gold), not just one of
+ * seven equal options.
  *
  * marketColorConvention defaults to ASIA (red = up/gain, green = down/loss) since this platform is
  * TWSE/TPEx-focused — a Taiwan user who never touches this setting should see the convention they
@@ -18,7 +22,7 @@ const VALID_MARKET_COLOR_CONVENTIONS: MarketColorConvention[] = ["ASIA", "WESTER
  */
 export const SYSTEM_DEFAULT_THEME: ThemePreference = {
   mode: "SYSTEM",
-  accentColor: "BLUE",
+  accentColor: "GOLD",
   marketColorConvention: "ASIA",
 };
 

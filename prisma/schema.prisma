@@ -127,10 +127,13 @@ enum ThemeAccentColor {
   GOLD
 }
 
-/// ASIA = red is up/gain, green is down/loss (台股/亞洲慣例); WESTERN = the reverse (歐美慣例).
+/// ASIA = red is up/gain, green is down/loss (台股/亞洲慣例); WESTERN = the reverse (歐美慣例); ACCESSIBLE =
+/// colorblind-safe blue/orange (IBM palette, #648FFF/#FE6100) instead of red/green, chosen by the
+/// frontend — this service doesn't own or validate the actual hex values, just the enum key.
 enum MarketColorConvention {
   ASIA
   WESTERN
+  ACCESSIBLE
 }
 
 /// A user's UI theme preference (see src/domains/user). All fields are nullable — null means

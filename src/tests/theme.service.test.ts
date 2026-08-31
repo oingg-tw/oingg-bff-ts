@@ -134,4 +134,17 @@ describe("updateMarketColorConvention", () => {
       marketColorConvention: "WESTERN",
     });
   });
+
+  it("accepts ACCESSIBLE (colorblind-safe blue/orange) as a valid marketColorConvention", async () => {
+    vi.mocked(upsertThemePreference).mockResolvedValue({
+      mode: null,
+      accentColor: null,
+      marketColorConvention: "ACCESSIBLE",
+    });
+
+    const theme = await updateMarketColorConvention("uid-1", "ACCESSIBLE");
+
+    expect(upsertThemePreference).toHaveBeenCalledWith("uid-1", { marketColorConvention: "ACCESSIBLE" });
+    expect(theme.marketColorConvention).toBe("ACCESSIBLE");
+  });
 });
