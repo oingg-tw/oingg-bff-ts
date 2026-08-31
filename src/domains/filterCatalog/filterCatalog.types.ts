@@ -6,6 +6,10 @@ export interface FilterField {
   description?: string | null;
   /** Where this number is computed from (e.g. which upstream report/table) — shown alongside description. Null until oingg-analysis-ts's /filters starts sending it. */
   source?: string | null;
+  /** Display order among sibling fields under the same metric (0-based). The response array is already
+   * in this order — exposed explicitly too so a frontend that reorders/filters the array client-side
+   * doesn't need to separately preserve original position to get back to it. */
+  sort: number;
 }
 
 export interface FilterMetric {
@@ -16,11 +20,15 @@ export interface FilterMetric {
   description?: string | null;
   /** Metric-level data source, same tooltip purpose as FilterField.source but for the metric as a whole. */
   source?: string | null;
+  /** Display order among sibling metrics under the same category (0-based) — see FilterField.sort. */
+  sort: number;
   fields: FilterField[];
 }
 
 export interface FilterCategory {
   key: string;
   name: string;
+  /** Display order among categories (0-based) — see FilterField.sort. */
+  sort: number;
   metrics: FilterMetric[];
 }

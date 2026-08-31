@@ -23,14 +23,16 @@ const SAMPLE_CATALOG: FilterCategory[] = [
   {
     key: "profitability",
     name: "Profitability",
+    sort: 0,
     metrics: [
       {
         key: "eps",
         name: "EPS",
         path: "/profitability/eps",
+        sort: 0,
         fields: [
-          { key: "epsQuarterly", name: "EPS (quarterly)", period: "quarterly" },
-          { key: "epsTtm", name: "EPS (TTM)", period: "ttm" },
+          { key: "epsQuarterly", name: "EPS (quarterly)", period: "quarterly", sort: 0 },
+          { key: "epsTtm", name: "EPS (TTM)", period: "ttm", sort: 1 },
         ],
       },
     ],
@@ -38,12 +40,14 @@ const SAMPLE_CATALOG: FilterCategory[] = [
   {
     key: "guru",
     name: "Guru",
+    sort: 1,
     metrics: [
       {
         key: "grahamNumber",
         name: "Graham Number",
         path: "/guru/graham-number",
-        fields: [{ key: "grahamNumber", name: "Graham Number", period: "ttm" }],
+        sort: 0,
+        fields: [{ key: "grahamNumber", name: "Graham Number", period: "ttm", sort: 0 }],
       },
     ],
   },
@@ -52,6 +56,40 @@ const SAMPLE_CATALOG: FilterCategory[] = [
 describe("listFilterCatalog", () => {
   beforeEach(() => {
     vi.mocked(mockPrisma.filterCategory.findMany).mockReset();
+  });
+
+  // The response array is already in display order (queried with orderBy: position asc at every
+  // level), but a frontend that reorders/filters the array client-side loses that implicit order — this
+  // exposes the same "position" column explicitly as "sort" so it survives that kind of transformation.
+  it("exposes each level's internal position as an explicit sort number", async () => {
+    vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
+      {
+        key: "technicals",
+        name: "Technicals",
+        position: 3,
+        metrics: [
+          {
+            key: "bias",
+            name: "BIAS",
+            path: "/technicals/bias",
+            description: null,
+            source: null,
+            position: 2,
+            fields: [
+              { key: "bias5d", name: "5 日乖離率", period: "daily", description: null, source: null, position: 0 },
+              { key: "bias20d", name: "20 日乖離率", period: "daily", description: null, source: null, position: 1 },
+            ],
+          },
+        ],
+      },
+    ] as never);
+
+    const result = await listFilterCatalog();
+
+    expect(result[0]?.sort).toBe(3);
+    expect(result[0]?.metrics[0]?.sort).toBe(2);
+    expect(result[0]?.metrics[0]?.fields[0]?.sort).toBe(0);
+    expect(result[0]?.metrics[0]?.fields[1]?.sort).toBe(1);
   });
 
   // Coverage for the description/source tooltip fields (added to support frontend info-icon tooltips
@@ -215,14 +253,17 @@ describe("replaceFilterCatalog", () => {
     const bigCatalog: FilterCategory[] = Array.from({ length: 10 }, (_, categoryIndex) => ({
       key: `category${categoryIndex}`,
       name: `Category ${categoryIndex}`,
+      sort: categoryIndex,
       metrics: Array.from({ length: 5 }, (_, metricIndex) => ({
         key: `category${categoryIndex}-metric${metricIndex}`,
         name: `Metric ${metricIndex}`,
         path: `/category${categoryIndex}/metric${metricIndex}`,
+        sort: metricIndex,
         fields: Array.from({ length: 3 }, (_, fieldIndex) => ({
           key: `field${fieldIndex}`,
           name: `Field ${fieldIndex}`,
           period: "quarterly",
+          sort: fieldIndex,
         })),
       })),
     }));

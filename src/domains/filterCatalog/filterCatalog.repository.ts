@@ -66,12 +66,14 @@ export async function listFilterCatalog(): Promise<FilterCategory[]> {
   return categories.map((category) => ({
     key: category.key,
     name: category.name,
+    sort: category.position,
     metrics: category.metrics.map((metric) => ({
       key: metric.key,
       name: metric.name,
       path: metric.path,
       description: metric.description,
       source: metric.source,
+      sort: metric.position,
       // oingg-analysis-ts fills description/source at the metric level only (the different period
       // variants of one metric — quarterly/TTM/etc — share the same definition and source, so it
       // doesn't repeat itself per field). A field without its own falls back to its metric's, so the
@@ -82,6 +84,7 @@ export async function listFilterCatalog(): Promise<FilterCategory[]> {
         period: field.period,
         description: field.description ?? metric.description,
         source: field.source ?? metric.source,
+        sort: field.position,
       })),
     })),
   }));

@@ -13,7 +13,7 @@ import { fetchFilterCatalog } from "../domains/filterCatalog/filterCatalog.clien
 import { replaceFilterCatalog } from "../domains/filterCatalog/filterCatalog.repository.js";
 import { startFilterCatalogSync } from "../domains/filterCatalog/filterCatalog.service.js";
 
-const SAMPLE_CATEGORY = { key: "profitability", name: "Profitability", metrics: [] };
+const SAMPLE_CATEGORY = { key: "profitability", name: "Profitability", sort: 0, metrics: [] };
 
 describe("startFilterCatalogSync", () => {
   beforeEach(() => {
