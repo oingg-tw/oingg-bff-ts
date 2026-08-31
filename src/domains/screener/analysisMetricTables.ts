@@ -49,8 +49,14 @@ function daily(table: string): AnalysisMetricTable {
  * reconstructed_roe_ttm_pct, actual_roe_quarterly_pct, actual_roe_ttm_pct — all plain camelCase->snake_case,
  * no digit-suffix edge case like beta1Y).
  *
- * A further handful of technical indicators and quant scores (rsi/macd/ma/kd/bollingerBands/atr/bias/
- * evEbitda/pFcf/psr/dupont/ohlsonOScore/zmijewskiScore/beneishMScore) still have real tables in the
+ * ma/rsi/kd/bollingerBands/atr/bias/macd wired up 2026-08-31 on demand (same "isn't wired up yet" 501,
+ * this time for atr — reported by a real user via oingg-analysis-ts). All seven are daily() tables keyed
+ * by symbol+trade_date, verified via information_schema. Field keys with a digit-window suffix
+ * (ma5d/ma200d, rsi6d/rsi14d/rsi24d, k9d/d9d/k14d/d14d, atr14d/atr20d, bias5d/bias20d/bias60d) convert
+ * cleanly through toSnakeCase's existing lowercase-letter+digit rule (e.g. ma5d -> ma_5d, atr14d ->
+ * atr_14d) — no new edge case, same rule that already handled beta1Y.
+ *
+ * evEbitda/pFcf/psr/dupont/ohlsonOScore/zmijewskiScore/beneishMScore still have real tables in the
  * catalog but aren't wired up here — none of the seeded preset templates need them yet; wire up on
  * demand rather than guessing ahead of an actual use.
  */
@@ -98,4 +104,11 @@ export const ANALYSIS_METRIC_TABLES: Record<string, AnalysisMetricTable> = {
   piotroskiFScore: quarterly("guru_piotroski_f_score"),
   beta: { table: "portfolio_beta", latestOrderColumn: "as_of_date" },
   nissimPenmanRnoa: quarterly("guru_nissim_penman_rnoa"),
+  ma: daily("technicals_ma"),
+  rsi: daily("technicals_rsi"),
+  kd: daily("technicals_kd"),
+  bollingerBands: daily("technicals_bollinger_bands"),
+  atr: daily("technicals_atr"),
+  bias: daily("technicals_bias"),
+  macd: daily("technicals_macd"),
 };
