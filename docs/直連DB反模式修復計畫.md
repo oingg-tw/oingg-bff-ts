@@ -8,6 +8,8 @@
 >
 > **更新（2026-08-31 稍晚）**：階段一的直連部分已經提前執行——使用者明確指示「現在馬上拔，接受這三個功能短期壞掉」，不等前置阻塞項解決。`stock.service.ts` 對 twse/tpex 的直連已移除，`getStockQuote()`／`GET /stocks/:symbol` 目前一律回 503（清楚說明原因，不是靜默失敗）；`getLatestClosePrices()` 優雅降級回傳空 map，screener/ranking 本身不受影響。下面「階段一」剩下的部分（analysis-ts 提供替代 API）還沒做，前置阻塞項也還沒解決。
 >
+> **更新（2026-09-01）：階段一完成。** analysis-ts 修好了 marketRatios job 的 bug（原本只查 twse 的 daily_valuation，沒查 tpex，導致所有 TPEx 公司寫入被跳過）並重跑全市場批次，`valuation_market_ratios` 現在 twse+tpex 合計 2,092/2,092 全滿，前置阻塞項解除。他們依這份文件草擬的規格建好了 `GET /stocks/:symbol/quote`（不回傳 market 欄位，內部自己判斷查哪個市場）與 `GET /stocks/prices?symbols=...`（明確清單，刻意不做 limit/count_only 截斷，查無資料的 symbol 直接不出現在 `prices` 裡，上限 100 個 symbol 超過回 400）。bff-ts 這邊已切換：新增 `stockQuote.client.ts`，`stock.service.ts` 改為薄轉接層，`StockQuote` 拿掉 `market`/`StockMarket`（bff 不再需要知道上市/上櫃的概念），`GET /stocks/:symbol` 恢復正常 200/404（連線失敗才 502，不再有 503）。已知資料缺口（analysis-ts 告知，非本次修復範圍）：`oingg-tpex` 的 `daily_price` 目前是空表，所以上櫃股票的 `quote.price` 目前會是 `null`（`valuation` 有資料），等 tpex-ts 回補後自動修正。
+>
 > 另外，架構文件新增了**鐵律二**（數據中台不知道業務中台存在），這推翻了 filter catalog 原本規劃的「analysis-ts 主動通知」設計——那套機制已經拆除，改回 bff-ts 單向拉取。細節見 [業務中台與後台資料邊界架構.md](./業務中台與後台資料邊界架構.md)；這份文件只處理「直連 DB」問題，不重複討論同步方向。
 
 ## 目標架構
@@ -26,7 +28,7 @@ bff-ts 修復完成後，唯一還會直連的資料庫只剩自己的 `DATABASE
 
 | 現況 | 檔案 | 狀態 |
 | :---- | :---- | :---- |
-| twse/tpex 的 `daily_price`／`daily_valuation` 直連 | `src/domains/stock/stock.service.ts` | **已移除**（2026-08-31）。替代 API 還沒做，功能暫時 503。 |
+| twse/tpex 的 `daily_price`／`daily_valuation` 直連 | `src/domains/stock/stock.service.ts` | **已修復**（2026-09-01）。改呼叫 analysis-ts 的 `GET /stocks/:symbol/quote`／`GET /stocks/prices`（見 `stockQuote.client.ts`）。 |
 | 直查 analysis-ts 自己 DB 裡的 30+ 張指標表（動態 CTE/JOIN） | `src/domains/screener/screener.service.ts`、`analysisMetricTables.ts` | 尚未處理，繞過 analysis-ts 的服務邊界直連它的 DB |
 
 ## 前置阻塞項：analysis-ts 對 twse/tpex 的鏡像目前不完整

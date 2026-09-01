@@ -34,7 +34,7 @@ const SAMPLE_HOLDING = {
   updatedAt: "2026-08-30T00:00:00.000Z",
 };
 
-const SAMPLE_QUOTE = { symbol: "2330", market: "twse" as const, price: null, valuation: null };
+const SAMPLE_QUOTE = { symbol: "2330", price: null, valuation: null };
 
 describe("addHolding", () => {
   beforeEachReset();

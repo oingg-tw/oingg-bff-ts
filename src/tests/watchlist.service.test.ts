@@ -37,7 +37,7 @@ const SAMPLE_ITEM = {
   updatedAt: "2026-08-24T00:00:00.000Z",
 };
 
-const SAMPLE_QUOTE = { symbol: "2330", market: "twse" as const, price: null, valuation: null };
+const SAMPLE_QUOTE = { symbol: "2330", price: null, valuation: null };
 
 describe("addWatchlistItem", () => {
   beforeEach(() => {

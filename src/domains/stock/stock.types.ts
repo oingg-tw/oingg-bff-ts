@@ -1,5 +1,3 @@
-export type StockMarket = "twse" | "tpex";
-
 export interface StockPrice {
   tradeDate: string;
   close: string | null;
@@ -12,9 +10,13 @@ export interface StockValuation {
   dividendYield: string | null;
 }
 
+/**
+ * No `market` (twse/tpex) field — analysis-ts's GET /stocks/:symbol/quote deliberately doesn't expose
+ * which market a symbol belongs to (it checks both internally), and bff-ts no longer needs that concept
+ * at all now that it isn't querying twse/tpex directly.
+ */
 export interface StockQuote {
   symbol: string;
-  market: StockMarket;
   price: StockPrice | null;
   valuation: StockValuation | null;
 }

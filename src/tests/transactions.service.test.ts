@@ -42,7 +42,7 @@ const SAMPLE_TRANSACTION = {
   updatedAt: "2026-08-30T00:00:00.000Z",
 };
 
-const SAMPLE_QUOTE = { symbol: "2330", market: "twse" as const, price: null, valuation: null };
+const SAMPLE_QUOTE = { symbol: "2330", price: null, valuation: null };
 
 const VALID_INPUT = {
   symbol: "2330",
