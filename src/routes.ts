@@ -5,6 +5,7 @@ import { swaggerSpec, swaggerUi } from "@/adapters/swagger/index.js";
 import { authRouter } from "@/domains/auth/index.js";
 import { filterCatalogRouter } from "@/domains/filterCatalog/index.js";
 import { holdingsRouter } from "@/domains/holdings/index.js";
+import { marketRouter } from "@/domains/market/index.js";
 import { screenerRoutes } from "@/domains/screener/index.js";
 import { stockRouter } from "@/domains/stock/index.js";
 import { startedAt, systemRouter } from "@/domains/system/index.js";
@@ -60,3 +61,4 @@ routes.use("/transactions", transactionsRouter); // GET/POST /transactions, GET/
 // GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply
 routes.use("/screener", screenerRoutes);
 routes.use("/filters", filterCatalogRouter); // GET /filters
+routes.use("/market", marketRouter); // GET /market/foreign-holding-ranking, GET /market/margin-short-ratio-ranking
