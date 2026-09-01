@@ -120,10 +120,10 @@ async function pickAvailableName(firebaseUid: string, name: string): Promise<str
 /**
  * Creates a preset. `lastColumnPresetId` starts out null — deliberately not auto-assigned to a
  * materialized ColumnPreset row. Leaving it null means a fresh preset falls through to
- * resolveScreenerColumns's live SYSTEM_DEFAULT_COLUMNS fallback every time it's run, so changing that
- * constant in code updates the default for every such user at once. Materializing a per-user row here
+ * resolveScreenerColumns's live default-resolution every time it's run (currently: no columns), so
+ * changing that behavior in code updates every such user at once. Materializing a per-user row here
  * instead would freeze in whatever the default was at creation time — already-created rows wouldn't
- * pick up a later change to the constant, defeating the point of a single shared default.
+ * pick up a later change, defeating the point of a single shared default.
  *
  * `filters` defaults to ROE > 30 (DEFAULT_PRESET_FILTERS) when the caller passes an empty array,
  * rather than saving an empty preset.

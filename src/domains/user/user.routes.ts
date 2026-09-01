@@ -2,6 +2,7 @@ import { Router } from "ultimate-express";
 import { AppError } from "../../shared/errorHandler.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "../auth/auth.types.js";
+import { getDisplaySettings, updateShowAsOfDate } from "./screenerDisplaySettings.service.js";
 import {
   getThemePreference,
   updateMarketColorConvention,
@@ -265,3 +266,72 @@ userRouter.put("/me/theme/market-color-convention", requireAuth, async (req: Aut
   const theme = await updateMarketColorConvention(firebaseUid, body?.marketColorConvention);
   res.json({ theme });
 });
+
+/**
+ * @swagger
+ * /users/me/screener-display-settings:
+ *   get:
+ *     summary: 查詢目前登入使用者的 screener 顯示設定
+ *     description: >
+ *       目前只有一項：showAsOfDate（screener/ranking 結果表格是否顯示每個數值的資料時間，見 asOfDate）。
+ *       只有已登入使用者能用這個設定（未登入的 screener 呼叫不會套用任何顯示設定）。尚未設定過回傳系統
+ *       預設值（false，不顯示），不是寫死在使用者資料裡的快照——之後調整系統預設，沒特別設定過的使用者
+ *       會直接跟著變。
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 顯示設定。
+ *         content:
+ *           application/json:
+ *             example:
+ *               displaySettings:
+ *                 showAsOfDate: false
+ *       401:
+ *         description: 缺少或無效的 Authorization header / token。
+ */
+userRouter.get("/me/screener-display-settings", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const displaySettings = await getDisplaySettings(requireUser(req));
+  res.json({ displaySettings });
+});
+
+/**
+ * @swagger
+ * /users/me/screener-display-settings/show-as-of-date:
+ *   put:
+ *     summary: 更新「是否顯示資料時間」設定
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - showAsOfDate
+ *             properties:
+ *               showAsOfDate:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: 更新後的顯示設定。
+ *       400:
+ *         description: showAsOfDate 不是布林值。
+ *       401:
+ *         description: 缺少或無效的 Authorization header / token。
+ */
+userRouter.put(
+  "/me/screener-display-settings/show-as-of-date",
+  requireAuth,
+  async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = req.body as { showAsOfDate?: unknown } | null;
+    const displaySettings = await updateShowAsOfDate(firebaseUid, body?.showAsOfDate);
+    res.json({ displaySettings });
+  },
+);

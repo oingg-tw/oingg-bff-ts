@@ -45,7 +45,8 @@ routes.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 routes.use("/system", systemRouter); // GET /system/health
 routes.use("/auth", authRouter); // GET /auth/me
-// GET /users/me; GET /users/me/theme; PUT /users/me/theme/mode, /theme/accent-color, /theme/market-color-convention
+// GET /users/me; GET /users/me/theme; PUT /users/me/theme/mode, /theme/accent-color, /theme/market-color-convention;
+// GET /users/me/screener-display-settings; PUT /users/me/screener-display-settings/show-as-of-date
 routes.use("/users", userRouter);
 routes.use("/stocks", stockRouter); // GET /stocks/:symbol
 routes.use("/watchlist", watchlistRouter); // GET/POST /watchlist, GET/PATCH/DELETE /watchlist/:id
@@ -53,7 +54,6 @@ routes.use("/holdings", holdingsRouter); // GET/POST /holdings, GET/PATCH/DELETE
 routes.use("/transactions", transactionsRouter); // GET/POST /transactions, GET/PATCH/DELETE /transactions/:id
 // POST /screener; GET/POST /screener/column-presets, GET/PATCH/DELETE /screener/column-presets/:id;
 // GET/POST /screener/presets, GET/PATCH/DELETE /screener/presets/:id, GET /screener/presets/:id/run;
-// GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply;
-// GET /screener/display-settings, PUT /screener/display-settings/show-as-of-date
+// GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply
 routes.use("/screener", screenerRoutes);
 routes.use("/filters", filterCatalogRouter); // GET /filters

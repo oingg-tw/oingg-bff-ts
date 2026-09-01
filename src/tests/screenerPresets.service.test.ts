@@ -192,8 +192,9 @@ describe("addPreset", () => {
 
   // Regression test: a prior version of addPreset auto-created a per-user ColumnPreset row and
   // pointed lastColumnPresetId at it. That materializes the default at creation time — a later change
-  // to SYSTEM_DEFAULT_COLUMNS would then never reach already-created users. addPreset must leave column
-  // presets alone entirely; the live constant is only ever read at run time (see columnPresets.service.ts).
+  // to the default-resolution logic would then never reach already-created users. addPreset must leave
+  // column presets alone entirely; the default is only ever resolved live at run time (see
+  // resolveScreenerColumns in columnPresets.service.ts).
   it("never touches column presets — lastColumnPresetId stays whatever the repository returns (usually null)", async () => {
     vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
 

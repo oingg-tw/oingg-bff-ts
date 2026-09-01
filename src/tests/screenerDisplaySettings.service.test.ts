@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../domains/screener/displaySettings.repository.js", () => ({
+vi.mock("../domains/user/screenerDisplaySettings.repository.js", () => ({
   findDisplaySettings: vi.fn(),
   upsertDisplaySettings: vi.fn(),
 }));
 
-import { findDisplaySettings, upsertDisplaySettings } from "../domains/screener/displaySettings.repository.js";
+import { findDisplaySettings, upsertDisplaySettings } from "../domains/user/screenerDisplaySettings.repository.js";
 import {
   getDisplaySettings,
   updateShowAsOfDate,
   SYSTEM_DEFAULT_DISPLAY_SETTINGS,
-} from "../domains/screener/displaySettings.service.js";
+} from "../domains/user/screenerDisplaySettings.service.js";
 
 describe("getDisplaySettings", () => {
   beforeEach(() => {

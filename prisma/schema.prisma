@@ -151,7 +151,9 @@ model UserThemePreference {
   @@map("user_theme_preference")
 }
 
-/// A user's screener display preferences (see src/domains/screener/displaySettings.*) — separate from
+/// A user's screener display preferences (see src/domains/user/screenerDisplaySettings.* — lives in the
+/// user domain, not screener, since it's only usable by registered users, unlike the guest-friendly
+/// screener endpoints themselves). Separate from
 /// UserThemePreference (general UI look) and ScreenerPreset (saved filter combos)/ColumnPreset (saved
 /// display columns) — this is about how a shown value renders, not which values/columns are shown.
 /// showAsOfDate nullable — null means "not explicitly chosen, use the current system default" resolved

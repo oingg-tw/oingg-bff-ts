@@ -120,18 +120,6 @@ export async function removeColumnPreset(firebaseUid: string, id: string): Promi
   }
 }
 
-/**
- * Out-of-the-box columns for users who haven't set up any column preset yet — a plain code constant,
- * deliberately not materialized into a per-user DB row (see addPreset's docstring for why). Changing
- * this array changes the default for every such user immediately, no data migration needed.
- */
-export const SYSTEM_DEFAULT_COLUMNS: ScreenerColumnRef[] = [
-  { field: "stock.price" },
-  { field: "per.peRatio" },
-  { field: "pbr.pbRatio" },
-  { field: "dividendYield.dividendYieldPct" },
-];
-
 export interface ResolvedScreenerColumns {
   columnPresetId: string | null;
   columns: ScreenerColumnRef[];
@@ -139,23 +127,24 @@ export interface ResolvedScreenerColumns {
 
 /**
  * Resolves which columns a screener call should display: an explicit columnPresetId (404 if it
- * doesn't exist/isn't the caller's), else the user's own `isDefault` preset, else the hardcoded
- * system default. `columnPresetId: null` in the result means "no real preset's columns are being
- * shown" (system default) — including when a resolved preset exists but has zero columns saved:
- * matching stocks must never come back as bare symbols with no field data attached, so an empty
- * preset (explicit, default, or "last used") falls through to the system default same as no preset
- * at all, rather than being honored as "show nothing".
+ * doesn't exist/isn't the caller's), else the user's own `isDefault` preset, else no columns at all
+ * (results come back as bare symbols — only `symbol` populated, no field data). There used to be a
+ * hardcoded SYSTEM_DEFAULT_COLUMNS fallback here; removed — the intended replacement is a
+ * curated/official default column set analogous to PresetTemplate (see src/domains/presetTemplates),
+ * not another hardcoded array in this service. Until that exists, no columns beats a stale hardcoded
+ * guess. `columnPresetId: null` in the result means "no real preset's columns are being shown" —
+ * including when a resolved preset (explicit or default) exists but has zero columns saved.
  *
- * `firebaseUid` is undefined for anonymous screener calls (guests aren't signed in, so they can't
- * own a preset) — always the system default in that case, regardless of columnPresetId, since a
- * column preset id can only ever resolve for the account that owns it.
+ * `firebaseUid` is undefined for anonymous screener calls (guests aren't signed in, so they can't own
+ * a preset) — always empty columns in that case, regardless of columnPresetId, since a column preset
+ * id can only ever resolve for the account that owns it.
  */
 export async function resolveScreenerColumns(
   firebaseUid: string | undefined,
   columnPresetId?: string,
 ): Promise<ResolvedScreenerColumns> {
   if (!firebaseUid) {
-    return { columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS };
+    return { columnPresetId: null, columns: [] };
   }
 
   if (columnPresetId !== undefined) {
@@ -173,5 +162,5 @@ export async function resolveScreenerColumns(
     }
   }
 
-  return { columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS };
+  return { columnPresetId: null, columns: [] };
 }

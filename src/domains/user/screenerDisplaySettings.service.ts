@@ -1,6 +1,6 @@
 import { AppError } from "../../shared/errorHandler.js";
-import { findDisplaySettings, upsertDisplaySettings } from "./displaySettings.repository.js";
-import type { ScreenerDisplaySettings } from "./displaySettings.types.js";
+import { findDisplaySettings, upsertDisplaySettings } from "./screenerDisplaySettings.repository.js";
+import type { ScreenerDisplaySettings } from "./screenerDisplaySettings.types.js";
 
 /**
  * Out-of-the-box screener display settings for users who haven't picked one yet — a plain code

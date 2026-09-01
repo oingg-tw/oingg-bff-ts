@@ -21,12 +21,7 @@ import {
   findDefaultColumnPreset,
   updateColumnPreset,
 } from "../domains/screener/columnPresets.repository.js";
-import {
-  SYSTEM_DEFAULT_COLUMNS,
-  addColumnPreset,
-  editColumnPreset,
-  resolveScreenerColumns,
-} from "../domains/screener/columnPresets.service.js";
+import { addColumnPreset, editColumnPreset, resolveScreenerColumns } from "../domains/screener/columnPresets.service.js";
 
 type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
 
@@ -159,32 +154,36 @@ describe("resolveScreenerColumns", () => {
     expect(result.columnPresetId).toBe(SAMPLE_ID);
   });
 
-  it("falls back to the hardcoded system default when there's no id and no user default", async () => {
+  // Regression test: there used to be a hardcoded SYSTEM_DEFAULT_COLUMNS fallback here. Removed — the
+  // intended replacement is a curated/official default column set analogous to PresetTemplate, not
+  // another hardcoded array in this service. Until that exists, no columns beats a stale hardcoded guess.
+  it("falls back to no columns at all when there's no id and no user default", async () => {
     vi.mocked(findDefaultColumnPreset).mockResolvedValue(null);
 
     const result = await resolveScreenerColumns("uid1");
 
-    expect(result).toEqual({ columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS });
+    expect(result).toEqual({ columnPresetId: null, columns: [] });
   });
 
-  // Regression test: matching stocks must never come back as bare symbols with no field data.
-  // An explicit columnPresetId that resolves to a real but empty ("columns": []) preset — e.g. a tab
-  // the user created and never filled in — used to be honored as-is, so /screener would return
-  // `values: {}` for every result even though companies matched. It must fall through to the system
-  // default instead, exactly as if no preset had been found at all.
-  it("falls through to the system default when the explicit columnPresetId resolves to a preset with zero columns", async () => {
+  // Regression test: matching stocks must never come back as bare symbols with no field data hidden
+  // behind a resolved-but-empty preset silently looking the same as "no preset" — but since there's no
+  // system default columns to fall through to anymore, this now surfaces the same as any other
+  // preset-not-found case: columnPresetId: null, no columns. An explicit columnPresetId that resolves to
+  // a real but empty ("columns": []) preset — e.g. a tab the user created and never filled in — must not
+  // be honored as columnPresetId pointing at it, since there's nothing there to attribute results to.
+  it("treats an explicit columnPresetId that resolves to a preset with zero columns the same as no preset found", async () => {
     vi.mocked(findColumnPreset).mockResolvedValue({ ...SAMPLE_ROW, id: OTHER_ID, name: "欄位組合 1", columns: [] });
 
     const result = await resolveScreenerColumns("uid1", OTHER_ID);
 
-    expect(result).toEqual({ columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS });
+    expect(result).toEqual({ columnPresetId: null, columns: [] });
   });
 
-  it("falls through to the system default when the user's own default preset has zero columns", async () => {
+  it("treats the user's own default preset having zero columns the same as no default set", async () => {
     vi.mocked(findDefaultColumnPreset).mockResolvedValue({ ...SAMPLE_ROW, columns: [] });
 
     const result = await resolveScreenerColumns("uid1");
 
-    expect(result).toEqual({ columnPresetId: null, columns: SYSTEM_DEFAULT_COLUMNS });
+    expect(result).toEqual({ columnPresetId: null, columns: [] });
   });
 });
