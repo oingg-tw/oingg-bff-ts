@@ -293,7 +293,8 @@ marketRouter.get("/volume-top20", async (_req, res) => {
  *     summary: 處置股清單——依公告日期新到舊，上市＋上櫃合併
  *     description: >
  *       TPEx 目前沒有 announcementCount/dispositionMeasures/linkInformation 這幾個欄位，會是 null
- *       （不是查詢失敗）。
+ *       （不是查詢失敗）。sixDayChangePercent 是以 announceDate 為基準日，往前推 6 個交易日的累積漲跌幅
+ *       （點對點，非逐日相加），資料不足 6 個交易日時是 null。
  *     tags:
  *       - Market
  *     parameters:
@@ -322,6 +323,7 @@ marketRouter.get("/volume-top20", async (_req, res) => {
  *                   dispositionMeasures: "第一次處置"
  *                   detail: "..."
  *                   linkInformation: "..."
+ *                   sixDayChangePercent: "42.65"
  *               warnings: []
  *       400:
  *         description: limit 不是 1~50 之間的整數。
@@ -342,7 +344,8 @@ marketRouter.get("/disposed-stocks", async (req, res) => {
  *     description: >
  *       criteriaDetails 是 analysis-ts 把 criteria 中文說明解析成的結構化資料（陣列，因為原始文字有時會
  *       串接兩個子句）。observationDays 只有「N個營業日內已有M次」格式才有值，解析失敗時是空陣列，
- *       criteria 原始文字不受影響。
+ *       criteria 原始文字不受影響。sixDayChangePercent 是以 tradeDate 為基準日，往前推 6 個交易日的
+ *       累積漲跌幅（點對點，非逐日相加），資料不足 6 個交易日時是 null。
  *     tags:
  *       - Market
  *     parameters:
@@ -371,6 +374,7 @@ marketRouter.get("/disposed-stocks", async (req, res) => {
  *                       endDate: "2026-08-31"
  *                       observationDays: null
  *                       times: 2
+ *                   sixDayChangePercent: "41.08"
  *               warnings: []
  *       400:
  *         description: limit 不是 1~50 之間的整數。

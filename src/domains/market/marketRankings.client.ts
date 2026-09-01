@@ -143,6 +143,7 @@ function normalizeDisposedStockEntry(raw: unknown): DisposedStockEntry {
     dispositionMeasures: toStringOrNull(r.dispositionMeasures),
     detail: toStringOrEmpty(r.detail),
     linkInformation: toStringOrNull(r.linkInformation),
+    sixDayChangePercent: toStringOrNull(r.sixDayChangePercent),
   };
 }
 
@@ -165,6 +166,7 @@ function normalizeAttentionStockEntry(raw: unknown): AttentionStockEntry {
     tradeDate: toStringOrEmpty(r.tradeDate),
     criteria: toStringOrEmpty(r.criteria),
     criteriaDetails: Array.isArray(r.criteriaDetails) ? r.criteriaDetails.map(normalizeAttentionStockCriteriaDetail) : [],
+    sixDayChangePercent: toStringOrNull(r.sixDayChangePercent),
   };
 }
 

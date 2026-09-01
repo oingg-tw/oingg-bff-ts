@@ -431,6 +431,7 @@ describe("fetchDisposedStocks", () => {
             dispositionMeasures: null,
             detail: "詳如說明",
             linkInformation: null,
+            sixDayChangePercent: 42.65,
           },
           {
             symbol: "6226",
@@ -443,6 +444,7 @@ describe("fetchDisposedStocks", () => {
             dispositionMeasures: "第一次處置",
             detail: "詳如說明",
             linkInformation: "提供處置有價證券連結資訊",
+            sixDayChangePercent: null,
           },
         ],
         warnings: [],
@@ -463,6 +465,7 @@ describe("fetchDisposedStocks", () => {
         dispositionMeasures: null,
         detail: "詳如說明",
         linkInformation: null,
+        sixDayChangePercent: "42.65",
       },
       {
         symbol: "6226",
@@ -475,6 +478,7 @@ describe("fetchDisposedStocks", () => {
         dispositionMeasures: "第一次處置",
         detail: "詳如說明",
         linkInformation: "提供處置有價證券連結資訊",
+        sixDayChangePercent: null,
       },
     ]);
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
@@ -508,6 +512,7 @@ describe("fetchAttentionStocks", () => {
             tradeDate: "2026-09-01",
             criteria: "115年8月28日至115年8月31日連續二次",
             criteriaDetails: [{ startDate: "2026-08-28", endDate: "2026-08-31", observationDays: null, times: 2 }],
+            sixDayChangePercent: 41.08,
           },
         ],
         warnings: [],
@@ -526,6 +531,7 @@ describe("fetchAttentionStocks", () => {
           tradeDate: "2026-09-01",
           criteria: "115年8月28日至115年8月31日連續二次",
           criteriaDetails: [{ startDate: "2026-08-28", endDate: "2026-08-31", observationDays: null, times: 2 }],
+          sixDayChangePercent: "41.08",
         },
       ],
       warnings: [],

@@ -128,6 +128,13 @@ export interface DisposedStockEntry {
   dispositionMeasures: string | null;
   detail: string;
   linkInformation: string | null;
+  /**
+   * Cumulative price change over the 6 trading days up to `announceDate` (point-to-point close vs. close
+   * 6 trading days prior — compounded, not a sum of daily changes). Null when fewer than 6 comparable
+   * trading days exist. Added by analysis-ts on 2026-09-02 as price context for why this stock was
+   * disposed (exchange thresholds reference exactly this kind of 6-day cumulative move).
+   */
+  sixDayChangePercent: string | null;
 }
 
 export interface DisposedStocksResult {
@@ -158,6 +165,14 @@ export interface AttentionStockEntry {
   criteria: string;
   /** Empty when analysis-ts's parse of `criteria` fails (e.g. upstream text format changes) — `criteria` itself is unaffected. */
   criteriaDetails: AttentionStockCriteriaDetail[];
+  /**
+   * Cumulative price change over the 6 trading days up to `tradeDate` (point-to-point close vs. close 6
+   * trading days prior — compounded, not a sum of daily changes). Null when fewer than 6 comparable
+   * trading days exist. Added by analysis-ts on 2026-09-02 — exchange attention-stock thresholds
+   * themselves reference this kind of 6-day cumulative move, so it's price context for why a stock was
+   * flagged, same rationale as DisposedStockEntry's `sixDayChangePercent`.
+   */
+  sixDayChangePercent: string | null;
 }
 
 export interface AttentionStocksResult {
