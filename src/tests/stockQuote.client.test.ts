@@ -47,11 +47,13 @@ describe("fetchStockQuote", () => {
     await expect(fetchStockQuote("nope")).resolves.toBeNull();
   });
 
-  // Regression: verified live against analysis-ts's real endpoint — it sends numeric fields as JSON
-  // numbers (close: 2420, peRatio: 28.05), not strings, unlike every other numeric value in bff-ts's own
-  // API (screener metric values are always strings, e.g. "6.97"). Must normalize to strings so bff-ts's
-  // outward API stays consistent regardless of what shape upstream happens to send.
-  it("normalizes numeric price/valuation fields to strings, matching bff-ts's own API convention", async () => {
+  // Regression: verified live against analysis-ts's real endpoint — it sends ratio/percentage fields as
+  // JSON numbers (close: 2420, peRatio: 28.05), their genuine existing convention for Decimal-backed
+  // fields (confirmed with them directly), not something new to this endpoint. Normalize to strings
+  // anyway so bff-ts's own outward API stays consistent with its screener values — which are strings
+  // only because node-postgres's default NUMERIC serialization does that, not because of any shared
+  // convention with analysis-ts's API.
+  it("normalizes numeric price/valuation fields to strings for bff-ts's own outward-consistency choice", async () => {
     mockFetchOnce({
       ok: true,
       body: {

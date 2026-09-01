@@ -18,12 +18,17 @@ function isPricesResponse(body: unknown): body is { prices: Record<string, Close
 }
 
 /**
- * analysis-ts's quote/prices endpoints send numeric fields as JSON numbers (verified live: `close: 2420`,
- * `peRatio: 28.05`), but every other numeric value in bff-ts's own API is a string (see screener metric
- * values, e.g. `{"value": "6.97"}`) — a deliberate choice elsewhere to avoid float precision surprises.
- * Normalize here so bff-ts's outward API stays consistent regardless of what shape upstream happens to
- * send today; this is shaping-for-frontend-consumption, not something that should leak analysis-ts's
- * own JSON conventions through untouched.
+ * analysis-ts's quote/prices endpoints send ratio/percentage fields as JSON numbers (verified live:
+ * `close: 2420`, `peRatio: 28.05`) — confirmed with them this is their real, existing convention for
+ * Decimal-backed fields generally (not something new to this endpoint): only BigInt-backed raw-amount
+ * fields come as strings on their side, out of JSON-serialization necessity, not a "numbers are strings"
+ * design choice.
+ *
+ * bff-ts's own screener values happen to already be strings (e.g. `{"value": "6.97"}`) — but that's
+ * `node-postgres`'s default behavior for NUMERIC/DECIMAL columns (no custom type parser is registered
+ * anywhere in this codebase — verified), not a deliberate app-level convention either. Normalizing here
+ * is bff-ts choosing consistency across its own outward API surface despite that, not "restoring" some
+ * rule analysis-ts is supposed to already follow.
  */
 function toStringOrNull(value: unknown): string | null {
   return value === null || value === undefined ? null : String(value);
