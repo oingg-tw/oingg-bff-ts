@@ -20,17 +20,18 @@ const VALID_MARKET_COLOR_CONVENTIONS: MarketColorConvention[] = ["ASIA", "WESTER
  * TWSE/TPEx-focused — a Taiwan user who never touches this setting should see the convention they
  * already expect, not the US/Europe one.
  *
- * isFullWidth defaults to true — matches the app's actual current/live layout (full-width edge-to-edge),
- * which every existing user already sees. Centered is the new opt-in, not the other way around — caught
- * by oingg-web-nuxt before shipping (a `false` default would've silently flipped every existing user to
- * centered the first time their client read this field), same category of mistake as defaulting
- * accentColor to something other than GOLD would have been: match live reality, not a "seems logical" guess.
+ * isFullWidth defaults to false as of 2026-09-01 — flipped from `true` because oingg-web-nuxt flipped
+ * their own client-side default (the `layout-full-width` cookie) from full-width to centered, at the
+ * product's request. Same reasoning as the original 2026-08-31 alignment in the other direction: a
+ * freshly-synced account with no saved preference should land on the same layout a fresh/logged-out
+ * device already shows — not jump from centered to full-width (or vice versa) the moment sign-in
+ * resolves. Match live reality on whichever side currently owns the "true" default, don't guess.
  */
 export const SYSTEM_DEFAULT_THEME: ThemePreference = {
   mode: "SYSTEM",
   accentColor: "GOLD",
   marketColorConvention: "ASIA",
-  isFullWidth: true,
+  isFullWidth: false,
 };
 
 function assertValidMode(mode: unknown): asserts mode is ThemeMode {
