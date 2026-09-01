@@ -178,8 +178,10 @@ export async function runScreener(
     name: null,
     values: row.values,
   }));
-  await mergeStockPrices(results, wantsStockPrice);
-  await mergeCompanyNames(results);
+  // Independent of each other (different fields on each row) - run concurrently instead of
+  // sequentially, each is its own round trip (mergeStockPrices to analysis-ts, mergeCompanyNames to
+  // our own local Company cache).
+  await Promise.all([mergeStockPrices(results, wantsStockPrice), mergeCompanyNames(results)]);
 
   return {
     count: apiResult.count,
@@ -242,8 +244,10 @@ export async function runScreenerValues(symbols: string[], columns: ScreenerColu
     name: null,
     values: rowBySymbol.get(symbol)?.values ?? {},
   }));
-  await mergeStockPrices(results, wantsStockPrice);
-  await mergeCompanyNames(results);
+  // Independent of each other (different fields on each row) - run concurrently instead of
+  // sequentially, each is its own round trip (mergeStockPrices to analysis-ts, mergeCompanyNames to
+  // our own local Company cache).
+  await Promise.all([mergeStockPrices(results, wantsStockPrice), mergeCompanyNames(results)]);
 
   return { count: results.length, columns: resultColumns, results };
 }
@@ -303,8 +307,10 @@ export async function runRanking(
     name: null,
     values: row.values,
   }));
-  await mergeStockPrices(results, wantsStockPrice);
-  await mergeCompanyNames(results);
+  // Independent of each other (different fields on each row) - run concurrently instead of
+  // sequentially, each is its own round trip (mergeStockPrices to analysis-ts, mergeCompanyNames to
+  // our own local Company cache).
+  await Promise.all([mergeStockPrices(results, wantsStockPrice), mergeCompanyNames(results)]);
 
   return { field, direction, columns: resultColumns, results };
 }
@@ -341,8 +347,10 @@ async function runValuationRanking(
     name: null,
     values: { [field]: { value: String(row.value), asOfDate: tradeDate } },
   }));
-  await mergeStockPrices(results, wantsStockPrice);
-  await mergeCompanyNames(results);
+  // Independent of each other (different fields on each row) - run concurrently instead of
+  // sequentially, each is its own round trip (mergeStockPrices to analysis-ts, mergeCompanyNames to
+  // our own local Company cache).
+  await Promise.all([mergeStockPrices(results, wantsStockPrice), mergeCompanyNames(results)]);
 
   const resultColumns: ScreenerResultColumn[] = [
     { field, metricName: rankedRef!.metricName, fieldName: rankedRef!.fieldName, unit: rankedRef!.unit },

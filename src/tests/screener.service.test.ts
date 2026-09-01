@@ -239,6 +239,48 @@ describe("runScreener", () => {
     ]);
   });
 
+  // Perf regression test (2026-09-01): stock-price merging (analysis-ts) and company-name merging (our
+  // own local Company cache) are independent round trips that used to run sequentially — turned into
+  // Promise.all so a caller pays the cost of the slower one, not the sum of both. Verified by checking
+  // both mocks are *called* before either one *resolves*, which sequential awaiting could never do.
+  it("merges stock.price and company names concurrently, not sequentially", async () => {
+    vi.mocked(fetchScreenerResults).mockResolvedValue({
+      count: 1,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+      results: [{ symbol: "2330", values: {} }],
+    });
+
+    let resolvePrices!: (value: Map<string, { close: string | null; tradeDate: string | null }>) => void;
+    let resolveNames!: (value: Map<string, string | null>) => void;
+    vi.mocked(getLatestClosePrices).mockReturnValue(new Promise((resolve) => (resolvePrices = resolve)));
+    vi.mocked(getCompanyNames).mockReturnValue(new Promise((resolve) => (resolveNames = resolve)));
+
+    const resultPromise = runScreener(
+      [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
+      [{ field: "stock.price" }],
+      DEFAULT_PAGINATION,
+    );
+
+    // Give pending microtasks a chance to run (several ticks — resolveCatalogFieldRefs and
+    // fetchScreenerResults each await first) — if the two merges were still sequential, only
+    // getLatestClosePrices would have been called by this point, not getCompanyNames too.
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(getLatestClosePrices).toHaveBeenCalled();
+    expect(getCompanyNames).toHaveBeenCalled();
+
+    resolvePrices(new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28" }]]));
+    resolveNames(new Map([["2330", "台積電"]]));
+    const result = await resultPromise;
+
+    expect(result.results[0]).toEqual({
+      symbol: "2330",
+      name: "台積電",
+      values: { "stock.price": { value: "2350.0000", asOfDate: "2026-08-28" } },
+    });
+  });
+
   // Company names are always attached, regardless of which columns were requested — not gated behind an
   // opt-in column the way stock.price is. See companies.service.ts: this is a live per-request lookup,
   // nothing cached on bff's side.

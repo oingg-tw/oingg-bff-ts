@@ -31,6 +31,7 @@ import {
   addColumnPreset,
   addColumnPresetWithName,
   editColumnPreset,
+  getColumnPresets,
   resolveScreenerColumns,
 } from "@/domains/screener/columnPresets.service.js";
 
@@ -85,6 +86,64 @@ beforeEach(() => {
   vi.mocked(findDefaultColumnPreset).mockReset();
   vi.mocked(listColumnPresets).mockReset();
   vi.mocked(findDefaultColumnPresetTemplate).mockReset();
+});
+
+describe("getColumnPresets", () => {
+  // Perf regression test (2026-09-01): used to call toView() per preset row via Promise.all, each doing
+  // its own resolveColumnFields round trip — N presets meant N separate remote DB queries (concurrent,
+  // but still N of them) instead of one. Must batch every preset's columns into a single lookup.
+  it("resolves every preset's columns in a single batched findFilterFields call, not one per preset", async () => {
+    vi.mocked(listColumnPresets).mockResolvedValue([
+      { ...SAMPLE_ROW, id: SAMPLE_ID, columns: ["per.peRatio"] },
+      { ...SAMPLE_ROW, id: OTHER_ID, columns: ["pbr.pbRatio"] },
+    ]);
+
+    const result = await getColumnPresets("uid1");
+
+    expect(findFilterFields).toHaveBeenCalledTimes(1);
+    expect(findFilterFields).toHaveBeenCalledWith([
+      { field: "per.peRatio", metricKey: "per", fieldKey: "peRatio" },
+      { field: "pbr.pbRatio", metricKey: "pbr", fieldKey: "pbRatio" },
+    ]);
+    expect(result).toEqual([
+      {
+        id: SAMPLE_ID,
+        name: "常用欄位",
+        isDefault: false,
+        columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER" }],
+        createdAt: "2026-08-27T00:00:00.000Z",
+        updatedAt: "2026-08-27T00:00:00.000Z",
+      },
+      {
+        id: OTHER_ID,
+        name: "常用欄位",
+        isDefault: false,
+        columns: [{ field: "pbr.pbRatio", metricName: "股價淨值比 PBR", fieldName: "股價淨值比 PBR" }],
+        createdAt: "2026-08-27T00:00:00.000Z",
+        updatedAt: "2026-08-27T00:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("doesn't request the same field twice when multiple presets share a column", async () => {
+    vi.mocked(listColumnPresets).mockResolvedValue([
+      { ...SAMPLE_ROW, id: SAMPLE_ID, columns: ["per.peRatio"] },
+      { ...SAMPLE_ROW, id: OTHER_ID, columns: ["per.peRatio"] },
+    ]);
+
+    await getColumnPresets("uid1");
+
+    expect(findFilterFields).toHaveBeenCalledWith([{ field: "per.peRatio", metricKey: "per", fieldKey: "peRatio" }]);
+  });
+
+  it("returns an empty array without calling findFilterFields when the user has no presets", async () => {
+    vi.mocked(listColumnPresets).mockResolvedValue([]);
+
+    const result = await getColumnPresets("uid1");
+
+    expect(result).toEqual([]);
+    expect(findFilterFields).not.toHaveBeenCalled();
+  });
 });
 
 describe("addColumnPreset", () => {

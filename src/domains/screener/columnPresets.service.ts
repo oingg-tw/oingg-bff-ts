@@ -34,8 +34,10 @@ export interface ColumnPresetView {
   updatedAt: string;
 }
 
-async function toView(row: ColumnPresetRow): Promise<ColumnPresetView> {
-  const infoByField = await resolveColumnFields(row.columns);
+function buildView(
+  row: ColumnPresetRow,
+  infoByField: Map<string, { metricName: string; fieldName: string } | null>,
+): ColumnPresetView {
   const columns = row.columns.map((field): ColumnPresetColumnView => {
     const info = infoByField.get(field);
     return { field, metricName: info?.metricName ?? field, fieldName: info?.fieldName ?? field };
@@ -50,6 +52,11 @@ async function toView(row: ColumnPresetRow): Promise<ColumnPresetView> {
   };
 }
 
+async function toView(row: ColumnPresetRow): Promise<ColumnPresetView> {
+  const infoByField = await resolveColumnFields(row.columns);
+  return buildView(row, infoByField);
+}
+
 async function validateFields(fields: string[]): Promise<void> {
   const infoByField = await resolveColumnFields(fields);
   for (const field of fields) {
@@ -59,9 +66,18 @@ async function validateFields(fields: string[]): Promise<void> {
   }
 }
 
+/**
+ * Regression-shaped perf fix (2026-09-01): used to call toView() per row via Promise.all, each doing its
+ * own resolveColumnFields round trip — N presets meant N concurrent-but-separate remote DB queries
+ * instead of one. Batches every preset's columns into a single resolveColumnFields call up front, same
+ * "one round trip, not one per item" rule already applied to findFilterFields/findFilterField elsewhere
+ * in this codebase.
+ */
 export async function getColumnPresets(firebaseUid: string): Promise<ColumnPresetView[]> {
   const rows = await listColumnPresets(firebaseUid);
-  return Promise.all(rows.map(toView));
+  const allFields = [...new Set(rows.flatMap((row) => row.columns))];
+  const infoByField = await resolveColumnFields(allFields);
+  return rows.map((row) => buildView(row, infoByField));
 }
 
 export async function getColumnPresetOrThrow(firebaseUid: string, id: string): Promise<ColumnPresetView> {
