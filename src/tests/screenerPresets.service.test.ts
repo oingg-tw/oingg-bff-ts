@@ -321,4 +321,38 @@ describe("runPreset", () => {
 
     expect(runScreener).toHaveBeenCalledWith(expect.anything(), expect.anything(), { page: 2, pageSize: 10 }, undefined);
   });
+
+  // Perf regression test (2026-09-01): every call that repeats the same explicit columnPresetId as last
+  // time (e.g. paging through the same view) used to fire a write that changed nothing. Skip it when the
+  // resolved columnPresetId already matches what's on file.
+  it("skips setLastColumnPreset when the explicit columnPresetId is already the preset's last-used one", async () => {
+    vi.mocked(findPreset).mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID });
+    vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: COLUMN_PRESET_ID, columns: [] });
+    vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
+
+    await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION, COLUMN_PRESET_ID);
+
+    expect(setLastColumnPreset).not.toHaveBeenCalled();
+  });
+
+  // Perf regression test (2026-09-01): when columnPresetId is given explicitly, resolving it doesn't
+  // need findPreset's result (lastColumnPresetId) at all, so the two lookups run concurrently instead of
+  // sequentially. Verified by checking both mocks are *called* before either one *resolves*.
+  it("runs findPreset and resolveScreenerColumns concurrently when columnPresetId is given explicitly", async () => {
+    let resolveFindPreset!: (value: Awaited<ReturnType<typeof findPreset>>) => void;
+    let resolveColumns!: (value: Awaited<ReturnType<typeof resolveScreenerColumns>>) => void;
+    vi.mocked(findPreset).mockReturnValue(new Promise((resolve) => (resolveFindPreset = resolve)));
+    vi.mocked(resolveScreenerColumns).mockReturnValue(new Promise((resolve) => (resolveColumns = resolve)));
+    vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
+
+    const resultPromise = runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION, COLUMN_PRESET_ID);
+
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(findPreset).toHaveBeenCalled();
+    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", COLUMN_PRESET_ID);
+
+    resolveFindPreset({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID });
+    resolveColumns({ columnPresetId: COLUMN_PRESET_ID, columns: [] });
+    await resultPromise;
+  });
 });

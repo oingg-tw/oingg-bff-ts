@@ -4,6 +4,7 @@ import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
 import { findFilterFields } from "@/domains/filterCatalog/index.js";
 import type { ScreenerSort } from "@/domains/screener/analysisScreenerClient.js";
 import { resolveScreenerColumns } from "@/domains/screener/columnPresets.service.js";
+import type { ResolvedScreenerColumns } from "@/domains/screener/columnPresets.service.js";
 import type { Pagination } from "@/domains/screener/pagination.js";
 import { runScreener } from "@/domains/screener/screener.service.js";
 import type { ScreenerFilter, ScreenerResult } from "@/domains/screener/screener.types.js";
@@ -209,6 +210,13 @@ export async function removePreset(firebaseUid: string, id: string): Promise<voi
  * new "last viewed with" column preset, i.e. switching columns sticks for next time) → else the column
  * preset this filter combo was last viewed with → else the user's own default column preset → else the
  * hardcoded system default.
+ *
+ * Perf (2026-09-01): when `columnPresetId` is given explicitly, resolving it doesn't need
+ * `preset.lastColumnPresetId` at all — findPreset and resolveScreenerColumns are independent lookups
+ * against the same remote DB in that case, so they run concurrently instead of paying two sequential
+ * round trips. Only the no-explicit-columnPresetId path genuinely needs findPreset's result first.
+ * setLastColumnPreset is also now skipped when nothing actually changed — every "same columnPresetId as
+ * last time" call (e.g. paging through the same view) used to fire a write that changed nothing.
  */
 export async function runPreset(
   firebaseUid: string,
@@ -217,18 +225,25 @@ export async function runPreset(
   columnPresetId?: string,
   sort?: ScreenerSort,
 ): Promise<{ preset: PresetView; screener: ScreenerResult; columnPresetId: string | null }> {
-  const row = await findPreset(firebaseUid, id);
+  let row: PresetRow | null;
+  let resolved: ResolvedScreenerColumns;
+
+  if (columnPresetId !== undefined) {
+    [row, resolved] = await Promise.all([
+      findPreset(firebaseUid, id),
+      resolveScreenerColumns(firebaseUid, columnPresetId),
+    ]);
+  } else {
+    row = await findPreset(firebaseUid, id);
+    resolved = await resolveScreenerColumns(firebaseUid, row?.lastColumnPresetId ?? undefined);
+  }
+
   if (!row) {
     throw new AppError(`Screener preset ${id} not found`, 404);
   }
   const preset = toView(row);
 
-  const resolved = await resolveScreenerColumns(
-    firebaseUid,
-    columnPresetId ?? preset.lastColumnPresetId ?? undefined,
-  );
-
-  if (columnPresetId !== undefined) {
+  if (columnPresetId !== undefined && resolved.columnPresetId !== preset.lastColumnPresetId) {
     await setLastColumnPreset(firebaseUid, id, resolved.columnPresetId ?? columnPresetId);
   }
 
