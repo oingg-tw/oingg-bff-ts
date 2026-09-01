@@ -51,8 +51,8 @@ userRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
  *     summary: 查詢目前登入使用者的 UI 主題設定
  *     description: >
  *       尚未設定過的欄位回傳系統預設值（mode: SYSTEM, accentColor: GOLD, marketColorConvention: ASIA,
- *       isFullWidth: false），不是寫死在使用者資料裡的快照——之後調整系統預設，沒特別設定過的使用者會
- *       直接跟著變。
+ *       isFullWidth: true——符合目前上線版面本來就是滿版的實際狀態），不是寫死在使用者資料裡的快照——
+ *       之後調整系統預設，沒特別設定過的使用者會直接跟著變。
  *     tags:
  *       - User
  *     security:
@@ -85,7 +85,7 @@ userRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
  *                 mode: DARK
  *                 accentColor: PURPLE
  *                 marketColorConvention: ASIA
- *                 isFullWidth: false
+ *                 isFullWidth: true
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  */
@@ -143,7 +143,7 @@ userRouter.get("/me/theme", requireAuth, async (req: AuthenticatedRequest, res) 
  *                 mode: DARK
  *                 accentColor: PURPLE
  *                 marketColorConvention: ASIA
- *                 isFullWidth: false
+ *                 isFullWidth: true
  *       400:
  *         description: mode 沒給，或不在允許的選項內。
  *       401:
@@ -205,7 +205,7 @@ userRouter.put("/me/theme/mode", requireAuth, async (req: AuthenticatedRequest, 
  *                 mode: DARK
  *                 accentColor: PURPLE
  *                 marketColorConvention: ASIA
- *                 isFullWidth: false
+ *                 isFullWidth: true
  *       400:
  *         description: accentColor 沒給，或不在允許的選項內。
  *       401:
@@ -268,7 +268,7 @@ userRouter.put("/me/theme/accent-color", requireAuth, async (req: AuthenticatedR
  *                 mode: DARK
  *                 accentColor: PURPLE
  *                 marketColorConvention: ASIA
- *                 isFullWidth: false
+ *                 isFullWidth: true
  *       400:
  *         description: marketColorConvention 沒給，或不在允許的選項內。
  *       401:
@@ -286,7 +286,9 @@ userRouter.put("/me/theme/market-color-convention", requireAuth, async (req: Aut
  * /users/me/theme/full-width:
  *   put:
  *     summary: 更新「視覺滿版」設定
- *     description: 整個 app 通用的版面偏好（主內容區是否佔滿整個頁面寬度），不限定某個功能頁面。
+ *     description: >
+ *       整個 app 通用的版面偏好（主內容區是否佔滿整個頁面寬度），不限定某個功能頁面。系統預設 true
+ *       （滿版），對應目前上線版面本來就是滿版的實際狀態；false 是新的「置中」選配。
  *     tags:
  *       - User
  *     security:

@@ -20,14 +20,17 @@ const VALID_MARKET_COLOR_CONVENTIONS: MarketColorConvention[] = ["ASIA", "WESTER
  * TWSE/TPEx-focused — a Taiwan user who never touches this setting should see the convention they
  * already expect, not the US/Europe one.
  *
- * isFullWidth defaults to false — a constrained/centered layout is the conventional starting point;
- * full-width is an opt-in preference, not the other way around.
+ * isFullWidth defaults to true — matches the app's actual current/live layout (full-width edge-to-edge),
+ * which every existing user already sees. Centered is the new opt-in, not the other way around — caught
+ * by oingg-web-nuxt before shipping (a `false` default would've silently flipped every existing user to
+ * centered the first time their client read this field), same category of mistake as defaulting
+ * accentColor to something other than GOLD would have been: match live reality, not a "seems logical" guess.
  */
 export const SYSTEM_DEFAULT_THEME: ThemePreference = {
   mode: "SYSTEM",
   accentColor: "GOLD",
   marketColorConvention: "ASIA",
-  isFullWidth: false,
+  isFullWidth: true,
 };
 
 function assertValidMode(mode: unknown): asserts mode is ThemeMode {
