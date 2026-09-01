@@ -36,15 +36,22 @@ export async function getCompaniesSyncedAt(): Promise<Date | null> {
 export async function replaceCompanies(companies: Company[]): Promise<void> {
   const prisma = getPrismaClient();
 
+  // Regression: analysis-ts's GET /companies has been observed live with a couple of exact-duplicate
+  // companyId entries (same id, same name) — a single `INSERT ... ON CONFLICT DO UPDATE` statement
+  // can't touch the same row twice ("ON CONFLICT DO UPDATE command cannot affect row a second time",
+  // a hard Postgres error, not something ON CONFLICT can swallow). Dedupe by companyId before building
+  // the statement rather than trusting the upstream list is already unique.
+  const uniqueCompanies = [...new Map(companies.map((c) => [c.companyId, c])).values()];
+
   await prisma.$transaction(async (tx) => {
-    if (companies.length > 0) {
+    if (uniqueCompanies.length > 0) {
       await tx.$executeRaw`
         INSERT INTO company (company_id, company_name)
-        VALUES ${Prisma.join(companies.map((c) => Prisma.sql`(${c.companyId}, ${c.companyName})`))}
+        VALUES ${Prisma.join(uniqueCompanies.map((c) => Prisma.sql`(${c.companyId}, ${c.companyName})`))}
         ON CONFLICT (company_id) DO UPDATE SET company_name = EXCLUDED.company_name
       `;
     }
-    await tx.company.deleteMany({ where: { companyId: { notIn: companies.map((c) => c.companyId) } } });
+    await tx.company.deleteMany({ where: { companyId: { notIn: uniqueCompanies.map((c) => c.companyId) } } });
     await tx.companySyncState.upsert({
       where: { id: SYNC_STATE_ID },
       create: { id: SYNC_STATE_ID, syncedAt: new Date() },

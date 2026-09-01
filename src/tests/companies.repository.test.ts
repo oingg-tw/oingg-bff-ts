@@ -102,6 +102,18 @@ describe("replaceCompanies", () => {
     });
   });
 
+  // Regression: hit live against analysis-ts's real GET /companies, which had two exact-duplicate
+  // companyId entries — Postgres rejects a single `INSERT ... ON CONFLICT DO UPDATE` that would touch
+  // the same row twice ("ON CONFLICT DO UPDATE command cannot affect row a second time"), a hard error
+  // ON CONFLICT can't swallow. Must dedupe before building the statement, not trust the upstream list.
+  it("dedupes by companyId before building the INSERT, so a duplicate entry doesn't crash the upsert", async () => {
+    await replaceCompanies([...SAMPLE_COMPANIES, { companyId: "2330", companyName: "台積電" }]);
+
+    expect(mockTx.company.deleteMany).toHaveBeenCalledWith({
+      where: { companyId: { notIn: ["2330", "2317", "9999"] } },
+    });
+  });
+
   // The core reason replaceCompanies exists as one transaction: a crash between updating the rows and
   // stamping the sync timestamp must never leave "fresh data, stale timestamp" (would sync again
   // needlessly) or "stale data, fresh timestamp" (would wrongly skip a real sync for 24h).

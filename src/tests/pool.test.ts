@@ -38,7 +38,12 @@ describe("initNeonPools", () => {
     }
   });
 
-  it("throws when no <NAME>_DATABASE_URL is configured, instead of silently creating zero pools", () => {
-    expect(() => initNeonPools({})).toThrow(/No Neon database connections configured/);
+  // Regression: this used to throw here on the assumption bff-ts always owns at least one raw external
+  // DB — stopped being true once twse/tpex/analysis all moved to analysis-ts's HTTP API instead (see
+  // docs/直連DB反模式修復計畫.md). Discovered live: removing the last <NAME>_DATABASE_URL crashed the
+  // whole server at startup on this exact check. Zero configured pools must be a no-op, not fatal.
+  it("creates zero pools without throwing when no <NAME>_DATABASE_URL is configured", () => {
+    expect(() => initNeonPools({})).not.toThrow();
+    expect(PoolConstructor).not.toHaveBeenCalled();
   });
 });

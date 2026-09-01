@@ -33,16 +33,19 @@ function discoverConnectionStrings(env: NodeJS.ProcessEnv): Map<string, string> 
 }
 
 /**
- * Discovers every `<NAME>_DATABASE_URL` environment variable and opens a
- * connection pool for each one. Call once during app startup.
+ * Discovers every `<NAME>_DATABASE_URL` environment variable and opens a connection pool for each one.
+ * Call once during app startup.
+ *
+ * Zero configured pools is a valid, expected state as of 2026-09-01 — this used to throw here on the
+ * assumption bff-ts would always own at least one raw external DB (twse/tpex/analysis), which stopped
+ * being true once the direct-DB anti-pattern fix moved every one of those to analysis-ts's HTTP API
+ * instead (see docs/直連DB反模式修復計畫.md). Discovered live: removing the last `<NAME>_DATABASE_URL`
+ * crashed the whole server at startup on this exact check. bff-ts's own DATABASE_URL is Prisma-managed
+ * and never goes through this registry regardless, so an empty registry just means "no raw pg pool is
+ * needed right now" — not a misconfiguration.
  */
 export function initNeonPools(env: NodeJS.ProcessEnv = process.env): void {
   const connections = discoverConnectionStrings(env);
-  if (connections.size === 0) {
-    throw new Error(
-      "No Neon database connections configured. Set at least one <NAME>_DATABASE_URL environment variable.",
-    );
-  }
 
   for (const [name, connectionString] of connections) {
     // TLS behavior comes entirely from each URL's own `sslmode` (use verify-full) — pg overwrites

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../adapters/neon/index.js", () => ({
-  queryNeon: vi.fn(),
+vi.mock("../domains/screener/analysisScreenerClient.js", () => ({
+  fetchScreenerResults: vi.fn(),
+  fetchScreenerRanking: vi.fn(),
 }));
 
 vi.mock("../domains/filterCatalog/index.js", () => ({
@@ -20,7 +21,7 @@ vi.mock("../domains/screener/valuationRanking.client.js", () => ({
   fetchValuationRanking: vi.fn(),
 }));
 
-import { queryNeon } from "../adapters/neon/index.js";
+import { fetchScreenerRanking, fetchScreenerResults } from "../domains/screener/analysisScreenerClient.js";
 import { findFilterFields } from "../domains/filterCatalog/index.js";
 import { getLatestClosePrices } from "../domains/stock/index.js";
 import { getCompanyNames } from "../domains/companies/index.js";
@@ -49,26 +50,6 @@ const KNOWN_FIELDS: Record<string, Lookup> = {
     fieldName: "ROE (TTM)",
     period: "ttm",
   },
-  // A metric the filterCatalog knows about but that isn't (yet) wired into ANALYSIS_METRIC_TABLES.
-  "unwired.someField": {
-    categoryKey: "guru",
-    metricKey: "unwired",
-    metricName: "Unwired",
-    fieldKey: "someField",
-    fieldName: "Some Field",
-    period: "snapshot",
-  },
-  // Regression fixture: "beta1Y" is where the naive "insert _ before every uppercase letter" column-name
-  // rule broke (produced "beta1_y" instead of the real column "beta_1y") — a digit immediately followed
-  // by an uppercase unit letter ("1Y" = 1-year) is one glued suffix, not two separate segments.
-  "beta.beta1Y": {
-    categoryKey: "risk",
-    metricKey: "beta",
-    metricName: "Beta",
-    fieldKey: "beta1Y",
-    fieldName: "Beta (1Y)",
-    period: "snapshot",
-  },
   "per.peRatio": {
     categoryKey: "valuation",
     metricKey: "per",
@@ -80,7 +61,8 @@ const KNOWN_FIELDS: Record<string, Lookup> = {
 };
 
 beforeEach(() => {
-  vi.mocked(queryNeon).mockReset();
+  vi.mocked(fetchScreenerResults).mockReset();
+  vi.mocked(fetchScreenerRanking).mockReset();
   vi.mocked(findFilterFields).mockReset();
   vi.mocked(findFilterFields).mockImplementation(async (refs) =>
     refs
@@ -96,122 +78,50 @@ beforeEach(() => {
 describe("runScreener", () => {
   it("rejects an empty filters array", async () => {
     await expect(runScreener([], [], DEFAULT_PAGINATION)).rejects.toMatchObject({ statusCode: 400 });
-    expect(queryNeon).not.toHaveBeenCalled();
+    expect(fetchScreenerResults).not.toHaveBeenCalled();
   });
 
-  it("rejects a filter field that doesn't exist in the filter catalog", async () => {
+  it("rejects a filter field that doesn't exist in the filter catalog, without calling analysis-ts", async () => {
     await expect(
       runScreener([{ field: "nope.nope", min: 1, max: null, exclude: false }], [], DEFAULT_PAGINATION),
     ).rejects.toMatchObject({ statusCode: 400 });
-    expect(queryNeon).not.toHaveBeenCalled();
+    expect(fetchScreenerResults).not.toHaveBeenCalled();
   });
 
-  it("rejects a catalog field whose metric isn't wired up to the analysis DB yet", async () => {
-    await expect(
-      runScreener([{ field: "unwired.someField", min: 1, max: null, exclude: false }], [], DEFAULT_PAGINATION),
-    ).rejects.toMatchObject({ statusCode: 501 });
-  });
-
-  // Regression test: a row with a null report_date/trade_date (e.g. a failed/incomplete compute
-  // upstream in oingg-analysis-ts — observed for real on symbols "1101"/"9999" in profitability_roe)
-  // must never win "latest per symbol" over a properly dated row. Postgres sorts NULLs as the
-  // largest value by default, so a bare `ORDER BY report_date DESC` would put the broken row first.
-  it("excludes rows with a null latestOrderColumn from the CTE, so a broken row never wins DISTINCT ON as \"latest\"", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
-
-    await runScreener([{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }], [], DEFAULT_PAGINATION);
-
-    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
-    expect(sql).toContain('WHERE "report_date" IS NOT NULL AND data_type');
-  });
-
-  it("queries the analysis pool with an INNER JOIN per filtered metric and a normal-mode range condition", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({ rows: [{ symbol: "2330" }] } as never);
+  // Regression coverage for the direct-DB anti-pattern fix (2026-09-01): the general screener query now
+  // runs on analysis-ts's own POST /screener (see analysisScreenerClient.ts), which covers the entire
+  // /filters catalog by construction — there is no "metric isn't wired up yet" 501 case left on bff-ts's
+  // side. A field that exists in the catalog always delegates through.
+  it("delegates the filters/columns/pagination straight to fetchScreenerResults", async () => {
+    vi.mocked(fetchScreenerResults).mockResolvedValue({ count: 0, page: 1, pageSize: 50, totalPages: 0, results: [] });
 
     await runScreener(
       [
         { field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false },
         { field: "roe.roeTtmPct", min: null, max: 30, exclude: false },
       ],
-      [],
-      DEFAULT_PAGINATION,
+      [{ field: "roe.roeTtmPct" }],
+      { page: 2, pageSize: 25 },
     );
 
-    expect(queryNeon).toHaveBeenCalledOnce();
-    const [db, sql, params] = vi.mocked(queryNeon).mock.calls[0]!;
-    expect(db).toBe("analysis");
-    expect(sql).toContain("FROM profitability_margins");
-    expect(sql).toContain("FROM profitability_roe");
-    expect(sql).toContain("INNER JOIN m_roe ON m_roe.symbol = m_grossMargin.symbol");
-    expect(sql).toContain("gross_margin_ttm");
-    expect(sql).toContain("roe_ttm_pct");
-    // Normal mode: value must be within [min, max].
-    expect(sql).toMatch(/IS NOT NULL AND \(\$1::numeric IS NULL OR .*>= \$1::numeric\)/);
-    // Trailing pair is LIMIT/OFFSET (pageSize 50, offset 0 for page 1).
-    expect(params).toEqual([20, null, null, 30, 50, 0]);
-  });
-
-  // Regression test: a digit immediately followed by an uppercase "unit" letter (e.g. "1Y" in "beta1Y",
-  // meaning 1-year) must become "_1y", not "1_y" — the naive "insert _ before every uppercase" rule
-  // produced the invalid column "beta1_y" instead of the real one, "beta_1y" (found via real DB
-  // verification when wiring up the beta metric for the PresetTemplate seed data).
-  it('maps a field key like "beta1Y" to the real column "beta_1y", not "beta1_y"', async () => {
-    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
-
-    await runScreener([{ field: "beta.beta1Y", min: 0, max: null, exclude: false }], [], DEFAULT_PAGINATION);
-
-    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
-    expect(sql).toContain('"beta_1y"');
-    expect(sql).not.toContain("beta1_y");
-  });
-
-  it("builds an outside-range condition when exclude is true", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
-
-    await runScreener([{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: true }], [], DEFAULT_PAGINATION);
-
-    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
-    expect(sql).toMatch(/IS NOT NULL AND \(\(\$1::numeric IS NOT NULL AND .*< \$1::numeric\)/);
-  });
-
-  // beta is a non-quarterly special table (as_of_date, no year/season columns) — its asOfDate must stay
-  // a plain date, not fall into the quarter-label branch used by quarterly() metrics like roe above.
-  it("keeps a plain date asOfDate for non-quarterly metrics like beta (no year/season columns)", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({
-      rows: [{ symbol: "2330", "beta.beta1Y": "0.85", "beta.beta1Y__asOfDate": "2026-08-20", __totalCount: "1" }],
-    } as never);
-
-    const result = await runScreener(
-      [{ field: "beta.beta1Y", min: null, max: null, exclude: false }],
-      [{ field: "beta.beta1Y" }],
-      DEFAULT_PAGINATION,
-    );
-
-    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
-    expect(sql).toContain('AS "beta.beta1Y__asOfDate"');
-    expect(sql).not.toContain("beta.beta1Y__asOfYear");
-    expect(result.results).toEqual([
-      { symbol: "2330", name: null, values: { "beta.beta1Y": { value: "0.85", asOfDate: "2026-08-20" } } },
-    ]);
-  });
-
-  // Regression: roe is a quarterly() metric, so its asOfDate must be a "{yy}Q{season}" label built from
-  // the row's own year/season integer columns — not a formatted date. See analysisMetricTables.ts's
-  // asOfFormat: quarterly-report tables store year/season directly (part of their primary key), so this
-  // reads those two existing columns rather than parsing report_date back apart.
-  it("LEFT JOINs a metric that's only requested as a display column, not filtered", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({
-      rows: [
-        {
-          symbol: "2330",
-          "roe.roeTtmPct": "10.98",
-          // 115 is the real column's ROC/Minguo year for 2026 (115 + 1911 = 2026) — see toQuarterLabel.
-          "roe.roeTtmPct__asOfYear": 115,
-          "roe.roeTtmPct__asOfSeason": 2,
-          __totalCount: "1",
-        },
+    expect(fetchScreenerResults).toHaveBeenCalledWith(
+      [
+        { field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false },
+        { field: "roe.roeTtmPct", min: null, max: 30, exclude: false },
       ],
-    } as never);
+      [{ field: "roe.roeTtmPct" }],
+      { page: 2, pageSize: 25 },
+    );
+  });
+
+  it("resolves the requested columns against the local filter catalog for metricName/fieldName in the response", async () => {
+    vi.mocked(fetchScreenerResults).mockResolvedValue({
+      count: 1,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+      results: [{ symbol: "2330", values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "26Q2" } } }],
+    });
 
     const result = await runScreener(
       [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
@@ -219,36 +129,23 @@ describe("runScreener", () => {
       DEFAULT_PAGINATION,
     );
 
-    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
-    expect(sql).toContain("LEFT JOIN m_roe ON m_roe.symbol = m_grossMargin.symbol");
-    // Quarterly metrics select year/season directly (not a date column) for their as-of info.
-    expect(sql).toContain('AS "roe.roeTtmPct__asOfYear"');
-    expect(sql).toContain('AS "roe.roeTtmPct__asOfSeason"');
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
     expect(result.results).toEqual([
       { symbol: "2330", name: null, values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "26Q2" } } },
     ]);
   });
 
-  // Regression test: caught live after shipping — oingg-analysis-ts's quarterly tables store `year` as
-  // the ROC/Minguo calendar year (民國年), not Gregorian. A naive slice(-2) of the raw column value
-  // turned ROC year 115 (= 2026 CE) into "15Q2" instead of "26Q2". Must add 1911 before formatting.
-  it("converts the ROC/Minguo year to Gregorian before building the quarter label (115 -> 26, not 15)", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({
-      rows: [{ symbol: "2330", "roe.roeTtmPct": "34.78", "roe.roeTtmPct__asOfYear": 115, "roe.roeTtmPct__asOfSeason": 2 }],
-    } as never);
-
-    const result = await runScreener(
-      [{ field: "roe.roeTtmPct", min: null, max: null, exclude: false }],
-      [{ field: "roe.roeTtmPct" }],
-      DEFAULT_PAGINATION,
-    );
-
-    expect(result.results[0]?.values["roe.roeTtmPct"]?.asOfDate).toBe("26Q2");
-  });
-
-  it('merges in "stock.price" (a special, non-catalog column) from twse/tpex instead of the analysis DB', async () => {
-    vi.mocked(queryNeon).mockResolvedValue({ rows: [{ symbol: "2330" }, { symbol: "2317" }] } as never);
+  it('merges in "stock.price" (a special, non-catalog column) from twse/tpex, not passed through to analysis-ts', async () => {
+    vi.mocked(fetchScreenerResults).mockResolvedValue({
+      count: 2,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+      results: [
+        { symbol: "2330", values: {} },
+        { symbol: "2317", values: {} },
+      ],
+    });
     vi.mocked(getLatestClosePrices).mockResolvedValue(
       new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28" }]]),
     );
@@ -259,9 +156,8 @@ describe("runScreener", () => {
       DEFAULT_PAGINATION,
     );
 
-    // "stock.price" must never leak into the analysis-DB SQL — it isn't a filterCatalog field.
-    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
-    expect(sql).not.toContain("stock");
+    // "stock.price" must never leak into the columns sent to analysis-ts — it isn't a filterCatalog field.
+    expect(fetchScreenerResults).toHaveBeenCalledWith(expect.anything(), [], DEFAULT_PAGINATION);
     // One batched call for the whole result set, not one call per symbol.
     expect(getLatestClosePrices).toHaveBeenCalledTimes(1);
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330", "2317"]);
@@ -276,8 +172,22 @@ describe("runScreener", () => {
   // opt-in column the way stock.price is. See companies.service.ts: this is a live per-request lookup,
   // nothing cached on bff's side.
   it("attaches each row's company name from a single batched getCompanyNames lookup", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({ rows: [{ symbol: "2330" }, { symbol: "2317" }] } as never);
-    vi.mocked(getCompanyNames).mockResolvedValue(new Map([["2330", "台積電"], ["2317", null]]));
+    vi.mocked(fetchScreenerResults).mockResolvedValue({
+      count: 2,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+      results: [
+        { symbol: "2330", values: {} },
+        { symbol: "2317", values: {} },
+      ],
+    });
+    vi.mocked(getCompanyNames).mockResolvedValue(
+      new Map([
+        ["2330", "台積電"],
+        ["2317", null],
+      ]),
+    );
 
     const result = await runScreener(
       [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
@@ -296,7 +206,7 @@ describe("runScreener", () => {
   // Regression test: filters and display columns used to each be resolved against the filter catalog
   // one at a time (one query per field). Must be a single batched lookup covering both.
   it("resolves all filter and column fields in a single batched catalog lookup", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
+    vi.mocked(fetchScreenerResults).mockResolvedValue({ count: 0, page: 1, pageSize: 50, totalPages: 0, results: [] });
 
     await runScreener(
       [
@@ -316,13 +226,17 @@ describe("runScreener", () => {
   });
 
   describe("pagination", () => {
-    it("adds LIMIT/OFFSET params derived from page/pageSize and reports total/page/pageSize/totalPages from the window function", async () => {
-      vi.mocked(queryNeon).mockResolvedValue({
-        rows: [
-          { symbol: "2330", __totalCount: "120" },
-          { symbol: "2317", __totalCount: "120" },
+    it("passes count/page/pageSize/totalPages straight through from analysis-ts", async () => {
+      vi.mocked(fetchScreenerResults).mockResolvedValue({
+        count: 120,
+        page: 3,
+        pageSize: 2,
+        totalPages: 60,
+        results: [
+          { symbol: "2330", values: {} },
+          { symbol: "2317", values: {} },
         ],
-      } as never);
+      });
 
       const result = await runScreener(
         [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
@@ -330,25 +244,14 @@ describe("runScreener", () => {
         { page: 3, pageSize: 2 },
       );
 
-      const [, sql, params] = vi.mocked(queryNeon).mock.calls[0]!;
-      expect(sql).toContain('COUNT(*) OVER() AS "__totalCount"');
-      expect(sql).toMatch(/LIMIT \$\d+::int OFFSET \$\d+::int/);
-      // page 3, pageSize 2 -> offset 4. Filter params (min, max) come first, then [pageSize, offset].
-      expect(params).toEqual([20, null, 2, 4]);
-
       expect(result.count).toBe(120);
       expect(result.page).toBe(3);
       expect(result.pageSize).toBe(2);
       expect(result.totalPages).toBe(60);
-      // The internal window-function column must never leak into a row's values.
-      expect(result.results).toEqual([
-        { symbol: "2330", name: null, values: {} },
-        { symbol: "2317", name: null, values: {} },
-      ]);
     });
 
-    it("reports count 0 and totalPages 0 when nothing matches, instead of NaN from an empty row set", async () => {
-      vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
+    it("reports count 0 and totalPages 0 when nothing matches", async () => {
+      vi.mocked(fetchScreenerResults).mockResolvedValue({ count: 0, page: 1, pageSize: 50, totalPages: 0, results: [] });
 
       const result = await runScreener(
         [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
@@ -364,24 +267,25 @@ describe("runScreener", () => {
 });
 
 describe("runRanking", () => {
-  it("orders by the ranked field's own value (not symbol), excludes nulls, and has no threshold params — just LIMIT", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({
-      rows: [
-        { symbol: "2330", "roe.roeTtmPct": "30.5", "roe.roeTtmPct__asOfYear": 115, "roe.roeTtmPct__asOfSeason": 2 },
-        { symbol: "2317", "roe.roeTtmPct": "25.1", "roe.roeTtmPct__asOfYear": 115, "roe.roeTtmPct__asOfSeason": 1 },
+  it("delegates field/direction/limit and extra columns to fetchScreenerRanking", async () => {
+    vi.mocked(fetchScreenerRanking).mockResolvedValue({ results: [] });
+
+    await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "grossMargin.grossMarginTtm" }]);
+
+    expect(fetchScreenerRanking).toHaveBeenCalledWith("roe.roeTtmPct", "desc", 10, [
+      { field: "grossMargin.grossMarginTtm" },
+    ]);
+  });
+
+  it("resolves the ranked field and extra columns against the local catalog for the response's columns", async () => {
+    vi.mocked(fetchScreenerRanking).mockResolvedValue({
+      results: [
+        { symbol: "2330", values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } },
+        { symbol: "2317", values: { "roe.roeTtmPct": { value: "25.1", asOfDate: "26Q1" } } },
       ],
-    } as never);
+    });
 
     const result = await runRanking("roe.roeTtmPct", "desc", 10, []);
-
-    const [db, sql, params] = vi.mocked(queryNeon).mock.calls[0]!;
-    expect(db).toBe("analysis");
-    expect(sql).toContain('WHERE m_roe."roe_ttm_pct" IS NOT NULL');
-    // The CTE's own internal "ORDER BY symbol, ... DESC" (picking each symbol's latest row) is expected
-    // and unrelated — what matters is the outer query's final ORDER BY sorts by the ranked value itself.
-    expect(sql).toMatch(/\)\s*SELECT[\s\S]*ORDER BY m_roe\."roe_ttm_pct" DESC/);
-    // No filter thresholds to parameterize — the only param is the LIMIT.
-    expect(params).toEqual([10]);
 
     expect(result.field).toBe("roe.roeTtmPct");
     expect(result.direction).toBe("desc");
@@ -393,43 +297,36 @@ describe("runRanking", () => {
     ]);
   });
 
-  it('sorts ASC for "lowest first" rankings (e.g. lowest P/E)', async () => {
-    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
-
-    await runRanking("roe.roeTtmPct", "asc", 5, []);
-
-    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
-    expect(sql).toMatch(/ORDER BY m_roe\."roe_ttm_pct" ASC/);
-  });
-
-  it("rejects a field the filter catalog doesn't know about", async () => {
+  it("rejects a field the filter catalog doesn't know about, without calling analysis-ts", async () => {
     await expect(runRanking("nope.nope", "desc", 10, [])).rejects.toMatchObject({ statusCode: 400 });
-    expect(queryNeon).not.toHaveBeenCalled();
+    expect(fetchScreenerRanking).not.toHaveBeenCalled();
   });
 
-  it("rejects a catalog field whose metric isn't wired up to the analysis DB yet", async () => {
-    await expect(runRanking("unwired.someField", "desc", 10, [])).rejects.toMatchObject({ statusCode: 501 });
+  it("doesn't re-resolve or re-pass the ranked field as an extra column when it's also listed in columns", async () => {
+    vi.mocked(fetchScreenerRanking).mockResolvedValue({ results: [] });
+
+    await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "roe.roeTtmPct" }, { field: "grossMargin.grossMarginTtm" }]);
+
+    expect(fetchScreenerRanking).toHaveBeenCalledWith("roe.roeTtmPct", "desc", 10, [
+      { field: "grossMargin.grossMarginTtm" },
+    ]);
   });
 
-  it("adds extra display columns via LEFT JOIN, same as runScreener, without disturbing the ranking", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({
-      rows: [
+  it("adds extra display columns to the response's columns array", async () => {
+    vi.mocked(fetchScreenerRanking).mockResolvedValue({
+      results: [
         {
           symbol: "2330",
-          "roe.roeTtmPct": "30.5",
-          "roe.roeTtmPct__asOfYear": 115,
-          "roe.roeTtmPct__asOfSeason": 2,
-          "grossMargin.grossMarginTtm": "55.2",
-          "grossMargin.grossMarginTtm__asOfYear": 115,
-          "grossMargin.grossMarginTtm__asOfSeason": 2,
+          values: {
+            "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" },
+            "grossMargin.grossMarginTtm": { value: "55.2", asOfDate: "26Q2" },
+          },
         },
       ],
-    } as never);
+    });
 
     const result = await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "grossMargin.grossMarginTtm" }]);
 
-    const sql = vi.mocked(queryNeon).mock.calls[0]![1] as string;
-    expect(sql).toContain("LEFT JOIN m_grossMargin ON m_grossMargin.symbol = m_roe.symbol");
     expect(result.columns).toContainEqual({
       field: "grossMargin.grossMarginTtm",
       metricName: "Margins",
@@ -441,15 +338,17 @@ describe("runRanking", () => {
   });
 
   it('merges "stock.price" into results the same way runScreener does', async () => {
-    vi.mocked(queryNeon).mockResolvedValue({
-      rows: [{ symbol: "2330", "roe.roeTtmPct": "30.5", "roe.roeTtmPct__asOfYear": 115, "roe.roeTtmPct__asOfSeason": 2 }],
-    } as never);
+    vi.mocked(fetchScreenerRanking).mockResolvedValue({
+      results: [{ symbol: "2330", values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } }],
+    });
     vi.mocked(getLatestClosePrices).mockResolvedValue(
       new Map([["2330", { close: "2410.0000", tradeDate: "2026-08-28" }]]),
     );
 
     const result = await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "stock.price" }]);
 
+    // "stock.price" must never be sent to analysis-ts as an extra column — it isn't a filterCatalog field.
+    expect(fetchScreenerRanking).toHaveBeenCalledWith("roe.roeTtmPct", "desc", 10, []);
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330"]);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價" });
     expect(result.results[0]?.values).toMatchObject({
@@ -457,24 +356,22 @@ describe("runRanking", () => {
     });
   });
 
-  it("caps the query at exactly LIMIT rows with no pagination metadata (not the paginated ScreenerResult shape)", async () => {
-    vi.mocked(queryNeon).mockResolvedValue({ rows: [] } as never);
+  it("returns exactly what fetchScreenerRanking gives back, no pagination metadata on the result", async () => {
+    vi.mocked(fetchScreenerRanking).mockResolvedValue({ results: [] });
 
     const result = await runRanking("roe.roeTtmPct", "desc", 3, []);
 
-    expect(vi.mocked(queryNeon).mock.calls[0]![1]).toMatch(/LIMIT \$1::int/);
-    expect(vi.mocked(queryNeon).mock.calls[0]![2]).toEqual([3]);
     expect(result).not.toHaveProperty("count");
     expect(result).not.toHaveProperty("page");
   });
 
-  // Regression coverage: per.peRatio/pbr.pbRatio/dividendYield.dividendYieldPct must bypass the
-  // analysis-DB CTE path entirely and delegate to oingg-analysis-ts's own GET /valuation/ranking
-  // (via fetchValuationRanking) instead — ranking is a second-order computation over raw market data
-  // (merge twse+tpex, exclude non-positive P/E or P/B, sort) that belongs to analysis-ts, not this BFF.
-  // See VALUATION_RANKING_FIELDS and runValuationRanking.
+  // Regression coverage: per.peRatio/pbr.pbRatio/dividendYield.dividendYieldPct must bypass the general
+  // screener path entirely and delegate to oingg-analysis-ts's own GET /valuation/ranking (via
+  // fetchValuationRanking) instead — ranking is a second-order computation over raw market data (merge
+  // twse+tpex, exclude non-positive P/E or P/B, sort) that belongs to analysis-ts's dedicated endpoint,
+  // not the general screener query. See VALUATION_RANKING_FIELDS and runValuationRanking.
   describe("valuation field override (per/pbr/dividendYield -> oingg-analysis-ts's ranking endpoint)", () => {
-    it("routes per.peRatio to fetchValuationRanking instead of querying the analysis DB directly", async () => {
+    it("routes per.peRatio to fetchValuationRanking instead of the general screener ranking path", async () => {
       vi.mocked(fetchValuationRanking).mockResolvedValue({
         tradeDate: "2026-08-28",
         rankings: [
@@ -486,7 +383,7 @@ describe("runRanking", () => {
       const result = await runRanking("per.peRatio", "asc", 10, []);
 
       expect(fetchValuationRanking).toHaveBeenCalledWith("peRatio", "asc", 10);
-      expect(queryNeon).not.toHaveBeenCalled();
+      expect(fetchScreenerRanking).not.toHaveBeenCalled();
       expect(result).toEqual({
         field: "per.peRatio",
         direction: "asc",
@@ -515,10 +412,10 @@ describe("runRanking", () => {
       });
     });
 
-    it("rejects combining a valuation ranking with any analysis-DB column other than stock.price", async () => {
-      await expect(
-        runRanking("per.peRatio", "asc", 10, [{ field: "roe.roeTtmPct" }]),
-      ).rejects.toMatchObject({ statusCode: 400 });
+    it("rejects combining a valuation ranking with any column other than stock.price", async () => {
+      await expect(runRanking("per.peRatio", "asc", 10, [{ field: "roe.roeTtmPct" }])).rejects.toMatchObject({
+        statusCode: 400,
+      });
       expect(fetchValuationRanking).not.toHaveBeenCalled();
     });
   });
