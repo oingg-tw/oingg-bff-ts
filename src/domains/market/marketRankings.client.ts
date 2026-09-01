@@ -1,12 +1,25 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { requireEnv } from "@/shared/env.js";
 import type {
+  AttentionStockEntry,
+  AttentionStocksResult,
+  DisposedStockEntry,
+  DisposedStocksResult,
   ForeignHoldingRankingEntry,
   ForeignHoldingRankingResult,
+  Market,
   MarginShortRatioRankingEntry,
   MarginShortRatioRankingResult,
   MaterialAnnouncementEntry,
   MaterialAnnouncementsResult,
+  PriceLimitRangeEntry,
+  PriceLimitRangeResult,
+  RankingOrder,
+  RevenueRankingEntry,
+  RevenueRankingMetric,
+  RevenueRankingResult,
+  VolumeTop20Entry,
+  VolumeTop20Result,
 } from "@/domains/market/market.types.js";
 
 /** "" means "no data yet" (see ForeignHoldingRankingResult) — normalized to null, a clearer signal than an empty string. */
@@ -26,6 +39,19 @@ function toDateOrNull(value: unknown): string | null {
  */
 function toStringOrEmpty(value: unknown): string {
   return value === null || value === undefined ? "" : String(value);
+}
+
+/**
+ * Unlike toStringOrEmpty, null here is a meaningful signal (a TPEx row missing a TWSE-only field — see
+ * market.types.ts's per-endpoint notes) that must survive as null, not collapse into an empty string.
+ */
+function toStringOrNull(value: unknown): string | null {
+  return value === null || value === undefined ? null : String(value);
+}
+
+/** Only "TWSE"/"TPEx" are documented — anything else defaults to "TWSE" rather than throwing. */
+function normalizeMarket(value: unknown): Market {
+  return value === "TPEx" ? "TPEx" : "TWSE";
 }
 
 function normalizeForeignHoldingEntry(raw: unknown): ForeignHoldingRankingEntry {
@@ -64,6 +90,80 @@ function normalizeMaterialAnnouncementEntry(raw: unknown): MaterialAnnouncementE
     clause: toStringOrEmpty(r.clause),
     factDate: toStringOrEmpty(r.factDate),
     description: toStringOrEmpty(r.description),
+  };
+}
+
+function normalizeRevenueRankingEntry(raw: unknown): RevenueRankingEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    rank: Number(r.rank),
+    symbol: String(r.symbol),
+    name: typeof r.companyName === "string" ? r.companyName : null,
+    market: normalizeMarket(r.market),
+    currentMonthRevenue: toStringOrEmpty(r.currentMonthRevenue),
+    momChangePercent: toStringOrNull(r.momChangePercent),
+    yoyChangePercent: toStringOrNull(r.yoyChangePercent),
+  };
+}
+
+function normalizeVolumeTop20Entry(raw: unknown): VolumeTop20Entry {
+  const r = raw as Record<string, unknown>;
+  return {
+    rank: Number(r.rank),
+    symbol: String(r.symbol),
+    name: typeof r.companyName === "string" ? r.companyName : null,
+    market: normalizeMarket(r.market),
+    volume: toStringOrEmpty(r.volume),
+    transaction: toStringOrNull(r.transaction),
+    open: toStringOrNull(r.open),
+    high: toStringOrNull(r.high),
+    low: toStringOrNull(r.low),
+    close: toStringOrNull(r.close),
+    dir: toStringOrNull(r.dir),
+    change: toStringOrNull(r.change),
+  };
+}
+
+function normalizeDisposedStockEntry(raw: unknown): DisposedStockEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    symbol: String(r.symbol),
+    name: typeof r.companyName === "string" ? r.companyName : null,
+    market: normalizeMarket(r.market),
+    announceDate: toStringOrEmpty(r.announceDate),
+    announcementCount: typeof r.announcementCount === "number" ? r.announcementCount : null,
+    reason: toStringOrEmpty(r.reason),
+    dispositionPeriod: toStringOrEmpty(r.dispositionPeriod),
+    dispositionMeasures: toStringOrNull(r.dispositionMeasures),
+    detail: toStringOrEmpty(r.detail),
+    linkInformation: toStringOrNull(r.linkInformation),
+  };
+}
+
+function normalizeAttentionStockEntry(raw: unknown): AttentionStockEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    symbol: String(r.symbol),
+    name: typeof r.companyName === "string" ? r.companyName : null,
+    market: normalizeMarket(r.market),
+    tradeDate: toStringOrEmpty(r.tradeDate),
+    criteria: toStringOrEmpty(r.criteria),
+  };
+}
+
+function normalizePriceLimitRangeEntry(raw: unknown): PriceLimitRangeEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    rank: Number(r.rank),
+    symbol: String(r.symbol),
+    name: typeof r.companyName === "string" ? r.companyName : null,
+    market: normalizeMarket(r.market),
+    limitUp: toStringOrEmpty(r.limitUp),
+    limitDown: toStringOrEmpty(r.limitDown),
+    limitRange: toStringOrEmpty(r.limitRange),
+    openingRefPrice: toStringOrNull(r.openingRefPrice),
+    previousDayPrice: toStringOrNull(r.previousDayPrice),
+    allowOddLotTrade: toStringOrNull(r.allowOddLotTrade),
   };
 }
 
@@ -182,5 +282,122 @@ export async function fetchMaterialAnnouncements(limit: number): Promise<Materia
     limit: body.limit,
     items: body.items.map(normalizeMaterialAnnouncementEntry),
     warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
+  };
+}
+
+/**
+ * Monthly revenue ranking (月營收排行) from analysis-ts's GET /market/revenue-ranking — `metric` picks
+ * the sort basis (yoy/mom/revenue), TWSE+TPEx merged as of 2026-09-01. `metric`/`order` are both required
+ * upstream (no default) — bff-ts mirrors that, see market.routes.ts's requireStringQueryParam.
+ */
+export async function fetchRevenueRanking(
+  metric: RevenueRankingMetric,
+  order: RankingOrder,
+  limit: number,
+): Promise<RevenueRankingResult> {
+  const body = (await getJson("/market/revenue-ranking", { metric, order, limit: String(limit) })) as {
+    yearMonth?: unknown;
+    metric?: unknown;
+    order?: unknown;
+    limit?: unknown;
+    rankings?: unknown;
+    warnings?: unknown;
+  };
+
+  if (
+    typeof body.yearMonth !== "string" ||
+    typeof body.metric !== "string" ||
+    typeof body.order !== "string" ||
+    typeof body.limit !== "number" ||
+    !Array.isArray(body.rankings)
+  ) {
+    throw new AppError("Revenue ranking response is missing expected fields", 502);
+  }
+
+  return {
+    yearMonth: body.yearMonth,
+    metric: body.metric as RevenueRankingMetric,
+    order: body.order as RankingOrder,
+    limit: body.limit,
+    rankings: body.rankings.map(normalizeRevenueRankingEntry),
+    warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
+  };
+}
+
+/**
+ * Top 20 by trading volume (成交量前20) from analysis-ts's GET /market/volume-top20 — no query params,
+ * always exactly 20 (data permitting). Deliberately does NOT exclude ETFs/derivatives, unlike this file's
+ * other ranking endpoints (confirmed with analysis-ts directly).
+ */
+export async function fetchVolumeTop20(): Promise<VolumeTop20Result> {
+  const body = (await getJson("/market/volume-top20", {})) as { tradeDate?: unknown; rankings?: unknown };
+
+  if (!Array.isArray(body.rankings)) {
+    throw new AppError("Volume top20 response is missing expected fields", 502);
+  }
+
+  return {
+    tradeDate: toDateOrNull(body.tradeDate),
+    rankings: body.rankings.map(normalizeVolumeTop20Entry),
+  };
+}
+
+/** 處置股清單 (disposed stocks) from analysis-ts's GET /market/disposed-stocks — newest announcement first. */
+export async function fetchDisposedStocks(limit: number): Promise<DisposedStocksResult> {
+  const body = (await getJson("/market/disposed-stocks", { limit: String(limit) })) as {
+    limit?: unknown;
+    items?: unknown;
+    warnings?: unknown;
+  };
+
+  if (typeof body.limit !== "number" || !Array.isArray(body.items)) {
+    throw new AppError("Disposed stocks response is missing expected fields", 502);
+  }
+
+  return {
+    limit: body.limit,
+    items: body.items.map(normalizeDisposedStockEntry),
+    warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
+  };
+}
+
+/** 注意股清單 (attention stocks) from analysis-ts's GET /market/attention-stocks — newest trade date first. */
+export async function fetchAttentionStocks(limit: number): Promise<AttentionStocksResult> {
+  const body = (await getJson("/market/attention-stocks", { limit: String(limit) })) as {
+    limit?: unknown;
+    items?: unknown;
+    warnings?: unknown;
+  };
+
+  if (typeof body.limit !== "number" || !Array.isArray(body.items)) {
+    throw new AppError("Attention stocks response is missing expected fields", 502);
+  }
+
+  return {
+    limit: body.limit,
+    items: body.items.map(normalizeAttentionStockEntry),
+    warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
+  };
+}
+
+/**
+ * Widest/narrowest daily price-limit-range movers from analysis-ts's GET /market/price-limit-range — no
+ * query params, 20 rows each direction (data permitting).
+ */
+export async function fetchPriceLimitRange(): Promise<PriceLimitRangeResult> {
+  const body = (await getJson("/market/price-limit-range", {})) as {
+    tradeDate?: unknown;
+    widest?: unknown;
+    narrowest?: unknown;
+  };
+
+  if (!Array.isArray(body.widest) || !Array.isArray(body.narrowest)) {
+    throw new AppError("Price limit range response is missing expected fields", 502);
+  }
+
+  return {
+    tradeDate: toDateOrNull(body.tradeDate),
+    widest: body.widest.map(normalizePriceLimitRangeEntry),
+    narrowest: body.narrowest.map(normalizePriceLimitRangeEntry),
   };
 }

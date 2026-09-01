@@ -4,23 +4,43 @@ vi.mock("@/domains/market/marketRankings.client.js", () => ({
   fetchForeignHoldingRanking: vi.fn(),
   fetchMarginShortRatioRanking: vi.fn(),
   fetchMaterialAnnouncements: vi.fn(),
+  fetchRevenueRanking: vi.fn(),
+  fetchVolumeTop20: vi.fn(),
+  fetchDisposedStocks: vi.fn(),
+  fetchAttentionStocks: vi.fn(),
+  fetchPriceLimitRange: vi.fn(),
 }));
 
 import {
+  fetchAttentionStocks,
+  fetchDisposedStocks,
   fetchForeignHoldingRanking,
   fetchMarginShortRatioRanking,
   fetchMaterialAnnouncements,
+  fetchPriceLimitRange,
+  fetchRevenueRanking,
+  fetchVolumeTop20,
 } from "@/domains/market/marketRankings.client.js";
 import {
+  getAttentionStocks,
+  getDisposedStocks,
   getForeignHoldingRanking,
   getMarginShortRatioRanking,
   getMaterialAnnouncements,
+  getPriceLimitRange,
+  getRevenueRanking,
+  getVolumeTop20,
 } from "@/domains/market/market.service.js";
 
 beforeEach(() => {
   vi.mocked(fetchForeignHoldingRanking).mockReset();
   vi.mocked(fetchMarginShortRatioRanking).mockReset();
   vi.mocked(fetchMaterialAnnouncements).mockReset();
+  vi.mocked(fetchRevenueRanking).mockReset();
+  vi.mocked(fetchVolumeTop20).mockReset();
+  vi.mocked(fetchDisposedStocks).mockReset();
+  vi.mocked(fetchAttentionStocks).mockReset();
+  vi.mocked(fetchPriceLimitRange).mockReset();
 });
 
 describe("getForeignHoldingRanking", () => {
@@ -158,5 +178,90 @@ describe("getMaterialAnnouncements", () => {
     const result = await getMaterialAnnouncements(1);
 
     expect(result.items[0]?.name).toBe("世紀風電");
+  });
+});
+
+describe("getRevenueRanking", () => {
+  it("delegates valid metric/order/limit straight through", async () => {
+    vi.mocked(fetchRevenueRanking).mockResolvedValue({
+      yearMonth: "2026-07",
+      metric: "yoy",
+      order: "desc",
+      limit: 20,
+      rankings: [],
+      warnings: [],
+    });
+
+    await getRevenueRanking("yoy", "desc", 20);
+
+    expect(fetchRevenueRanking).toHaveBeenCalledWith("yoy", "desc", 20);
+  });
+
+  it.each(["bogus", "", "YOY"])("rejects an invalid metric (%s) without calling analysis-ts", async (metric) => {
+    await expect(getRevenueRanking(metric, "desc", 20)).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchRevenueRanking).not.toHaveBeenCalled();
+  });
+
+  it.each(["bogus", "", "ASC"])("rejects an invalid order (%s) without calling analysis-ts", async (order) => {
+    await expect(getRevenueRanking("yoy", order, 20)).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchRevenueRanking).not.toHaveBeenCalled();
+  });
+
+  // Bounds match analysis-ts's own validation (verified live: 1-50).
+  it.each([0, -1, 51, 2.5])("rejects an out-of-range limit (%s) without calling analysis-ts", async (value) => {
+    await expect(getRevenueRanking("yoy", "desc", value)).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchRevenueRanking).not.toHaveBeenCalled();
+  });
+});
+
+describe("getVolumeTop20", () => {
+  it("delegates straight through with no params", async () => {
+    vi.mocked(fetchVolumeTop20).mockResolvedValue({ tradeDate: "2026-09-01", rankings: [] });
+
+    await getVolumeTop20();
+
+    expect(fetchVolumeTop20).toHaveBeenCalledWith();
+  });
+});
+
+describe("getDisposedStocks", () => {
+  it("delegates a valid limit straight through", async () => {
+    vi.mocked(fetchDisposedStocks).mockResolvedValue({ limit: 20, items: [], warnings: [] });
+
+    await getDisposedStocks(20);
+
+    expect(fetchDisposedStocks).toHaveBeenCalledWith(20);
+  });
+
+  // Bounds match analysis-ts's own validation (verified live: 1-50).
+  it.each([0, -1, 51, 2.5])("rejects an out-of-range limit (%s) without calling analysis-ts", async (value) => {
+    await expect(getDisposedStocks(value)).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchDisposedStocks).not.toHaveBeenCalled();
+  });
+});
+
+describe("getAttentionStocks", () => {
+  it("delegates a valid limit straight through", async () => {
+    vi.mocked(fetchAttentionStocks).mockResolvedValue({ limit: 20, items: [], warnings: [] });
+
+    await getAttentionStocks(20);
+
+    expect(fetchAttentionStocks).toHaveBeenCalledWith(20);
+  });
+
+  // Bounds match analysis-ts's own validation (verified live: 1-50).
+  it.each([0, -1, 51, 2.5])("rejects an out-of-range limit (%s) without calling analysis-ts", async (value) => {
+    await expect(getAttentionStocks(value)).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchAttentionStocks).not.toHaveBeenCalled();
+  });
+});
+
+describe("getPriceLimitRange", () => {
+  it("delegates straight through with no params", async () => {
+    vi.mocked(fetchPriceLimitRange).mockResolvedValue({ tradeDate: "2026-09-01", widest: [], narrowest: [] });
+
+    await getPriceLimitRange();
+
+    expect(fetchPriceLimitRange).toHaveBeenCalledWith();
   });
 });

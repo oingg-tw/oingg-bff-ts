@@ -1,12 +1,20 @@
 import { Router } from "ultimate-express";
 import { AppError } from "@/shared/errorHandler.js";
 import {
+  DEFAULT_ATTENTION_STOCKS_LIMIT,
+  DEFAULT_DISPOSED_STOCKS_LIMIT,
   DEFAULT_FOREIGN_HOLDING_LIMIT,
   DEFAULT_MARGIN_SHORT_LIMIT,
   DEFAULT_MATERIAL_ANNOUNCEMENTS_LIMIT,
+  DEFAULT_REVENUE_RANKING_LIMIT,
+  getAttentionStocks,
+  getDisposedStocks,
   getForeignHoldingRanking,
   getMarginShortRatioRanking,
   getMaterialAnnouncements,
+  getPriceLimitRange,
+  getRevenueRanking,
+  getVolumeTop20,
 } from "@/domains/market/market.service.js";
 
 export const marketRouter = Router();
@@ -20,6 +28,14 @@ function parseIntQueryParam(raw: unknown, name: string, defaultValue: number): n
     throw new AppError(`"${name}" must be an integer`, 400);
   }
   return value;
+}
+
+/** analysis-ts requires this param with no default — fail fast with the same message shape as an unknown/bad value. */
+function requireStringQueryParam(raw: unknown, name: string): string {
+  if (typeof raw !== "string" || raw.length === 0) {
+    throw new AppError(`"${name}" is required`, 400);
+  }
+  return raw;
 }
 
 /**
@@ -163,5 +179,230 @@ marketRouter.get("/margin-short-ratio-ranking", async (req, res) => {
 marketRouter.get("/material-announcements", async (req, res) => {
   const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_MATERIAL_ANNOUNCEMENTS_LIMIT);
   const result = await getMaterialAnnouncements(limit);
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /market/revenue-ranking:
+ *   get:
+ *     summary: 月營收排行——依 metric 指定排序依據（YoY／MoM／營收金額）
+ *     description: >
+ *       上市＋上櫃合併（2026-09-01 起）。metric/order 都是必填，沒有預設值。momChangePercent/
+ *       yoyChangePercent 沒有可比較的前期資料時是 null，不是查詢失敗。
+ *     tags:
+ *       - Market
+ *     parameters:
+ *       - in: query
+ *         name: metric
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [yoy, mom, revenue]
+ *       - in: query
+ *         name: order
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 50
+ *     responses:
+ *       200:
+ *         description: 月營收排行清單。
+ *         content:
+ *           application/json:
+ *             example:
+ *               yearMonth: "2026-07"
+ *               metric: "yoy"
+ *               order: "desc"
+ *               limit: 2
+ *               rankings:
+ *                 - rank: 1
+ *                   symbol: "4113"
+ *                   name: "聯上"
+ *                   market: "TPEx"
+ *                   currentMonthRevenue: "581140"
+ *                   momChangePercent: "250.1181"
+ *                   yoyChangePercent: "1096390.566"
+ *               warnings: []
+ *       400:
+ *         description: metric/order 缺漏或不是允許的值，或 limit 不是 1~50 之間的整數。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+marketRouter.get("/revenue-ranking", async (req, res) => {
+  const metric = requireStringQueryParam(req.query.metric, "metric");
+  const order = requireStringQueryParam(req.query.order, "order");
+  const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_REVENUE_RANKING_LIMIT);
+  const result = await getRevenueRanking(metric, order, limit);
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /market/volume-top20:
+ *   get:
+ *     summary: 成交量前20——上市＋上櫃合併，無查詢參數
+ *     description: >
+ *       刻意不排除 ETF／衍生性商品，跟本服務其他排行端點不同。TPEx 目前沒有 transaction/open/high/
+ *       low/close/dir/change 這幾個欄位，會是 null（不是查詢失敗）。
+ *     tags:
+ *       - Market
+ *     responses:
+ *       200:
+ *         description: 成交量前20清單。
+ *         content:
+ *           application/json:
+ *             example:
+ *               tradeDate: "2026-09-01"
+ *               rankings:
+ *                 - rank: 1
+ *                   symbol: "6182"
+ *                   name: "合晶"
+ *                   market: "TPEx"
+ *                   volume: "72836"
+ *                   transaction: null
+ *                   open: null
+ *                   high: null
+ *                   low: null
+ *                   close: null
+ *                   dir: null
+ *                   change: null
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+marketRouter.get("/volume-top20", async (_req, res) => {
+  const result = await getVolumeTop20();
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /market/disposed-stocks:
+ *   get:
+ *     summary: 處置股清單——依公告日期新到舊，上市＋上櫃合併
+ *     description: >
+ *       TPEx 目前沒有 announcementCount/dispositionMeasures/linkInformation 這幾個欄位，會是 null
+ *       （不是查詢失敗）。
+ *     tags:
+ *       - Market
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 50
+ *     responses:
+ *       200:
+ *         description: 處置股清單。
+ *         content:
+ *           application/json:
+ *             example:
+ *               limit: 1
+ *               items:
+ *                 - symbol: "6226"
+ *                   name: "光鼎"
+ *                   market: "TWSE"
+ *                   announceDate: "2026-09-01"
+ *                   announcementCount: 1
+ *                   reason: "提供公布日期近一個月之「公布注意交易資訊」數據標準"
+ *                   dispositionPeriod: "1150902~1150908"
+ *                   dispositionMeasures: "第一次處置"
+ *                   detail: "..."
+ *                   linkInformation: "..."
+ *               warnings: []
+ *       400:
+ *         description: limit 不是 1~50 之間的整數。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+marketRouter.get("/disposed-stocks", async (req, res) => {
+  const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_DISPOSED_STOCKS_LIMIT);
+  const result = await getDisposedStocks(limit);
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /market/attention-stocks:
+ *   get:
+ *     summary: 注意股清單——依交易日新到舊，上市＋上櫃合併
+ *     tags:
+ *       - Market
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 50
+ *     responses:
+ *       200:
+ *         description: 注意股清單。
+ *         content:
+ *           application/json:
+ *             example:
+ *               limit: 1
+ *               items:
+ *                 - symbol: "3406"
+ *                   name: "玉晶光"
+ *                   market: "TWSE"
+ *                   tradeDate: "2026-09-01"
+ *                   criteria: "115年8月28日至115年8月31日連續二次"
+ *               warnings: []
+ *       400:
+ *         description: limit 不是 1~50 之間的整數。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+marketRouter.get("/attention-stocks", async (req, res) => {
+  const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_ATTENTION_STOCKS_LIMIT);
+  const result = await getAttentionStocks(limit);
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /market/price-limit-range:
+ *   get:
+ *     summary: 漲跌停幅度最大/最小各20檔——上市＋上櫃合併，無查詢參數
+ *     description: >
+ *       TPEx 目前沒有 openingRefPrice/previousDayPrice/allowOddLotTrade 這幾個欄位，會是 null
+ *       （不是查詢失敗）。
+ *     tags:
+ *       - Market
+ *     responses:
+ *       200:
+ *         description: widest/narrowest 兩組清單，各最多20檔。
+ *         content:
+ *           application/json:
+ *             example:
+ *               tradeDate: "2026-09-01"
+ *               widest:
+ *                 - rank: 1
+ *                   symbol: "5274"
+ *                   name: "信驊"
+ *                   market: "TPEx"
+ *                   limitUp: "18830"
+ *                   limitDown: "15410"
+ *                   limitRange: "3420"
+ *                   openingRefPrice: null
+ *                   previousDayPrice: null
+ *                   allowOddLotTrade: null
+ *               narrowest: []
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+marketRouter.get("/price-limit-range", async (_req, res) => {
+  const result = await getPriceLimitRange();
   res.json(result);
 });
