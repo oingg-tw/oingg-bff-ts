@@ -2,7 +2,6 @@ import { createApp } from "@/app.js";
 import { initFirebase } from "@/adapters/firebase/index.js";
 import { closeNeonPools, closePrismaClient, initNeonPools } from "@/adapters/neon/index.js";
 import { startColumnPresetTemplateSync } from "@/domains/columnPresetTemplates/index.js";
-import { startCompanySync } from "@/domains/companies/index.js";
 import { startFilterCatalogSync } from "@/domains/filterCatalog/index.js";
 import { env } from "@/shared/env.js";
 
@@ -14,13 +13,9 @@ async function main(): Promise<void> {
   // mechanism from their side — bff-ts is the only one who can keep these fresh, by pulling on its own.
   // Fire-and-forget from an external service that may still be booting or briefly down — never blocks
   // startup or crashes the server; each retries on its own (see filterCatalog.service.ts /
-  // columnPresetTemplates.service.ts / companies.service.ts). Company names are the one deliberate
-  // exception to "never cache analysis-ts's market data" (see companies.service.ts's syncCompaniesIfStale
-  // for why) — startCompanySync also re-checks periodically, not just at startup, since its 24h freshness
-  // window is much shorter than "until next restart".
+  // columnPresetTemplates.service.ts).
   startFilterCatalogSync();
   startColumnPresetTemplateSync();
-  startCompanySync();
 
   const app = createApp();
 

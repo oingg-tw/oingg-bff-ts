@@ -9,6 +9,8 @@ export interface ScreenerColumnInput {
 
 export interface AnalysisScreenerResultRow {
   symbol: string;
+  /** analysis-ts attaches this directly as of 2026-09-01 — see normalizeRows. Null if they have no name on file. */
+  name: string | null;
   values: Record<string, ScreenerValue>;
 }
 
@@ -53,9 +55,10 @@ function normalizeRows(rows: unknown): AnalysisScreenerResultRow[] {
     return [];
   }
   return rows.map((row) => {
-    const r = row as { symbol?: unknown; values?: unknown };
+    const r = row as { symbol?: unknown; companyName?: unknown; values?: unknown };
     return {
       symbol: String(r.symbol),
+      name: typeof r.companyName === "string" ? r.companyName : null,
       values: normalizeValues((r.values ?? {}) as Record<string, unknown>),
     };
   });

@@ -5,6 +5,7 @@ export type ValuationRankingMetric = "peRatio" | "pbRatio" | "dividendYield";
 
 export interface ValuationRankingRow {
   symbol: string;
+  name: string | null;
   value: number;
 }
 
@@ -14,10 +15,24 @@ export interface ValuationRankingResult {
   rankings: ValuationRankingRow[];
 }
 
-function isAnalysisRankingResponse(body: unknown): body is ValuationRankingResult {
+interface RawValuationRankingResponse {
+  tradeDate?: unknown;
+  rankings: unknown[];
+}
+
+function isAnalysisRankingResponse(body: unknown): body is RawValuationRankingResponse {
   if (typeof body !== "object" || body === null) return false;
   const { rankings, tradeDate } = body as { rankings?: unknown; tradeDate?: unknown };
   return Array.isArray(rankings) && (typeof tradeDate === "string" || tradeDate === null || tradeDate === undefined);
+}
+
+function normalizeValuationRankingRow(raw: unknown): ValuationRankingRow {
+  const r = raw as { symbol?: unknown; companyName?: unknown; value?: unknown };
+  return {
+    symbol: String(r.symbol),
+    name: typeof r.companyName === "string" ? r.companyName : null,
+    value: Number(r.value),
+  };
 }
 
 /**
@@ -59,5 +74,5 @@ export async function fetchValuationRanking(
     throw new AppError(`Analysis service response at ${url.toString()} is missing a "rankings" array`, 502);
   }
 
-  return { tradeDate: body.tradeDate ?? null, rankings: body.rankings };
+  return { tradeDate: (body.tradeDate as string | undefined) ?? null, rankings: body.rankings.map(normalizeValuationRankingRow) };
 }

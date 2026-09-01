@@ -1,5 +1,4 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { getCompanyNames } from "@/domains/companies/index.js";
 import { fetchForeignHoldingRanking, fetchMarginShortRatioRanking } from "@/domains/market/marketRankings.client.js";
 import type { ForeignHoldingRankingResult, MarginShortRatioRankingResult } from "@/domains/market/market.types.js";
 
@@ -19,11 +18,7 @@ export async function getForeignHoldingRanking(topPercent: number): Promise<Fore
   return fetchForeignHoldingRanking(topPercent);
 }
 
-/**
- * Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400.
- * Attaches each row's company name from bff-ts's own local Company cache (see companies.service.ts) —
- * a single batched lookup, same pattern as screener.service.ts's mergeCompanyNames.
- */
+/** Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400. */
 export async function getMarginShortRatioRanking(limit: number): Promise<MarginShortRatioRankingResult> {
   if (!Number.isInteger(limit) || limit < MIN_MARGIN_SHORT_LIMIT || limit > MAX_MARGIN_SHORT_LIMIT) {
     throw new AppError(
@@ -31,10 +26,5 @@ export async function getMarginShortRatioRanking(limit: number): Promise<MarginS
       400,
     );
   }
-  const result = await fetchMarginShortRatioRanking(limit);
-  const namesBySymbol = await getCompanyNames(result.rankings.map((row) => row.symbol));
-  return {
-    ...result,
-    rankings: result.rankings.map((row) => ({ ...row, name: namesBySymbol.get(row.symbol) ?? null })),
-  };
+  return fetchMarginShortRatioRanking(limit);
 }

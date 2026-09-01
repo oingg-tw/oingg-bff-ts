@@ -14,10 +14,6 @@ vi.mock("@/domains/stock/index.js", () => ({
   getLatestClosePrices: vi.fn(),
 }));
 
-vi.mock("@/domains/companies/index.js", () => ({
-  getCompanyNames: vi.fn(),
-}));
-
 vi.mock("@/domains/screener/valuationRanking.client.js", () => ({
   fetchValuationRanking: vi.fn(),
 }));
@@ -25,7 +21,6 @@ vi.mock("@/domains/screener/valuationRanking.client.js", () => ({
 import { fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domains/screener/analysisScreenerClient.js";
 import { findFilterFields } from "@/domains/filterCatalog/index.js";
 import { getLatestClosePrices } from "@/domains/stock/index.js";
-import { getCompanyNames } from "@/domains/companies/index.js";
 import { fetchValuationRanking } from "@/domains/screener/valuationRanking.client.js";
 import { runRanking, runScreener, runScreenerValues } from "@/domains/screener/screener.service.js";
 import type { Pagination } from "@/domains/screener/pagination.js";
@@ -75,8 +70,6 @@ beforeEach(() => {
       .filter((f): f is Lookup => f !== null),
   );
   vi.mocked(getLatestClosePrices).mockReset();
-  vi.mocked(getCompanyNames).mockReset();
-  vi.mocked(getCompanyNames).mockResolvedValue(new Map());
   vi.mocked(fetchValuationRanking).mockReset();
 });
 
@@ -191,7 +184,7 @@ describe("runScreener", () => {
       page: 1,
       pageSize: 50,
       totalPages: 1,
-      results: [{ symbol: "2330", values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "26Q2" } } }],
+      results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "26Q2" } } }],
     });
 
     const result = await runScreener(
@@ -202,7 +195,7 @@ describe("runScreener", () => {
 
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)", unit: "percent" }]);
     expect(result.results).toEqual([
-      { symbol: "2330", name: null, values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "26Q2" } } },
+      { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "26Q2" } } },
     ]);
   });
 
@@ -213,8 +206,8 @@ describe("runScreener", () => {
       pageSize: 50,
       totalPages: 1,
       results: [
-        { symbol: "2330", values: {} },
-        { symbol: "2317", values: {} },
+        { symbol: "2330", name: "台積電", values: {} },
+        { symbol: "2317", name: "鴻海", values: {} },
       ],
     });
     vi.mocked(getLatestClosePrices).mockResolvedValue(
@@ -234,73 +227,24 @@ describe("runScreener", () => {
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330", "2317"]);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
     expect(result.results).toEqual([
-      { symbol: "2330", name: null, values: { "stock.price": { value: "2350.0000", asOfDate: "2026-08-28" } } },
-      { symbol: "2317", name: null, values: { "stock.price": { value: null, asOfDate: null } } },
+      { symbol: "2330", name: "台積電", values: { "stock.price": { value: "2350.0000", asOfDate: "2026-08-28" } } },
+      { symbol: "2317", name: "鴻海", values: { "stock.price": { value: null, asOfDate: null } } },
     ]);
   });
 
-  // Perf regression test (2026-09-01): stock-price merging (analysis-ts) and company-name merging (our
-  // own local Company cache) are independent round trips that used to run sequentially — turned into
-  // Promise.all so a caller pays the cost of the slower one, not the sum of both. Verified by checking
-  // both mocks are *called* before either one *resolves*, which sequential awaiting could never do.
-  it("merges stock.price and company names concurrently, not sequentially", async () => {
-    vi.mocked(fetchScreenerResults).mockResolvedValue({
-      count: 1,
-      page: 1,
-      pageSize: 50,
-      totalPages: 1,
-      results: [{ symbol: "2330", values: {} }],
-    });
-
-    let resolvePrices!: (value: Map<string, { close: string | null; tradeDate: string | null }>) => void;
-    let resolveNames!: (value: Map<string, string | null>) => void;
-    vi.mocked(getLatestClosePrices).mockReturnValue(new Promise((resolve) => (resolvePrices = resolve)));
-    vi.mocked(getCompanyNames).mockReturnValue(new Promise((resolve) => (resolveNames = resolve)));
-
-    const resultPromise = runScreener(
-      [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
-      [{ field: "stock.price" }],
-      DEFAULT_PAGINATION,
-    );
-
-    // Give pending microtasks a chance to run (several ticks — resolveCatalogFieldRefs and
-    // fetchScreenerResults each await first) — if the two merges were still sequential, only
-    // getLatestClosePrices would have been called by this point, not getCompanyNames too.
-    await new Promise((resolve) => setImmediate(resolve));
-    expect(getLatestClosePrices).toHaveBeenCalled();
-    expect(getCompanyNames).toHaveBeenCalled();
-
-    resolvePrices(new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28" }]]));
-    resolveNames(new Map([["2330", "台積電"]]));
-    const result = await resultPromise;
-
-    expect(result.results[0]).toEqual({
-      symbol: "2330",
-      name: "台積電",
-      values: { "stock.price": { value: "2350.0000", asOfDate: "2026-08-28" } },
-    });
-  });
-
-  // Company names are always attached, regardless of which columns were requested — not gated behind an
-  // opt-in column the way stock.price is. See companies.service.ts: this is a live per-request lookup,
-  // nothing cached on bff's side.
-  it("attaches each row's company name from a single batched getCompanyNames lookup", async () => {
+  // analysis-ts attaches companyName directly on each row as of 2026-09-01 (see analysisScreenerClient.ts's
+  // normalizeRows) — bff-ts no longer merges names in from a local cache, just passes the field through.
+  it("passes each row's company name through directly from analysis-ts, without any local merge step", async () => {
     vi.mocked(fetchScreenerResults).mockResolvedValue({
       count: 2,
       page: 1,
       pageSize: 50,
       totalPages: 1,
       results: [
-        { symbol: "2330", values: {} },
-        { symbol: "2317", values: {} },
+        { symbol: "2330", name: "台積電", values: {} },
+        { symbol: "2317", name: null, values: {} },
       ],
     });
-    vi.mocked(getCompanyNames).mockResolvedValue(
-      new Map([
-        ["2330", "台積電"],
-        ["2317", null],
-      ]),
-    );
 
     const result = await runScreener(
       [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
@@ -308,8 +252,6 @@ describe("runScreener", () => {
       DEFAULT_PAGINATION,
     );
 
-    expect(getCompanyNames).toHaveBeenCalledTimes(1);
-    expect(getCompanyNames).toHaveBeenCalledWith(["2330", "2317"]);
     expect(result.results).toEqual([
       { symbol: "2330", name: "台積電", values: {} },
       { symbol: "2317", name: null, values: {} },
@@ -346,8 +288,8 @@ describe("runScreener", () => {
         pageSize: 2,
         totalPages: 60,
         results: [
-          { symbol: "2330", values: {} },
-          { symbol: "2317", values: {} },
+          { symbol: "2330", name: null, values: {} },
+          { symbol: "2317", name: null, values: {} },
         ],
       });
 
@@ -393,8 +335,8 @@ describe("runRanking", () => {
   it("resolves the ranked field and extra columns against the local catalog for the response's columns", async () => {
     vi.mocked(fetchScreenerRanking).mockResolvedValue({
       results: [
-        { symbol: "2330", values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } },
-        { symbol: "2317", values: { "roe.roeTtmPct": { value: "25.1", asOfDate: "26Q1" } } },
+        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } },
+        { symbol: "2317", name: "鴻海", values: { "roe.roeTtmPct": { value: "25.1", asOfDate: "26Q1" } } },
       ],
     });
 
@@ -405,8 +347,8 @@ describe("runRanking", () => {
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)", unit: "percent" }]);
     // Different symbols can legitimately have different asOfDate for the same field (one filed later).
     expect(result.results).toEqual([
-      { symbol: "2330", name: null, values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } },
-      { symbol: "2317", name: null, values: { "roe.roeTtmPct": { value: "25.1", asOfDate: "26Q1" } } },
+      { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } },
+      { symbol: "2317", name: "鴻海", values: { "roe.roeTtmPct": { value: "25.1", asOfDate: "26Q1" } } },
     ]);
   });
 
@@ -430,6 +372,7 @@ describe("runRanking", () => {
       results: [
         {
           symbol: "2330",
+          name: "台積電",
           values: {
             "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" },
             "grossMargin.grossMarginTtm": { value: "55.2", asOfDate: "26Q2" },
@@ -453,7 +396,7 @@ describe("runRanking", () => {
 
   it('merges "stock.price" into results the same way runScreener does', async () => {
     vi.mocked(fetchScreenerRanking).mockResolvedValue({
-      results: [{ symbol: "2330", values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } }],
+      results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } }],
     });
     vi.mocked(getLatestClosePrices).mockResolvedValue(
       new Map([["2330", { close: "2410.0000", tradeDate: "2026-08-28" }]]),
@@ -489,8 +432,8 @@ describe("runRanking", () => {
       vi.mocked(fetchValuationRanking).mockResolvedValue({
         tradeDate: "2026-08-28",
         rankings: [
-          { symbol: "1240", value: 10.61 },
-          { symbol: "2330", value: 27.82 },
+          { symbol: "1240", name: "撼訊", value: 10.61 },
+          { symbol: "2330", name: "台積電", value: 27.82 },
         ],
       });
 
@@ -503,8 +446,8 @@ describe("runRanking", () => {
         direction: "asc",
         columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER", unit: "times" }],
         results: [
-          { symbol: "1240", name: null, values: { "per.peRatio": { value: "10.61", asOfDate: "2026-08-28" } } },
-          { symbol: "2330", name: null, values: { "per.peRatio": { value: "27.82", asOfDate: "2026-08-28" } } },
+          { symbol: "1240", name: "撼訊", values: { "per.peRatio": { value: "10.61", asOfDate: "2026-08-28" } } },
+          { symbol: "2330", name: "台積電", values: { "per.peRatio": { value: "27.82", asOfDate: "2026-08-28" } } },
         ],
       });
     });
@@ -512,7 +455,7 @@ describe("runRanking", () => {
     it("still merges stock.price in when requested alongside a valuation ranking", async () => {
       vi.mocked(fetchValuationRanking).mockResolvedValue({
         tradeDate: "2026-08-28",
-        rankings: [{ symbol: "2330", value: 27.82 }],
+        rankings: [{ symbol: "2330", name: "台積電", value: 27.82 }],
       });
       vi.mocked(getLatestClosePrices).mockResolvedValue(
         new Map([["2330", { close: "2420.0000", tradeDate: "2026-08-28" }]]),
@@ -564,13 +507,13 @@ describe("runScreenerValues", () => {
   // for it — never silently drop a symbol the caller already has on screen.
   it("returns a row for every requested symbol, with empty values for one analysis-ts didn't return", async () => {
     vi.mocked(fetchScreenerValues).mockResolvedValue({
-      results: [{ symbol: "2330", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } }],
+      results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } }],
     });
 
     const result = await runScreenerValues(["2330", "9999"], [{ field: "roe.roeTtmPct" }]);
 
     expect(result.results).toEqual([
-      { symbol: "2330", name: null, values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } },
+      { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } },
       { symbol: "9999", name: null, values: {} },
     ]);
   });
@@ -600,7 +543,7 @@ describe("runScreenerValues", () => {
   });
 
   it('merges in "stock.price" from twse/tpex, not passed through to analysis-ts', async () => {
-    vi.mocked(fetchScreenerValues).mockResolvedValue({ results: [] });
+    vi.mocked(fetchScreenerValues).mockResolvedValue({ results: [{ symbol: "2330", name: "台積電", values: {} }] });
     vi.mocked(getLatestClosePrices).mockResolvedValue(
       new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28" }]]),
     );
@@ -610,17 +553,19 @@ describe("runScreenerValues", () => {
     expect(fetchScreenerValues).toHaveBeenCalledWith(["2330"], []);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
     expect(result.results).toEqual([
-      { symbol: "2330", name: null, values: { "stock.price": { value: "2350.0000", asOfDate: "2026-08-28" } } },
+      { symbol: "2330", name: "台積電", values: { "stock.price": { value: "2350.0000", asOfDate: "2026-08-28" } } },
     ]);
   });
 
-  it("attaches company names from a single batched getCompanyNames lookup", async () => {
-    vi.mocked(fetchScreenerValues).mockResolvedValue({ results: [] });
-    vi.mocked(getCompanyNames).mockResolvedValue(new Map([["2330", "台積電"]]));
+  // analysis-ts attaches companyName directly on each row as of 2026-09-01 — passed through untouched,
+  // no local merge step.
+  it("passes each row's company name through directly from analysis-ts", async () => {
+    vi.mocked(fetchScreenerValues).mockResolvedValue({
+      results: [{ symbol: "2330", name: "台積電", values: {} }],
+    });
 
     const result = await runScreenerValues(["2330"], [{ field: "roe.roeTtmPct" }]);
 
-    expect(getCompanyNames).toHaveBeenCalledWith(["2330"]);
     expect(result.results[0]?.name).toBe("台積電");
   });
 });

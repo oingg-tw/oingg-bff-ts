@@ -30,6 +30,7 @@ function normalizeForeignHoldingEntry(raw: unknown): ForeignHoldingRankingEntry 
   const r = raw as Record<string, unknown>;
   return {
     symbol: String(r.symbol),
+    name: typeof r.companyName === "string" ? r.companyName : null,
     sharesHeldPercent: toStringOrEmpty(r.sharesHeldPercent),
     previousSharesHeldPercent: toStringOrEmpty(r.previousSharesHeldPercent),
     changePercentagePoints: toStringOrEmpty(r.changePercentagePoints),
@@ -42,9 +43,7 @@ function normalizeMarginShortRatioEntry(raw: unknown): MarginShortRatioRankingEn
   return {
     rank: Number(r.rank),
     symbol: String(r.symbol),
-    // Filled in by market.service.ts's getMarginShortRatioRanking (bff-ts's own local Company cache) —
-    // analysis-ts's response never has this at all, not even a field to normalize here.
-    name: null,
+    name: typeof r.companyName === "string" ? r.companyName : null,
     shortToMarginRatioPct: toStringOrEmpty(r.shortToMarginRatioPct),
     marginTodayBalance: toStringOrEmpty(r.marginTodayBalance),
     shortTodayBalance: toStringOrEmpty(r.shortTodayBalance),

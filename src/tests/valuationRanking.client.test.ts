@@ -22,12 +22,18 @@ describe("fetchValuationRanking", () => {
 
   it("calls oingg-analysis-ts's GET /valuation/ranking with metric/order/limit as query params", async () => {
     fetchMock.mockResolvedValue(
-      jsonResponse(200, { tradeDate: "2026-08-28", rankings: [{ symbol: "2330", value: 27.82 }] }),
+      jsonResponse(200, {
+        tradeDate: "2026-08-28",
+        rankings: [{ symbol: "2330", companyName: "台積電", value: 27.82 }],
+      }),
     );
 
     const result = await fetchValuationRanking("peRatio", "asc", 10);
 
-    expect(result).toEqual({ tradeDate: "2026-08-28", rankings: [{ symbol: "2330", value: 27.82 }] });
+    expect(result).toEqual({
+      tradeDate: "2026-08-28",
+      rankings: [{ symbol: "2330", name: "台積電", value: 27.82 }],
+    });
     const calledUrl = new URL(fetchMock.mock.calls[0]![0] as string | URL);
     expect(calledUrl.pathname).toBe("/valuation/ranking");
     expect(calledUrl.searchParams.get("metric")).toBe("peRatio");

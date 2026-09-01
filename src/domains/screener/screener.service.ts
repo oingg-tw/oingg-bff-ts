@@ -1,4 +1,3 @@
-import { getCompanyNames } from "@/domains/companies/index.js";
 import { findFilterFields } from "@/domains/filterCatalog/index.js";
 import { getLatestClosePrices } from "@/domains/stock/index.js";
 import { AppError } from "@/shared/errorHandler.js";
@@ -91,19 +90,6 @@ async function mergeStockPrices(rows: ScreenerResultRow[], wantsStockPrice: bool
 }
 
 /**
- * Shared by runScreener/runRanking/runValuationRanking: attaches each row's display name — always, not
- * gated behind a requested column, since a name is expected on every result regardless of which fields
- * the caller chose to display. See companies.service.ts's getCompanyNames for why this is a live
- * per-request lookup with nothing cached on our side.
- */
-async function mergeCompanyNames(rows: ScreenerResultRow[]): Promise<void> {
-  const namesBySymbol = await getCompanyNames(rows.map((row) => row.symbol));
-  for (const row of rows) {
-    row.name = namesBySymbol.get(row.symbol) ?? null;
-  }
-}
-
-/**
  * `sortField` must be "symbol" or one of this request's own display `columns` — never "stock.price"
  * (twse/tpex, not part of analysis-ts's data at all) and never an arbitrary filter-only field the caller
  * didn't also ask to display. analysis-ts sorts the full result set before pagination (not just the
@@ -129,7 +115,8 @@ function validateSort(sort: ScreenerSort | undefined, resolvedColumns: ResolvedR
  * docs/直連DB反模式修復計畫.md for what moved and why). This function's remaining job is: validate/resolve
  * fields against bff-ts's own synced catalog (for metricName/fieldName in the response — analysis-ts's
  * endpoint doesn't echo those back, we already have them locally), split off "stock.price" (twse/tpex,
- * not part of the filterCatalog at all), delegate the rest, then merge stock.price and company names in.
+ * not part of the filterCatalog at all), delegate the rest, then merge stock.price in (company names come
+ * back attached directly from analysis-ts as of 2026-09-01, no local merge needed).
  *
  * Requires at least one filter — an empty-filters "list everything" mode isn't supported (bff-ts's own
  * long-standing rule, independent of what analysis-ts's engine can technically do).
@@ -175,13 +162,10 @@ export async function runScreener(
 
   const results: ScreenerResultRow[] = apiResult.results.map((row) => ({
     symbol: row.symbol,
-    name: null,
+    name: row.name,
     values: row.values,
   }));
-  // Independent of each other (different fields on each row) - run concurrently instead of
-  // sequentially, each is its own round trip (mergeStockPrices to analysis-ts, mergeCompanyNames to
-  // our own local Company cache).
-  await Promise.all([mergeStockPrices(results, wantsStockPrice), mergeCompanyNames(results)]);
+  await mergeStockPrices(results, wantsStockPrice);
 
   return {
     count: apiResult.count,
@@ -241,13 +225,10 @@ export async function runScreenerValues(symbols: string[], columns: ScreenerColu
   const rowBySymbol = new Map(apiResult.results.map((row) => [row.symbol, row]));
   const results: ScreenerResultRow[] = symbols.map((symbol) => ({
     symbol,
-    name: null,
+    name: rowBySymbol.get(symbol)?.name ?? null,
     values: rowBySymbol.get(symbol)?.values ?? {},
   }));
-  // Independent of each other (different fields on each row) - run concurrently instead of
-  // sequentially, each is its own round trip (mergeStockPrices to analysis-ts, mergeCompanyNames to
-  // our own local Company cache).
-  await Promise.all([mergeStockPrices(results, wantsStockPrice), mergeCompanyNames(results)]);
+  await mergeStockPrices(results, wantsStockPrice);
 
   return { count: results.length, columns: resultColumns, results };
 }
@@ -304,13 +285,10 @@ export async function runRanking(
 
   const results: ScreenerResultRow[] = apiResult.results.map((row) => ({
     symbol: row.symbol,
-    name: null,
+    name: row.name,
     values: row.values,
   }));
-  // Independent of each other (different fields on each row) - run concurrently instead of
-  // sequentially, each is its own round trip (mergeStockPrices to analysis-ts, mergeCompanyNames to
-  // our own local Company cache).
-  await Promise.all([mergeStockPrices(results, wantsStockPrice), mergeCompanyNames(results)]);
+  await mergeStockPrices(results, wantsStockPrice);
 
   return { field, direction, columns: resultColumns, results };
 }
@@ -344,13 +322,10 @@ async function runValuationRanking(
 
   const results: ScreenerResultRow[] = rankings.map((row) => ({
     symbol: row.symbol,
-    name: null,
+    name: row.name,
     values: { [field]: { value: String(row.value), asOfDate: tradeDate } },
   }));
-  // Independent of each other (different fields on each row) - run concurrently instead of
-  // sequentially, each is its own round trip (mergeStockPrices to analysis-ts, mergeCompanyNames to
-  // our own local Company cache).
-  await Promise.all([mergeStockPrices(results, wantsStockPrice), mergeCompanyNames(results)]);
+  await mergeStockPrices(results, wantsStockPrice);
 
   const resultColumns: ScreenerResultColumn[] = [
     { field, metricName: rankedRef!.metricName, fieldName: rankedRef!.fieldName, unit: rankedRef!.unit },

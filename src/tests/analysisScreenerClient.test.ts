@@ -37,6 +37,7 @@ describe("fetchScreenerResults", () => {
         results: [
           {
             symbol: "1210",
+            companyName: "華瓊",
             values: {
               "roe.roeTtmPct": { value: 13.33, asOfDate: "26Q2" },
               "debtRatio.debtRatioPct": { value: 55.78, asOfDate: "26Q2" },
@@ -60,6 +61,7 @@ describe("fetchScreenerResults", () => {
       results: [
         {
           symbol: "1210",
+          name: "華瓊",
           values: {
             "roe.roeTtmPct": { value: "13.33", asOfDate: "26Q2" },
             "debtRatio.debtRatioPct": { value: "55.78", asOfDate: "26Q2" },
@@ -144,13 +146,19 @@ describe("fetchScreenerRanking", () => {
   it("GETs /screener/ranking with field/direction/limit and a comma-joined columns param", async () => {
     mockFetchOnce({
       ok: true,
-      body: { results: [{ symbol: "2330", values: { "roe.roeTtmPct": { value: 34.78, asOfDate: "26Q2" } } }] },
+      body: {
+        results: [
+          { symbol: "2330", companyName: "台積電", values: { "roe.roeTtmPct": { value: 34.78, asOfDate: "26Q2" } } },
+        ],
+      },
     });
 
     const result = await fetchScreenerRanking("roe.roeTtmPct", "desc", 10, [{ field: "debtRatio.debtRatioPct" }]);
 
     expect(result).toEqual({
-      results: [{ symbol: "2330", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } }],
+      results: [
+        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } },
+      ],
     });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(url.toString()).toBe(
@@ -192,8 +200,8 @@ describe("fetchScreenerValues", () => {
       ok: true,
       body: {
         results: [
-          { symbol: "2330", values: { "roe.roeTtmPct": { value: 34.78, asOfDate: "26Q2" } } },
-          { symbol: "2317", values: {} },
+          { symbol: "2330", companyName: "台積電", values: { "roe.roeTtmPct": { value: 34.78, asOfDate: "26Q2" } } },
+          { symbol: "2317", companyName: "鴻海", values: {} },
         ],
       },
     });
@@ -202,8 +210,8 @@ describe("fetchScreenerValues", () => {
 
     expect(result).toEqual({
       results: [
-        { symbol: "2330", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } },
-        { symbol: "2317", values: {} },
+        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } },
+        { symbol: "2317", name: "鴻海", values: {} },
       ],
     });
 

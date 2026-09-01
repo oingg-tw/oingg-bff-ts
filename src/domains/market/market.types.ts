@@ -1,5 +1,7 @@
 export interface ForeignHoldingRankingEntry {
   symbol: string;
+  /** From oingg-analysis-ts's company reference table — null if not found there. */
+  name: string | null;
   sharesHeldPercent: string;
   previousSharesHeldPercent: string;
   changePercentagePoints: string;

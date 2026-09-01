@@ -37,6 +37,7 @@ describe("fetchForeignHoldingRanking", () => {
         increases: [
           {
             symbol: "2330",
+            companyName: "台積電",
             sharesHeldPercent: 78.5,
             previousSharesHeldPercent: 78.1,
             changePercentagePoints: 0.4,
@@ -58,6 +59,7 @@ describe("fetchForeignHoldingRanking", () => {
       increases: [
         {
           symbol: "2330",
+          name: "台積電",
           sharesHeldPercent: "78.5",
           previousSharesHeldPercent: "78.1",
           changePercentagePoints: "0.4",
@@ -124,7 +126,14 @@ describe("fetchMarginShortRatioRanking", () => {
         tradeDate: "2026-08-30",
         limit: 5,
         rankings: [
-          { rank: 1, symbol: "3045", shortToMarginRatioPct: 44.35, marginTodayBalance: "717", shortTodayBalance: "318" },
+          {
+            rank: 1,
+            symbol: "3045",
+            companyName: "台灣光罩",
+            shortToMarginRatioPct: 44.35,
+            marginTodayBalance: "717",
+            shortTodayBalance: "318",
+          },
         ],
         warnings: [],
       },
@@ -139,7 +148,7 @@ describe("fetchMarginShortRatioRanking", () => {
         {
           rank: 1,
           symbol: "3045",
-          name: null,
+          name: "台灣光罩",
           shortToMarginRatioPct: "44.35",
           marginTodayBalance: "717",
           shortTodayBalance: "318",
