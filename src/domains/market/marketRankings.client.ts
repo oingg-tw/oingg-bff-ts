@@ -1,6 +1,7 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { requireEnv } from "@/shared/env.js";
 import type {
+  AttentionStockCriteriaDetail,
   AttentionStockEntry,
   AttentionStocksResult,
   DisposedStockEntry,
@@ -140,6 +141,16 @@ function normalizeDisposedStockEntry(raw: unknown): DisposedStockEntry {
   };
 }
 
+function normalizeAttentionStockCriteriaDetail(raw: unknown): AttentionStockCriteriaDetail {
+  const r = raw as Record<string, unknown>;
+  return {
+    startDate: toStringOrEmpty(r.startDate),
+    endDate: toStringOrEmpty(r.endDate),
+    observationDays: typeof r.observationDays === "number" ? r.observationDays : null,
+    times: Number(r.times),
+  };
+}
+
 function normalizeAttentionStockEntry(raw: unknown): AttentionStockEntry {
   const r = raw as Record<string, unknown>;
   return {
@@ -148,6 +159,7 @@ function normalizeAttentionStockEntry(raw: unknown): AttentionStockEntry {
     market: normalizeMarket(r.market),
     tradeDate: toStringOrEmpty(r.tradeDate),
     criteria: toStringOrEmpty(r.criteria),
+    criteriaDetails: Array.isArray(r.criteriaDetails) ? r.criteriaDetails.map(normalizeAttentionStockCriteriaDetail) : [],
   };
 }
 

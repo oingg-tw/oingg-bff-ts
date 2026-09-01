@@ -136,6 +136,19 @@ export interface DisposedStocksResult {
   warnings: string[];
 }
 
+/**
+ * One parsed clause from `criteria`'s free-text Chinese description (e.g. "115年8月28日至115年8月31日
+ * 連續二次") — an array, not a single object, because the raw text sometimes concatenates two clauses
+ * with no separator. `observationDays` is only populated for the "N個營業日內已有M次" phrasing; the
+ * "連續N次" phrasing leaves it null. Added by analysis-ts on 2026-09-01.
+ */
+export interface AttentionStockCriteriaDetail {
+  startDate: string;
+  endDate: string;
+  observationDays: number | null;
+  times: number;
+}
+
 export interface AttentionStockEntry {
   symbol: string;
   /** From oingg-analysis-ts's company reference table — null if not found there. */
@@ -143,6 +156,8 @@ export interface AttentionStockEntry {
   market: Market;
   tradeDate: string;
   criteria: string;
+  /** Empty when analysis-ts's parse of `criteria` fails (e.g. upstream text format changes) — `criteria` itself is unaffected. */
+  criteriaDetails: AttentionStockCriteriaDetail[];
 }
 
 export interface AttentionStocksResult {

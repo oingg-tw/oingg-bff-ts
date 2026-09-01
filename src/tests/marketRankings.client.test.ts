@@ -493,13 +493,20 @@ describe("fetchDisposedStocks", () => {
 });
 
 describe("fetchAttentionStocks", () => {
-  it("requests /market/attention-stocks with limit and normalizes fields", async () => {
+  it("requests /market/attention-stocks with limit and normalizes fields, including criteriaDetails", async () => {
     mockFetchOnce({
       ok: true,
       body: {
         limit: 1,
         items: [
-          { symbol: "3406", companyName: "玉晶光", market: "TWSE", tradeDate: "2026-09-01", criteria: "連續二次" },
+          {
+            symbol: "3406",
+            companyName: "玉晶光",
+            market: "TWSE",
+            tradeDate: "2026-09-01",
+            criteria: "115年8月28日至115年8月31日連續二次",
+            criteriaDetails: [{ startDate: "2026-08-28", endDate: "2026-08-31", observationDays: null, times: 2 }],
+          },
         ],
         warnings: [],
       },
@@ -509,11 +516,69 @@ describe("fetchAttentionStocks", () => {
 
     expect(result).toEqual({
       limit: 1,
-      items: [{ symbol: "3406", name: "玉晶光", market: "TWSE", tradeDate: "2026-09-01", criteria: "連續二次" }],
+      items: [
+        {
+          symbol: "3406",
+          name: "玉晶光",
+          market: "TWSE",
+          tradeDate: "2026-09-01",
+          criteria: "115年8月28日至115年8月31日連續二次",
+          criteriaDetails: [{ startDate: "2026-08-28", endDate: "2026-08-31", observationDays: null, times: 2 }],
+        },
+      ],
       warnings: [],
     });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(url.toString()).toBe("http://filters.test/market/attention-stocks?limit=1");
+  });
+
+  // Regression: raw criteria text sometimes concatenates two clauses with no separator, so
+  // criteriaDetails can have more than one entry per item.
+  it("preserves multiple criteriaDetails entries when the raw text concatenates two clauses", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        limit: 1,
+        items: [
+          {
+            symbol: "1234",
+            companyName: "測試",
+            market: "TWSE",
+            tradeDate: "2026-09-01",
+            criteria: "115年08月27日至115年09月01日連續四次115年08月20日至115年09月01日等九個營業日已有五次",
+            criteriaDetails: [
+              { startDate: "2026-08-27", endDate: "2026-09-01", observationDays: null, times: 4 },
+              { startDate: "2026-08-20", endDate: "2026-09-01", observationDays: 9, times: 5 },
+            ],
+          },
+        ],
+        warnings: [],
+      },
+    });
+
+    const result = await fetchAttentionStocks(1);
+
+    expect(result.items[0]?.criteriaDetails).toEqual([
+      { startDate: "2026-08-27", endDate: "2026-09-01", observationDays: null, times: 4 },
+      { startDate: "2026-08-20", endDate: "2026-09-01", observationDays: 9, times: 5 },
+    ]);
+  });
+
+  // criteriaDetails defaults to [] if analysis-ts's parse ever fails — criteria itself is unaffected.
+  it("defaults criteriaDetails to an empty array when missing from the response", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        limit: 1,
+        items: [{ symbol: "3406", companyName: "玉晶光", market: "TWSE", tradeDate: "2026-09-01", criteria: "無法解析的格式" }],
+        warnings: [],
+      },
+    });
+
+    const result = await fetchAttentionStocks(1);
+
+    expect(result.items[0]?.criteria).toBe("無法解析的格式");
+    expect(result.items[0]?.criteriaDetails).toEqual([]);
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {

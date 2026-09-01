@@ -335,6 +335,10 @@ marketRouter.get("/disposed-stocks", async (req, res) => {
  * /market/attention-stocks:
  *   get:
  *     summary: 注意股清單——依交易日新到舊，上市＋上櫃合併
+ *     description: >
+ *       criteriaDetails 是 analysis-ts 把 criteria 中文說明解析成的結構化資料（陣列，因為原始文字有時會
+ *       串接兩個子句）。observationDays 只有「N個營業日內已有M次」格式才有值，解析失敗時是空陣列，
+ *       criteria 原始文字不受影響。
  *     tags:
  *       - Market
  *     parameters:
@@ -358,6 +362,11 @@ marketRouter.get("/disposed-stocks", async (req, res) => {
  *                   market: "TWSE"
  *                   tradeDate: "2026-09-01"
  *                   criteria: "115年8月28日至115年8月31日連續二次"
+ *                   criteriaDetails:
+ *                     - startDate: "2026-08-28"
+ *                       endDate: "2026-08-31"
+ *                       observationDays: null
+ *                       times: 2
  *               warnings: []
  *       400:
  *         description: limit 不是 1~50 之間的整數。
