@@ -47,6 +47,44 @@ describe("fetchStockQuote", () => {
     await expect(fetchStockQuote("nope")).resolves.toBeNull();
   });
 
+  // Regression: verified live against analysis-ts's real endpoint — it sends numeric fields as JSON
+  // numbers (close: 2420, peRatio: 28.05), not strings, unlike every other numeric value in bff-ts's own
+  // API (screener metric values are always strings, e.g. "6.97"). Must normalize to strings so bff-ts's
+  // outward API stays consistent regardless of what shape upstream happens to send.
+  it("normalizes numeric price/valuation fields to strings, matching bff-ts's own API convention", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        symbol: "2330",
+        price: { tradeDate: "2026-08-28", close: 2420 },
+        valuation: { tradeDate: "2026-08-28", peRatio: 28.05, pbRatio: 9.76, dividendYield: 0.91 },
+      },
+    });
+
+    const result = await fetchStockQuote("2330");
+
+    expect(result).toEqual({
+      symbol: "2330",
+      price: { tradeDate: "2026-08-28", close: "2420" },
+      valuation: { tradeDate: "2026-08-28", peRatio: "28.05", pbRatio: "9.76", dividendYield: "0.91" },
+    });
+  });
+
+  it("keeps a null close/valuation field as null rather than stringifying it", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { symbol: "2330", price: { tradeDate: "2026-08-28", close: null }, valuation: null },
+    });
+
+    const result = await fetchStockQuote("2330");
+
+    expect(result).toEqual({
+      symbol: "2330",
+      price: { tradeDate: "2026-08-28", close: null },
+      valuation: null,
+    });
+  });
+
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
 
@@ -85,6 +123,15 @@ describe("fetchStockPrices", () => {
     expect(result).toEqual(new Map([["2330", { close: "1090", tradeDate: "2026-09-01" }]]));
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/stocks/prices?symbols=2330%2C1240");
+  });
+
+  // Same normalization as fetchStockQuote — see that test's comment for why.
+  it("normalizes a numeric close field to a string", async () => {
+    mockFetchOnce({ ok: true, body: { prices: { "2330": { close: 2420, tradeDate: "2026-08-28" } } } });
+
+    const result = await fetchStockPrices(["2330"]);
+
+    expect(result).toEqual(new Map([["2330", { close: "2420", tradeDate: "2026-08-28" }]]));
   });
 
   // Regression-shaped: analysis-ts confirmed a symbol with no data is simply absent from `prices` — not
