@@ -136,7 +136,14 @@ describe("fetchMarginShortRatioRanking", () => {
       tradeDate: "2026-08-30",
       limit: 5,
       rankings: [
-        { rank: 1, symbol: "3045", shortToMarginRatioPct: "44.35", marginTodayBalance: "717", shortTodayBalance: "318" },
+        {
+          rank: 1,
+          symbol: "3045",
+          name: null,
+          shortToMarginRatioPct: "44.35",
+          marginTodayBalance: "717",
+          shortTodayBalance: "318",
+        },
       ],
       warnings: [],
     });

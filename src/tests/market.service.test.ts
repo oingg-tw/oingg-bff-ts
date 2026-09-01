@@ -5,12 +5,19 @@ vi.mock("@/domains/market/marketRankings.client.js", () => ({
   fetchMarginShortRatioRanking: vi.fn(),
 }));
 
+vi.mock("@/domains/companies/index.js", () => ({
+  getCompanyNames: vi.fn(),
+}));
+
 import { fetchForeignHoldingRanking, fetchMarginShortRatioRanking } from "@/domains/market/marketRankings.client.js";
+import { getCompanyNames } from "@/domains/companies/index.js";
 import { getForeignHoldingRanking, getMarginShortRatioRanking } from "@/domains/market/market.service.js";
 
 beforeEach(() => {
   vi.mocked(fetchForeignHoldingRanking).mockReset();
   vi.mocked(fetchMarginShortRatioRanking).mockReset();
+  vi.mocked(getCompanyNames).mockReset();
+  vi.mocked(getCompanyNames).mockResolvedValue(new Map());
 });
 
 describe("getForeignHoldingRanking", () => {
@@ -80,5 +87,27 @@ describe("getMarginShortRatioRanking", () => {
     });
 
     await expect(getMarginShortRatioRanking(value)).resolves.toBeDefined();
+  });
+
+  it("attaches each row's company name from a single batched getCompanyNames lookup", async () => {
+    vi.mocked(fetchMarginShortRatioRanking).mockResolvedValue({
+      tradeDate: "2026-08-30",
+      limit: 2,
+      rankings: [
+        { rank: 1, symbol: "3045", name: null, shortToMarginRatioPct: "44.35", marginTodayBalance: "717", shortTodayBalance: "318" },
+        { rank: 2, symbol: "9999", name: null, shortToMarginRatioPct: "36.01", marginTodayBalance: "4476", shortTodayBalance: "1612" },
+      ],
+      warnings: [],
+    });
+    vi.mocked(getCompanyNames).mockResolvedValue(new Map([["3045", "台灣光罩"]]));
+
+    const result = await getMarginShortRatioRanking(2);
+
+    expect(getCompanyNames).toHaveBeenCalledTimes(1);
+    expect(getCompanyNames).toHaveBeenCalledWith(["3045", "9999"]);
+    expect(result.rankings).toEqual([
+      { rank: 1, symbol: "3045", name: "台灣光罩", shortToMarginRatioPct: "44.35", marginTodayBalance: "717", shortTodayBalance: "318" },
+      { rank: 2, symbol: "9999", name: null, shortToMarginRatioPct: "36.01", marginTodayBalance: "4476", shortTodayBalance: "1612" },
+    ]);
   });
 });

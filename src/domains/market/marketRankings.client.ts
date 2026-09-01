@@ -42,6 +42,9 @@ function normalizeMarginShortRatioEntry(raw: unknown): MarginShortRatioRankingEn
   return {
     rank: Number(r.rank),
     symbol: String(r.symbol),
+    // Filled in by market.service.ts's getMarginShortRatioRanking (bff-ts's own local Company cache) —
+    // analysis-ts's response never has this at all, not even a field to normalize here.
+    name: null,
     shortToMarginRatioPct: toStringOrEmpty(r.shortToMarginRatioPct),
     marginTodayBalance: toStringOrEmpty(r.marginTodayBalance),
     shortTodayBalance: toStringOrEmpty(r.shortTodayBalance),

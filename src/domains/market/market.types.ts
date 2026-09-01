@@ -25,6 +25,8 @@ export interface ForeignHoldingRankingResult {
 export interface MarginShortRatioRankingEntry {
   rank: number;
   symbol: string;
+  /** From oingg-analysis-ts's company reference table — null if not found there. */
+  name: string | null;
   shortToMarginRatioPct: string;
   marginTodayBalance: string;
   shortTodayBalance: string;

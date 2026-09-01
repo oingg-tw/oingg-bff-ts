@@ -99,6 +99,7 @@ marketRouter.get("/foreign-holding-ranking", async (req, res) => {
  *               rankings:
  *                 - rank: 1
  *                   symbol: "3045"
+ *                   name: "台灣光罩"
  *                   shortToMarginRatioPct: "44.35"
  *                   marginTodayBalance: "717"
  *                   shortTodayBalance: "318"
