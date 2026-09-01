@@ -248,7 +248,7 @@ const SAMPLE_SCREENER_RESULT = {
   pageSize: 50,
   totalPages: 1,
   columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER" }],
-  results: [{ symbol: "2330", values: { "per.peRatio": { value: "27.82", asOfDate: "2026-08-28" } } }],
+  results: [{ symbol: "2330", name: "台積電", values: { "per.peRatio": { value: "27.82", asOfDate: "2026-08-28" } } }],
 };
 
 const DEFAULT_PAGINATION = { page: 1, pageSize: 50 };

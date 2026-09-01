@@ -31,6 +31,8 @@ export interface ScreenerValue {
 
 export interface ScreenerResultRow {
   symbol: string;
+  /** From oingg-analysis-ts's company reference table (TWSE-listed only) — null if not found there. */
+  name: string | null;
   values: Record<string, ScreenerValue>;
 }
 

@@ -13,7 +13,8 @@ async function main(): Promise<void> {
   // mechanism from their side — bff-ts is the only one who can keep these fresh, by pulling on its own.
   // Fire-and-forget from an external service that may still be booting or briefly down — never blocks
   // startup or crashes the server; each retries on its own (see filterCatalog.service.ts /
-  // columnPresetTemplates.service.ts).
+  // columnPresetTemplates.service.ts). Company names (src/domains/companies) are deliberately NOT synced
+  // here — that's analysis-ts's market data, fetched live per request, never cached as our own copy.
   startFilterCatalogSync();
   startColumnPresetTemplateSync();
 

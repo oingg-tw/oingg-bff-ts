@@ -1,4 +1,5 @@
 import { queryNeon } from "../../adapters/neon/index.js";
+import { getCompanyNames } from "../companies/index.js";
 import { findFilterFields } from "../filterCatalog/index.js";
 import { getLatestClosePrices } from "../stock/index.js";
 import { AppError } from "../../shared/errorHandler.js";
@@ -238,6 +239,19 @@ async function mergeStockPrices(rows: ScreenerResultRow[], wantsStockPrice: bool
 }
 
 /**
+ * Shared by runScreener/runRanking/runValuationRanking: attaches each row's display name — always, not
+ * gated behind a requested column, since a name is expected on every result regardless of which fields
+ * the caller chose to display. See companies.service.ts's getCompanyNames for why this is a live
+ * per-request lookup with nothing cached on our side.
+ */
+async function mergeCompanyNames(rows: ScreenerResultRow[]): Promise<void> {
+  const namesBySymbol = await getCompanyNames(rows.map((row) => row.symbol));
+  for (const row of rows) {
+    row.name = namesBySymbol.get(row.symbol) ?? null;
+  }
+}
+
+/**
  * Screens companies by filterCatalog metrics stored in the "analysis" Neon DB. Each involved metric
  * gets its own CTE picking each symbol's single latest row (see analysisMetricTables.ts); metrics with
  * an active filter are INNER JOINed (a stock without data there can't pass the filter), display-only
@@ -341,9 +355,11 @@ export async function runScreener(
 
   const results = result.rows.map((row) => ({
     symbol: row.symbol as string,
+    name: null,
     values: buildValuesFromRow(row, resolvedColumns),
   }));
   await mergeStockPrices(results, wantsStockPrice);
+  await mergeCompanyNames(results);
 
   return {
     count: totalCount,
@@ -426,9 +442,11 @@ export async function runRanking(
 
   const results = result.rows.map((row) => ({
     symbol: row.symbol as string,
+    name: null,
     values: buildValuesFromRow(row, allColumnRefs),
   }));
   await mergeStockPrices(results, wantsStockPrice);
+  await mergeCompanyNames(results);
 
   return { field, direction, columns: resultColumns, results };
 }
@@ -462,9 +480,11 @@ async function runValuationRanking(
 
   const results: ScreenerResultRow[] = rankings.map((row) => ({
     symbol: row.symbol,
+    name: null,
     values: { [field]: { value: String(row.value), asOfDate: tradeDate } },
   }));
   await mergeStockPrices(results, wantsStockPrice);
+  await mergeCompanyNames(results);
 
   const resultColumns: ScreenerResultColumn[] = [
     { field, metricName: rankedRef!.metricName, fieldName: rankedRef!.fieldName },

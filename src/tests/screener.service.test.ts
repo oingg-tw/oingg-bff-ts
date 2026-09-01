@@ -12,6 +12,10 @@ vi.mock("../domains/stock/index.js", () => ({
   getLatestClosePrices: vi.fn(),
 }));
 
+vi.mock("../domains/companies/index.js", () => ({
+  getCompanyNames: vi.fn(),
+}));
+
 vi.mock("../domains/screener/valuationRanking.client.js", () => ({
   fetchValuationRanking: vi.fn(),
 }));
@@ -19,6 +23,7 @@ vi.mock("../domains/screener/valuationRanking.client.js", () => ({
 import { queryNeon } from "../adapters/neon/index.js";
 import { findFilterFields } from "../domains/filterCatalog/index.js";
 import { getLatestClosePrices } from "../domains/stock/index.js";
+import { getCompanyNames } from "../domains/companies/index.js";
 import { fetchValuationRanking } from "../domains/screener/valuationRanking.client.js";
 import { runRanking, runScreener } from "../domains/screener/screener.service.js";
 import type { Pagination } from "../domains/screener/pagination.js";
@@ -83,6 +88,8 @@ beforeEach(() => {
       .filter((f): f is Lookup => f !== null),
   );
   vi.mocked(getLatestClosePrices).mockReset();
+  vi.mocked(getCompanyNames).mockReset();
+  vi.mocked(getCompanyNames).mockResolvedValue(new Map());
   vi.mocked(fetchValuationRanking).mockReset();
 });
 
@@ -184,7 +191,7 @@ describe("runScreener", () => {
     expect(sql).toContain('AS "beta.beta1Y__asOfDate"');
     expect(sql).not.toContain("beta.beta1Y__asOfYear");
     expect(result.results).toEqual([
-      { symbol: "2330", values: { "beta.beta1Y": { value: "0.85", asOfDate: "2026-08-20" } } },
+      { symbol: "2330", name: null, values: { "beta.beta1Y": { value: "0.85", asOfDate: "2026-08-20" } } },
     ]);
   });
 
@@ -219,7 +226,7 @@ describe("runScreener", () => {
     expect(sql).toContain('AS "roe.roeTtmPct__asOfSeason"');
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
     expect(result.results).toEqual([
-      { symbol: "2330", values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "26Q2" } } },
+      { symbol: "2330", name: null, values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "26Q2" } } },
     ]);
   });
 
@@ -260,8 +267,29 @@ describe("runScreener", () => {
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330", "2317"]);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價" });
     expect(result.results).toEqual([
-      { symbol: "2330", values: { "stock.price": { value: "2350.0000", asOfDate: "2026-08-28" } } },
-      { symbol: "2317", values: { "stock.price": { value: null, asOfDate: null } } },
+      { symbol: "2330", name: null, values: { "stock.price": { value: "2350.0000", asOfDate: "2026-08-28" } } },
+      { symbol: "2317", name: null, values: { "stock.price": { value: null, asOfDate: null } } },
+    ]);
+  });
+
+  // Company names are always attached, regardless of which columns were requested — not gated behind an
+  // opt-in column the way stock.price is. See companies.service.ts: this is a live per-request lookup,
+  // nothing cached on bff's side.
+  it("attaches each row's company name from a single batched getCompanyNames lookup", async () => {
+    vi.mocked(queryNeon).mockResolvedValue({ rows: [{ symbol: "2330" }, { symbol: "2317" }] } as never);
+    vi.mocked(getCompanyNames).mockResolvedValue(new Map([["2330", "台積電"], ["2317", null]]));
+
+    const result = await runScreener(
+      [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
+      [],
+      DEFAULT_PAGINATION,
+    );
+
+    expect(getCompanyNames).toHaveBeenCalledTimes(1);
+    expect(getCompanyNames).toHaveBeenCalledWith(["2330", "2317"]);
+    expect(result.results).toEqual([
+      { symbol: "2330", name: "台積電", values: {} },
+      { symbol: "2317", name: null, values: {} },
     ]);
   });
 
@@ -314,8 +342,8 @@ describe("runScreener", () => {
       expect(result.totalPages).toBe(60);
       // The internal window-function column must never leak into a row's values.
       expect(result.results).toEqual([
-        { symbol: "2330", values: {} },
-        { symbol: "2317", values: {} },
+        { symbol: "2330", name: null, values: {} },
+        { symbol: "2317", name: null, values: {} },
       ]);
     });
 
@@ -360,8 +388,8 @@ describe("runRanking", () => {
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
     // Different symbols can legitimately have different asOfDate for the same field (one filed later).
     expect(result.results).toEqual([
-      { symbol: "2330", values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } },
-      { symbol: "2317", values: { "roe.roeTtmPct": { value: "25.1", asOfDate: "26Q1" } } },
+      { symbol: "2330", name: null, values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } },
+      { symbol: "2317", name: null, values: { "roe.roeTtmPct": { value: "25.1", asOfDate: "26Q1" } } },
     ]);
   });
 
@@ -464,8 +492,8 @@ describe("runRanking", () => {
         direction: "asc",
         columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER" }],
         results: [
-          { symbol: "1240", values: { "per.peRatio": { value: "10.61", asOfDate: "2026-08-28" } } },
-          { symbol: "2330", values: { "per.peRatio": { value: "27.82", asOfDate: "2026-08-28" } } },
+          { symbol: "1240", name: null, values: { "per.peRatio": { value: "10.61", asOfDate: "2026-08-28" } } },
+          { symbol: "2330", name: null, values: { "per.peRatio": { value: "27.82", asOfDate: "2026-08-28" } } },
         ],
       });
     });
