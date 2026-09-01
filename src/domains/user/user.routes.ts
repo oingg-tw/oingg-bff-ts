@@ -5,6 +5,7 @@ import type { AuthenticatedRequest } from "../auth/auth.types.js";
 import { getDisplaySettings, updateShowAsOfDate } from "./screenerDisplaySettings.service.js";
 import {
   getThemePreference,
+  updateIsFullWidth,
   updateMarketColorConvention,
   updateThemeAccentColor,
   updateThemeMode,
@@ -49,8 +50,9 @@ userRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
  *   get:
  *     summary: 查詢目前登入使用者的 UI 主題設定
  *     description: >
- *       尚未設定過的欄位回傳系統預設值（mode: SYSTEM, accentColor: GOLD, marketColorConvention: ASIA），
- *       不是寫死在使用者資料裡的快照——之後調整系統預設，沒特別設定過的使用者會直接跟著變。
+ *       尚未設定過的欄位回傳系統預設值（mode: SYSTEM, accentColor: GOLD, marketColorConvention: ASIA,
+ *       isFullWidth: false），不是寫死在使用者資料裡的快照——之後調整系統預設，沒特別設定過的使用者會
+ *       直接跟著變。
  *     tags:
  *       - User
  *     security:
@@ -76,11 +78,14 @@ userRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
  *                     marketColorConvention:
  *                       type: string
  *                       enum: [ASIA, WESTERN, ACCESSIBLE]
+ *                     isFullWidth:
+ *                       type: boolean
  *             example:
  *               theme:
  *                 mode: DARK
  *                 accentColor: PURPLE
  *                 marketColorConvention: ASIA
+ *                 isFullWidth: false
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  */
@@ -131,11 +136,14 @@ userRouter.get("/me/theme", requireAuth, async (req: AuthenticatedRequest, res) 
  *                     marketColorConvention:
  *                       type: string
  *                       enum: [ASIA, WESTERN, ACCESSIBLE]
+ *                     isFullWidth:
+ *                       type: boolean
  *             example:
  *               theme:
  *                 mode: DARK
  *                 accentColor: PURPLE
  *                 marketColorConvention: ASIA
+ *                 isFullWidth: false
  *       400:
  *         description: mode 沒給，或不在允許的選項內。
  *       401:
@@ -190,11 +198,14 @@ userRouter.put("/me/theme/mode", requireAuth, async (req: AuthenticatedRequest, 
  *                     marketColorConvention:
  *                       type: string
  *                       enum: [ASIA, WESTERN, ACCESSIBLE]
+ *                     isFullWidth:
+ *                       type: boolean
  *             example:
  *               theme:
  *                 mode: DARK
  *                 accentColor: PURPLE
  *                 marketColorConvention: ASIA
+ *                 isFullWidth: false
  *       400:
  *         description: accentColor 沒給，或不在允許的選項內。
  *       401:
@@ -250,11 +261,14 @@ userRouter.put("/me/theme/accent-color", requireAuth, async (req: AuthenticatedR
  *                     marketColorConvention:
  *                       type: string
  *                       enum: [ASIA, WESTERN, ACCESSIBLE]
+ *                     isFullWidth:
+ *                       type: boolean
  *             example:
  *               theme:
  *                 mode: DARK
  *                 accentColor: PURPLE
  *                 marketColorConvention: ASIA
+ *                 isFullWidth: false
  *       400:
  *         description: marketColorConvention 沒給，或不在允許的選項內。
  *       401:
@@ -264,6 +278,68 @@ userRouter.put("/me/theme/market-color-convention", requireAuth, async (req: Aut
   const firebaseUid = requireUser(req);
   const body = req.body as { marketColorConvention?: unknown } | null;
   const theme = await updateMarketColorConvention(firebaseUid, body?.marketColorConvention);
+  res.json({ theme });
+});
+
+/**
+ * @swagger
+ * /users/me/theme/full-width:
+ *   put:
+ *     summary: 更新「視覺滿版」設定
+ *     description: 整個 app 通用的版面偏好（主內容區是否佔滿整個頁面寬度），不限定某個功能頁面。
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - isFullWidth
+ *             properties:
+ *               isFullWidth:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: >
+ *           更新後的完整主題設定，包在 "theme" 這個 key 底下（跟 GET /users/me/theme 同一個 shape）。
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 theme:
+ *                   type: object
+ *                   properties:
+ *                     mode:
+ *                       type: string
+ *                       enum: [LIGHT, DARK, SYSTEM]
+ *                     accentColor:
+ *                       type: string
+ *                       enum: [BLUE, GREEN, PURPLE, ORANGE, RED, TEAL, GOLD]
+ *                     marketColorConvention:
+ *                       type: string
+ *                       enum: [ASIA, WESTERN, ACCESSIBLE]
+ *                     isFullWidth:
+ *                       type: boolean
+ *             example:
+ *               theme:
+ *                 mode: DARK
+ *                 accentColor: PURPLE
+ *                 marketColorConvention: ASIA
+ *                 isFullWidth: true
+ *       400:
+ *         description: isFullWidth 不是布林值。
+ *       401:
+ *         description: 缺少或無效的 Authorization header / token。
+ */
+userRouter.put("/me/theme/full-width", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = req.body as { isFullWidth?: unknown } | null;
+  const theme = await updateIsFullWidth(firebaseUid, body?.isFullWidth);
   res.json({ theme });
 });
 

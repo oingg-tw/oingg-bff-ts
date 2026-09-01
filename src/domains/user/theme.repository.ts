@@ -5,13 +5,16 @@ export interface ThemePreferenceRow {
   mode: ThemeMode | null;
   accentColor: ThemeAccentColor | null;
   marketColorConvention: MarketColorConvention | null;
+  isFullWidth: boolean | null;
 }
+
+const SELECT_FIELDS = { mode: true, accentColor: true, marketColorConvention: true, isFullWidth: true } as const;
 
 export async function findThemePreference(firebaseUid: string): Promise<ThemePreferenceRow | null> {
   const prisma = getPrismaClient();
   return prisma.userThemePreference.findUnique({
     where: { firebaseUid },
-    select: { mode: true, accentColor: true, marketColorConvention: true },
+    select: SELECT_FIELDS,
   });
 }
 
@@ -24,6 +27,6 @@ export async function upsertThemePreference(
     where: { firebaseUid },
     create: { firebaseUid, ...update },
     update,
-    select: { mode: true, accentColor: true, marketColorConvention: true },
+    select: SELECT_FIELDS,
   });
 }

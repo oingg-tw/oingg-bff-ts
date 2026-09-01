@@ -10,10 +10,13 @@ export interface ThemePreference {
   mode: ThemeMode;
   accentColor: ThemeAccentColor;
   marketColorConvention: MarketColorConvention;
+  /** Whether the app's main content area spans the full page width instead of a constrained/centered layout (視覺滿版). App-wide, not tied to any one feature. */
+  isFullWidth: boolean;
 }
 
 export interface ThemePreferenceUpdate {
   mode?: ThemeMode;
   accentColor?: ThemeAccentColor;
   marketColorConvention?: MarketColorConvention;
+  isFullWidth?: boolean;
 }

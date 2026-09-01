@@ -19,11 +19,15 @@ const VALID_MARKET_COLOR_CONVENTIONS: MarketColorConvention[] = ["ASIA", "WESTER
  * marketColorConvention defaults to ASIA (red = up/gain, green = down/loss) since this platform is
  * TWSE/TPEx-focused — a Taiwan user who never touches this setting should see the convention they
  * already expect, not the US/Europe one.
+ *
+ * isFullWidth defaults to false — a constrained/centered layout is the conventional starting point;
+ * full-width is an opt-in preference, not the other way around.
  */
 export const SYSTEM_DEFAULT_THEME: ThemePreference = {
   mode: "SYSTEM",
   accentColor: "GOLD",
   marketColorConvention: "ASIA",
+  isFullWidth: false,
 };
 
 function assertValidMode(mode: unknown): asserts mode is ThemeMode {
@@ -54,6 +58,7 @@ function toThemePreference(row: ThemePreferenceRow | null): ThemePreference {
     mode: row?.mode ?? SYSTEM_DEFAULT_THEME.mode,
     accentColor: row?.accentColor ?? SYSTEM_DEFAULT_THEME.accentColor,
     marketColorConvention: row?.marketColorConvention ?? SYSTEM_DEFAULT_THEME.marketColorConvention,
+    isFullWidth: row?.isFullWidth ?? SYSTEM_DEFAULT_THEME.isFullWidth,
   };
 }
 
@@ -83,5 +88,14 @@ export async function updateMarketColorConvention(
 ): Promise<ThemePreference> {
   assertValidMarketColorConvention(marketColorConvention);
   const row = await upsertThemePreference(firebaseUid, { marketColorConvention });
+  return toThemePreference(row);
+}
+
+/** 視覺滿版 (app-wide full-width layout) — its own endpoint, independent of the other theme fields. */
+export async function updateIsFullWidth(firebaseUid: string, isFullWidth: unknown): Promise<ThemePreference> {
+  if (typeof isFullWidth !== "boolean") {
+    throw new AppError('"isFullWidth" must be a boolean', 400);
+  }
+  const row = await upsertThemePreference(firebaseUid, { isFullWidth });
   return toThemePreference(row);
 }

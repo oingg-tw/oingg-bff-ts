@@ -11,6 +11,7 @@ import {
   updateThemeMode,
   updateThemeAccentColor,
   updateMarketColorConvention,
+  updateIsFullWidth,
   SYSTEM_DEFAULT_THEME,
 } from "../domains/user/theme.service.js";
 
@@ -27,11 +28,16 @@ describe("getThemePreference", () => {
     expect(theme).toEqual(SYSTEM_DEFAULT_THEME);
   });
 
-  // Regression: mode/accentColor/marketColorConvention are independently nullable — a user who only
-  // ever set one of them must still fall back to the live system default for the others, not some
-  // frozen value.
+  // Regression: mode/accentColor/marketColorConvention/isFullWidth are independently nullable — a user
+  // who only ever set one of them must still fall back to the live system default for the others, not
+  // some frozen value.
   it("falls back to the system default per-field when only one field was ever set", async () => {
-    vi.mocked(findThemePreference).mockResolvedValue({ mode: "DARK", accentColor: null, marketColorConvention: null });
+    vi.mocked(findThemePreference).mockResolvedValue({
+      mode: "DARK",
+      accentColor: null,
+      marketColorConvention: null,
+      isFullWidth: null,
+    });
 
     const theme = await getThemePreference("uid-1");
 
@@ -39,6 +45,7 @@ describe("getThemePreference", () => {
       mode: "DARK",
       accentColor: SYSTEM_DEFAULT_THEME.accentColor,
       marketColorConvention: SYSTEM_DEFAULT_THEME.marketColorConvention,
+      isFullWidth: SYSTEM_DEFAULT_THEME.isFullWidth,
     });
   });
 
@@ -47,16 +54,17 @@ describe("getThemePreference", () => {
       mode: "LIGHT",
       accentColor: "PURPLE",
       marketColorConvention: "WESTERN",
+      isFullWidth: true,
     });
 
     const theme = await getThemePreference("uid-1");
 
-    expect(theme).toEqual({ mode: "LIGHT", accentColor: "PURPLE", marketColorConvention: "WESTERN" });
+    expect(theme).toEqual({ mode: "LIGHT", accentColor: "PURPLE", marketColorConvention: "WESTERN", isFullWidth: true });
   });
 });
 
-// The three settings each have their own update entrypoint (three separate PUT endpoints) rather than
-// one combined partial-update call, so each is tested independently of the others' validation.
+// Each setting has its own update entrypoint (a separate PUT endpoint) rather than one combined
+// partial-update call, so each is tested independently of the others' validation.
 describe("updateThemeMode", () => {
   beforeEach(() => {
     vi.mocked(upsertThemePreference).mockReset();
@@ -69,7 +77,12 @@ describe("updateThemeMode", () => {
   });
 
   it("upserts only the mode field and resolves the rest against defaults", async () => {
-    vi.mocked(upsertThemePreference).mockResolvedValue({ mode: "DARK", accentColor: null, marketColorConvention: null });
+    vi.mocked(upsertThemePreference).mockResolvedValue({
+      mode: "DARK",
+      accentColor: null,
+      marketColorConvention: null,
+      isFullWidth: null,
+    });
 
     const theme = await updateThemeMode("uid-1", "DARK");
 
@@ -78,6 +91,7 @@ describe("updateThemeMode", () => {
       mode: "DARK",
       accentColor: SYSTEM_DEFAULT_THEME.accentColor,
       marketColorConvention: SYSTEM_DEFAULT_THEME.marketColorConvention,
+      isFullWidth: SYSTEM_DEFAULT_THEME.isFullWidth,
     });
   });
 });
@@ -94,7 +108,12 @@ describe("updateThemeAccentColor", () => {
   });
 
   it("accepts GOLD and upserts only the accentColor field", async () => {
-    vi.mocked(upsertThemePreference).mockResolvedValue({ mode: null, accentColor: "GOLD", marketColorConvention: null });
+    vi.mocked(upsertThemePreference).mockResolvedValue({
+      mode: null,
+      accentColor: "GOLD",
+      marketColorConvention: null,
+      isFullWidth: null,
+    });
 
     const theme = await updateThemeAccentColor("uid-1", "GOLD");
 
@@ -103,6 +122,7 @@ describe("updateThemeAccentColor", () => {
       mode: SYSTEM_DEFAULT_THEME.mode,
       accentColor: "GOLD",
       marketColorConvention: SYSTEM_DEFAULT_THEME.marketColorConvention,
+      isFullWidth: SYSTEM_DEFAULT_THEME.isFullWidth,
     });
   });
 });
@@ -123,6 +143,7 @@ describe("updateMarketColorConvention", () => {
       mode: null,
       accentColor: null,
       marketColorConvention: "WESTERN",
+      isFullWidth: null,
     });
 
     const theme = await updateMarketColorConvention("uid-1", "WESTERN");
@@ -132,6 +153,7 @@ describe("updateMarketColorConvention", () => {
       mode: SYSTEM_DEFAULT_THEME.mode,
       accentColor: SYSTEM_DEFAULT_THEME.accentColor,
       marketColorConvention: "WESTERN",
+      isFullWidth: SYSTEM_DEFAULT_THEME.isFullWidth,
     });
   });
 
@@ -140,11 +162,57 @@ describe("updateMarketColorConvention", () => {
       mode: null,
       accentColor: null,
       marketColorConvention: "ACCESSIBLE",
+      isFullWidth: null,
     });
 
     const theme = await updateMarketColorConvention("uid-1", "ACCESSIBLE");
 
     expect(upsertThemePreference).toHaveBeenCalledWith("uid-1", { marketColorConvention: "ACCESSIBLE" });
     expect(theme.marketColorConvention).toBe("ACCESSIBLE");
+  });
+});
+
+describe("updateIsFullWidth", () => {
+  beforeEach(() => {
+    vi.mocked(upsertThemePreference).mockReset();
+  });
+
+  it("rejects a non-boolean value", async () => {
+    await expect(updateIsFullWidth("uid-1", undefined)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(updateIsFullWidth("uid-1", "yes")).rejects.toMatchObject({ statusCode: 400 });
+    expect(upsertThemePreference).not.toHaveBeenCalled();
+  });
+
+  it("persists true and upserts only the isFullWidth field", async () => {
+    vi.mocked(upsertThemePreference).mockResolvedValue({
+      mode: null,
+      accentColor: null,
+      marketColorConvention: null,
+      isFullWidth: true,
+    });
+
+    const theme = await updateIsFullWidth("uid-1", true);
+
+    expect(upsertThemePreference).toHaveBeenCalledWith("uid-1", { isFullWidth: true });
+    expect(theme).toEqual({
+      mode: SYSTEM_DEFAULT_THEME.mode,
+      accentColor: SYSTEM_DEFAULT_THEME.accentColor,
+      marketColorConvention: SYSTEM_DEFAULT_THEME.marketColorConvention,
+      isFullWidth: true,
+    });
+  });
+
+  it("persists false and returns it (not treated as falsy/missing)", async () => {
+    vi.mocked(upsertThemePreference).mockResolvedValue({
+      mode: null,
+      accentColor: null,
+      marketColorConvention: null,
+      isFullWidth: false,
+    });
+
+    const theme = await updateIsFullWidth("uid-1", false);
+
+    expect(upsertThemePreference).toHaveBeenCalledWith("uid-1", { isFullWidth: false });
+    expect(theme.isFullWidth).toBe(false);
   });
 });

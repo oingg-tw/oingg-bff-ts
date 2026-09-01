@@ -146,6 +146,9 @@ model UserThemePreference {
   mode                  ThemeMode?
   accentColor           ThemeAccentColor?      @map("accent_color")
   marketColorConvention MarketColorConvention? @map("market_color_convention")
+  /// 視覺滿版 — whether the app's main content area spans full page width. App-wide layout preference,
+  /// not tied to any one feature (e.g. not screener-specific, unlike ScreenerDisplaySettings).
+  isFullWidth           Boolean?               @map("is_full_width")
   updatedAt             DateTime               @default(now()) @updatedAt @map("updated_at")
 
   @@map("user_theme_preference")

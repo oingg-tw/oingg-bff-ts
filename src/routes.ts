@@ -45,7 +45,8 @@ routes.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 routes.use("/system", systemRouter); // GET /system/health
 routes.use("/auth", authRouter); // GET /auth/me
-// GET /users/me; GET /users/me/theme; PUT /users/me/theme/mode, /theme/accent-color, /theme/market-color-convention;
+// GET /users/me; GET /users/me/theme; PUT /users/me/theme/mode, /theme/accent-color,
+// /theme/market-color-convention, /theme/full-width;
 // GET /users/me/screener-display-settings; PUT /users/me/screener-display-settings/show-as-of-date
 routes.use("/users", userRouter);
 routes.use("/stocks", stockRouter); // GET /stocks/:symbol

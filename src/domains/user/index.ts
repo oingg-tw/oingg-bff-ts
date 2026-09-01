@@ -4,6 +4,7 @@ export {
   updateThemeMode,
   updateThemeAccentColor,
   updateMarketColorConvention,
+  updateIsFullWidth,
   SYSTEM_DEFAULT_THEME,
 } from "./theme.service.js";
 export type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreference } from "./theme.types.js";
