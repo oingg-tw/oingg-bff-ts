@@ -116,7 +116,73 @@ describe("runScreener", () => {
       ],
       [{ field: "roe.roeTtmPct" }],
       { page: 2, pageSize: 25 },
+      undefined,
     );
+  });
+
+  describe("sort", () => {
+    it('passes "symbol" through as a valid sortField even though it\'s not in columns', async () => {
+      vi.mocked(fetchScreenerResults).mockResolvedValue({ count: 0, page: 1, pageSize: 50, totalPages: 0, results: [] });
+
+      await runScreener(
+        [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
+        [],
+        DEFAULT_PAGINATION,
+        { field: "symbol", order: "desc" },
+      );
+
+      expect(fetchScreenerResults).toHaveBeenCalledWith(expect.anything(), [], DEFAULT_PAGINATION, {
+        field: "symbol",
+        order: "desc",
+      });
+    });
+
+    it("passes a sortField that is one of this request's own columns through to fetchScreenerResults", async () => {
+      vi.mocked(fetchScreenerResults).mockResolvedValue({ count: 0, page: 1, pageSize: 50, totalPages: 0, results: [] });
+
+      await runScreener(
+        [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
+        [{ field: "roe.roeTtmPct" }],
+        DEFAULT_PAGINATION,
+        { field: "roe.roeTtmPct", order: "asc" },
+      );
+
+      expect(fetchScreenerResults).toHaveBeenCalledWith(
+        expect.anything(),
+        [{ field: "roe.roeTtmPct" }],
+        DEFAULT_PAGINATION,
+        { field: "roe.roeTtmPct", order: "asc" },
+      );
+    });
+
+    // The whole point of requiring sortField to be one of this request's own columns: a filter-only
+    // field (used to narrow results but never displayed) shouldn't be sortable — the caller can't see
+    // what it's sorting by.
+    it("rejects a sortField that's a filter-only field, not requested as a display column", async () => {
+      await expect(
+        runScreener(
+          [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
+          [],
+          DEFAULT_PAGINATION,
+          { field: "grossMargin.grossMarginTtm", order: "asc" },
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(fetchScreenerResults).not.toHaveBeenCalled();
+    });
+
+    // "stock.price" isn't part of analysis-ts's data at all (twse/tpex, merged in by bff-ts after the
+    // fact) — sorting the full result set by it isn't something analysis-ts's engine can do.
+    it('rejects sorting by "stock.price"', async () => {
+      await expect(
+        runScreener(
+          [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
+          [{ field: "stock.price" }],
+          DEFAULT_PAGINATION,
+          { field: "stock.price", order: "asc" },
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(fetchScreenerResults).not.toHaveBeenCalled();
+    });
   });
 
   it("resolves the requested columns against the local filter catalog for metricName/fieldName in the response", async () => {
@@ -162,7 +228,7 @@ describe("runScreener", () => {
     );
 
     // "stock.price" must never leak into the columns sent to analysis-ts — it isn't a filterCatalog field.
-    expect(fetchScreenerResults).toHaveBeenCalledWith(expect.anything(), [], DEFAULT_PAGINATION);
+    expect(fetchScreenerResults).toHaveBeenCalledWith(expect.anything(), [], DEFAULT_PAGINATION, undefined);
     // One batched call for the whole result set, not one call per symbol.
     expect(getLatestClosePrices).toHaveBeenCalledTimes(1);
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330", "2317"]);

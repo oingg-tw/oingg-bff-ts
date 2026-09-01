@@ -1,4 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
+import type { ScreenerSort } from "@/domains/screener/analysisScreenerClient.js";
 import type { ScreenerFilter } from "@/domains/screener/screener.types.js";
 
 function parseNullableNumber(value: unknown, path: string): number | null {
@@ -37,4 +38,27 @@ export function parseScreenerFilters(filtersRaw: unknown, path = "filters"): Scr
       exclude: exclude ?? false,
     };
   });
+}
+
+/**
+ * Parses/validates `sortField`/`sortOrder` from a request body. Shared by POST /screener and
+ * GET /screener/presets/:id/run — analysis-ts requires both or neither (giving just one is a 400 on
+ * their side too, but failing fast here avoids the round trip). Whether `sortField` is actually a valid
+ * "symbol" or one of this request's own columns is checked in screener.service.ts's runScreener, since
+ * that needs the resolved catalog fields this parser doesn't have access to.
+ */
+export function parseSort(sortFieldRaw: unknown, sortOrderRaw: unknown): ScreenerSort | undefined {
+  if (sortFieldRaw === undefined && sortOrderRaw === undefined) {
+    return undefined;
+  }
+  if (sortFieldRaw === undefined || sortOrderRaw === undefined) {
+    throw new AppError('"sortField" and "sortOrder" must be given together, or not at all', 400);
+  }
+  if (typeof sortFieldRaw !== "string" || sortFieldRaw.trim() === "") {
+    throw new AppError('"sortField" must be a non-empty string', 400);
+  }
+  if (sortOrderRaw !== "asc" && sortOrderRaw !== "desc") {
+    throw new AppError('"sortOrder" must be "asc" or "desc"', 400);
+  }
+  return { field: sortFieldRaw, order: sortOrderRaw };
 }

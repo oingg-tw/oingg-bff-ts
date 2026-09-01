@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client.js";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
 import { findFilterFields } from "@/domains/filterCatalog/index.js";
+import type { ScreenerSort } from "@/domains/screener/analysisScreenerClient.js";
 import { resolveScreenerColumns } from "@/domains/screener/columnPresets.service.js";
 import type { Pagination } from "@/domains/screener/pagination.js";
 import { runScreener } from "@/domains/screener/screener.service.js";
@@ -214,6 +215,7 @@ export async function runPreset(
   id: string,
   pagination: Pagination,
   columnPresetId?: string,
+  sort?: ScreenerSort,
 ): Promise<{ preset: PresetView; screener: ScreenerResult; columnPresetId: string | null }> {
   const row = await findPreset(firebaseUid, id);
   if (!row) {
@@ -230,6 +232,6 @@ export async function runPreset(
     await setLastColumnPreset(firebaseUid, id, resolved.columnPresetId ?? columnPresetId);
   }
 
-  const screener = await runScreener(preset.filters, resolved.columns, pagination);
+  const screener = await runScreener(preset.filters, resolved.columns, pagination, sort);
   return { preset, screener, columnPresetId: resolved.columnPresetId };
 }

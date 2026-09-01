@@ -283,6 +283,7 @@ describe("runPreset", () => {
       ],
       [{ field: "per.peRatio" }],
       DEFAULT_PAGINATION,
+      undefined,
     );
     expect(result.preset.name).toBe("績優股");
     expect(result.columnPresetId).toBeNull();
@@ -318,6 +319,6 @@ describe("runPreset", () => {
 
     await runPreset("uid1", SAMPLE_ID, { page: 2, pageSize: 10 });
 
-    expect(runScreener).toHaveBeenCalledWith(expect.anything(), expect.anything(), { page: 2, pageSize: 10 });
+    expect(runScreener).toHaveBeenCalledWith(expect.anything(), expect.anything(), { page: 2, pageSize: 10 }, undefined);
   });
 });

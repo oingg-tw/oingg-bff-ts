@@ -116,23 +116,32 @@ async function handleJsonResponse(response: Response, url: URL): Promise<unknown
   return response.json();
 }
 
+export interface ScreenerSort {
+  field: string;
+  order: "asc" | "desc";
+}
+
 /**
  * Runs the full filtered/paginated screener against analysis-ts's POST /screener — the field-resolution
  * (catalog validation, metricName/fieldName for display) and "stock.price"/company-name merging still
  * happen on bff-ts's side (see screener.service.ts); this client only talks to the endpoint that now
  * owns the actual query engine (dynamic CTE/JOIN across 30+ metric tables, latest-row-per-symbol,
- * ROC-year quarter labels, etc. — see docs/直連DB反模式修復計畫.md for what moved).
+ * ROC-year quarter labels, sorting, etc. — see docs/直連DB反模式修復計畫.md for what moved). Sorting is
+ * full-result-set (applied before pagination on their side), not just within the returned page — they
+ * also add `symbol` as a stable tiebreaker internally when the sort field has duplicate values.
  */
 export async function fetchScreenerResults(
   filters: ScreenerFilter[],
   columns: ScreenerColumnInput[],
   pagination: Pagination,
+  sort?: ScreenerSort,
 ): Promise<AnalysisScreenerResult> {
   const body = await postJson("/screener", {
     filters,
     columns,
     page: pagination.page,
     pageSize: pagination.pageSize,
+    ...(sort ? { sortField: sort.field, sortOrder: sort.order } : {}),
   });
 
   const b = body as { count?: unknown; page?: unknown; pageSize?: unknown; totalPages?: unknown; results?: unknown };

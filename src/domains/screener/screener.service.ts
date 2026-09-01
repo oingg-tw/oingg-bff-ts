@@ -3,7 +3,12 @@ import { findFilterFields } from "@/domains/filterCatalog/index.js";
 import { getLatestClosePrices } from "@/domains/stock/index.js";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
-import { fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domains/screener/analysisScreenerClient.js";
+import {
+  fetchScreenerRanking,
+  fetchScreenerResults,
+  fetchScreenerValues,
+  type ScreenerSort,
+} from "@/domains/screener/analysisScreenerClient.js";
 import { SPECIAL_COLUMNS } from "@/domains/screener/columnField.js";
 import type { Pagination } from "@/domains/screener/pagination.js";
 import type {
@@ -99,9 +104,28 @@ async function mergeCompanyNames(rows: ScreenerResultRow[]): Promise<void> {
 }
 
 /**
+ * `sortField` must be "symbol" or one of this request's own display `columns` — never "stock.price"
+ * (twse/tpex, not part of analysis-ts's data at all) and never an arbitrary filter-only field the caller
+ * didn't also ask to display. analysis-ts sorts the full result set before pagination (not just the
+ * returned page), adding `symbol` as an internal tiebreaker for stable pagination when the sort field has
+ * duplicate values.
+ */
+function validateSort(sort: ScreenerSort | undefined, resolvedColumns: ResolvedRef[]): void {
+  if (!sort) {
+    return;
+  }
+  if (sort.field !== "symbol" && !resolvedColumns.some((c) => c.field === sort.field)) {
+    throw new AppError(
+      `"sortField" must be "symbol" or one of this request's own columns — "${sort.field}" isn't in "columns"`,
+      400,
+    );
+  }
+}
+
+/**
  * Screens companies by filterCatalog metrics — the actual query (dynamic CTE/JOIN across 30+ metric
- * tables, latest-row-per-symbol, ROC-year quarter labels, null/exclude filter semantics) now runs on
- * analysis-ts's own POST /screener (see analysisScreenerClient.ts and
+ * tables, latest-row-per-symbol, ROC-year quarter labels, null/exclude filter semantics, sorting) now
+ * runs on analysis-ts's own POST /screener (see analysisScreenerClient.ts and
  * docs/直連DB反模式修復計畫.md for what moved and why). This function's remaining job is: validate/resolve
  * fields against bff-ts's own synced catalog (for metricName/fieldName in the response — analysis-ts's
  * endpoint doesn't echo those back, we already have them locally), split off "stock.price" (twse/tpex,
@@ -114,6 +138,7 @@ export async function runScreener(
   filters: ScreenerFilter[],
   columns: ScreenerColumnRef[],
   pagination: Pagination,
+  sort?: ScreenerSort,
 ): Promise<ScreenerResult> {
   if (filters.length === 0) {
     throw new AppError("At least one filter is required", 400);
@@ -127,11 +152,13 @@ export async function runScreener(
     ...catalogColumnRefs.map((c) => c.field),
   ]);
   const resolvedColumns = allRefs.slice(filters.length);
+  validateSort(sort, resolvedColumns);
 
   const apiResult = await fetchScreenerResults(
     filters,
     resolvedColumns.map((c) => ({ field: c.field })),
     pagination,
+    sort,
   );
 
   const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);

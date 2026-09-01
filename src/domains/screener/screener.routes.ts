@@ -6,7 +6,7 @@ import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 import { runRanking, runScreener, runScreenerValues } from "@/domains/screener/screener.service.js";
 import { resolveScreenerColumns } from "@/domains/screener/columnPresets.service.js";
 import { parsePagination } from "@/domains/screener/pagination.js";
-import { parseScreenerFilters } from "@/domains/screener/screenerFilterInput.js";
+import { parseScreenerFilters, parseSort } from "@/domains/screener/screenerFilterInput.js";
 import type { ScreenerColumnRef, ScreenerFilter } from "@/domains/screener/screener.types.js";
 
 const DEFAULT_RANKING_LIMIT = 10;
@@ -106,6 +106,17 @@ function parseOptionalColumnPresetId(body: unknown): string | undefined {
  *                 type: integer
  *                 default: 50
  *                 description: 每頁筆數，最多 200。
+ *               sortField:
+ *                 type: string
+ *                 description: >
+ *                   要依哪個欄位排序——"symbol"，或這次請求的 columns 裡已經有的欄位（不能是
+ *                   filters 用到、但沒有列進 columns 的欄位，也不能是 "stock.price"）。
+ *                   要嘛跟 sortOrder 一起給，要嘛都不給；只給一個會 400。省略則不保證特定順序。
+ *                   排序是對整個符合條件的結果集排序（分頁之前），不是只排這一頁。
+ *               sortOrder:
+ *                 type: string
+ *                 enum: [asc, desc]
+ *                 description: 搭配 sortField 使用，見上方說明。
  *     responses:
  *       200:
  *         description: 符合條件的股票清單（這一頁的部分），附上總筆數/頁碼/總頁數，以及實際套用的 columnPresetId。
@@ -186,11 +197,12 @@ screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = req.user?.uid;
   const filters = parseFilters(req.body);
   const requestedColumnPresetId = parseOptionalColumnPresetId(req.body);
-  const body = req.body as { page?: unknown; pageSize?: unknown } | null;
+  const body = req.body as { page?: unknown; pageSize?: unknown; sortField?: unknown; sortOrder?: unknown } | null;
   const pagination = parsePagination(body?.page, body?.pageSize);
+  const sort = parseSort(body?.sortField, body?.sortOrder);
 
   const { columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, requestedColumnPresetId);
-  const result = await runScreener(filters, columns, pagination);
+  const result = await runScreener(filters, columns, pagination, sort);
   res.json({ ...result, columnPresetId });
 });
 

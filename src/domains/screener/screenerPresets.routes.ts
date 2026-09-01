@@ -4,7 +4,7 @@ import { parseUuidParam } from "@/shared/uuid.js";
 import { requireAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 import { parsePagination } from "@/domains/screener/pagination.js";
-import { parseScreenerFilters } from "@/domains/screener/screenerFilterInput.js";
+import { parseScreenerFilters, parseSort } from "@/domains/screener/screenerFilterInput.js";
 import {
   addPreset,
   editPreset,
@@ -299,11 +299,25 @@ function parseOptionalColumnPresetIdQuery(raw: unknown): string | undefined {
  *           type: integer
  *           default: 50
  *         description: 每頁筆數，最多 200。
+ *       - in: query
+ *         name: sortField
+ *         schema:
+ *           type: string
+ *         description: >
+ *           要依哪個欄位排序——"symbol"，或最終解析出來的顯示欄位之一（不能是 "stock.price"）。
+ *           要嘛跟 sortOrder 一起給，要嘛都不給；只給一個會 400。排序是對整個符合條件的結果集
+ *           排序（分頁之前），不是只排這一頁。
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *         description: 搭配 sortField 使用，見上方說明。
  *     responses:
  *       200:
  *         description: preset（名稱與條件）+ screener 結果（count/page/pageSize/totalPages/columns/results）+ 實際套用的 columnPresetId。
  *       400:
- *         description: columnPresetId 不是合法的 UUID，或 page/pageSize 不是合法的正整數。
+ *         description: columnPresetId 不是合法的 UUID，page/pageSize 不是合法的正整數，或 sortField/sortOrder 格式錯誤。
  *       401:
  *         description: 缺少或無效的 Authorization header / token。
  *       404:
@@ -314,6 +328,7 @@ screenerPresetsRouter.get("/:id/run", async (req: AuthenticatedRequest, res) => 
   const id = parseId(req.params.id ?? "");
   const columnPresetId = parseOptionalColumnPresetIdQuery(req.query.columnPresetId);
   const pagination = parsePagination(req.query.page, req.query.pageSize);
-  const result = await runPreset(firebaseUid, id, pagination, columnPresetId);
+  const sort = parseSort(req.query.sortField, req.query.sortOrder);
+  const result = await runPreset(firebaseUid, id, pagination, columnPresetId, sort);
   res.json(result);
 });
