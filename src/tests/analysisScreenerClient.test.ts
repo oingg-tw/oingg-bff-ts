@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchScreenerRanking, fetchScreenerResults } from "@/domains/screener/analysisScreenerClient.js";
+import { fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domains/screener/analysisScreenerClient.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
@@ -183,5 +183,60 @@ describe("fetchScreenerRanking", () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
 
     await expect(fetchScreenerRanking("roe.roeTtmPct", "desc", 10, [])).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+describe("fetchScreenerValues", () => {
+  it("POSTs symbols/columns to /screener/values and normalizes numeric values to strings", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        results: [
+          { symbol: "2330", values: { "roe.roeTtmPct": { value: 34.78, asOfDate: "26Q2" } } },
+          { symbol: "2317", values: {} },
+        ],
+      },
+    });
+
+    const result = await fetchScreenerValues(["2330", "2317"], [{ field: "roe.roeTtmPct" }]);
+
+    expect(result).toEqual({
+      results: [
+        { symbol: "2330", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } },
+        { symbol: "2317", values: {} },
+      ],
+    });
+
+    const call = vi.mocked(globalThis.fetch).mock.calls[0];
+    const url = call?.[0] as URL;
+    const init = call?.[1] as RequestInit;
+    expect(url.toString()).toBe("http://filters.test/screener/values");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({
+      symbols: ["2330", "2317"],
+      columns: [{ field: "roe.roeTtmPct" }],
+    });
+  });
+
+  it("relays analysis-ts's 400 message for an unknown field", async () => {
+    mockFetchOnce({ ok: false, status: 400, body: { message: '"nope.nope" 不是 /filters 有列出的欄位' } });
+
+    await expect(fetchScreenerValues(["2330"], [{ field: "nope.nope" }])).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("throws a 502 AppError when the response is missing a results array", async () => {
+    mockFetchOnce({ ok: true, body: {} });
+
+    await expect(fetchScreenerValues(["2330"], [{ field: "roe.roeTtmPct" }])).rejects.toMatchObject({
+      statusCode: 502,
+    });
+  });
+
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchScreenerValues(["2330"], [{ field: "roe.roeTtmPct" }])).rejects.toMatchObject({
+      statusCode: 502,
+    });
   });
 });

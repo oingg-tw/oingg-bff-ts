@@ -3,7 +3,7 @@ import { findFilterFields } from "@/domains/filterCatalog/index.js";
 import { getLatestClosePrices } from "@/domains/stock/index.js";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
-import { fetchScreenerRanking, fetchScreenerResults } from "@/domains/screener/analysisScreenerClient.js";
+import { fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domains/screener/analysisScreenerClient.js";
 import { SPECIAL_COLUMNS } from "@/domains/screener/columnField.js";
 import type { Pagination } from "@/domains/screener/pagination.js";
 import type {
@@ -12,6 +12,7 @@ import type {
   ScreenerResult,
   ScreenerResultColumn,
   ScreenerResultRow,
+  ScreenerValuesResult,
 } from "@/domains/screener/screener.types.js";
 import { fetchValuationRanking, type ValuationRankingMetric } from "@/domains/screener/valuationRanking.client.js";
 
@@ -161,6 +162,63 @@ export async function runScreener(
     columns: resultColumns,
     results,
   };
+}
+
+// Matches bff-ts's own screener pageSize cap (see pagination.ts's MAX_PAGE_SIZE) — this endpoint's
+// real use case is "the symbols on my current page", which never gets close to either limit.
+const MAX_VALUES_SYMBOLS = 200;
+
+/**
+ * Fetches just the requested columns for an explicit, already-known list of symbols — used when the
+ * frontend adds a new column to an already-loaded/paginated result set, so it doesn't need to re-run the
+ * full filtered query (and re-fetch every column it already has) just to pick up one more field. No
+ * filters, no pagination: the caller already knows which symbols it wants. Every requested symbol gets a
+ * result row (even if analysis-ts has no data for it, with empty `values`) — this never silently drops a
+ * row the caller already has on screen.
+ */
+export async function runScreenerValues(symbols: string[], columns: ScreenerColumnRef[]): Promise<ScreenerValuesResult> {
+  if (symbols.length === 0) {
+    throw new AppError("At least one symbol is required", 400);
+  }
+  if (symbols.length > MAX_VALUES_SYMBOLS) {
+    throw new AppError(`At most ${MAX_VALUES_SYMBOLS} symbols are allowed per request`, 400);
+  }
+  if (columns.length === 0) {
+    throw new AppError("At least one column is required", 400);
+  }
+
+  const specialColumns = columns.filter((c) => c.field in SPECIAL_COLUMNS);
+  const catalogColumnRefs = columns.filter((c) => !(c.field in SPECIAL_COLUMNS));
+
+  const resolvedColumns = await resolveCatalogFieldRefs(catalogColumnRefs.map((c) => c.field));
+
+  const apiResult = await fetchScreenerValues(
+    symbols,
+    resolvedColumns.map((c) => ({ field: c.field })),
+  );
+
+  const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
+
+  const resultColumns: ScreenerResultColumn[] = resolvedColumns.map((c) => ({
+    field: c.field,
+    metricName: c.metricName,
+    fieldName: c.fieldName,
+    unit: c.unit,
+  }));
+  if (wantsStockPrice) {
+    resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
+  }
+
+  const rowBySymbol = new Map(apiResult.results.map((row) => [row.symbol, row]));
+  const results: ScreenerResultRow[] = symbols.map((symbol) => ({
+    symbol,
+    name: null,
+    values: rowBySymbol.get(symbol)?.values ?? {},
+  }));
+  await mergeStockPrices(results, wantsStockPrice);
+  await mergeCompanyNames(results);
+
+  return { count: results.length, columns: resultColumns, results };
 }
 
 export interface RankingResult {

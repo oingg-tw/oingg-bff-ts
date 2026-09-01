@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/domains/screener/analysisScreenerClient.js", () => ({
   fetchScreenerResults: vi.fn(),
   fetchScreenerRanking: vi.fn(),
+  fetchScreenerValues: vi.fn(),
 }));
 
 vi.mock("@/domains/filterCatalog/index.js", () => ({
@@ -21,12 +22,12 @@ vi.mock("@/domains/screener/valuationRanking.client.js", () => ({
   fetchValuationRanking: vi.fn(),
 }));
 
-import { fetchScreenerRanking, fetchScreenerResults } from "@/domains/screener/analysisScreenerClient.js";
+import { fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domains/screener/analysisScreenerClient.js";
 import { findFilterFields } from "@/domains/filterCatalog/index.js";
 import { getLatestClosePrices } from "@/domains/stock/index.js";
 import { getCompanyNames } from "@/domains/companies/index.js";
 import { fetchValuationRanking } from "@/domains/screener/valuationRanking.client.js";
-import { runRanking, runScreener } from "@/domains/screener/screener.service.js";
+import { runRanking, runScreener, runScreenerValues } from "@/domains/screener/screener.service.js";
 import type { Pagination } from "@/domains/screener/pagination.js";
 
 const DEFAULT_PAGINATION: Pagination = { page: 1, pageSize: 50 };
@@ -66,6 +67,7 @@ const KNOWN_FIELDS: Record<string, Lookup> = {
 beforeEach(() => {
   vi.mocked(fetchScreenerResults).mockReset();
   vi.mocked(fetchScreenerRanking).mockReset();
+  vi.mocked(fetchScreenerValues).mockReset();
   vi.mocked(findFilterFields).mockReset();
   vi.mocked(findFilterFields).mockImplementation(async (refs) =>
     refs
@@ -422,5 +424,95 @@ describe("runRanking", () => {
       });
       expect(fetchValuationRanking).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("runScreenerValues", () => {
+  it("rejects an empty symbols array", async () => {
+    await expect(runScreenerValues([], [{ field: "roe.roeTtmPct" }])).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchScreenerValues).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty columns array", async () => {
+    await expect(runScreenerValues(["2330"], [])).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchScreenerValues).not.toHaveBeenCalled();
+  });
+
+  it("rejects more than 200 symbols in one request", async () => {
+    const symbols = Array.from({ length: 201 }, (_, i) => String(i));
+    await expect(runScreenerValues(symbols, [{ field: "roe.roeTtmPct" }])).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchScreenerValues).not.toHaveBeenCalled();
+  });
+
+  it("delegates symbols and resolved columns straight to fetchScreenerValues", async () => {
+    vi.mocked(fetchScreenerValues).mockResolvedValue({ results: [] });
+
+    await runScreenerValues(["2330", "2317"], [{ field: "roe.roeTtmPct" }]);
+
+    expect(fetchScreenerValues).toHaveBeenCalledWith(["2330", "2317"], [{ field: "roe.roeTtmPct" }]);
+  });
+
+  // The core point of this endpoint: every requested symbol gets a row, even if analysis-ts has no data
+  // for it — never silently drop a symbol the caller already has on screen.
+  it("returns a row for every requested symbol, with empty values for one analysis-ts didn't return", async () => {
+    vi.mocked(fetchScreenerValues).mockResolvedValue({
+      results: [{ symbol: "2330", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } }],
+    });
+
+    const result = await runScreenerValues(["2330", "9999"], [{ field: "roe.roeTtmPct" }]);
+
+    expect(result.results).toEqual([
+      { symbol: "2330", name: null, values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } },
+      { symbol: "9999", name: null, values: {} },
+    ]);
+  });
+
+  it("count always equals results.length (== the number of symbols requested)", async () => {
+    vi.mocked(fetchScreenerValues).mockResolvedValue({ results: [] });
+
+    const result = await runScreenerValues(["2330", "2317", "9999"], [{ field: "roe.roeTtmPct" }]);
+
+    expect(result.count).toBe(3);
+    expect(result.count).toBe(result.results.length);
+  });
+
+  it("resolves columns against the local filter catalog for metricName/fieldName/unit", async () => {
+    vi.mocked(fetchScreenerValues).mockResolvedValue({ results: [] });
+
+    const result = await runScreenerValues(["2330"], [{ field: "roe.roeTtmPct" }]);
+
+    expect(result.columns).toEqual([
+      { field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)", unit: "percent" },
+    ]);
+  });
+
+  it("rejects a column field that doesn't exist in the filter catalog, without calling analysis-ts", async () => {
+    await expect(runScreenerValues(["2330"], [{ field: "nope.nope" }])).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchScreenerValues).not.toHaveBeenCalled();
+  });
+
+  it('merges in "stock.price" from twse/tpex, not passed through to analysis-ts', async () => {
+    vi.mocked(fetchScreenerValues).mockResolvedValue({ results: [] });
+    vi.mocked(getLatestClosePrices).mockResolvedValue(
+      new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28" }]]),
+    );
+
+    const result = await runScreenerValues(["2330"], [{ field: "stock.price" }]);
+
+    expect(fetchScreenerValues).toHaveBeenCalledWith(["2330"], []);
+    expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
+    expect(result.results).toEqual([
+      { symbol: "2330", name: null, values: { "stock.price": { value: "2350.0000", asOfDate: "2026-08-28" } } },
+    ]);
+  });
+
+  it("attaches company names from a single batched getCompanyNames lookup", async () => {
+    vi.mocked(fetchScreenerValues).mockResolvedValue({ results: [] });
+    vi.mocked(getCompanyNames).mockResolvedValue(new Map([["2330", "台積電"]]));
+
+    const result = await runScreenerValues(["2330"], [{ field: "roe.roeTtmPct" }]);
+
+    expect(getCompanyNames).toHaveBeenCalledWith(["2330"]);
+    expect(result.results[0]?.name).toBe("台積電");
   });
 });

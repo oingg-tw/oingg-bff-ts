@@ -3,7 +3,7 @@ import { AppError } from "@/shared/errorHandler.js";
 import { parseUuidParam } from "@/shared/uuid.js";
 import { optionalAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
-import { runRanking, runScreener } from "@/domains/screener/screener.service.js";
+import { runRanking, runScreener, runScreenerValues } from "@/domains/screener/screener.service.js";
 import { resolveScreenerColumns } from "@/domains/screener/columnPresets.service.js";
 import { parsePagination } from "@/domains/screener/pagination.js";
 import { parseScreenerFilters } from "@/domains/screener/screenerFilterInput.js";
@@ -192,6 +192,104 @@ screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const { columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, requestedColumnPresetId);
   const result = await runScreener(filters, columns, pagination);
   res.json({ ...result, columnPresetId });
+});
+
+function parseSymbols(raw: unknown): string[] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw new AppError('"symbols" must be a non-empty array of strings', 400);
+  }
+  return raw.map((value, index) => {
+    if (typeof value !== "string" || value.trim() === "") {
+      throw new AppError(`symbols[${index}] must be a non-empty string`, 400);
+    }
+    return value;
+  });
+}
+
+function parseColumnRefs(raw: unknown): ScreenerColumnRef[] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw new AppError('"columns" must be a non-empty array', 400);
+  }
+  return raw.map((value, index) => {
+    if (typeof value !== "object" || value === null || typeof (value as { field?: unknown }).field !== "string") {
+      throw new AppError(`columns[${index}].field is required`, 400);
+    }
+    return { field: (value as { field: string }).field };
+  });
+}
+
+/**
+ * @swagger
+ * /screener/values:
+ *   post:
+ *     summary: 針對一批已知的股票代號，只查詢指定的欄位——不篩選、不分頁
+ *     description: >
+ *       給前端「已經顯示一批股票，現在要多加一欄」這種情境用：不用把整個帶篩選條件、分頁的
+ *       POST /screener 重打一次（那樣連原本已經拿到的欄位都會重查一次），只需要帶 symbols
+ *       跟這次要新增的 columns。field 格式、回應的 values 形狀都跟 POST /screener 一致。
+ *
+ *       symbols 裡的每一個代號都保證會出現在 results 裡（就算 analysis-ts 查無資料，也是回
+ *       values 為空物件的那一列，不會整列消失）。symbols 上限 200 個。
+ *     tags:
+ *       - Screener
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - symbols
+ *               - columns
+ *             properties:
+ *               symbols:
+ *                 type: array
+ *                 minItems: 1
+ *                 items:
+ *                   type: string
+ *                 example: ["2330", "2317"]
+ *               columns:
+ *                 type: array
+ *                 minItems: 1
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - field
+ *                   properties:
+ *                     field:
+ *                       type: string
+ *                       example: "roe.roeTtmPct"
+ *     responses:
+ *       200:
+ *         description: >
+ *           每個 symbols 裡的代號都會有一列結果，count 固定等於 results.length（也就是 symbols 的數量）
+ *           ——附上這個欄位是為了讓前端既有的分頁元件不用特別為這支端點做例外處理。
+ *         content:
+ *           application/json:
+ *             example:
+ *               count: 2
+ *               columns: [{ field: "roe.roeTtmPct", metricName: "股東權益報酬率 ROE", fieldName: "ROE", unit: "percent" }]
+ *               results:
+ *                 - symbol: "2330"
+ *                   name: "台積電"
+ *                   values:
+ *                     roe.roeTtmPct: { value: "34.78", asOfDate: "26Q2" }
+ *                 - symbol: "2317"
+ *                   name: "鴻海"
+ *                   values:
+ *                     roe.roeTtmPct: { value: "12.34", asOfDate: "26Q2" }
+ *       400:
+ *         description: symbols/columns 格式錯誤、其中一個 field 不存在於 filterCatalog，或 symbols 超過 200 個。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+screenerRouter.post("/values", async (req, res) => {
+  const body = req.body as { symbols?: unknown; columns?: unknown } | null;
+  const symbols = parseSymbols(body?.symbols);
+  const columns = parseColumnRefs(body?.columns);
+
+  const result = await runScreenerValues(symbols, columns);
+  res.json(result);
 });
 
 function parseRankingDirection(raw: unknown): "asc" | "desc" {

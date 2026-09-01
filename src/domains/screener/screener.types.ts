@@ -47,3 +47,17 @@ export interface ScreenerResult {
   columns: ScreenerResultColumn[];
   results: ScreenerResultRow[];
 }
+
+/**
+ * Response shape for POST /screener/values — no page/pageSize/totalPages, since this isn't a filtered/
+ * paginated query: the caller already knows exactly which symbols it wants (typically the current page
+ * of an already-loaded screener result), so there's nothing to paginate. `count` is always
+ * `results.length` (== the number of symbols requested — every requested symbol gets a row, even if
+ * analysis-ts has no data for it), included so callers with generic pagination-aware UI can read it the
+ * same way as ScreenerResult without special-casing this endpoint.
+ */
+export interface ScreenerValuesResult {
+  count: number;
+  columns: ScreenerResultColumn[];
+  results: ScreenerResultRow[];
+}

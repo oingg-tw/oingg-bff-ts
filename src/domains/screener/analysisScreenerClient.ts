@@ -24,6 +24,10 @@ export interface AnalysisRankingResult {
   results: AnalysisScreenerResultRow[];
 }
 
+export interface AnalysisScreenerValuesResult {
+  results: AnalysisScreenerResultRow[];
+}
+
 /**
  * analysis-ts sends ratio/percentage `value`s as JSON numbers (their real, existing convention for
  * Decimal-backed fields — confirmed with them directly, see stockQuote.client.ts's normalizeStockQuote
@@ -167,6 +171,27 @@ export async function fetchScreenerRanking(
   const b = body as { results?: unknown };
   if (!Array.isArray(b.results)) {
     throw new AppError("Screener ranking endpoint response is missing a results array", 502);
+  }
+
+  return { results: normalizeRows(b.results) };
+}
+
+/**
+ * Fetches just the requested columns for an explicit, already-known list of symbols, against
+ * analysis-ts's POST /screener/values — used when the frontend adds a new column to an already-loaded
+ * result set, so it doesn't need to re-run the full filtered/paginated query (and re-fetch every column
+ * it already has) just to pick up one more field. No filters, no pagination — see runScreenerValues in
+ * screener.service.ts.
+ */
+export async function fetchScreenerValues(
+  symbols: string[],
+  columns: ScreenerColumnInput[],
+): Promise<AnalysisScreenerValuesResult> {
+  const body = await postJson("/screener/values", { symbols, columns });
+
+  const b = body as { results?: unknown };
+  if (!Array.isArray(b.results)) {
+    throw new AppError("Screener values endpoint response is missing a results array", 502);
   }
 
   return { results: normalizeRows(b.results) };
