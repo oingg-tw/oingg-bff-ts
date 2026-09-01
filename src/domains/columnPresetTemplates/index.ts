@@ -1,4 +1,5 @@
 export { columnPresetTemplatesRouter } from "./columnPresetTemplates.routes.js";
+export { findDefaultColumnPresetTemplate } from "./columnPresetTemplates.repository.js";
 export {
   getColumnPresetTemplateOrThrow,
   getColumnPresetTemplates,

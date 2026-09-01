@@ -9,6 +9,7 @@ function toView(row: ColumnPresetTemplateRow): ColumnPresetTemplate {
     name: row.name,
     description: row.description,
     fieldKeys: row.fieldKeys as unknown as string[],
+    isDefault: row.isDefault,
   };
 }
 
@@ -21,6 +22,19 @@ export async function listColumnPresetTemplates(): Promise<ColumnPresetTemplate[
 export async function findColumnPresetTemplate(key: string): Promise<ColumnPresetTemplate | null> {
   const prisma = getPrismaClient();
   const row = await prisma.columnPresetTemplate.findUnique({ where: { key } });
+  return row ? toView(row) : null;
+}
+
+/**
+ * The neutral "overview" template (see ColumnPresetTemplate.isDefault) — used by
+ * columnPresets.service.ts's resolveScreenerColumns as the screener's own default column set, the
+ * curated replacement for the hardcoded SYSTEM_DEFAULT_COLUMNS array that used to live there. Returns
+ * null if analysis-ts hasn't sent one yet (e.g. sync hasn't run), in which case the caller falls back to
+ * no columns rather than crashing.
+ */
+export async function findDefaultColumnPresetTemplate(): Promise<ColumnPresetTemplate | null> {
+  const prisma = getPrismaClient();
+  const row = await prisma.columnPresetTemplate.findFirst({ where: { isDefault: true } });
   return row ? toView(row) : null;
 }
 
@@ -38,19 +52,23 @@ export async function replaceColumnPresetTemplates(templates: ColumnPresetTempla
     name: template.name,
     description: template.description,
     fieldKeys: JSON.stringify(template.fieldKeys),
+    isDefault: template.isDefault,
     position,
   }));
 
   await prisma.$transaction(async (tx) => {
     if (rows.length > 0) {
       await tx.$executeRaw`
-        INSERT INTO column_preset_template (key, name, description, field_keys, position)
+        INSERT INTO column_preset_template (key, name, description, field_keys, is_default, position)
         VALUES ${Prisma.join(
-          rows.map((r) => Prisma.sql`(${r.key}, ${r.name}, ${r.description}, ${r.fieldKeys}::jsonb, ${r.position})`),
+          rows.map(
+            (r) =>
+              Prisma.sql`(${r.key}, ${r.name}, ${r.description}, ${r.fieldKeys}::jsonb, ${r.isDefault}, ${r.position})`,
+          ),
         )}
         ON CONFLICT (key) DO UPDATE SET
           name = EXCLUDED.name, description = EXCLUDED.description, field_keys = EXCLUDED.field_keys,
-          position = EXCLUDED.position
+          is_default = EXCLUDED.is_default, position = EXCLUDED.position
       `;
     }
     await tx.columnPresetTemplate.deleteMany({ where: { key: { notIn: rows.map((r) => r.key) } } });

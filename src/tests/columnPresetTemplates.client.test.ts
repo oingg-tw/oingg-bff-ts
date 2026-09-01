@@ -33,14 +33,27 @@ const SAMPLE_TEMPLATE = {
 };
 
 describe("fetchColumnPresetTemplates", () => {
-  it("requests /filters on the configured filters service and returns its columnPresets", async () => {
+  // analysis-ts omits isDefault entirely on every template except the one true default (never sends
+  // `false` explicitly) — normalize the missing case to false so callers can rely on a plain boolean.
+  it("requests /filters on the configured filters service and defaults a missing isDefault to false", async () => {
     mockFetchOnce({ ok: true, body: { categories: [], columnPresets: [SAMPLE_TEMPLATE] } });
 
     const result = await fetchColumnPresetTemplates();
 
-    expect(result).toEqual([SAMPLE_TEMPLATE]);
+    expect(result).toEqual([{ ...SAMPLE_TEMPLATE, isDefault: false }]);
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/filters");
+  });
+
+  it("passes through isDefault: true for the one template that has it", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { categories: [], columnPresets: [{ ...SAMPLE_TEMPLATE, key: "overview", isDefault: true }] },
+    });
+
+    const result = await fetchColumnPresetTemplates();
+
+    expect(result[0]?.isDefault).toBe(true);
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
@@ -65,6 +78,15 @@ describe("fetchColumnPresetTemplates", () => {
     mockFetchOnce({
       ok: true,
       body: { categories: [], columnPresets: [{ ...SAMPLE_TEMPLATE, fieldKeys: [123] }] },
+    });
+
+    await expect(fetchColumnPresetTemplates()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when isDefault is present but not a boolean", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { categories: [], columnPresets: [{ ...SAMPLE_TEMPLATE, isDefault: "yes" }] },
     });
 
     await expect(fetchColumnPresetTemplates()).rejects.toMatchObject({ statusCode: 502 });

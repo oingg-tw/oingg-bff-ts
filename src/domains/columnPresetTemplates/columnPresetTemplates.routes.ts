@@ -24,7 +24,9 @@ function requireUser(req: AuthenticatedRequest): string {
  *     summary: 列出所有人共用的欄位組合範本（存股領息／價值投資／獲利品質拆解等）
  *     description: >
  *       不需要登入即可查看。由 oingg-analysis-ts 統一維護內容，開機時同步進本服務自己的資料庫
- *       （跟 GET /filters 的 filter catalog 同步機制一樣）。
+ *       （跟 GET /filters 的 filter catalog 同步機制一樣）。其中恰好一組會標記 `isDefault: true`
+ *       （目前是「總覽」），這組也是 POST /screener 在沒有指定/沒有使用者自訂預設欄位時的實際
+ *       fallback columns（見 columnPresets.service.ts 的 resolveScreenerColumns）。
  *     tags:
  *       - Screener
  *     responses:

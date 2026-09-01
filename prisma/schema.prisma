@@ -107,6 +107,10 @@ model ColumnPresetTemplate {
   name        String
   description String
   fieldKeys   Json     @map("field_keys")
+  /// True on exactly one template (currently "overview"/總覽) — the neutral starting point the frontend
+  /// shows before a user has picked anything. analysis-ts sends true on one template and omits the field
+  /// on the rest; we don't enforce "exactly one true" here, that curation invariant is analysis-ts's.
+  isDefault   Boolean  @default(false) @map("is_default")
   position    Int
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")

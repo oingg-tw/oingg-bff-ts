@@ -7,7 +7,7 @@ const mockTx = {
 
 const mockPrisma = {
   $transaction: vi.fn(async (callback: (tx: typeof mockTx) => Promise<void>) => callback(mockTx)),
-  columnPresetTemplate: { findMany: vi.fn(), findUnique: vi.fn() },
+  columnPresetTemplate: { findMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
 };
 
 vi.mock("../adapters/neon/index.js", () => ({
@@ -16,6 +16,7 @@ vi.mock("../adapters/neon/index.js", () => ({
 
 import {
   findColumnPresetTemplate,
+  findDefaultColumnPresetTemplate,
   listColumnPresetTemplates,
   replaceColumnPresetTemplates,
 } from "../domains/columnPresetTemplates/columnPresetTemplates.repository.js";
@@ -23,16 +24,25 @@ import type { ColumnPresetTemplate } from "../domains/columnPresetTemplates/colu
 
 const SAMPLE_TEMPLATES: ColumnPresetTemplate[] = [
   {
+    key: "overview",
+    name: "總覽",
+    description: "本益比、股價淨值比...",
+    fieldKeys: ["per.peRatio", "pbr.pbRatio"],
+    isDefault: true,
+  },
+  {
     key: "dividendIncome",
     name: "存股領息",
     description: "殖利率、配息穩定度...",
     fieldKeys: ["dividendYield.dividendYieldPct", "roe.roeTtmPct"],
+    isDefault: false,
   },
   {
     key: "profitabilityQuality",
     name: "獲利品質拆解",
     description: "杜邦拆解 ROE...",
     fieldKeys: ["dupont.netProfitMarginQuarterly", "dupont.assetTurnoverQuarterly"],
+    isDefault: false,
   },
 ];
 
@@ -41,15 +51,27 @@ describe("listColumnPresetTemplates", () => {
     vi.mocked(mockPrisma.columnPresetTemplate.findMany).mockReset();
   });
 
-  it("maps the stored fieldKeys JSON column back into a plain string array", async () => {
+  it("maps the stored fieldKeys JSON column and isDefault flag back onto the view", async () => {
     vi.mocked(mockPrisma.columnPresetTemplate.findMany).mockResolvedValue([
-      { key: "dividendIncome", name: "存股領息", description: "test", fieldKeys: ["dividendYield.dividendYieldPct"] },
+      {
+        key: "dividendIncome",
+        name: "存股領息",
+        description: "test",
+        fieldKeys: ["dividendYield.dividendYieldPct"],
+        isDefault: false,
+      },
     ] as never);
 
     const result = await listColumnPresetTemplates();
 
     expect(result).toEqual([
-      { key: "dividendIncome", name: "存股領息", description: "test", fieldKeys: ["dividendYield.dividendYieldPct"] },
+      {
+        key: "dividendIncome",
+        name: "存股領息",
+        description: "test",
+        fieldKeys: ["dividendYield.dividendYieldPct"],
+        isDefault: false,
+      },
     ]);
   });
 });
@@ -62,6 +84,28 @@ describe("findColumnPresetTemplate", () => {
   it("returns null when not found", async () => {
     vi.mocked(mockPrisma.columnPresetTemplate.findUnique).mockResolvedValue(null);
     await expect(findColumnPresetTemplate("missing")).resolves.toBeNull();
+  });
+});
+
+describe("findDefaultColumnPresetTemplate", () => {
+  beforeEach(() => {
+    vi.mocked(mockPrisma.columnPresetTemplate.findFirst).mockReset();
+  });
+
+  it("queries by isDefault: true rather than scanning the full list", async () => {
+    vi.mocked(mockPrisma.columnPresetTemplate.findFirst).mockResolvedValue(null);
+
+    await findDefaultColumnPresetTemplate();
+
+    expect(mockPrisma.columnPresetTemplate.findFirst).toHaveBeenCalledWith({ where: { isDefault: true } });
+  });
+
+  // Regression-shaped: this is the fallback resolveScreenerColumns relies on when analysis-ts's sync
+  // hasn't run yet (fresh DB, or the process just started and hasn't synced) — must return null cleanly,
+  // not throw, so the caller can fall back to no columns instead of crashing the screener endpoint.
+  it("returns null when no template is marked isDefault yet", async () => {
+    vi.mocked(mockPrisma.columnPresetTemplate.findFirst).mockResolvedValue(null);
+    await expect(findDefaultColumnPresetTemplate()).resolves.toBeNull();
   });
 });
 
@@ -83,7 +127,7 @@ describe("replaceColumnPresetTemplates", () => {
     await replaceColumnPresetTemplates(SAMPLE_TEMPLATES);
 
     expect(mockTx.columnPresetTemplate.deleteMany).toHaveBeenCalledWith({
-      where: { key: { notIn: ["dividendIncome", "profitabilityQuality"] } },
+      where: { key: { notIn: ["overview", "dividendIncome", "profitabilityQuality"] } },
     });
   });
 

@@ -13,10 +13,13 @@ vi.mock("../domains/screener/columnPresets.repository.js", () => ({
   updateColumnPreset: vi.fn(),
 }));
 
-
+vi.mock("../domains/columnPresetTemplates/columnPresetTemplates.repository.js", () => ({
+  findDefaultColumnPresetTemplate: vi.fn(),
+}));
 
 import { Prisma } from "../generated/prisma/client.js";
 import { findFilterFields } from "../domains/filterCatalog/index.js";
+import { findDefaultColumnPresetTemplate } from "../domains/columnPresetTemplates/columnPresetTemplates.repository.js";
 import {
   createColumnPreset,
   findColumnPreset,
@@ -79,6 +82,7 @@ beforeEach(() => {
   vi.mocked(findColumnPreset).mockReset();
   vi.mocked(findDefaultColumnPreset).mockReset();
   vi.mocked(listColumnPresets).mockReset();
+  vi.mocked(findDefaultColumnPresetTemplate).mockReset();
 });
 
 describe("addColumnPreset", () => {
@@ -192,25 +196,68 @@ describe("resolveScreenerColumns", () => {
     expect(result.columnPresetId).toBe(SAMPLE_ID);
   });
 
-  // Regression test: there used to be a hardcoded SYSTEM_DEFAULT_COLUMNS fallback here. Removed — the
-  // intended replacement is a curated/official default column set analogous to PresetTemplate, not
-  // another hardcoded array in this service. Until that exists, no columns beats a stale hardcoded guess.
-  it("falls back to no columns at all when there's no id and no user default", async () => {
+  const OVERVIEW_TEMPLATE = {
+    key: "overview",
+    name: "總覽",
+    description: "本益比、股價淨值比、殖利率、ROE、負債比...",
+    fieldKeys: ["per.peRatio", "pbr.pbRatio", "roe.roeTtmPct"],
+    isDefault: true,
+  };
+
+  // Current behavior: falls back to analysis-ts's curated "overview" ColumnPresetTemplate — the
+  // replacement for the old hardcoded SYSTEM_DEFAULT_COLUMNS array, kept in sync from analysis-ts
+  // instead. This is now the screener's real default until the caller picks/customizes something,
+  // for both signed-in users with no saved default and anonymous callers (see below).
+  it("falls back to the curated overview columnPresetTemplate when there's no id and no user default", async () => {
     vi.mocked(findDefaultColumnPreset).mockResolvedValue(null);
+    vi.mocked(findDefaultColumnPresetTemplate).mockResolvedValue(OVERVIEW_TEMPLATE);
+
+    const result = await resolveScreenerColumns("uid1");
+
+    expect(result).toEqual({
+      columnPresetId: null,
+      columns: [{ field: "per.peRatio" }, { field: "pbr.pbRatio" }, { field: "roe.roeTtmPct" }],
+    });
+  });
+
+  it("falls back to no columns at all when there's no id, no user default, and no curated template yet", async () => {
+    vi.mocked(findDefaultColumnPreset).mockResolvedValue(null);
+    vi.mocked(findDefaultColumnPresetTemplate).mockResolvedValue(null);
 
     const result = await resolveScreenerColumns("uid1");
 
     expect(result).toEqual({ columnPresetId: null, columns: [] });
   });
 
+  it("uses the curated overview template for anonymous callers, since they can't own a preset", async () => {
+    vi.mocked(findDefaultColumnPresetTemplate).mockResolvedValue(OVERVIEW_TEMPLATE);
+
+    const result = await resolveScreenerColumns(undefined);
+
+    expect(findColumnPreset).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      columnPresetId: null,
+      columns: [{ field: "per.peRatio" }, { field: "pbr.pbRatio" }, { field: "roe.roeTtmPct" }],
+    });
+  });
+
+  it("gives an anonymous caller no columns when there's no curated template yet either", async () => {
+    vi.mocked(findDefaultColumnPresetTemplate).mockResolvedValue(null);
+
+    const result = await resolveScreenerColumns(undefined);
+
+    expect(result).toEqual({ columnPresetId: null, columns: [] });
+  });
+
   // Regression test: matching stocks must never come back as bare symbols with no field data hidden
-  // behind a resolved-but-empty preset silently looking the same as "no preset" — but since there's no
-  // system default columns to fall through to anymore, this now surfaces the same as any other
-  // preset-not-found case: columnPresetId: null, no columns. An explicit columnPresetId that resolves to
-  // a real but empty ("columns": []) preset — e.g. a tab the user created and never filled in — must not
-  // be honored as columnPresetId pointing at it, since there's nothing there to attribute results to.
+  // behind a resolved-but-empty preset silently looking the same as "no preset". An explicit
+  // columnPresetId that resolves to a real but empty ("columns": []) preset — e.g. a tab the user
+  // created and never filled in — must not be honored as columnPresetId pointing at it, since there's
+  // nothing there to attribute results to; it falls through to the same curated-template fallback as
+  // "no preset found".
   it("treats an explicit columnPresetId that resolves to a preset with zero columns the same as no preset found", async () => {
     vi.mocked(findColumnPreset).mockResolvedValue({ ...SAMPLE_ROW, id: OTHER_ID, name: "欄位組合 1", columns: [] });
+    vi.mocked(findDefaultColumnPresetTemplate).mockResolvedValue(null);
 
     const result = await resolveScreenerColumns("uid1", OTHER_ID);
 
@@ -219,6 +266,7 @@ describe("resolveScreenerColumns", () => {
 
   it("treats the user's own default preset having zero columns the same as no default set", async () => {
     vi.mocked(findDefaultColumnPreset).mockResolvedValue({ ...SAMPLE_ROW, columns: [] });
+    vi.mocked(findDefaultColumnPresetTemplate).mockResolvedValue(null);
 
     const result = await resolveScreenerColumns("uid1");
 

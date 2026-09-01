@@ -40,6 +40,7 @@ const PROFITABILITY_QUALITY_TEMPLATE = {
     "ocfToNetIncome.ocfToNetIncomeQuarterly",
     "accrualsRatio.accrualsRatioQuarterly",
   ],
+  isDefault: false,
 };
 
 beforeEach(() => {

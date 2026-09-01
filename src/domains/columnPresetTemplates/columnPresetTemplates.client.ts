@@ -2,18 +2,29 @@ import { AppError } from "../../shared/errorHandler.js";
 import { requireEnv } from "../../shared/env.js";
 import type { ColumnPresetTemplate } from "./columnPresetTemplates.types.js";
 
-function isColumnPresetTemplateArray(value: unknown): value is ColumnPresetTemplate[] {
+interface RawColumnPresetTemplate {
+  key: string;
+  name: string;
+  description: string;
+  fieldKeys: string[];
+  /** analysis-ts sends this true on exactly one template and omits it on the rest — never sends false. */
+  isDefault?: boolean;
+}
+
+function isRawColumnPresetTemplateArray(value: unknown): value is RawColumnPresetTemplate[] {
   return (
     Array.isArray(value) &&
     value.every(
       (item) =>
         typeof item === "object" &&
         item !== null &&
-        typeof (item as ColumnPresetTemplate).key === "string" &&
-        typeof (item as ColumnPresetTemplate).name === "string" &&
-        typeof (item as ColumnPresetTemplate).description === "string" &&
-        Array.isArray((item as ColumnPresetTemplate).fieldKeys) &&
-        (item as ColumnPresetTemplate).fieldKeys.every((f) => typeof f === "string"),
+        typeof (item as RawColumnPresetTemplate).key === "string" &&
+        typeof (item as RawColumnPresetTemplate).name === "string" &&
+        typeof (item as RawColumnPresetTemplate).description === "string" &&
+        Array.isArray((item as RawColumnPresetTemplate).fieldKeys) &&
+        (item as RawColumnPresetTemplate).fieldKeys.every((f) => typeof f === "string") &&
+        ((item as RawColumnPresetTemplate).isDefault === undefined ||
+          typeof (item as RawColumnPresetTemplate).isDefault === "boolean"),
     )
   );
 }
@@ -43,9 +54,9 @@ export async function fetchColumnPresetTemplates(): Promise<ColumnPresetTemplate
 
   const body: unknown = await response.json();
   const columnPresets = (body as { columnPresets?: unknown } | null)?.columnPresets;
-  if (!isColumnPresetTemplateArray(columnPresets)) {
+  if (!isRawColumnPresetTemplateArray(columnPresets)) {
     throw new AppError(`Filters service response at ${url.toString()} is missing a "columnPresets" array`, 502);
   }
 
-  return columnPresets;
+  return columnPresets.map((template) => ({ ...template, isDefault: template.isDefault ?? false }));
 }
