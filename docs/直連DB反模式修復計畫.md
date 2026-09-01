@@ -1,5 +1,7 @@
 # 修復跨服務直連反模式：遷移計畫
 
+> **狀態（2026-09-01）：兩個階段都已完成。** `TWSE_DATABASE_URL`／`TPEX_DATABASE_URL`／`ANALYSIS_DATABASE_URL` 全部從 `.env` 移除；bff-ts 現在對外部服務只剩 HTTP 依賴（analysis-ts 的 API），完全沒有直連任何它不擁有 schema 的資料庫。詳細見下方兩則更新記錄。這份文件之後主要當歷史記錄查閱，不再是進行中的計畫。
+
 > 對應 [業務中台與後台資料邊界架構.md](./業務中台與後台資料邊界架構.md) 的鐵律：**業務中台（bff-ts）永遠不能主動存取後台（twse/tpex/mops/gov/sitca），不管是直連 DB 還是呼叫 API；唯一被允許存取的外部服務是 oingg-analysis-ts（數據中台），而且必須透過它的 API，連它自己的 DB 都不能直連。**
 >
 > 這是第二版計畫。第一版把 twse/tpex 的修復方向規劃成「twse-ts/tpex-ts 各自開查詢 API 給 bff 呼叫」——這個方向被推翻了：那本質上還是業務中台主動連去後台，只是把協定從 DB 換成 HTTP，沒有真的解決問題。正確方向是 **bff-ts 只跟 analysis-ts 講話，analysis-ts 負責鏡像 twse/tpex 的資料**。
@@ -111,7 +113,9 @@ GET /screener/ranking?field=...&direction=...&limit=...&columns=...
 - **行為一致性**：分頁邊界、`exclude` 篩選的 null 值處理、`asOfDate` 格式、排序 tie-breaking，都要逐一比對，細微差異不容易被發現。
 - **開發量**：analysis-ts 要把 bff-ts 這 400 行的動態查詢邏輯用自己的方式重做一遍，時程不是 bff-ts 這邊能承諾的。
 
-> **更新（2026-09-01 稍晚）**：階段一穩定後，已把階段二的完整規格（下方 `POST /screener`／`GET /screener/ranking` 草案、ROC 年份轉換的坑、latest-row-per-symbol 邏輯、目前的 metricKey→table 對照表）整份貼給 analysis-ts，請他們評估規模與時程。還沒收到回覆，尚未開始動工。
+> **更新（2026-09-01 稍晚）**：階段一穩定後，已把階段二的完整規格（下方 `POST /screener`／`GET /screener/ranking` 草案、ROC 年份轉換的坑、latest-row-per-symbol 邏輯、目前的 metricKey→table 對照表）整份貼給 analysis-ts，請他們評估規模與時程。
+>
+> **更新（2026-09-01 更晚）：階段二完成。** analysis-ts 做出 `POST /screener` + `GET /screener/ranking`，涵蓋整個 `/filters` catalog（不只當初列的 28 個 MVP key）。他們主動確認了兩個規格沒明講的行為，逐一對照 bff-ts 原本的實作邏輯驗證過才確認一致：`exclude=true` 且 min/max 皆為 null 時篩掉全部（`count:0`），以及 `POST /screener` 的 `values` 只含 `columns` 列出的欄位、但 `GET /screener/ranking` 的排序欄位一定會出現在 `values` 裡。bff-ts 已切換：新增 `analysisScreenerClient.ts`，`screener.service.ts` 砍掉 `buildMetricCtes`／`ANALYSIS_METRIC_TABLES`／`toSnakeCase`／ROC 轉換，整個 `analysisMetricTables.ts` 刪除，`ANALYSIS_DATABASE_URL` 從 `.env` 移除。順便修掉即時驗證時發現的兩個 bug：`initNeonPools()` 在最後一個 `<NAME>_DATABASE_URL` 被拔掉後會直接讓伺服器開機失敗（已改成允許零 pool）；`replaceCompanies()` 在 analysis-ts 的 `GET /companies` 真實回應裡遇到重複 `companyId` 就會整個 upsert 失敗（已改成先去重）。
 
 ## 建議執行順序
 
