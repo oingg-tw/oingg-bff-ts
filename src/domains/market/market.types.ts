@@ -17,7 +17,7 @@ export interface ForeignHoldingRankingEntry {
 export interface ForeignHoldingRankingResult {
   tradeDate: string | null;
   previousTradeDate: string | null;
-  topPercent: number;
+  limit: number;
   eligibleCompanyCount: number;
   increases: ForeignHoldingRankingEntry[];
   decreases: ForeignHoldingRankingEntry[];

@@ -83,12 +83,16 @@ async function getJson(path: string, searchParams: Record<string, string>): Prom
  * share count, so capital increases/decreases don't distort the ranking), sorted by percentage-point
  * change. Both ETFs/derivatives and (currently) any symbol without two comparable days are excluded on
  * analysis-ts's side.
+ *
+ * `limit` (top N rows per direction) replaced the endpoint's original `topPercent` (top N% after sorting)
+ * param as of 2026-09-01 — analysis-ts switched their own query semantics to a fixed row count, matching
+ * margin-short-ratio-ranking's convention, so bff-ts's param/field naming follows suit here too.
  */
-export async function fetchForeignHoldingRanking(topPercent: number): Promise<ForeignHoldingRankingResult> {
-  const body = (await getJson("/market/foreign-holding-ranking", { topPercent: String(topPercent) })) as {
+export async function fetchForeignHoldingRanking(limit: number): Promise<ForeignHoldingRankingResult> {
+  const body = (await getJson("/market/foreign-holding-ranking", { limit: String(limit) })) as {
     tradeDate?: unknown;
     previousTradeDate?: unknown;
-    topPercent?: unknown;
+    limit?: unknown;
     eligibleCompanyCount?: unknown;
     increases?: unknown;
     decreases?: unknown;
@@ -96,7 +100,7 @@ export async function fetchForeignHoldingRanking(topPercent: number): Promise<Fo
   };
 
   if (
-    typeof body.topPercent !== "number" ||
+    typeof body.limit !== "number" ||
     typeof body.eligibleCompanyCount !== "number" ||
     !Array.isArray(body.increases) ||
     !Array.isArray(body.decreases)
@@ -107,7 +111,7 @@ export async function fetchForeignHoldingRanking(topPercent: number): Promise<Fo
   return {
     tradeDate: toDateOrNull(body.tradeDate),
     previousTradeDate: toDateOrNull(body.previousTradeDate),
-    topPercent: body.topPercent,
+    limit: body.limit,
     eligibleCompanyCount: body.eligibleCompanyCount,
     increases: body.increases.map(normalizeForeignHoldingEntry),
     decreases: body.decreases.map(normalizeForeignHoldingEntry),

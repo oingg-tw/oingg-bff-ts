@@ -14,11 +14,11 @@ beforeEach(() => {
 });
 
 describe("getForeignHoldingRanking", () => {
-  it("delegates a valid topPercent straight through", async () => {
+  it("delegates a valid limit straight through", async () => {
     vi.mocked(fetchForeignHoldingRanking).mockResolvedValue({
       tradeDate: null,
       previousTradeDate: null,
-      topPercent: 10,
+      limit: 10,
       eligibleCompanyCount: 0,
       increases: [],
       decreases: [],
@@ -30,17 +30,18 @@ describe("getForeignHoldingRanking", () => {
     expect(fetchForeignHoldingRanking).toHaveBeenCalledWith(10);
   });
 
-  // Bounds match analysis-ts's own validation (verified live: 1-50).
-  it.each([0, -1, 51, 1.5])("rejects an out-of-range topPercent (%s) without calling analysis-ts", async (value) => {
+  // Bounds match analysis-ts's own validation (verified live: 1-20). This replaced the endpoint's
+  // original 1-50 topPercent bounds as of 2026-09-01 — see marketRankings.client.ts.
+  it.each([0, -1, 21, 1.5])("rejects an out-of-range limit (%s) without calling analysis-ts", async (value) => {
     await expect(getForeignHoldingRanking(value)).rejects.toMatchObject({ statusCode: 400 });
     expect(fetchForeignHoldingRanking).not.toHaveBeenCalled();
   });
 
-  it.each([1, 50])("accepts the boundary values (%s)", async (value) => {
+  it.each([1, 20])("accepts the boundary values (%s)", async (value) => {
     vi.mocked(fetchForeignHoldingRanking).mockResolvedValue({
       tradeDate: null,
       previousTradeDate: null,
-      topPercent: value,
+      limit: value,
       eligibleCompanyCount: 0,
       increases: [],
       decreases: [],

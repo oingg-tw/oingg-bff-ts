@@ -26,13 +26,13 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
 }
 
 describe("fetchForeignHoldingRanking", () => {
-  it("requests /market/foreign-holding-ranking with topPercent and normalizes numeric fields to strings", async () => {
+  it("requests /market/foreign-holding-ranking with limit and normalizes numeric fields to strings", async () => {
     mockFetchOnce({
       ok: true,
       body: {
         tradeDate: "2026-08-30",
         previousTradeDate: "2026-08-28",
-        topPercent: 10,
+        limit: 10,
         eligibleCompanyCount: 1200,
         increases: [
           {
@@ -54,7 +54,7 @@ describe("fetchForeignHoldingRanking", () => {
     expect(result).toEqual({
       tradeDate: "2026-08-30",
       previousTradeDate: "2026-08-28",
-      topPercent: 10,
+      limit: 10,
       eligibleCompanyCount: 1200,
       increases: [
         {
@@ -70,7 +70,7 @@ describe("fetchForeignHoldingRanking", () => {
       warnings: [],
     });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(url.toString()).toBe("http://filters.test/market/foreign-holding-ranking?topPercent=10");
+    expect(url.toString()).toBe("http://filters.test/market/foreign-holding-ranking?limit=10");
   });
 
   // Regression: verified live — when analysis-ts doesn't have two comparable trading days yet, tradeDate/
@@ -81,7 +81,7 @@ describe("fetchForeignHoldingRanking", () => {
       body: {
         tradeDate: "",
         previousTradeDate: "",
-        topPercent: 10,
+        limit: 10,
         eligibleCompanyCount: 0,
         increases: [],
         decreases: [],
@@ -96,12 +96,12 @@ describe("fetchForeignHoldingRanking", () => {
     expect(result.warnings).toEqual(["foreign_holding 資料不足兩個交易日，無法比較變動。"]);
   });
 
-  it("relays analysis-ts's 400 message for an out-of-range topPercent", async () => {
-    mockFetchOnce({ ok: false, status: 400, body: { message: "topPercent must be between 1 and 50" } });
+  it("relays analysis-ts's 400 message for an out-of-range limit", async () => {
+    mockFetchOnce({ ok: false, status: 400, body: { message: "limit must be between 1 and 20" } });
 
     await expect(fetchForeignHoldingRanking(0)).rejects.toMatchObject({
       statusCode: 400,
-      message: "topPercent must be between 1 and 50",
+      message: "limit must be between 1 and 20",
     });
   });
 
@@ -112,7 +112,7 @@ describe("fetchForeignHoldingRanking", () => {
   });
 
   it("throws a 502 AppError when the response is missing expected fields", async () => {
-    mockFetchOnce({ ok: true, body: { topPercent: 10 } });
+    mockFetchOnce({ ok: true, body: { limit: 10 } });
 
     await expect(fetchForeignHoldingRanking(10)).rejects.toMatchObject({ statusCode: 502 });
   });
