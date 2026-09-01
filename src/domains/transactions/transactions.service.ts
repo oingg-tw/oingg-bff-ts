@@ -1,5 +1,5 @@
-import { AppError } from "../../shared/errorHandler.js";
-import { getStockQuote } from "../stock/index.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { getStockQuote } from "@/domains/stock/index.js";
 import {
   createTransaction,
   deleteTransaction,
@@ -8,8 +8,8 @@ import {
   updateTransaction,
   type TransactionInput,
   type TransactionUpdate,
-} from "./transactions.repository.js";
-import type { StockTransaction, TransactionAction } from "./transactions.types.js";
+} from "@/domains/transactions/transactions.repository.js";
+import type { StockTransaction, TransactionAction } from "@/domains/transactions/transactions.types.js";
 
 const TRADE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 

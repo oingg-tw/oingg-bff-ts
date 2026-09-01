@@ -1,13 +1,13 @@
-import { addColumnPresetWithName } from "../screener/columnPresets.service.js";
-import type { ColumnPresetView } from "../screener/columnPresets.service.js";
-import { fetchColumnPresetTemplates } from "./columnPresetTemplates.client.js";
+import { addColumnPresetWithName } from "@/domains/screener/columnPresets.service.js";
+import type { ColumnPresetView } from "@/domains/screener/columnPresets.service.js";
+import { fetchColumnPresetTemplates } from "@/domains/columnPresetTemplates/columnPresetTemplates.client.js";
 import {
   findColumnPresetTemplate,
   listColumnPresetTemplates,
   replaceColumnPresetTemplates,
-} from "./columnPresetTemplates.repository.js";
-import { AppError } from "../../shared/errorHandler.js";
-import type { ColumnPresetTemplate } from "./columnPresetTemplates.types.js";
+} from "@/domains/columnPresetTemplates/columnPresetTemplates.repository.js";
+import { AppError } from "@/shared/errorHandler.js";
+import type { ColumnPresetTemplate } from "@/domains/columnPresetTemplates/columnPresetTemplates.types.js";
 
 const RETRY_DELAY_MS = 30_000;
 

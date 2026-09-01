@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, parsePagination } from "../domains/screener/pagination.js";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, parsePagination } from "@/domains/screener/pagination.js";
 
 describe("parsePagination", () => {
   it("defaults to page 1 and the default page size when neither is given", () => {

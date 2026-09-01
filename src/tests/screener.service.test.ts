@@ -1,33 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../domains/screener/analysisScreenerClient.js", () => ({
+vi.mock("@/domains/screener/analysisScreenerClient.js", () => ({
   fetchScreenerResults: vi.fn(),
   fetchScreenerRanking: vi.fn(),
 }));
 
-vi.mock("../domains/filterCatalog/index.js", () => ({
+vi.mock("@/domains/filterCatalog/index.js", () => ({
   findFilterFields: vi.fn(),
 }));
 
-vi.mock("../domains/stock/index.js", () => ({
+vi.mock("@/domains/stock/index.js", () => ({
   getLatestClosePrices: vi.fn(),
 }));
 
-vi.mock("../domains/companies/index.js", () => ({
+vi.mock("@/domains/companies/index.js", () => ({
   getCompanyNames: vi.fn(),
 }));
 
-vi.mock("../domains/screener/valuationRanking.client.js", () => ({
+vi.mock("@/domains/screener/valuationRanking.client.js", () => ({
   fetchValuationRanking: vi.fn(),
 }));
 
-import { fetchScreenerRanking, fetchScreenerResults } from "../domains/screener/analysisScreenerClient.js";
-import { findFilterFields } from "../domains/filterCatalog/index.js";
-import { getLatestClosePrices } from "../domains/stock/index.js";
-import { getCompanyNames } from "../domains/companies/index.js";
-import { fetchValuationRanking } from "../domains/screener/valuationRanking.client.js";
-import { runRanking, runScreener } from "../domains/screener/screener.service.js";
-import type { Pagination } from "../domains/screener/pagination.js";
+import { fetchScreenerRanking, fetchScreenerResults } from "@/domains/screener/analysisScreenerClient.js";
+import { findFilterFields } from "@/domains/filterCatalog/index.js";
+import { getLatestClosePrices } from "@/domains/stock/index.js";
+import { getCompanyNames } from "@/domains/companies/index.js";
+import { fetchValuationRanking } from "@/domains/screener/valuationRanking.client.js";
+import { runRanking, runScreener } from "@/domains/screener/screener.service.js";
+import type { Pagination } from "@/domains/screener/pagination.js";
 
 const DEFAULT_PAGINATION: Pagination = { page: 1, pageSize: 50 };
 

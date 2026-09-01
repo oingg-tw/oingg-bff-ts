@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
-import { AppError } from "../../shared/errorHandler.js";
-import { getStockQuote } from "./stock.service.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { getStockQuote } from "@/domains/stock/stock.service.js";
 
 export const stockRouter = Router();
 

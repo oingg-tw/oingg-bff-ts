@@ -1,8 +1,8 @@
-import { AppError } from "../../shared/errorHandler.js";
-import { addPresetWithName } from "../screener/screenerPresets.service.js";
-import type { PresetView } from "../screener/screenerPresets.service.js";
-import { findPresetTemplate, listPresetTemplates } from "./presetTemplates.repository.js";
-import type { PresetTemplate } from "./presetTemplates.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { addPresetWithName } from "@/domains/screener/screenerPresets.service.js";
+import type { PresetView } from "@/domains/screener/screenerPresets.service.js";
+import { findPresetTemplate, listPresetTemplates } from "@/domains/presetTemplates/presetTemplates.repository.js";
+import type { PresetTemplate } from "@/domains/presetTemplates/presetTemplates.types.js";
 
 export async function getPresetTemplates(): Promise<PresetTemplate[]> {
   return listPresetTemplates();

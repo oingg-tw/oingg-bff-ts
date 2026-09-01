@@ -1,22 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../domains/companies/companies.client.js", () => ({
+vi.mock("@/domains/companies/companies.client.js", () => ({
   fetchCompanies: vi.fn(),
 }));
 
-vi.mock("../domains/companies/companies.repository.js", () => ({
+vi.mock("@/domains/companies/companies.repository.js", () => ({
   findCompanyNames: vi.fn(),
   getCompaniesSyncedAt: vi.fn(),
   replaceCompanies: vi.fn(),
 }));
 
-import { fetchCompanies } from "../domains/companies/companies.client.js";
+import { fetchCompanies } from "@/domains/companies/companies.client.js";
 import {
   findCompanyNames,
   getCompaniesSyncedAt,
   replaceCompanies,
-} from "../domains/companies/companies.repository.js";
-import { getCompanyNames, syncCompanies, syncCompaniesIfStale } from "../domains/companies/companies.service.js";
+} from "@/domains/companies/companies.repository.js";
+import { getCompanyNames, syncCompanies, syncCompaniesIfStale } from "@/domains/companies/companies.service.js";
 
 const ALL_COMPANIES = [
   { companyId: "2330", companyName: "台積電" },

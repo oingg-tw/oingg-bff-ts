@@ -2,7 +2,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
-import { env } from "../../shared/env.js";
+import { env } from "@/shared/env.js";
 
 // ESM has no __dirname; rebuild it from import.meta.url.
 const __filename = fileURLToPath(import.meta.url);

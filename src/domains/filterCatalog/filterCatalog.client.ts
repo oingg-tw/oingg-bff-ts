@@ -1,6 +1,6 @@
-import { AppError } from "../../shared/errorHandler.js";
-import { requireEnv } from "../../shared/env.js";
-import type { FilterCategory } from "./filterCatalog.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { requireEnv } from "@/shared/env.js";
+import type { FilterCategory } from "@/domains/filterCatalog/filterCatalog.types.js";
 
 function isFilterCatalogResponse(body: unknown): body is { categories: FilterCategory[] } {
   return (

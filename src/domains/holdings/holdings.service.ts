@@ -1,6 +1,6 @@
-import { Prisma } from "../../generated/prisma/client.js";
-import { AppError } from "../../shared/errorHandler.js";
-import { getStockQuote } from "../stock/index.js";
+import { Prisma } from "@/generated/prisma/client.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { getStockQuote } from "@/domains/stock/index.js";
 import {
   createHolding,
   deleteHolding,
@@ -8,8 +8,8 @@ import {
   listHoldings,
   updateHolding,
   type HoldingUpdate,
-} from "./holdings.repository.js";
-import type { Holding } from "./holdings.types.js";
+} from "@/domains/holdings/holdings.repository.js";
+import type { Holding } from "@/domains/holdings/holdings.types.js";
 
 const UNIQUE_CONSTRAINT_VIOLATION = "P2002";
 

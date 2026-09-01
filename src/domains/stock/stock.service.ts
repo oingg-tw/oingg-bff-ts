@@ -1,5 +1,5 @@
-import { fetchStockPrices, fetchStockQuote } from "./stockQuote.client.js";
-import type { StockQuote } from "./stock.types.js";
+import { fetchStockPrices, fetchStockQuote } from "@/domains/stock/stockQuote.client.js";
+import type { StockQuote } from "@/domains/stock/stock.types.js";
 
 export interface ClosePrice {
   close: string | null;

@@ -1,7 +1,7 @@
-import { Prisma } from "../../generated/prisma/client.js";
-import { AppError } from "../../shared/errorHandler.js";
-import { findDefaultColumnPresetTemplate } from "../columnPresetTemplates/columnPresetTemplates.repository.js";
-import { resolveColumnFields } from "./columnField.js";
+import { Prisma } from "@/generated/prisma/client.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { findDefaultColumnPresetTemplate } from "@/domains/columnPresetTemplates/columnPresetTemplates.repository.js";
+import { resolveColumnFields } from "@/domains/screener/columnField.js";
 import {
   createColumnPreset,
   deleteColumnPreset,
@@ -10,8 +10,8 @@ import {
   listColumnPresets,
   updateColumnPreset,
   type ColumnPresetRow,
-} from "./columnPresets.repository.js";
-import type { ScreenerColumnRef } from "./screener.types.js";
+} from "@/domains/screener/columnPresets.repository.js";
+import type { ScreenerColumnRef } from "@/domains/screener/screener.types.js";
 
 const UNIQUE_CONSTRAINT_VIOLATION = "P2002";
 

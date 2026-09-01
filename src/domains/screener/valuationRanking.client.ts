@@ -1,5 +1,5 @@
-import { AppError } from "../../shared/errorHandler.js";
-import { requireEnv } from "../../shared/env.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { requireEnv } from "@/shared/env.js";
 
 export type ValuationRankingMetric = "peRatio" | "pbRatio" | "dividendYield";
 

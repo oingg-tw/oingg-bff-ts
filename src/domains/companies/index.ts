@@ -1,3 +1,3 @@
-export { getCompanyNames, startCompanySync, syncCompanies, syncCompaniesIfStale } from "./companies.service.js";
-export type { CompanySyncSummary } from "./companies.service.js";
-export type { Company } from "./companies.types.js";
+export { getCompanyNames, startCompanySync, syncCompanies, syncCompaniesIfStale } from "@/domains/companies/companies.service.js";
+export type { CompanySyncSummary } from "@/domains/companies/companies.service.js";
+export type { Company } from "@/domains/companies/companies.types.js";

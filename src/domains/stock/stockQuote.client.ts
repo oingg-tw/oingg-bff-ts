@@ -1,7 +1,7 @@
-import { AppError } from "../../shared/errorHandler.js";
-import { requireEnv } from "../../shared/env.js";
-import type { ClosePrice } from "./stock.service.js";
-import type { StockQuote } from "./stock.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { requireEnv } from "@/shared/env.js";
+import type { ClosePrice } from "@/domains/stock/stock.service.js";
+import type { StockQuote } from "@/domains/stock/stock.types.js";
 
 const MAX_SYMBOLS_PER_PRICES_REQUEST = 100;
 

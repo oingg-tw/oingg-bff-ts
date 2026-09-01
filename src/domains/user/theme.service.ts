@@ -1,6 +1,6 @@
-import { AppError } from "../../shared/errorHandler.js";
-import { findThemePreference, upsertThemePreference, type ThemePreferenceRow } from "./theme.repository.js";
-import type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreference } from "./theme.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { findThemePreference, upsertThemePreference, type ThemePreferenceRow } from "@/domains/user/theme.repository.js";
+import type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreference } from "@/domains/user/theme.types.js";
 
 const VALID_MODES: ThemeMode[] = ["LIGHT", "DARK", "SYSTEM"];
 const VALID_ACCENT_COLORS: ThemeAccentColor[] = ["BLUE", "GREEN", "PURPLE", "ORANGE", "RED", "TEAL", "GOLD"];

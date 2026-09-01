@@ -1,19 +1,19 @@
-import { getCompanyNames } from "../companies/index.js";
-import { findFilterFields } from "../filterCatalog/index.js";
-import { getLatestClosePrices } from "../stock/index.js";
-import { AppError } from "../../shared/errorHandler.js";
-import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
-import { fetchScreenerRanking, fetchScreenerResults } from "./analysisScreenerClient.js";
-import { SPECIAL_COLUMNS } from "./columnField.js";
-import type { Pagination } from "./pagination.js";
+import { getCompanyNames } from "@/domains/companies/index.js";
+import { findFilterFields } from "@/domains/filterCatalog/index.js";
+import { getLatestClosePrices } from "@/domains/stock/index.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
+import { fetchScreenerRanking, fetchScreenerResults } from "@/domains/screener/analysisScreenerClient.js";
+import { SPECIAL_COLUMNS } from "@/domains/screener/columnField.js";
+import type { Pagination } from "@/domains/screener/pagination.js";
 import type {
   ScreenerColumnRef,
   ScreenerFilter,
   ScreenerResult,
   ScreenerResultColumn,
   ScreenerResultRow,
-} from "./screener.types.js";
-import { fetchValuationRanking, type ValuationRankingMetric } from "./valuationRanking.client.js";
+} from "@/domains/screener/screener.types.js";
+import { fetchValuationRanking, type ValuationRankingMetric } from "@/domains/screener/valuationRanking.client.js";
 
 const STOCK_PRICE_FIELD = "stock.price";
 

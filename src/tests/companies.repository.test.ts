@@ -12,7 +12,7 @@ const mockPrisma = {
   companySyncState: { findUnique: vi.fn() },
 };
 
-vi.mock("../adapters/neon/index.js", () => ({
+vi.mock("@/adapters/neon/index.js", () => ({
   getPrismaClient: () => mockPrisma,
 }));
 
@@ -20,8 +20,8 @@ import {
   findCompanyNames,
   getCompaniesSyncedAt,
   replaceCompanies,
-} from "../domains/companies/companies.repository.js";
-import type { Company } from "../domains/companies/companies.types.js";
+} from "@/domains/companies/companies.repository.js";
+import type { Company } from "@/domains/companies/companies.types.js";
 
 const SAMPLE_COMPANIES: Company[] = [
   { companyId: "2330", companyName: "台積電" },

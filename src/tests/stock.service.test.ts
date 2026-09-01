@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../domains/stock/stockQuote.client.js", () => ({
+vi.mock("@/domains/stock/stockQuote.client.js", () => ({
   fetchStockQuote: vi.fn(),
   fetchStockPrices: vi.fn(),
 }));
 
-import { fetchStockPrices, fetchStockQuote } from "../domains/stock/stockQuote.client.js";
-import { getLatestClosePrices, getStockQuote } from "../domains/stock/stock.service.js";
+import { fetchStockPrices, fetchStockQuote } from "@/domains/stock/stockQuote.client.js";
+import { getLatestClosePrices, getStockQuote } from "@/domains/stock/stock.service.js";
 
 beforeEach(() => {
   vi.mocked(fetchStockQuote).mockReset();

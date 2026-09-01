@@ -1,9 +1,9 @@
 import { Router } from "ultimate-express";
-import { columnPresetTemplatesRouter } from "../columnPresetTemplates/index.js";
-import { presetTemplatesRouter } from "../presetTemplates/index.js";
-import { columnPresetsRouter } from "./columnPresets.routes.js";
-import { screenerRouter } from "./screener.routes.js";
-import { screenerPresetsRouter } from "./screenerPresets.routes.js";
+import { columnPresetTemplatesRouter } from "@/domains/columnPresetTemplates/index.js";
+import { presetTemplatesRouter } from "@/domains/presetTemplates/index.js";
+import { columnPresetsRouter } from "@/domains/screener/columnPresets.routes.js";
+import { screenerRouter } from "@/domains/screener/screener.routes.js";
+import { screenerPresetsRouter } from "@/domains/screener/screenerPresets.routes.js";
 
 export const screenerRoutes = Router();
 screenerRoutes.use("/column-presets", columnPresetsRouter);
@@ -12,8 +12,8 @@ screenerRoutes.use("/presets", screenerPresetsRouter);
 screenerRoutes.use("/templates", presetTemplatesRouter);
 screenerRoutes.use("/", screenerRouter);
 
-export { runRanking, runScreener } from "./screener.service.js";
-export type { RankingResult } from "./screener.service.js";
+export { runRanking, runScreener } from "@/domains/screener/screener.service.js";
+export type { RankingResult } from "@/domains/screener/screener.service.js";
 export {
   addColumnPreset,
   addColumnPresetWithName,
@@ -22,8 +22,8 @@ export {
   getColumnPresets,
   removeColumnPreset,
   resolveScreenerColumns,
-} from "./columnPresets.service.js";
-export { addPreset, editPreset, getPresetOrThrow, getPresets, removePreset, runPreset } from "./screenerPresets.service.js";
-export type { ScreenerColumnRef, ScreenerFilter, ScreenerResult, ScreenerResultColumn, ScreenerResultRow } from "./screener.types.js";
-export type { ColumnPresetColumnView, ColumnPresetView } from "./columnPresets.service.js";
-export type { PresetFilterView, PresetView } from "./screenerPresets.service.js";
+} from "@/domains/screener/columnPresets.service.js";
+export { addPreset, editPreset, getPresetOrThrow, getPresets, removePreset, runPreset } from "@/domains/screener/screenerPresets.service.js";
+export type { ScreenerColumnRef, ScreenerFilter, ScreenerResult, ScreenerResultColumn, ScreenerResultRow } from "@/domains/screener/screener.types.js";
+export type { ColumnPresetColumnView, ColumnPresetView } from "@/domains/screener/columnPresets.service.js";
+export type { PresetFilterView, PresetView } from "@/domains/screener/screenerPresets.service.js";

@@ -1,5 +1,5 @@
-import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
-import { findFilterFields } from "../filterCatalog/index.js";
+import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
+import { findFilterFields } from "@/domains/filterCatalog/index.js";
 
 export interface ColumnFieldInfo {
   field: string;

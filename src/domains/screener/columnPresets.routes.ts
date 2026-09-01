@@ -1,15 +1,15 @@
 import { Router } from "ultimate-express";
-import { AppError } from "../../shared/errorHandler.js";
-import { parseUuidParam } from "../../shared/uuid.js";
-import { requireAuth } from "../auth/auth.middleware.js";
-import type { AuthenticatedRequest } from "../auth/auth.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { parseUuidParam } from "@/shared/uuid.js";
+import { requireAuth } from "@/domains/auth/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 import {
   addColumnPreset,
   editColumnPreset,
   getColumnPresetOrThrow,
   getColumnPresets,
   removeColumnPreset,
-} from "./columnPresets.service.js";
+} from "@/domains/screener/columnPresets.service.js";
 
 export const columnPresetsRouter = Router();
 

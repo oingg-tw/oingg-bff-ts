@@ -1,1 +1,1 @@
-export { initFirebase, getFirebaseAuth } from "./client.js";
+export { initFirebase, getFirebaseAuth } from "@/adapters/firebase/client.js";

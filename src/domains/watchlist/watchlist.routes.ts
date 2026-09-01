@@ -1,15 +1,15 @@
 import { Router } from "ultimate-express";
-import { AppError } from "../../shared/errorHandler.js";
-import { parseUuidParam } from "../../shared/uuid.js";
-import { requireAuth } from "../auth/auth.middleware.js";
-import type { AuthenticatedRequest } from "../auth/auth.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { parseUuidParam } from "@/shared/uuid.js";
+import { requireAuth } from "@/domains/auth/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 import {
   addWatchlistItem,
   editWatchlistItemNote,
   getWatchlist,
   getWatchlistItemOrThrow,
   removeWatchlistItem,
-} from "./watchlist.service.js";
+} from "@/domains/watchlist/watchlist.service.js";
 
 export const watchlistRouter = Router();
 

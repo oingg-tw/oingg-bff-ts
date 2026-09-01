@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "ultimate-express";
-import { env } from "./env.js";
+import { env } from "@/shared/env.js";
 
 export class AppError extends Error {
   readonly statusCode: number;

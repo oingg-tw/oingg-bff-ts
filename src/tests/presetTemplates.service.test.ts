@@ -1,24 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../domains/presetTemplates/presetTemplates.repository.js", () => ({
+vi.mock("@/domains/presetTemplates/presetTemplates.repository.js", () => ({
   findPresetTemplate: vi.fn(),
   listPresetTemplates: vi.fn(),
 }));
 
-vi.mock("../domains/screener/screenerPresets.service.js", () => ({
+vi.mock("@/domains/screener/screenerPresets.service.js", () => ({
   addPresetWithName: vi.fn(),
 }));
 
-import { addPresetWithName } from "../domains/screener/screenerPresets.service.js";
+import { addPresetWithName } from "@/domains/screener/screenerPresets.service.js";
 import {
   findPresetTemplate,
   listPresetTemplates,
-} from "../domains/presetTemplates/presetTemplates.repository.js";
+} from "@/domains/presetTemplates/presetTemplates.repository.js";
 import {
   applyPresetTemplate,
   getPresetTemplateOrThrow,
   getPresetTemplates,
-} from "../domains/presetTemplates/presetTemplates.service.js";
+} from "@/domains/presetTemplates/presetTemplates.service.js";
 
 const AVAILABLE_TEMPLATE = {
   id: "aaaaaaaa-0000-4000-8000-000000000001",

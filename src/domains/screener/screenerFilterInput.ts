@@ -1,5 +1,5 @@
-import { AppError } from "../../shared/errorHandler.js";
-import type { ScreenerFilter } from "./screener.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import type { ScreenerFilter } from "@/domains/screener/screener.types.js";
 
 function parseNullableNumber(value: unknown, path: string): number | null {
   if (value === null || value === undefined) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseUuidParam } from "../shared/uuid.js";
+import { parseUuidParam } from "@/shared/uuid.js";
 
 describe("parseUuidParam", () => {
   it("accepts a well-formed UUID (case-insensitive) and returns it unchanged", () => {

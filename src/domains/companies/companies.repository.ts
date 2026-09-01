@@ -1,6 +1,6 @@
-import { getPrismaClient } from "../../adapters/neon/index.js";
-import { Prisma } from "../../generated/prisma/client.js";
-import type { Company } from "./companies.types.js";
+import { getPrismaClient } from "@/adapters/neon/index.js";
+import { Prisma } from "@/generated/prisma/client.js";
+import type { Company } from "@/domains/companies/companies.types.js";
 
 const SYNC_STATE_ID = 1;
 

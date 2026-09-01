@@ -1,2 +1,2 @@
-export { holdingsRouter } from "./holdings.routes.js";
-export type { Holding } from "./holdings.types.js";
+export { holdingsRouter } from "@/domains/holdings/holdings.routes.js";
+export type { Holding } from "@/domains/holdings/holdings.types.js";

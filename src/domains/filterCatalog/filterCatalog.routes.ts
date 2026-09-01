@@ -1,5 +1,5 @@
 import { Router } from "ultimate-express";
-import { getFilterCatalog } from "./filterCatalog.service.js";
+import { getFilterCatalog } from "@/domains/filterCatalog/filterCatalog.service.js";
 
 export const filterCatalogRouter = Router();
 

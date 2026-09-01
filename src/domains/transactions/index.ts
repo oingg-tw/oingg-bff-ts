@@ -1,2 +1,2 @@
-export { transactionsRouter } from "./transactions.routes.js";
-export type { StockTransaction, TransactionAction } from "./transactions.types.js";
+export { transactionsRouter } from "@/domains/transactions/transactions.routes.js";
+export type { StockTransaction, TransactionAction } from "@/domains/transactions/transactions.types.js";

@@ -1,6 +1,6 @@
-import { AppError } from "../../shared/errorHandler.js";
-import { requireEnv } from "../../shared/env.js";
-import type { Company } from "./companies.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { requireEnv } from "@/shared/env.js";
+import type { Company } from "@/domains/companies/companies.types.js";
 
 function isCompanyArray(value: unknown): value is Company[] {
   return (

@@ -1,7 +1,7 @@
-import { AppError } from "../../shared/errorHandler.js";
-import { requireEnv } from "../../shared/env.js";
-import type { Pagination } from "./pagination.js";
-import type { ScreenerFilter, ScreenerValue } from "./screener.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { requireEnv } from "@/shared/env.js";
+import type { Pagination } from "@/domains/screener/pagination.js";
+import type { ScreenerFilter, ScreenerValue } from "@/domains/screener/screener.types.js";
 
 export interface ScreenerColumnInput {
   field: string;

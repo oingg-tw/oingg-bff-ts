@@ -10,7 +10,7 @@ const mockPrisma = {
   columnPresetTemplate: { findMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
 };
 
-vi.mock("../adapters/neon/index.js", () => ({
+vi.mock("@/adapters/neon/index.js", () => ({
   getPrismaClient: () => mockPrisma,
 }));
 
@@ -19,8 +19,8 @@ import {
   findDefaultColumnPresetTemplate,
   listColumnPresetTemplates,
   replaceColumnPresetTemplates,
-} from "../domains/columnPresetTemplates/columnPresetTemplates.repository.js";
-import type { ColumnPresetTemplate } from "../domains/columnPresetTemplates/columnPresetTemplates.types.js";
+} from "@/domains/columnPresetTemplates/columnPresetTemplates.repository.js";
+import type { ColumnPresetTemplate } from "@/domains/columnPresetTemplates/columnPresetTemplates.types.js";
 
 const SAMPLE_TEMPLATES: ColumnPresetTemplate[] = [
   {

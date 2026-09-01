@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../domains/user/theme.repository.js", () => ({
+vi.mock("@/domains/user/theme.repository.js", () => ({
   findThemePreference: vi.fn(),
   upsertThemePreference: vi.fn(),
 }));
 
-import { findThemePreference, upsertThemePreference } from "../domains/user/theme.repository.js";
+import { findThemePreference, upsertThemePreference } from "@/domains/user/theme.repository.js";
 import {
   getThemePreference,
   updateThemeMode,
@@ -13,7 +13,7 @@ import {
   updateMarketColorConvention,
   updateIsFullWidth,
   SYSTEM_DEFAULT_THEME,
-} from "../domains/user/theme.service.js";
+} from "@/domains/user/theme.service.js";
 
 describe("getThemePreference", () => {
   beforeEach(() => {

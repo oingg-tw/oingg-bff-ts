@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../domains/user/user.repository.js", () => ({
+vi.mock("@/domains/user/user.repository.js", () => ({
   findUserByFirebaseUid: vi.fn(),
 }));
 
-import { findUserByFirebaseUid } from "../domains/user/user.repository.js";
-import { getUserByFirebaseUidOrThrow } from "../domains/user/user.service.js";
+import { findUserByFirebaseUid } from "@/domains/user/user.repository.js";
+import { getUserByFirebaseUidOrThrow } from "@/domains/user/user.service.js";
 
 const SAMPLE_USER = {
   id: "cabc123",

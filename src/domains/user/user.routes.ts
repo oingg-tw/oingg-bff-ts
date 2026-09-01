@@ -1,16 +1,16 @@
 import { Router } from "ultimate-express";
-import { AppError } from "../../shared/errorHandler.js";
-import { requireAuth } from "../auth/auth.middleware.js";
-import type { AuthenticatedRequest } from "../auth/auth.types.js";
-import { getDisplaySettings, updateShowAsOfDate } from "./screenerDisplaySettings.service.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { requireAuth } from "@/domains/auth/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
+import { getDisplaySettings, updateShowAsOfDate } from "@/domains/user/screenerDisplaySettings.service.js";
 import {
   getThemePreference,
   updateIsFullWidth,
   updateMarketColorConvention,
   updateThemeAccentColor,
   updateThemeMode,
-} from "./theme.service.js";
-import { getUserByFirebaseUidOrThrow } from "./user.service.js";
+} from "@/domains/user/theme.service.js";
+import { getUserByFirebaseUidOrThrow } from "@/domains/user/user.service.js";
 
 export const userRouter = Router();
 

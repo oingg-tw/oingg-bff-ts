@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../domains/filterCatalog/filterCatalog.client.js", () => ({
+vi.mock("@/domains/filterCatalog/filterCatalog.client.js", () => ({
   fetchFilterCatalog: vi.fn(),
 }));
 
-vi.mock("../domains/filterCatalog/filterCatalog.repository.js", () => ({
+vi.mock("@/domains/filterCatalog/filterCatalog.repository.js", () => ({
   listFilterCatalog: vi.fn(),
   replaceFilterCatalog: vi.fn(),
 }));
 
-import { fetchFilterCatalog } from "../domains/filterCatalog/filterCatalog.client.js";
-import { replaceFilterCatalog } from "../domains/filterCatalog/filterCatalog.repository.js";
-import { startFilterCatalogSync } from "../domains/filterCatalog/filterCatalog.service.js";
+import { fetchFilterCatalog } from "@/domains/filterCatalog/filterCatalog.client.js";
+import { replaceFilterCatalog } from "@/domains/filterCatalog/filterCatalog.repository.js";
+import { startFilterCatalogSync } from "@/domains/filterCatalog/filterCatalog.service.js";
 
 const SAMPLE_CATEGORY = { key: "profitability", name: "Profitability", sort: 0, metrics: [] };
 

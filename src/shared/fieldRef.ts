@@ -1,4 +1,4 @@
-import { AppError } from "./errorHandler.js";
+import { AppError } from "@/shared/errorHandler.js";
 
 export interface FieldRef {
   metricKey: string;

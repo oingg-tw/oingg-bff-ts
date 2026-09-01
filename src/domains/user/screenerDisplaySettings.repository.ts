@@ -1,4 +1,4 @@
-import { getPrismaClient } from "../../adapters/neon/index.js";
+import { getPrismaClient } from "@/adapters/neon/index.js";
 
 export interface ScreenerDisplaySettingsRow {
   showAsOfDate: boolean | null;

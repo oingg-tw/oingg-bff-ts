@@ -1,6 +1,6 @@
 import express from "ultimate-express";
-import { routes } from "./routes.js";
-import { errorHandler, notFoundHandler } from "./shared/errorHandler.js";
+import { routes } from "@/routes.js";
+import { errorHandler, notFoundHandler } from "@/shared/errorHandler.js";
 
 export function createApp() {
   const app = express();

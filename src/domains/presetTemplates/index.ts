@@ -1,2 +1,2 @@
-export { presetTemplatesRouter } from "./presetTemplates.routes.js";
-export type { PresetTemplate, PresetTemplateFilter, PresetTemplateStatus, PresetTemplateTier } from "./presetTemplates.types.js";
+export { presetTemplatesRouter } from "@/domains/presetTemplates/presetTemplates.routes.js";
+export type { PresetTemplate, PresetTemplateFilter, PresetTemplateStatus, PresetTemplateTier } from "@/domains/presetTemplates/presetTemplates.types.js";

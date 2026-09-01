@@ -1,7 +1,7 @@
 import type { NextFunction, Response } from "ultimate-express";
-import { getFirebaseAuth } from "../../adapters/firebase/index.js";
-import { AppError } from "../../shared/errorHandler.js";
-import type { AuthenticatedRequest } from "./auth.types.js";
+import { getFirebaseAuth } from "@/adapters/firebase/index.js";
+import { AppError } from "@/shared/errorHandler.js";
+import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 
 const BEARER_PREFIX = "Bearer ";
 

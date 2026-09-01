@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../adapters/neon/index.js", () => ({
+vi.mock("@/adapters/neon/index.js", () => ({
   listNeonPoolNames: vi.fn(),
   queryNeon: vi.fn(),
   getPrismaClient: vi.fn(),
 }));
 
-import { getPrismaClient, listNeonPoolNames, queryNeon } from "../adapters/neon/index.js";
-import { getHealthReport } from "../domains/system/system.service.js";
+import { getPrismaClient, listNeonPoolNames, queryNeon } from "@/adapters/neon/index.js";
+import { getHealthReport } from "@/domains/system/system.service.js";
 
 const STARTED_AT = new Date("2026-08-30T00:00:00.000Z");
 

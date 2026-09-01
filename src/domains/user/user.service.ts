@@ -1,6 +1,6 @@
-import { AppError } from "../../shared/errorHandler.js";
-import { findUserByFirebaseUid } from "./user.repository.js";
-import type { UserProfile } from "./user.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { findUserByFirebaseUid } from "@/domains/user/user.repository.js";
+import type { UserProfile } from "@/domains/user/user.types.js";
 
 export { findUserByFirebaseUid };
 

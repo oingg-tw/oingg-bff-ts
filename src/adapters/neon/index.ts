@@ -4,5 +4,5 @@ export {
   queryNeon,
   listNeonPoolNames,
   closeNeonPools,
-} from "./pool.js";
-export { getPrismaClient, closePrismaClient } from "./prismaClient.js";
+} from "@/adapters/neon/pool.js";
+export { getPrismaClient, closePrismaClient } from "@/adapters/neon/prismaClient.js";

@@ -1,6 +1,6 @@
-import { fetchFilterCatalog } from "./filterCatalog.client.js";
-import { listFilterCatalog, replaceFilterCatalog } from "./filterCatalog.repository.js";
-import type { FilterCategory } from "./filterCatalog.types.js";
+import { fetchFilterCatalog } from "@/domains/filterCatalog/filterCatalog.client.js";
+import { listFilterCatalog, replaceFilterCatalog } from "@/domains/filterCatalog/filterCatalog.repository.js";
+import type { FilterCategory } from "@/domains/filterCatalog/filterCatalog.types.js";
 
 const RETRY_DELAY_MS = 30_000;
 

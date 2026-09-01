@@ -11,7 +11,7 @@ vi.mock("pg", () => ({
   },
 }));
 
-import { closeNeonPools, initNeonPools } from "../adapters/neon/pool.js";
+import { closeNeonPools, initNeonPools } from "@/adapters/neon/pool.js";
 
 // Regression test: pg's own defaults leave connectionTimeoutMillis unset (unbounded wait to acquire a
 // connection) and no idleTimeoutMillis (idle connections never recycled) — per the microservice DB

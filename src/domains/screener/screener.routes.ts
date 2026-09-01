@@ -1,13 +1,13 @@
 import { Router } from "ultimate-express";
-import { AppError } from "../../shared/errorHandler.js";
-import { parseUuidParam } from "../../shared/uuid.js";
-import { optionalAuth } from "../auth/auth.middleware.js";
-import type { AuthenticatedRequest } from "../auth/auth.types.js";
-import { runRanking, runScreener } from "./screener.service.js";
-import { resolveScreenerColumns } from "./columnPresets.service.js";
-import { parsePagination } from "./pagination.js";
-import { parseScreenerFilters } from "./screenerFilterInput.js";
-import type { ScreenerColumnRef, ScreenerFilter } from "./screener.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { parseUuidParam } from "@/shared/uuid.js";
+import { optionalAuth } from "@/domains/auth/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
+import { runRanking, runScreener } from "@/domains/screener/screener.service.js";
+import { resolveScreenerColumns } from "@/domains/screener/columnPresets.service.js";
+import { parsePagination } from "@/domains/screener/pagination.js";
+import { parseScreenerFilters } from "@/domains/screener/screenerFilterInput.js";
+import type { ScreenerColumnRef, ScreenerFilter } from "@/domains/screener/screener.types.js";
 
 const DEFAULT_RANKING_LIMIT = 10;
 const MAX_RANKING_LIMIT = 50;

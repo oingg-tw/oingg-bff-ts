@@ -1,4 +1,4 @@
-import { getPrismaClient, listNeonPoolNames, queryNeon } from "../../adapters/neon/index.js";
+import { getPrismaClient, listNeonPoolNames, queryNeon } from "@/adapters/neon/index.js";
 
 const CHECK_TIMEOUT_MS = 3_000;
 

@@ -1,5 +1,5 @@
-import { fetchCompanies } from "./companies.client.js";
-import { findCompanyNames, getCompaniesSyncedAt, replaceCompanies } from "./companies.repository.js";
+import { fetchCompanies } from "@/domains/companies/companies.client.js";
+import { findCompanyNames, getCompaniesSyncedAt, replaceCompanies } from "@/domains/companies/companies.repository.js";
 
 const FRESHNESS_MS = 24 * 60 * 60 * 1000;
 const RETRY_DELAY_MS = 30_000;

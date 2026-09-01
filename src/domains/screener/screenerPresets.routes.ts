@@ -1,10 +1,10 @@
 import { Router } from "ultimate-express";
-import { AppError } from "../../shared/errorHandler.js";
-import { parseUuidParam } from "../../shared/uuid.js";
-import { requireAuth } from "../auth/auth.middleware.js";
-import type { AuthenticatedRequest } from "../auth/auth.types.js";
-import { parsePagination } from "./pagination.js";
-import { parseScreenerFilters } from "./screenerFilterInput.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { parseUuidParam } from "@/shared/uuid.js";
+import { requireAuth } from "@/domains/auth/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
+import { parsePagination } from "@/domains/screener/pagination.js";
+import { parseScreenerFilters } from "@/domains/screener/screenerFilterInput.js";
 import {
   addPreset,
   editPreset,
@@ -12,7 +12,7 @@ import {
   getPresets,
   removePreset,
   runPreset,
-} from "./screenerPresets.service.js";
+} from "@/domains/screener/screenerPresets.service.js";
 
 export const screenerPresetsRouter = Router();
 

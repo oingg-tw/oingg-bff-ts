@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../domains/stock/index.js", () => ({
+vi.mock("@/domains/stock/index.js", () => ({
   getStockQuote: vi.fn(),
 }));
 
-vi.mock("../domains/watchlist/watchlist.repository.js", () => ({
+vi.mock("@/domains/watchlist/watchlist.repository.js", () => ({
   createWatchlistItem: vi.fn(),
   deleteWatchlistItem: vi.fn(),
   findWatchlistItem: vi.fn(),
@@ -12,20 +12,20 @@ vi.mock("../domains/watchlist/watchlist.repository.js", () => ({
   updateWatchlistItemNote: vi.fn(),
 }));
 
-import { Prisma } from "../generated/prisma/client.js";
-import { getStockQuote } from "../domains/stock/index.js";
+import { Prisma } from "@/generated/prisma/client.js";
+import { getStockQuote } from "@/domains/stock/index.js";
 import {
   createWatchlistItem,
   deleteWatchlistItem,
   findWatchlistItem,
   updateWatchlistItemNote,
-} from "../domains/watchlist/watchlist.repository.js";
+} from "@/domains/watchlist/watchlist.repository.js";
 import {
   addWatchlistItem,
   editWatchlistItemNote,
   getWatchlistItemOrThrow,
   removeWatchlistItem,
-} from "../domains/watchlist/watchlist.service.js";
+} from "@/domains/watchlist/watchlist.service.js";
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 

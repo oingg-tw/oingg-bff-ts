@@ -1,10 +1,10 @@
 import { Router } from "ultimate-express";
-import { AppError } from "../../shared/errorHandler.js";
-import { parseUuidParam } from "../../shared/uuid.js";
-import { requireAuth } from "../auth/auth.middleware.js";
-import type { AuthenticatedRequest } from "../auth/auth.types.js";
-import { addHolding, editHolding, getHoldingOrThrow, getHoldings, removeHolding } from "./holdings.service.js";
-import type { HoldingUpdate } from "./holdings.repository.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { parseUuidParam } from "@/shared/uuid.js";
+import { requireAuth } from "@/domains/auth/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
+import { addHolding, editHolding, getHoldingOrThrow, getHoldings, removeHolding } from "@/domains/holdings/holdings.service.js";
+import type { HoldingUpdate } from "@/domains/holdings/holdings.repository.js";
 
 export const holdingsRouter = Router();
 

@@ -1,17 +1,17 @@
 import cors from "cors";
 import helmet from "helmet";
 import { Router } from "ultimate-express";
-import { swaggerSpec, swaggerUi } from "./adapters/swagger/index.js";
-import { authRouter } from "./domains/auth/index.js";
-import { filterCatalogRouter } from "./domains/filterCatalog/index.js";
-import { holdingsRouter } from "./domains/holdings/index.js";
-import { screenerRoutes } from "./domains/screener/index.js";
-import { stockRouter } from "./domains/stock/index.js";
-import { startedAt, systemRouter } from "./domains/system/index.js";
-import { transactionsRouter } from "./domains/transactions/index.js";
-import { userRouter } from "./domains/user/index.js";
-import { watchlistRouter } from "./domains/watchlist/index.js";
-import { env } from "./shared/env.js";
+import { swaggerSpec, swaggerUi } from "@/adapters/swagger/index.js";
+import { authRouter } from "@/domains/auth/index.js";
+import { filterCatalogRouter } from "@/domains/filterCatalog/index.js";
+import { holdingsRouter } from "@/domains/holdings/index.js";
+import { screenerRoutes } from "@/domains/screener/index.js";
+import { stockRouter } from "@/domains/stock/index.js";
+import { startedAt, systemRouter } from "@/domains/system/index.js";
+import { transactionsRouter } from "@/domains/transactions/index.js";
+import { userRouter } from "@/domains/user/index.js";
+import { watchlistRouter } from "@/domains/watchlist/index.js";
+import { env } from "@/shared/env.js";
 
 // Single place to see every mounted path — check here before grepping through src/domains.
 export const routes = Router();

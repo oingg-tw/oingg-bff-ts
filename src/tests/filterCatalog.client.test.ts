@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchFilterCatalog } from "../domains/filterCatalog/filterCatalog.client.js";
+import { fetchFilterCatalog } from "@/domains/filterCatalog/filterCatalog.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;

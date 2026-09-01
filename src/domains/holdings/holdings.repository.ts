@@ -1,6 +1,6 @@
-import { getPrismaClient } from "../../adapters/neon/index.js";
-import type { Holding as HoldingRow } from "../../generated/prisma/client.js";
-import type { Holding } from "./holdings.types.js";
+import { getPrismaClient } from "@/adapters/neon/index.js";
+import type { Holding as HoldingRow } from "@/generated/prisma/client.js";
+import type { Holding } from "@/domains/holdings/holdings.types.js";
 
 function toHolding(row: HoldingRow): Holding {
   return {

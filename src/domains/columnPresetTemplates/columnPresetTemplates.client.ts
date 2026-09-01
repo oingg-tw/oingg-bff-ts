@@ -1,6 +1,6 @@
-import { AppError } from "../../shared/errorHandler.js";
-import { requireEnv } from "../../shared/env.js";
-import type { ColumnPresetTemplate } from "./columnPresetTemplates.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { requireEnv } from "@/shared/env.js";
+import type { ColumnPresetTemplate } from "@/domains/columnPresetTemplates/columnPresetTemplates.types.js";
 
 interface RawColumnPresetTemplate {
   key: string;

@@ -1,4 +1,4 @@
-export { userRouter } from "./user.routes.js";
+export { userRouter } from "@/domains/user/user.routes.js";
 export {
   getThemePreference,
   updateThemeMode,
@@ -6,13 +6,13 @@ export {
   updateMarketColorConvention,
   updateIsFullWidth,
   SYSTEM_DEFAULT_THEME,
-} from "./theme.service.js";
-export type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreference } from "./theme.types.js";
-export { findUserByFirebaseUid, getUserByFirebaseUidOrThrow } from "./user.service.js";
-export type { UserProfile } from "./user.types.js";
+} from "@/domains/user/theme.service.js";
+export type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreference } from "@/domains/user/theme.types.js";
+export { findUserByFirebaseUid, getUserByFirebaseUidOrThrow } from "@/domains/user/user.service.js";
+export type { UserProfile } from "@/domains/user/user.types.js";
 export {
   getDisplaySettings,
   updateShowAsOfDate,
   SYSTEM_DEFAULT_DISPLAY_SETTINGS,
-} from "./screenerDisplaySettings.service.js";
-export type { ScreenerDisplaySettings } from "./screenerDisplaySettings.types.js";
+} from "@/domains/user/screenerDisplaySettings.service.js";
+export type { ScreenerDisplaySettings } from "@/domains/user/screenerDisplaySettings.types.js";

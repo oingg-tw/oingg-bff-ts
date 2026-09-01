@@ -1,7 +1,7 @@
-import { getPrismaClient } from "../../adapters/neon/index.js";
-import { Prisma } from "../../generated/prisma/client.js";
-import type { ColumnPresetTemplate as ColumnPresetTemplateRow } from "../../generated/prisma/client.js";
-import type { ColumnPresetTemplate } from "./columnPresetTemplates.types.js";
+import { getPrismaClient } from "@/adapters/neon/index.js";
+import { Prisma } from "@/generated/prisma/client.js";
+import type { ColumnPresetTemplate as ColumnPresetTemplateRow } from "@/generated/prisma/client.js";
+import type { ColumnPresetTemplate } from "@/domains/columnPresetTemplates/columnPresetTemplates.types.js";
 
 function toView(row: ColumnPresetTemplateRow): ColumnPresetTemplate {
   return {

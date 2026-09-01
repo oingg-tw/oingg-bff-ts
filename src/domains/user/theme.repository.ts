@@ -1,5 +1,5 @@
-import { getPrismaClient } from "../../adapters/neon/index.js";
-import type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreferenceUpdate } from "./theme.types.js";
+import { getPrismaClient } from "@/adapters/neon/index.js";
+import type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreferenceUpdate } from "@/domains/user/theme.types.js";
 
 export interface ThemePreferenceRow {
   mode: ThemeMode | null;

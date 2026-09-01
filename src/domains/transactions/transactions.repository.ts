@@ -1,6 +1,6 @@
-import { getPrismaClient } from "../../adapters/neon/index.js";
-import type { StockTransaction as StockTransactionRow } from "../../generated/prisma/client.js";
-import type { StockTransaction, TransactionAction } from "./transactions.types.js";
+import { getPrismaClient } from "@/adapters/neon/index.js";
+import type { StockTransaction as StockTransactionRow } from "@/generated/prisma/client.js";
+import type { StockTransaction, TransactionAction } from "@/domains/transactions/transactions.types.js";
 
 function toDateString(date: Date): string {
   return date.toISOString().slice(0, 10);

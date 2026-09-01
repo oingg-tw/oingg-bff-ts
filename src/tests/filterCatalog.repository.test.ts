@@ -12,12 +12,12 @@ const mockPrisma = {
   filterCategory: { findMany: vi.fn() },
 };
 
-vi.mock("../adapters/neon/index.js", () => ({
+vi.mock("@/adapters/neon/index.js", () => ({
   getPrismaClient: () => mockPrisma,
 }));
 
-import { listFilterCatalog, replaceFilterCatalog } from "../domains/filterCatalog/filterCatalog.repository.js";
-import type { FilterCategory } from "../domains/filterCatalog/filterCatalog.types.js";
+import { listFilterCatalog, replaceFilterCatalog } from "@/domains/filterCatalog/filterCatalog.repository.js";
+import type { FilterCategory } from "@/domains/filterCatalog/filterCatalog.types.js";
 
 const SAMPLE_CATALOG: FilterCategory[] = [
   {

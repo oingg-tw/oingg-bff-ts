@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../domains/stock/index.js", () => ({
+vi.mock("@/domains/stock/index.js", () => ({
   getStockQuote: vi.fn(),
 }));
 
-vi.mock("../domains/holdings/holdings.repository.js", () => ({
+vi.mock("@/domains/holdings/holdings.repository.js", () => ({
   createHolding: vi.fn(),
   deleteHolding: vi.fn(),
   findHolding: vi.fn(),
@@ -12,15 +12,15 @@ vi.mock("../domains/holdings/holdings.repository.js", () => ({
   updateHolding: vi.fn(),
 }));
 
-import { Prisma } from "../generated/prisma/client.js";
-import { getStockQuote } from "../domains/stock/index.js";
+import { Prisma } from "@/generated/prisma/client.js";
+import { getStockQuote } from "@/domains/stock/index.js";
 import {
   createHolding,
   deleteHolding,
   findHolding,
   updateHolding,
-} from "../domains/holdings/holdings.repository.js";
-import { addHolding, editHolding, getHoldingOrThrow, removeHolding } from "../domains/holdings/holdings.service.js";
+} from "@/domains/holdings/holdings.repository.js";
+import { addHolding, editHolding, getHoldingOrThrow, removeHolding } from "@/domains/holdings/holdings.service.js";
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 

@@ -1,6 +1,6 @@
-import { getPrismaClient } from "../../adapters/neon/index.js";
-import { Prisma } from "../../generated/prisma/client.js";
-import type { FilterCategory } from "./filterCatalog.types.js";
+import { getPrismaClient } from "@/adapters/neon/index.js";
+import { Prisma } from "@/generated/prisma/client.js";
+import type { FilterCategory } from "@/domains/filterCatalog/filterCatalog.types.js";
 
 export interface FilterFieldLookup {
   categoryKey: string;

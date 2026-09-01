@@ -1,6 +1,6 @@
-import { getPrismaClient } from "../../adapters/neon/index.js";
-import type { WatchlistItem as WatchlistItemRow } from "../../generated/prisma/client.js";
-import type { WatchlistItem } from "./watchlist.types.js";
+import { getPrismaClient } from "@/adapters/neon/index.js";
+import type { WatchlistItem as WatchlistItemRow } from "@/generated/prisma/client.js";
+import type { WatchlistItem } from "@/domains/watchlist/watchlist.types.js";
 
 function toWatchlistItem(row: WatchlistItemRow): WatchlistItem {
   return {

@@ -1,2 +1,2 @@
-export { systemRouter } from "./system.routes.js";
-export { startedAt } from "./system.state.js";
+export { systemRouter } from "@/domains/system/system.routes.js";
+export { startedAt } from "@/domains/system/system.state.js";

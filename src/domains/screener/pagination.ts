@@ -1,4 +1,4 @@
-import { AppError } from "../../shared/errorHandler.js";
+import { AppError } from "@/shared/errorHandler.js";
 
 export const DEFAULT_PAGE_SIZE = 50;
 export const MAX_PAGE_SIZE = 200;

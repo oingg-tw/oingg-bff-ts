@@ -1,14 +1,14 @@
-import { Prisma } from "../../generated/prisma/client.js";
-import { AppError } from "../../shared/errorHandler.js";
-import { getStockQuote } from "../stock/index.js";
+import { Prisma } from "@/generated/prisma/client.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { getStockQuote } from "@/domains/stock/index.js";
 import {
   createWatchlistItem,
   deleteWatchlistItem,
   findWatchlistItem,
   listWatchlistItems,
   updateWatchlistItemNote,
-} from "./watchlist.repository.js";
-import type { WatchlistItem } from "./watchlist.types.js";
+} from "@/domains/watchlist/watchlist.repository.js";
+import type { WatchlistItem } from "@/domains/watchlist/watchlist.types.js";
 
 /** Prisma's error code for a unique constraint violation (wraps Postgres's own 23505). */
 const UNIQUE_CONSTRAINT_VIOLATION = "P2002";

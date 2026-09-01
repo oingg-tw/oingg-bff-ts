@@ -12,7 +12,13 @@
         "module": "ESNext",
         "moduleResolution": "Bundler", /* Build options */
         "outDir": "dist",
-        "rootDir": "src"
+        "rootDir": "src", /* Path alias: "@/x.js" -> "src/x.js". tsc-alias rewrites this back to
+        relative specifiers in the compiled dist/ output (see package.json's build script) since plain
+        `node dist/index.js` can't resolve "@/" at runtime; tsx and vitest resolve it directly.
+        TypeScript 7 removed `baseUrl` — paths must be relative ("./src/*"), not bare ("src/*"). */
+        "paths": {
+            "@/*": ["./src/*"]
+        }
     },
     "include": [
         "src/**/*.ts"

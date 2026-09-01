@@ -1,10 +1,10 @@
-import { createApp } from "./app.js";
-import { initFirebase } from "./adapters/firebase/index.js";
-import { closeNeonPools, closePrismaClient, initNeonPools } from "./adapters/neon/index.js";
-import { startColumnPresetTemplateSync } from "./domains/columnPresetTemplates/index.js";
-import { startCompanySync } from "./domains/companies/index.js";
-import { startFilterCatalogSync } from "./domains/filterCatalog/index.js";
-import { env } from "./shared/env.js";
+import { createApp } from "@/app.js";
+import { initFirebase } from "@/adapters/firebase/index.js";
+import { closeNeonPools, closePrismaClient, initNeonPools } from "@/adapters/neon/index.js";
+import { startColumnPresetTemplateSync } from "@/domains/columnPresetTemplates/index.js";
+import { startCompanySync } from "@/domains/companies/index.js";
+import { startFilterCatalogSync } from "@/domains/filterCatalog/index.js";
+import { env } from "@/shared/env.js";
 
 async function main(): Promise<void> {
   initFirebase();

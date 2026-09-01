@@ -1,11 +1,11 @@
-import { Prisma } from "../../generated/prisma/client.js";
-import { AppError } from "../../shared/errorHandler.js";
-import { parseFieldRef, toFieldRefString } from "../../shared/fieldRef.js";
-import { findFilterFields } from "../filterCatalog/index.js";
-import { resolveScreenerColumns } from "./columnPresets.service.js";
-import type { Pagination } from "./pagination.js";
-import { runScreener } from "./screener.service.js";
-import type { ScreenerFilter, ScreenerResult } from "./screener.types.js";
+import { Prisma } from "@/generated/prisma/client.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
+import { findFilterFields } from "@/domains/filterCatalog/index.js";
+import { resolveScreenerColumns } from "@/domains/screener/columnPresets.service.js";
+import type { Pagination } from "@/domains/screener/pagination.js";
+import { runScreener } from "@/domains/screener/screener.service.js";
+import type { ScreenerFilter, ScreenerResult } from "@/domains/screener/screener.types.js";
 import {
   createPreset,
   deletePreset,
@@ -15,7 +15,7 @@ import {
   updatePreset,
   type PresetFilterInput,
   type PresetRow,
-} from "./screenerPresets.repository.js";
+} from "@/domains/screener/screenerPresets.repository.js";
 
 const UNIQUE_CONSTRAINT_VIOLATION = "P2002";
 

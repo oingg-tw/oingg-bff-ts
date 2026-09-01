@@ -1,16 +1,16 @@
 import { Router } from "ultimate-express";
-import { AppError } from "../../shared/errorHandler.js";
-import { parseUuidParam } from "../../shared/uuid.js";
-import { requireAuth } from "../auth/auth.middleware.js";
-import type { AuthenticatedRequest } from "../auth/auth.types.js";
+import { AppError } from "@/shared/errorHandler.js";
+import { parseUuidParam } from "@/shared/uuid.js";
+import { requireAuth } from "@/domains/auth/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 import {
   addTransaction,
   editTransaction,
   getTransactionOrThrow,
   getTransactions,
   removeTransaction,
-} from "./transactions.service.js";
-import type { TransactionInput, TransactionUpdate } from "./transactions.repository.js";
+} from "@/domains/transactions/transactions.service.js";
+import type { TransactionInput, TransactionUpdate } from "@/domains/transactions/transactions.repository.js";
 
 export const transactionsRouter = Router();
 
