@@ -187,3 +187,73 @@ export interface PriceLimitRangeResult {
   widest: PriceLimitRangeEntry[];
   narrowest: PriceLimitRangeEntry[];
 }
+
+/**
+ * TWSE and TPEx each use their own latest two trading days (not forced onto a shared date) — so
+ * `tradeDate`/`previousTradeDate` live per-row here, unlike foreign-holding-ranking's single top-level
+ * date pair. Computed by analysis-ts from daily_price (already a full-market mirror), not a twse-ts/
+ * tpex-ts export dataset — real data from day one, no deploy wait (added 2026-09-02).
+ */
+export interface PriceChangeRankingEntry {
+  rank: number;
+  symbol: string;
+  /** From oingg-analysis-ts's company reference table — null if not found there. */
+  name: string | null;
+  market: Market;
+  tradeDate: string;
+  previousTradeDate: string;
+  close: string;
+  previousClose: string;
+  changeAmount: string;
+  changePercent: string;
+}
+
+export interface PriceChangeRankingResult {
+  limit: number;
+  gainers: PriceChangeRankingEntry[];
+  losers: PriceChangeRankingEntry[];
+  warnings: string[];
+}
+
+export type EtfRankingMetric =
+  | "aum"
+  | "holders"
+  | "netFlow"
+  | "dcaAmount"
+  | "return3m"
+  | "return6m"
+  | "return1y"
+  | "return2y"
+  | "return3y"
+  | "return5y"
+  | "returnYtd"
+  | "return10y"
+  | "expenseRatio";
+
+/**
+ * ETF ranking (first endpoint sourced from sitca-ts, added 2026-09-02) — aum/holders/netFlow/dcaAmount
+ * are sitca-ts's latest monthly snapshot (`asOf` is "YYYY-MM"); the 8 return* metrics are cumulative
+ * (not annualized) returns over that period; expenseRatio uses only the latest *complete* calendar year
+ * (`asOf` is "YYYY") and excludes ETFs whose inception falls in or after that base year, so different
+ * base years never mix. Includes every ETF type (leveraged/inverse included) — the opposite of the
+ * stock-ranking endpoints' ETF exclusion, since this endpoint's whole purpose is ranking ETFs.
+ */
+export interface EtfRankingEntry {
+  rank: number;
+  symbol: string;
+  fundName: string;
+  shortName: string;
+  /** The issuing investment trust company (e.g. "元大投信") — NOT a stock-company-reference-table match like other endpoints' `name`; ETFs don't have that kind of row. */
+  issuerName: string | null;
+  category: string;
+  value: string;
+  asOf: string;
+}
+
+export interface EtfRankingResult {
+  metric: EtfRankingMetric;
+  order: RankingOrder;
+  limit: number;
+  rankings: EtfRankingEntry[];
+  warnings: string[];
+}

@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchAttentionStocks,
   fetchDisposedStocks,
+  fetchEtfRanking,
   fetchForeignHoldingRanking,
   fetchMarginShortRatioRanking,
   fetchMaterialAnnouncements,
+  fetchPriceChangeRanking,
   fetchPriceLimitRange,
   fetchRevenueRanking,
   fetchVolumeTop20,
@@ -676,5 +678,161 @@ describe("fetchPriceLimitRange", () => {
     mockFetchOnce({ ok: true, body: {} });
 
     await expect(fetchPriceLimitRange()).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+describe("fetchPriceChangeRanking", () => {
+  it("requests /market/price-change-ranking with limit and normalizes fields, keeping tradeDate per-row", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        limit: 1,
+        gainers: [
+          {
+            rank: 1,
+            symbol: "2492",
+            companyName: "華新科",
+            market: "TWSE",
+            tradeDate: "2026-08-28",
+            previousTradeDate: "2026-08-27",
+            close: 313.5,
+            previousClose: 285,
+            changeAmount: 28.5,
+            changePercent: 10,
+          },
+        ],
+        losers: [
+          {
+            rank: 1,
+            symbol: "5283",
+            companyName: "禾聯碩",
+            market: "TWSE",
+            tradeDate: "2026-08-28",
+            previousTradeDate: "2026-08-27",
+            close: 51.9,
+            previousClose: 61.1,
+            changeAmount: -9.2,
+            changePercent: -15.06,
+          },
+        ],
+        warnings: [],
+      },
+    });
+
+    const result = await fetchPriceChangeRanking(1);
+
+    expect(result).toEqual({
+      limit: 1,
+      gainers: [
+        {
+          rank: 1,
+          symbol: "2492",
+          name: "華新科",
+          market: "TWSE",
+          tradeDate: "2026-08-28",
+          previousTradeDate: "2026-08-27",
+          close: "313.5",
+          previousClose: "285",
+          changeAmount: "28.5",
+          changePercent: "10",
+        },
+      ],
+      losers: [
+        {
+          rank: 1,
+          symbol: "5283",
+          name: "禾聯碩",
+          market: "TWSE",
+          tradeDate: "2026-08-28",
+          previousTradeDate: "2026-08-27",
+          close: "51.9",
+          previousClose: "61.1",
+          changeAmount: "-9.2",
+          changePercent: "-15.06",
+        },
+      ],
+      warnings: [],
+    });
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/market/price-change-ranking?limit=1");
+  });
+
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchPriceChangeRanking(20)).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when the response is missing expected fields", async () => {
+    mockFetchOnce({ ok: true, body: {} });
+
+    await expect(fetchPriceChangeRanking(20)).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+describe("fetchEtfRanking", () => {
+  it("requests /market/etf-ranking with metric/order/limit and normalizes fields", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        metric: "aum",
+        order: "desc",
+        limit: 1,
+        rankings: [
+          {
+            rank: 1,
+            symbol: "0050",
+            fundName: "元大台灣卓越50基金",
+            shortName: "元大台灣50",
+            companyName: "元大投信",
+            category: "上市ETF_國內成分證券ETF",
+            value: 2283731446214,
+            asOf: "2026-07",
+          },
+        ],
+        warnings: [],
+      },
+    });
+
+    const result = await fetchEtfRanking("aum", "desc", 1);
+
+    expect(result).toEqual({
+      metric: "aum",
+      order: "desc",
+      limit: 1,
+      rankings: [
+        {
+          rank: 1,
+          symbol: "0050",
+          fundName: "元大台灣卓越50基金",
+          shortName: "元大台灣50",
+          issuerName: "元大投信",
+          category: "上市ETF_國內成分證券ETF",
+          value: "2283731446214",
+          asOf: "2026-07",
+        },
+      ],
+      warnings: [],
+    });
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/market/etf-ranking?metric=aum&order=desc&limit=1");
+  });
+
+  it("relays analysis-ts's 400 message for an invalid metric", async () => {
+    mockFetchOnce({ ok: false, status: 400, body: { message: "Invalid enum value" } });
+
+    await expect(fetchEtfRanking("bogus" as never, "desc", 20)).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchEtfRanking("aum", "desc", 20)).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when the response is missing expected fields", async () => {
+    mockFetchOnce({ ok: true, body: {} });
+
+    await expect(fetchEtfRanking("aum", "desc", 20)).rejects.toMatchObject({ statusCode: 502 });
   });
 });

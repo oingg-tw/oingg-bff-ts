@@ -9,14 +9,18 @@ vi.mock("@/domains/market/marketRankings.client.js", () => ({
   fetchDisposedStocks: vi.fn(),
   fetchAttentionStocks: vi.fn(),
   fetchPriceLimitRange: vi.fn(),
+  fetchPriceChangeRanking: vi.fn(),
+  fetchEtfRanking: vi.fn(),
 }));
 
 import {
   fetchAttentionStocks,
   fetchDisposedStocks,
+  fetchEtfRanking,
   fetchForeignHoldingRanking,
   fetchMarginShortRatioRanking,
   fetchMaterialAnnouncements,
+  fetchPriceChangeRanking,
   fetchPriceLimitRange,
   fetchRevenueRanking,
   fetchVolumeTop20,
@@ -24,9 +28,11 @@ import {
 import {
   getAttentionStocks,
   getDisposedStocks,
+  getEtfRanking,
   getForeignHoldingRanking,
   getMarginShortRatioRanking,
   getMaterialAnnouncements,
+  getPriceChangeRanking,
   getPriceLimitRange,
   getRevenueRanking,
   getVolumeTop20,
@@ -38,6 +44,8 @@ beforeEach(() => {
   vi.mocked(fetchMaterialAnnouncements).mockReset();
   vi.mocked(fetchRevenueRanking).mockReset();
   vi.mocked(fetchVolumeTop20).mockReset();
+  vi.mocked(fetchPriceChangeRanking).mockReset();
+  vi.mocked(fetchEtfRanking).mockReset();
   vi.mocked(fetchDisposedStocks).mockReset();
   vi.mocked(fetchAttentionStocks).mockReset();
   vi.mocked(fetchPriceLimitRange).mockReset();
@@ -263,5 +271,74 @@ describe("getPriceLimitRange", () => {
     await getPriceLimitRange();
 
     expect(fetchPriceLimitRange).toHaveBeenCalledWith();
+  });
+});
+
+describe("getPriceChangeRanking", () => {
+  it("delegates a valid limit straight through", async () => {
+    vi.mocked(fetchPriceChangeRanking).mockResolvedValue({ limit: 20, gainers: [], losers: [], warnings: [] });
+
+    await getPriceChangeRanking(20);
+
+    expect(fetchPriceChangeRanking).toHaveBeenCalledWith(20);
+  });
+
+  // Bounds match analysis-ts's own validation (verified live: 1-50).
+  it.each([0, -1, 51, 2.5])("rejects an out-of-range limit (%s) without calling analysis-ts", async (value) => {
+    await expect(getPriceChangeRanking(value)).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchPriceChangeRanking).not.toHaveBeenCalled();
+  });
+
+  it.each([1, 50])("accepts the boundary values (%s)", async (value) => {
+    vi.mocked(fetchPriceChangeRanking).mockResolvedValue({ limit: value, gainers: [], losers: [], warnings: [] });
+
+    await expect(getPriceChangeRanking(value)).resolves.toBeDefined();
+  });
+});
+
+describe("getEtfRanking", () => {
+  it("delegates valid metric/order/limit straight through", async () => {
+    vi.mocked(fetchEtfRanking).mockResolvedValue({ metric: "aum", order: "desc", limit: 20, rankings: [], warnings: [] });
+
+    await getEtfRanking("aum", "desc", 20);
+
+    expect(fetchEtfRanking).toHaveBeenCalledWith("aum", "desc", 20);
+  });
+
+  it.each(["bogus", "", "AUM"])("rejects an invalid metric (%s) without calling analysis-ts", async (metric) => {
+    await expect(getEtfRanking(metric, "desc", 20)).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchEtfRanking).not.toHaveBeenCalled();
+  });
+
+  it.each(["bogus", "", "DESC"])("rejects an invalid order (%s) without calling analysis-ts", async (order) => {
+    await expect(getEtfRanking("aum", order, 20)).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchEtfRanking).not.toHaveBeenCalled();
+  });
+
+  // Bounds match analysis-ts's own validation (verified live: 1-50).
+  it.each([0, -1, 51, 2.5])("rejects an out-of-range limit (%s) without calling analysis-ts", async (value) => {
+    await expect(getEtfRanking("aum", "desc", value)).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchEtfRanking).not.toHaveBeenCalled();
+  });
+
+  // All 13 metrics are valid, not just the ones exercised elsewhere in this file.
+  it.each([
+    "aum",
+    "holders",
+    "netFlow",
+    "dcaAmount",
+    "return3m",
+    "return6m",
+    "return1y",
+    "return2y",
+    "return3y",
+    "return5y",
+    "returnYtd",
+    "return10y",
+    "expenseRatio",
+  ])("accepts metric %s", async (metric) => {
+    vi.mocked(fetchEtfRanking).mockResolvedValue({ metric: metric as never, order: "desc", limit: 20, rankings: [], warnings: [] });
+
+    await expect(getEtfRanking(metric, "desc", 20)).resolves.toBeDefined();
   });
 });

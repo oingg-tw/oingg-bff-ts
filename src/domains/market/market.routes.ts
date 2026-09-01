@@ -3,15 +3,19 @@ import { AppError } from "@/shared/errorHandler.js";
 import {
   DEFAULT_ATTENTION_STOCKS_LIMIT,
   DEFAULT_DISPOSED_STOCKS_LIMIT,
+  DEFAULT_ETF_RANKING_LIMIT,
   DEFAULT_FOREIGN_HOLDING_LIMIT,
   DEFAULT_MARGIN_SHORT_LIMIT,
   DEFAULT_MATERIAL_ANNOUNCEMENTS_LIMIT,
+  DEFAULT_PRICE_CHANGE_RANKING_LIMIT,
   DEFAULT_REVENUE_RANKING_LIMIT,
   getAttentionStocks,
   getDisposedStocks,
+  getEtfRanking,
   getForeignHoldingRanking,
   getMarginShortRatioRanking,
   getMaterialAnnouncements,
+  getPriceChangeRanking,
   getPriceLimitRange,
   getRevenueRanking,
   getVolumeTop20,
@@ -413,5 +417,121 @@ marketRouter.get("/attention-stocks", async (req, res) => {
  */
 marketRouter.get("/price-limit-range", async (_req, res) => {
   const result = await getPriceLimitRange();
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /market/price-change-ranking:
+ *   get:
+ *     summary: 漲跌幅排行——上市＋上櫃合併，各自取自己最新兩個交易日
+ *     description: >
+ *       跟 foreign-holding-ranking 一樣是「兩個方向一起回」的形狀（gainers/losers）。上市跟上櫃各自用
+ *       自己最新的兩個交易日算，不強迫用同一天，所以 tradeDate/previousTradeDate 是每一列自己帶，不是
+ *       頂層共用欄位。已排除 ETF／衍生性商品。資料來自 daily_price（本來就有完整市場鏡像），不受
+ *       twse-ts/tpex-ts 專屬 export dataset 的部署進度影響。
+ *     tags:
+ *       - Market
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 50
+ *     responses:
+ *       200:
+ *         description: gainers/losers 兩組清單，各最多 limit 檔。
+ *         content:
+ *           application/json:
+ *             example:
+ *               limit: 1
+ *               gainers:
+ *                 - rank: 1
+ *                   symbol: "2492"
+ *                   name: "華新科"
+ *                   market: "TWSE"
+ *                   tradeDate: "2026-08-28"
+ *                   previousTradeDate: "2026-08-27"
+ *                   close: "313.5"
+ *                   previousClose: "285"
+ *                   changeAmount: "28.5"
+ *                   changePercent: "10"
+ *               losers: []
+ *               warnings: []
+ *       400:
+ *         description: limit 不是 1~50 之間的整數。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+marketRouter.get("/price-change-ranking", async (req, res) => {
+  const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_PRICE_CHANGE_RANKING_LIMIT);
+  const result = await getPriceChangeRanking(limit);
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /market/etf-ranking:
+ *   get:
+ *     summary: ETF 排行——第一支消費 sitca-ts 資料的端點
+ *     description: >
+ *       metric/order 都是必填，沒有預設值。aum/holders/netFlow/dcaAmount 是 sitca-ts 最新一個月快照
+ *       （asOf 是 "YYYY-MM"）；return3m~return10y 是各天期累積報酬率（不是年化）；expenseRatio 只用
+ *       最新一個完整年度（asOf 是 "YYYY"），發行日落在該基準年（或更晚）的 ETF 會被排除，避免混進不同
+ *       基準年的資料。這支不排除任何 ETF 類型（槓桿/反向 ETF 也會出現）——跟股票排行端點的 ETF 排除邏輯
+ *       相反，因為這支本來就是 ETF 排行。
+ *     tags:
+ *       - Market
+ *     parameters:
+ *       - in: query
+ *         name: metric
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [aum, holders, netFlow, dcaAmount, return3m, return6m, return1y, return2y, return3y, return5y, returnYtd, return10y, expenseRatio]
+ *       - in: query
+ *         name: order
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 50
+ *     responses:
+ *       200:
+ *         description: ETF 排行清單。
+ *         content:
+ *           application/json:
+ *             example:
+ *               metric: "aum"
+ *               order: "desc"
+ *               limit: 1
+ *               rankings:
+ *                 - rank: 1
+ *                   symbol: "0050"
+ *                   fundName: "元大台灣卓越50基金"
+ *                   shortName: "元大台灣50"
+ *                   issuerName: "元大投信"
+ *                   category: "上市ETF_國內成分證券ETF"
+ *                   value: "2283731446214"
+ *                   asOf: "2026-07"
+ *               warnings: []
+ *       400:
+ *         description: metric/order 缺漏或不是允許的值，或 limit 不是 1~50 之間的整數。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+marketRouter.get("/etf-ranking", async (req, res) => {
+  const metric = requireStringQueryParam(req.query.metric, "metric");
+  const order = requireStringQueryParam(req.query.order, "order");
+  const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_ETF_RANKING_LIMIT);
+  const result = await getEtfRanking(metric, order, limit);
   res.json(result);
 });

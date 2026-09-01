@@ -2,9 +2,11 @@ import { AppError } from "@/shared/errorHandler.js";
 import {
   fetchAttentionStocks,
   fetchDisposedStocks,
+  fetchEtfRanking,
   fetchForeignHoldingRanking,
   fetchMarginShortRatioRanking,
   fetchMaterialAnnouncements,
+  fetchPriceChangeRanking,
   fetchPriceLimitRange,
   fetchRevenueRanking,
   fetchVolumeTop20,
@@ -12,9 +14,12 @@ import {
 import type {
   AttentionStocksResult,
   DisposedStocksResult,
+  EtfRankingMetric,
+  EtfRankingResult,
   ForeignHoldingRankingResult,
   MarginShortRatioRankingResult,
   MaterialAnnouncementsResult,
+  PriceChangeRankingResult,
   PriceLimitRangeResult,
   RankingOrder,
   RevenueRankingMetric,
@@ -24,6 +29,21 @@ import type {
 
 const REVENUE_RANKING_METRICS: readonly RevenueRankingMetric[] = ["yoy", "mom", "revenue"];
 const RANKING_ORDERS: readonly RankingOrder[] = ["asc", "desc"];
+const ETF_RANKING_METRICS: readonly EtfRankingMetric[] = [
+  "aum",
+  "holders",
+  "netFlow",
+  "dcaAmount",
+  "return3m",
+  "return6m",
+  "return1y",
+  "return2y",
+  "return3y",
+  "return5y",
+  "returnYtd",
+  "return10y",
+  "expenseRatio",
+];
 
 export const DEFAULT_FOREIGN_HOLDING_LIMIT = 10;
 export const MIN_FOREIGN_HOLDING_LIMIT = 1;
@@ -48,6 +68,14 @@ export const MAX_DISPOSED_STOCKS_LIMIT = 50;
 export const DEFAULT_ATTENTION_STOCKS_LIMIT = 20;
 export const MIN_ATTENTION_STOCKS_LIMIT = 1;
 export const MAX_ATTENTION_STOCKS_LIMIT = 50;
+
+export const DEFAULT_PRICE_CHANGE_RANKING_LIMIT = 20;
+export const MIN_PRICE_CHANGE_RANKING_LIMIT = 1;
+export const MAX_PRICE_CHANGE_RANKING_LIMIT = 50;
+
+export const DEFAULT_ETF_RANKING_LIMIT = 20;
+export const MIN_ETF_RANKING_LIMIT = 1;
+export const MAX_ETF_RANKING_LIMIT = 50;
 
 /**
  * Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400.
@@ -140,4 +168,40 @@ export async function getAttentionStocks(limit: number): Promise<AttentionStocks
 /** No params — always the current widest/narrowest 20 movers each (data permitting). */
 export async function getPriceLimitRange(): Promise<PriceLimitRangeResult> {
   return fetchPriceLimitRange();
+}
+
+/**
+ * Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400.
+ * Computed from daily_price (already fully mirrored), not a twse-ts/tpex-ts export dataset — real data
+ * from day one, unlike this file's other TWSE+TPEx endpoints (see fetchPriceChangeRanking).
+ */
+export async function getPriceChangeRanking(limit: number): Promise<PriceChangeRankingResult> {
+  if (
+    !Number.isInteger(limit) ||
+    limit < MIN_PRICE_CHANGE_RANKING_LIMIT ||
+    limit > MAX_PRICE_CHANGE_RANKING_LIMIT
+  ) {
+    throw new AppError(
+      `"limit" must be an integer between ${MIN_PRICE_CHANGE_RANKING_LIMIT} and ${MAX_PRICE_CHANGE_RANKING_LIMIT}`,
+      400,
+    );
+  }
+  return fetchPriceChangeRanking(limit);
+}
+
+/**
+ * `metric`/`order` are required upstream (no default, same as getRevenueRanking) — only `limit` has one.
+ * Bounds/enums match analysis-ts's own validation (verified live).
+ */
+export async function getEtfRanking(metric: string, order: string, limit: number): Promise<EtfRankingResult> {
+  if (!ETF_RANKING_METRICS.includes(metric as EtfRankingMetric)) {
+    throw new AppError(`"metric" must be one of ${ETF_RANKING_METRICS.join(", ")}`, 400);
+  }
+  if (!RANKING_ORDERS.includes(order as RankingOrder)) {
+    throw new AppError(`"order" must be one of ${RANKING_ORDERS.join(", ")}`, 400);
+  }
+  if (!Number.isInteger(limit) || limit < MIN_ETF_RANKING_LIMIT || limit > MAX_ETF_RANKING_LIMIT) {
+    throw new AppError(`"limit" must be an integer between ${MIN_ETF_RANKING_LIMIT} and ${MAX_ETF_RANKING_LIMIT}`, 400);
+  }
+  return fetchEtfRanking(metric as EtfRankingMetric, order as RankingOrder, limit);
 }

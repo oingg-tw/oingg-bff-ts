@@ -6,6 +6,9 @@ import type {
   AttentionStocksResult,
   DisposedStockEntry,
   DisposedStocksResult,
+  EtfRankingEntry,
+  EtfRankingMetric,
+  EtfRankingResult,
   ForeignHoldingRankingEntry,
   ForeignHoldingRankingResult,
   Market,
@@ -13,6 +16,8 @@ import type {
   MarginShortRatioRankingResult,
   MaterialAnnouncementEntry,
   MaterialAnnouncementsResult,
+  PriceChangeRankingEntry,
+  PriceChangeRankingResult,
   PriceLimitRangeEntry,
   PriceLimitRangeResult,
   RankingOrder,
@@ -176,6 +181,36 @@ function normalizePriceLimitRangeEntry(raw: unknown): PriceLimitRangeEntry {
     openingRefPrice: toStringOrNull(r.openingRefPrice),
     previousDayPrice: toStringOrNull(r.previousDayPrice),
     allowOddLotTrade: toStringOrNull(r.allowOddLotTrade),
+  };
+}
+
+function normalizePriceChangeRankingEntry(raw: unknown): PriceChangeRankingEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    rank: Number(r.rank),
+    symbol: String(r.symbol),
+    name: typeof r.companyName === "string" ? r.companyName : null,
+    market: normalizeMarket(r.market),
+    tradeDate: toStringOrEmpty(r.tradeDate),
+    previousTradeDate: toStringOrEmpty(r.previousTradeDate),
+    close: toStringOrEmpty(r.close),
+    previousClose: toStringOrEmpty(r.previousClose),
+    changeAmount: toStringOrEmpty(r.changeAmount),
+    changePercent: toStringOrEmpty(r.changePercent),
+  };
+}
+
+function normalizeEtfRankingEntry(raw: unknown): EtfRankingEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    rank: Number(r.rank),
+    symbol: String(r.symbol),
+    fundName: toStringOrEmpty(r.fundName),
+    shortName: toStringOrEmpty(r.shortName),
+    issuerName: typeof r.companyName === "string" ? r.companyName : null,
+    category: toStringOrEmpty(r.category),
+    value: toStringOrEmpty(r.value),
+    asOf: toStringOrEmpty(r.asOf),
   };
 }
 
@@ -411,5 +446,67 @@ export async function fetchPriceLimitRange(): Promise<PriceLimitRangeResult> {
     tradeDate: toDateOrNull(body.tradeDate),
     widest: body.widest.map(normalizePriceLimitRangeEntry),
     narrowest: body.narrowest.map(normalizePriceLimitRangeEntry),
+  };
+}
+
+/**
+ * 漲跌幅排行 (gainers/losers) from analysis-ts's GET /market/price-change-ranking — computed from
+ * daily_price (already a full-market mirror), not a twse-ts/tpex-ts export dataset, so real data exists
+ * from day one (added 2026-09-02, no deploy wait needed). TWSE and TPEx each use their own latest two
+ * trading days, so `tradeDate`/`previousTradeDate` live per-row, not at the top level.
+ */
+export async function fetchPriceChangeRanking(limit: number): Promise<PriceChangeRankingResult> {
+  const body = (await getJson("/market/price-change-ranking", { limit: String(limit) })) as {
+    limit?: unknown;
+    gainers?: unknown;
+    losers?: unknown;
+    warnings?: unknown;
+  };
+
+  if (typeof body.limit !== "number" || !Array.isArray(body.gainers) || !Array.isArray(body.losers)) {
+    throw new AppError("Price change ranking response is missing expected fields", 502);
+  }
+
+  return {
+    limit: body.limit,
+    gainers: body.gainers.map(normalizePriceChangeRankingEntry),
+    losers: body.losers.map(normalizePriceChangeRankingEntry),
+    warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
+  };
+}
+
+/**
+ * ETF ranking from analysis-ts's GET /market/etf-ranking — the first endpoint backed by sitca-ts data.
+ * `metric`/`order` are both required upstream (no default), same as fetchRevenueRanking. See
+ * market.types.ts's EtfRankingEntry for what each metric means and the expenseRatio base-year caveat.
+ */
+export async function fetchEtfRanking(
+  metric: EtfRankingMetric,
+  order: RankingOrder,
+  limit: number,
+): Promise<EtfRankingResult> {
+  const body = (await getJson("/market/etf-ranking", { metric, order, limit: String(limit) })) as {
+    metric?: unknown;
+    order?: unknown;
+    limit?: unknown;
+    rankings?: unknown;
+    warnings?: unknown;
+  };
+
+  if (
+    typeof body.metric !== "string" ||
+    typeof body.order !== "string" ||
+    typeof body.limit !== "number" ||
+    !Array.isArray(body.rankings)
+  ) {
+    throw new AppError("ETF ranking response is missing expected fields", 502);
+  }
+
+  return {
+    metric: body.metric as EtfRankingMetric,
+    order: body.order as RankingOrder,
+    limit: body.limit,
+    rankings: body.rankings.map(normalizeEtfRankingEntry),
+    warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
   };
 }
