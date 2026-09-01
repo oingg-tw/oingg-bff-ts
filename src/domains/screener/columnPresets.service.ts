@@ -90,6 +90,49 @@ export async function addColumnPreset(
   }
 }
 
+const MAX_NAME_SUFFIX_ATTEMPTS = 1000;
+
+/** Picks a free name the same way a file explorer names a new file: `name` itself, else `name 2`, `name 3`, ... */
+async function pickAvailableName(firebaseUid: string, name: string): Promise<string> {
+  const existing = new Set((await listColumnPresets(firebaseUid)).map((row) => row.name));
+  if (!existing.has(name)) {
+    return name;
+  }
+  for (let suffix = 2; suffix < MAX_NAME_SUFFIX_ATTEMPTS; suffix++) {
+    const candidate = `${name} ${suffix}`;
+    if (!existing.has(candidate)) {
+      return candidate;
+    }
+  }
+  throw new AppError(`Could not find an available name for "${name}"`, 409);
+}
+
+/**
+ * Same name-collision handling as addPresetWithName (screenerPresets.service.ts) — used to clone a
+ * ColumnPresetTemplate into a user's own presets (see columnPresetTemplates.service.ts's
+ * applyColumnPresetTemplate), where the sensible starting name is the template's own name.
+ */
+export async function addColumnPresetWithName(
+  firebaseUid: string,
+  name: string,
+  columns: string[],
+): Promise<ColumnPresetView> {
+  await validateFields(columns);
+
+  for (let attempt = 0; attempt < MAX_NAME_SUFFIX_ATTEMPTS; attempt++) {
+    const candidateName = await pickAvailableName(firebaseUid, name);
+    try {
+      const row = await createColumnPreset(firebaseUid, candidateName, columns, false);
+      return toView(row);
+    } catch (error) {
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
+    }
+  }
+  throw new AppError(`Could not find an available name for "${name}"`, 409);
+}
+
 export async function editColumnPreset(
   firebaseUid: string,
   id: string,

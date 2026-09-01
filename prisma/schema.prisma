@@ -94,6 +94,26 @@ model FilterMetricField {
   @@map("filter_metric_field")
 }
 
+/// Curated, product-defined column-preset templates (e.g. "存股領息", "獲利品質拆解"), synced from
+/// oingg-analysis-ts's /filters endpoint at startup — same mechanism/rationale as FilterCategory above,
+/// just a separate table since these aren't part of the category/metric/field catalog tree (see
+/// src/domains/columnPresetTemplates). `fieldKeys` is a plain JSON string array of "<metricKey>.<fieldKey>"
+/// refs, the same format ColumnPresetField.field uses — applying a template is just handing its fieldKeys
+/// straight to createColumnPreset as a new personal ColumnPreset, not FK'd to FilterMetricField (so a
+/// template referencing a field the catalog later drops doesn't cascade-delete anything here; it just
+/// starts failing validation on apply, same as a hand-typed bad field would).
+model ColumnPresetTemplate {
+  key         String   @id
+  name        String
+  description String
+  fieldKeys   Json     @map("field_keys")
+  position    Int
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("column_preset_template")
+}
+
 /// A minimal per-user profile row, keyed by Firebase uid (see src/domains/user, GET /users/me).
 /// Read-only from this service's side — nothing here creates a row yet (no signup/first-login flow
 /// exists), so a Firebase-authenticated caller with no row here still gets a 404 from /users/me.

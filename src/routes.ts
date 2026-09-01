@@ -54,6 +54,8 @@ routes.use("/watchlist", watchlistRouter); // GET/POST /watchlist, GET/PATCH/DEL
 routes.use("/holdings", holdingsRouter); // GET/POST /holdings, GET/PATCH/DELETE /holdings/:id
 routes.use("/transactions", transactionsRouter); // GET/POST /transactions, GET/PATCH/DELETE /transactions/:id
 // POST /screener; GET/POST /screener/column-presets, GET/PATCH/DELETE /screener/column-presets/:id;
+// GET /screener/column-preset-templates, GET /screener/column-preset-templates/:key,
+// POST /screener/column-preset-templates/:key/apply;
 // GET/POST /screener/presets, GET/PATCH/DELETE /screener/presets/:id, GET /screener/presets/:id/run;
 // GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply
 routes.use("/screener", screenerRoutes);

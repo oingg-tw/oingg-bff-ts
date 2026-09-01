@@ -13,15 +13,23 @@ vi.mock("../domains/screener/columnPresets.repository.js", () => ({
   updateColumnPreset: vi.fn(),
 }));
 
+
+
 import { Prisma } from "../generated/prisma/client.js";
 import { findFilterFields } from "../domains/filterCatalog/index.js";
 import {
   createColumnPreset,
   findColumnPreset,
   findDefaultColumnPreset,
+  listColumnPresets,
   updateColumnPreset,
 } from "../domains/screener/columnPresets.repository.js";
-import { addColumnPreset, editColumnPreset, resolveScreenerColumns } from "../domains/screener/columnPresets.service.js";
+import {
+  addColumnPreset,
+  addColumnPresetWithName,
+  editColumnPreset,
+  resolveScreenerColumns,
+} from "../domains/screener/columnPresets.service.js";
 
 type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
 
@@ -70,6 +78,7 @@ beforeEach(() => {
   vi.mocked(updateColumnPreset).mockReset();
   vi.mocked(findColumnPreset).mockReset();
   vi.mocked(findDefaultColumnPreset).mockReset();
+  vi.mocked(listColumnPresets).mockReset();
 });
 
 describe("addColumnPreset", () => {
@@ -116,6 +125,35 @@ describe("addColumnPreset", () => {
       }),
     );
     await expect(addColumnPreset("uid1", "常用欄位", [], false)).rejects.toMatchObject({ statusCode: 409 });
+  });
+});
+
+describe("addColumnPresetWithName", () => {
+  it("uses the given name as-is when it doesn't collide with an existing preset", async () => {
+    vi.mocked(listColumnPresets).mockResolvedValue([]);
+    vi.mocked(createColumnPreset).mockResolvedValue({ ...SAMPLE_ROW, name: "獲利品質拆解" });
+
+    await addColumnPresetWithName("uid1", "獲利品質拆解", ["per.peRatio"]);
+
+    expect(createColumnPreset).toHaveBeenCalledWith("uid1", "獲利品質拆解", ["per.peRatio"], false);
+  });
+
+  // Regression-shaped: same "name", "name 2", "name 3", ... behavior as addPresetWithName
+  // (screenerPresets.service.ts) — applying the same template twice must not 409, it should create a
+  // second, separately-named preset.
+  it("falls through to 'name 2' when the base name is already taken", async () => {
+    vi.mocked(listColumnPresets).mockResolvedValue([{ ...SAMPLE_ROW, name: "獲利品質拆解" }]);
+    vi.mocked(createColumnPreset).mockResolvedValue({ ...SAMPLE_ROW, name: "獲利品質拆解 2" });
+
+    await addColumnPresetWithName("uid1", "獲利品質拆解", ["per.peRatio"]);
+
+    expect(createColumnPreset).toHaveBeenCalledWith("uid1", "獲利品質拆解 2", ["per.peRatio"], false);
+  });
+
+  it("rejects a field that is neither a catalog field nor a special field", async () => {
+    vi.mocked(listColumnPresets).mockResolvedValue([]);
+    await expect(addColumnPresetWithName("uid1", "x", ["nope.nope"])).rejects.toMatchObject({ statusCode: 400 });
+    expect(createColumnPreset).not.toHaveBeenCalled();
   });
 });
 
