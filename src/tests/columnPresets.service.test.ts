@@ -43,6 +43,7 @@ const PER_FIELD: Lookup = {
   fieldKey: "peRatio",
   fieldName: "本益比 PER",
   period: "daily",
+  unit: "times",
 };
 
 const PBR_FIELD: Lookup = {
@@ -52,6 +53,7 @@ const PBR_FIELD: Lookup = {
   fieldKey: "pbRatio",
   fieldName: "股價淨值比 PBR",
   period: "daily",
+  unit: "times",
 };
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";

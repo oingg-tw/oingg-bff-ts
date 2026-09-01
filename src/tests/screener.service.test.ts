@@ -41,6 +41,7 @@ const KNOWN_FIELDS: Record<string, Lookup> = {
     fieldKey: "grossMarginTtm",
     fieldName: "Gross Margin (TTM)",
     period: "ttm",
+    unit: "percent",
   },
   "roe.roeTtmPct": {
     categoryKey: "profitability",
@@ -49,6 +50,7 @@ const KNOWN_FIELDS: Record<string, Lookup> = {
     fieldKey: "roeTtmPct",
     fieldName: "ROE (TTM)",
     period: "ttm",
+    unit: "percent",
   },
   "per.peRatio": {
     categoryKey: "valuation",
@@ -57,6 +59,7 @@ const KNOWN_FIELDS: Record<string, Lookup> = {
     fieldKey: "peRatio",
     fieldName: "本益比 PER",
     period: "daily",
+    unit: "times",
   },
 };
 
@@ -129,7 +132,7 @@ describe("runScreener", () => {
       DEFAULT_PAGINATION,
     );
 
-    expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
+    expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)", unit: "percent" }]);
     expect(result.results).toEqual([
       { symbol: "2330", name: null, values: { "roe.roeTtmPct": { value: "10.98", asOfDate: "26Q2" } } },
     ]);
@@ -161,7 +164,7 @@ describe("runScreener", () => {
     // One batched call for the whole result set, not one call per symbol.
     expect(getLatestClosePrices).toHaveBeenCalledTimes(1);
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330", "2317"]);
-    expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價" });
+    expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
     expect(result.results).toEqual([
       { symbol: "2330", name: null, values: { "stock.price": { value: "2350.0000", asOfDate: "2026-08-28" } } },
       { symbol: "2317", name: null, values: { "stock.price": { value: null, asOfDate: null } } },
@@ -289,7 +292,7 @@ describe("runRanking", () => {
 
     expect(result.field).toBe("roe.roeTtmPct");
     expect(result.direction).toBe("desc");
-    expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)" }]);
+    expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)", unit: "percent" }]);
     // Different symbols can legitimately have different asOfDate for the same field (one filed later).
     expect(result.results).toEqual([
       { symbol: "2330", name: null, values: { "roe.roeTtmPct": { value: "30.5", asOfDate: "26Q2" } } },
@@ -331,6 +334,7 @@ describe("runRanking", () => {
       field: "grossMargin.grossMarginTtm",
       metricName: "Margins",
       fieldName: "Gross Margin (TTM)",
+      unit: "percent",
     });
     expect(result.results[0]?.values).toMatchObject({
       "grossMargin.grossMarginTtm": { value: "55.2", asOfDate: "26Q2" },
@@ -350,7 +354,7 @@ describe("runRanking", () => {
     // "stock.price" must never be sent to analysis-ts as an extra column — it isn't a filterCatalog field.
     expect(fetchScreenerRanking).toHaveBeenCalledWith("roe.roeTtmPct", "desc", 10, []);
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330"]);
-    expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價" });
+    expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
     expect(result.results[0]?.values).toMatchObject({
       "stock.price": { value: "2410.0000", asOfDate: "2026-08-28" },
     });
@@ -387,7 +391,7 @@ describe("runRanking", () => {
       expect(result).toEqual({
         field: "per.peRatio",
         direction: "asc",
-        columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER" }],
+        columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER", unit: "times" }],
         results: [
           { symbol: "1240", name: null, values: { "per.peRatio": { value: "10.61", asOfDate: "2026-08-28" } } },
           { symbol: "2330", name: null, values: { "per.peRatio": { value: "27.82", asOfDate: "2026-08-28" } } },
@@ -406,7 +410,7 @@ describe("runRanking", () => {
 
       const result = await runRanking("per.peRatio", "asc", 10, [{ field: "stock.price" }]);
 
-      expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價" });
+      expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
       expect(result.results[0]?.values).toMatchObject({
         "stock.price": { value: "2420.0000", asOfDate: "2026-08-28" },
       });

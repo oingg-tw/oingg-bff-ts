@@ -14,8 +14,8 @@ export interface ColumnFieldInfo {
  * everything else here comes from, so it can't be resolved through findFilterField/ANALYSIS_METRIC_TABLES.
  * Add here (and wire the actual join in screener.service.ts) when a new non-catalog column is needed.
  */
-export const SPECIAL_COLUMNS: Record<string, { metricName: string; fieldName: string }> = {
-  "stock.price": { metricName: "股票", fieldName: "股價" },
+export const SPECIAL_COLUMNS: Record<string, { metricName: string; fieldName: string; unit: string | null }> = {
+  "stock.price": { metricName: "股票", fieldName: "股價", unit: "currency" },
 };
 
 /** Resolves a column field reference for display purposes — a catalog field OR a special one (see above). Returns null if neither. */

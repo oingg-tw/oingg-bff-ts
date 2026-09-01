@@ -9,6 +9,8 @@ export interface FilterFieldLookup {
   fieldKey: string;
   fieldName: string;
   period: string;
+  /** Field's own unit if set, else falls back to the metric's — see FilterField.unit/FilterMetric.unit. */
+  unit: string | null;
 }
 
 export interface FieldRefInput {
@@ -47,6 +49,7 @@ export async function findFilterFields(refs: FieldRefInput[]): Promise<FilterFie
     fieldKey: field.key,
     fieldName: field.name,
     period: field.period,
+    unit: field.unit ?? field.metric.unit ?? null,
   }));
 }
 
@@ -73,17 +76,20 @@ export async function listFilterCatalog(): Promise<FilterCategory[]> {
       path: metric.path,
       description: metric.description,
       source: metric.source,
+      unit: metric.unit,
       sort: metric.position,
-      // oingg-analysis-ts fills description/source at the metric level only (the different period
-      // variants of one metric — quarterly/TTM/etc — share the same definition and source, so it
+      // oingg-analysis-ts fills description/source/unit at the metric level only (the different period
+      // variants of one metric — quarterly/TTM/etc — share the same definition/source/unit, so it
       // doesn't repeat itself per field). A field without its own falls back to its metric's, so the
-      // frontend can always just read field.description/field.source without knowing this convention.
+      // frontend can always just read field.description/field.source/field.unit without knowing this
+      // convention.
       fields: metric.fields.map((field) => ({
         key: field.key,
         name: field.name,
         period: field.period,
         description: field.description ?? metric.description,
         source: field.source ?? metric.source,
+        unit: field.unit ?? metric.unit,
         sort: field.position,
       })),
     })),
@@ -124,6 +130,7 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
       path: metric.path,
       description: metric.description ?? null,
       source: metric.source ?? null,
+      unit: metric.unit ?? null,
       position,
     })),
   );
@@ -137,6 +144,7 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
         period: field.period,
         description: field.description ?? null,
         source: field.source ?? null,
+        unit: field.unit ?? null,
         position,
       })),
     ),
@@ -153,31 +161,32 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
 
     if (metricRows.length > 0) {
       await tx.$executeRaw`
-        INSERT INTO filter_metric (key, category_key, name, path, description, source, position)
+        INSERT INTO filter_metric (key, category_key, name, path, description, source, unit, position)
         VALUES ${Prisma.join(
           metricRows.map(
             (m) =>
-              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.position})`,
+              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.unit}, ${m.position})`,
           ),
         )}
         ON CONFLICT (key) DO UPDATE SET
           category_key = EXCLUDED.category_key, name = EXCLUDED.name, path = EXCLUDED.path,
-          description = EXCLUDED.description, source = EXCLUDED.source, position = EXCLUDED.position
+          description = EXCLUDED.description, source = EXCLUDED.source, unit = EXCLUDED.unit,
+          position = EXCLUDED.position
       `;
     }
 
     if (fieldRows.length > 0) {
       await tx.$executeRaw`
-        INSERT INTO filter_metric_field (metric_key, key, name, period, description, source, position)
+        INSERT INTO filter_metric_field (metric_key, key, name, period, description, source, unit, position)
         VALUES ${Prisma.join(
           fieldRows.map(
             (f) =>
-              Prisma.sql`(${f.metricKey}, ${f.key}, ${f.name}, ${f.period}, ${f.description}, ${f.source}, ${f.position})`,
+              Prisma.sql`(${f.metricKey}, ${f.key}, ${f.name}, ${f.period}, ${f.description}, ${f.source}, ${f.unit}, ${f.position})`,
           ),
         )}
         ON CONFLICT (metric_key, key) DO UPDATE SET
           name = EXCLUDED.name, period = EXCLUDED.period, description = EXCLUDED.description,
-          source = EXCLUDED.source, position = EXCLUDED.position
+          source = EXCLUDED.source, unit = EXCLUDED.unit, position = EXCLUDED.position
       `;
     }
 

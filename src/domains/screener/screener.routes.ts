@@ -136,6 +136,10 @@ function parseOptionalColumnPresetId(body: unknown): string | undefined {
  *                         type: string
  *                       fieldName:
  *                         type: string
+ *                       unit:
+ *                         type: string
+ *                         nullable: true
+ *                         description: 顯示單位（例如 "percent"／"currency"／"times"／"ratio"），來自 analysis-ts 的 /filters 目錄，還沒設定時為 null。
  *                 results:
  *                   type: array
  *                   items:
@@ -164,7 +168,7 @@ function parseOptionalColumnPresetId(body: unknown): string | undefined {
  *               pageSize: 50
  *               totalPages: 1
  *               columnPresetId: null
- *               columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER" }]
+ *               columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER", unit: "times" }]
  *               results:
  *                 - symbol: "2330"
  *                   values:
@@ -175,8 +179,8 @@ function parseOptionalColumnPresetId(body: unknown): string | undefined {
  *         description: 帶了 Authorization header，但 token 無效或過期（完全不帶則視為匿名請求，不會 401）。
  *       404:
  *         description: 指定的 columnPresetId 不存在，或不屬於目前登入的使用者。
- *       501:
- *         description: field 對應的指標存在於 filterCatalog，但這個服務還沒接上 analysis DB 對應的表。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
  */
 screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = req.user?.uid;
@@ -276,15 +280,15 @@ function parseRankingColumns(raw: unknown): ScreenerColumnRef[] {
  *             example:
  *               field: "roe.roeTtmPct"
  *               direction: "desc"
- *               columns: [{ field: "roe.roeTtmPct", metricName: "股東權益報酬率 ROE", fieldName: "ROE" }]
+ *               columns: [{ field: "roe.roeTtmPct", metricName: "股東權益報酬率 ROE", fieldName: "ROE", unit: "percent" }]
  *               results:
  *                 - symbol: "2330"
  *                   values:
  *                     roe.roeTtmPct: { value: "34.78", asOfDate: "26Q2" }
  *       400:
  *         description: 缺少 field，field 不存在於 filterCatalog，或 direction/limit/columns 格式錯誤。
- *       501:
- *         description: field 對應的指標存在於 filterCatalog，但這個服務還沒接上 analysis DB 對應的表。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
  */
 screenerRouter.get("/ranking", async (req, res) => {
   const field = req.query.field;

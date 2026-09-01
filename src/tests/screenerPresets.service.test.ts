@@ -50,6 +50,7 @@ const ROE_FIELD: Lookup = {
   fieldKey: "roeTtmPct",
   fieldName: "ROE (TTM)",
   period: "ttm",
+  unit: "percent",
 };
 const MARGIN_FIELD: Lookup = {
   categoryKey: "profitability",
@@ -58,6 +59,7 @@ const MARGIN_FIELD: Lookup = {
   fieldKey: "grossMarginTtm",
   fieldName: "Gross Margin (TTM)",
   period: "ttm",
+  unit: "percent",
 };
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
@@ -247,7 +249,7 @@ const SAMPLE_SCREENER_RESULT = {
   page: 1,
   pageSize: 50,
   totalPages: 1,
-  columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER" }],
+  columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER", unit: "times" }],
   results: [{ symbol: "2330", name: "台積電", values: { "per.peRatio": { value: "27.82", asOfDate: "2026-08-28" } } }],
 };
 

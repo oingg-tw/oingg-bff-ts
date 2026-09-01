@@ -134,6 +134,59 @@ describe("listFilterCatalog", () => {
     });
   });
 
+  // Coverage for the unit field (percent/currency/times/ratio) — same metric-level-default,
+  // field-can-override convention as description/source, but unlike those two, a field overriding its
+  // metric's unit is a real, observed case (not just theoretical): dupont's own unit is "percent" but
+  // dupont.assetTurnoverQuarterly is "times" — verified live against analysis-ts's real /filters response.
+  it("falls back to the metric's unit for a field that has none of its own", async () => {
+    vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
+      {
+        key: "profitability",
+        name: "Profitability",
+        position: 0,
+        metrics: [
+          {
+            key: "dupont",
+            name: "杜邦分析",
+            path: "/profitability/dupont",
+            description: null,
+            source: null,
+            unit: "percent",
+            position: 0,
+            fields: [
+              {
+                key: "decomposedRoeQuarterlyPct",
+                name: "組裝 ROE（杜邦）",
+                period: "quarterly",
+                description: null,
+                source: null,
+                unit: null,
+                position: 0,
+              },
+              {
+                key: "assetTurnoverQuarterly",
+                name: "總資產周轉率",
+                period: "quarterly",
+                description: null,
+                source: null,
+                unit: "times",
+                position: 1,
+              },
+            ],
+          },
+        ],
+      },
+    ] as never);
+
+    const result = await listFilterCatalog();
+
+    expect(result[0]?.metrics[0]?.unit).toBe("percent");
+    // No unit of its own -> falls back to the metric's "percent".
+    expect(result[0]?.metrics[0]?.fields[0]).toMatchObject({ key: "decomposedRoeQuarterlyPct", unit: "percent" });
+    // Has its own unit -> keeps "times", doesn't inherit the metric's "percent".
+    expect(result[0]?.metrics[0]?.fields[1]).toMatchObject({ key: "assetTurnoverQuarterly", unit: "times" });
+  });
+
   it("keeps a field's own description/source when it has one, rather than always preferring the metric's", async () => {
     vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
       {

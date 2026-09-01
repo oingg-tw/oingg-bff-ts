@@ -68,6 +68,9 @@ model FilterMetric {
   description String?
   /// Data-source tooltip text for this metric — nullable until oingg-analysis-ts's /filters starts sending it.
   source      String?
+  /// Display unit for this metric's values (e.g. "percent", "currency", "times", "ratio") — a field's own
+  /// unit (below) overrides this when set, same fallback convention as description/source.
+  unit        String?
   position    Int
   category    FilterCategory      @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
   fields      FilterMetricField[]
@@ -85,6 +88,9 @@ model FilterMetricField {
   description String?
   /// Data-source tooltip text for this field — nullable until oingg-analysis-ts's /filters starts sending it.
   source      String?
+  /// Display unit for this specific field (e.g. dupont.assetTurnoverQuarterly is "times" even though the
+  /// dupont metric's own default unit is "percent") — falls back to the metric's unit when not set.
+  unit        String?
   position  Int
   metric    FilterMetric @relation(fields: [metricKey], references: [key], onDelete: Cascade)
 

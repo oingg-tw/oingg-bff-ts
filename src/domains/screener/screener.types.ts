@@ -15,6 +15,8 @@ export interface ScreenerResultColumn {
   field: string;
   metricName: string;
   fieldName: string;
+  /** Display unit (e.g. "percent", "currency", "times", "ratio") — from oingg-analysis-ts's /filters catalog, null until they set it for this field/metric. */
+  unit: string | null;
 }
 
 export interface ScreenerValue {

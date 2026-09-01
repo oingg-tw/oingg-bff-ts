@@ -35,6 +35,7 @@ interface ResolvedRef {
   field: string;
   metricName: string;
   fieldName: string;
+  unit: string | null;
 }
 
 /**
@@ -66,6 +67,7 @@ async function resolveCatalogFieldRefs(fields: string[]): Promise<ResolvedRef[]>
       field: ref.field,
       metricName: lookup.metricName,
       fieldName: lookup.fieldName,
+      unit: lookup.unit,
     };
   });
 }
@@ -137,6 +139,7 @@ export async function runScreener(
     field: c.field,
     metricName: c.metricName,
     fieldName: c.fieldName,
+    unit: c.unit,
   }));
   if (wantsStockPrice) {
     resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
@@ -204,6 +207,7 @@ export async function runRanking(
     field: c.field,
     metricName: c.metricName,
     fieldName: c.fieldName,
+    unit: c.unit,
   }));
   if (wantsStockPrice) {
     resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
@@ -256,7 +260,7 @@ async function runValuationRanking(
   await mergeCompanyNames(results);
 
   const resultColumns: ScreenerResultColumn[] = [
-    { field, metricName: rankedRef!.metricName, fieldName: rankedRef!.fieldName },
+    { field, metricName: rankedRef!.metricName, fieldName: rankedRef!.fieldName, unit: rankedRef!.unit },
   ];
   if (wantsStockPrice) {
     resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
