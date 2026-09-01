@@ -5,6 +5,8 @@ import type {
   ForeignHoldingRankingResult,
   MarginShortRatioRankingEntry,
   MarginShortRatioRankingResult,
+  MaterialAnnouncementEntry,
+  MaterialAnnouncementsResult,
 } from "@/domains/market/market.types.js";
 
 /** "" means "no data yet" (see ForeignHoldingRankingResult) — normalized to null, a clearer signal than an empty string. */
@@ -47,6 +49,21 @@ function normalizeMarginShortRatioEntry(raw: unknown): MarginShortRatioRankingEn
     shortToMarginRatioPct: toStringOrEmpty(r.shortToMarginRatioPct),
     marginTodayBalance: toStringOrEmpty(r.marginTodayBalance),
     shortTodayBalance: toStringOrEmpty(r.shortTodayBalance),
+  };
+}
+
+function normalizeMaterialAnnouncementEntry(raw: unknown): MaterialAnnouncementEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    symbol: String(r.symbol),
+    name: typeof r.companyName === "string" ? r.companyName : null,
+    announcementDate: toStringOrEmpty(r.announcementDate),
+    announcementTime: toStringOrEmpty(r.announcementTime),
+    reportDate: toStringOrEmpty(r.reportDate),
+    subject: toStringOrEmpty(r.subject),
+    clause: toStringOrEmpty(r.clause),
+    factDate: toStringOrEmpty(r.factDate),
+    description: toStringOrEmpty(r.description),
   };
 }
 
@@ -141,6 +158,29 @@ export async function fetchMarginShortRatioRanking(limit: number): Promise<Margi
     tradeDate: toDateOrNull(body.tradeDate),
     limit: body.limit,
     rankings: body.rankings.map(normalizeMarginShortRatioEntry),
+    warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
+  };
+}
+
+/**
+ * 上市公司重大訊息公告 from analysis-ts's GET /market/material-announcements — newest announcement date
+ * first. Unlike this file's other endpoints, twse-ts's schedule for this dataset has been stable for a
+ * while, so prod already has real data (confirmed live: 254 rows) — no deploy wait needed here.
+ */
+export async function fetchMaterialAnnouncements(limit: number): Promise<MaterialAnnouncementsResult> {
+  const body = (await getJson("/market/material-announcements", { limit: String(limit) })) as {
+    limit?: unknown;
+    items?: unknown;
+    warnings?: unknown;
+  };
+
+  if (typeof body.limit !== "number" || !Array.isArray(body.items)) {
+    throw new AppError("Material announcements response is missing expected fields", 502);
+  }
+
+  return {
+    limit: body.limit,
+    items: body.items.map(normalizeMaterialAnnouncementEntry),
     warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
   };
 }

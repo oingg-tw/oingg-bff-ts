@@ -3,8 +3,10 @@ import { AppError } from "@/shared/errorHandler.js";
 import {
   DEFAULT_FOREIGN_HOLDING_LIMIT,
   DEFAULT_MARGIN_SHORT_LIMIT,
+  DEFAULT_MATERIAL_ANNOUNCEMENTS_LIMIT,
   getForeignHoldingRanking,
   getMarginShortRatioRanking,
+  getMaterialAnnouncements,
 } from "@/domains/market/market.service.js";
 
 export const marketRouter = Router();
@@ -115,5 +117,51 @@ marketRouter.get("/foreign-holding-ranking", async (req, res) => {
 marketRouter.get("/margin-short-ratio-ranking", async (req, res) => {
   const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_MARGIN_SHORT_LIMIT);
   const result = await getMarginShortRatioRanking(limit);
+  res.json(result);
+});
+
+/**
+ * @swagger
+ * /market/material-announcements:
+ *   get:
+ *     summary: 上市公司重大訊息公告——依公告日期新到舊
+ *     description: >
+ *       announcementTime 是 twse-ts 原始的 HHMMSS 數字字串（未補零，例如 "70003"），照原樣傳遞不重新格式化。
+ *     tags:
+ *       - Market
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           minimum: 1
+ *           maximum: 50
+ *     responses:
+ *       200:
+ *         description: 重大訊息公告清單。
+ *         content:
+ *           application/json:
+ *             example:
+ *               limit: 3
+ *               items:
+ *                 - symbol: "2072"
+ *                   name: "世紀風電"
+ *                   announcementDate: "2026-08-28"
+ *                   announcementTime: "70003"
+ *                   reportDate: "2026-08-29"
+ *                   subject: "公告本公司名稱由「世紀離岸風電設備股份有限公司」更名為「世紀能源設備股份有限公司」"
+ *                   clause: "第51款"
+ *                   factDate: "2026-08-24"
+ *                   description: "1.事實發生日：民國115年08月24日..."
+ *               warnings: []
+ *       400:
+ *         description: limit 不是 1~50 之間的整數。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+marketRouter.get("/material-announcements", async (req, res) => {
+  const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_MATERIAL_ANNOUNCEMENTS_LIMIT);
+  const result = await getMaterialAnnouncements(limit);
   res.json(result);
 });

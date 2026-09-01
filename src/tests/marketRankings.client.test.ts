@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchForeignHoldingRanking, fetchMarginShortRatioRanking } from "@/domains/market/marketRankings.client.js";
+import {
+  fetchForeignHoldingRanking,
+  fetchMarginShortRatioRanking,
+  fetchMaterialAnnouncements,
+} from "@/domains/market/marketRankings.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
@@ -179,5 +183,73 @@ describe("fetchMarginShortRatioRanking", () => {
     mockFetchOnce({ ok: true, body: { tradeDate: "2026-08-30" } });
 
     await expect(fetchMarginShortRatioRanking(20)).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+describe("fetchMaterialAnnouncements", () => {
+  it("requests /market/material-announcements with limit and normalizes fields to strings", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        limit: 1,
+        items: [
+          {
+            symbol: "2072",
+            companyName: "世紀風電",
+            announcementDate: "2026-08-28",
+            announcementTime: "70003",
+            reportDate: "2026-08-29",
+            subject: "公告本公司名稱由「世紀離岸風電設備股份有限公司」更名為「世紀能源設備股份有限公司」",
+            clause: "第51款",
+            factDate: "2026-08-24",
+            description: "1.事實發生日：民國115年08月24日",
+          },
+        ],
+        warnings: [],
+      },
+    });
+
+    const result = await fetchMaterialAnnouncements(1);
+
+    expect(result).toEqual({
+      limit: 1,
+      items: [
+        {
+          symbol: "2072",
+          name: "世紀風電",
+          announcementDate: "2026-08-28",
+          announcementTime: "70003",
+          reportDate: "2026-08-29",
+          subject: "公告本公司名稱由「世紀離岸風電設備股份有限公司」更名為「世紀能源設備股份有限公司」",
+          clause: "第51款",
+          factDate: "2026-08-24",
+          description: "1.事實發生日：民國115年08月24日",
+        },
+      ],
+      warnings: [],
+    });
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/market/material-announcements?limit=1");
+  });
+
+  it("relays analysis-ts's 400 message for an out-of-range limit", async () => {
+    mockFetchOnce({ ok: false, status: 400, body: { message: "limit must be between 1 and 50" } });
+
+    await expect(fetchMaterialAnnouncements(0)).rejects.toMatchObject({
+      statusCode: 400,
+      message: "limit must be between 1 and 50",
+    });
+  });
+
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchMaterialAnnouncements(20)).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when the response is missing expected fields", async () => {
+    mockFetchOnce({ ok: true, body: {} });
+
+    await expect(fetchMaterialAnnouncements(20)).rejects.toMatchObject({ statusCode: 502 });
   });
 });

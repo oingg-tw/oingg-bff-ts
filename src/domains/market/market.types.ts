@@ -40,3 +40,25 @@ export interface MarginShortRatioRankingResult {
   rankings: MarginShortRatioRankingEntry[];
   warnings: string[];
 }
+
+/// 上市公司重大訊息公告 (material announcement) — one filing, from oingg-analysis-ts's GET
+/// /market/material-announcements. `announcementTime` is a raw HHMMSS-style numeric string as sent by
+/// twse-ts (e.g. "70003" — not zero-padded), passed through as-is rather than reformatted.
+export interface MaterialAnnouncementEntry {
+  symbol: string;
+  /** From oingg-analysis-ts's company reference table — null if not found there. */
+  name: string | null;
+  announcementDate: string;
+  announcementTime: string;
+  reportDate: string;
+  subject: string;
+  clause: string;
+  factDate: string;
+  description: string;
+}
+
+export interface MaterialAnnouncementsResult {
+  limit: number;
+  items: MaterialAnnouncementEntry[];
+  warnings: string[];
+}

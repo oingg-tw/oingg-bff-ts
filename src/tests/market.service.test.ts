@@ -3,14 +3,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/domains/market/marketRankings.client.js", () => ({
   fetchForeignHoldingRanking: vi.fn(),
   fetchMarginShortRatioRanking: vi.fn(),
+  fetchMaterialAnnouncements: vi.fn(),
 }));
 
-import { fetchForeignHoldingRanking, fetchMarginShortRatioRanking } from "@/domains/market/marketRankings.client.js";
-import { getForeignHoldingRanking, getMarginShortRatioRanking } from "@/domains/market/market.service.js";
+import {
+  fetchForeignHoldingRanking,
+  fetchMarginShortRatioRanking,
+  fetchMaterialAnnouncements,
+} from "@/domains/market/marketRankings.client.js";
+import {
+  getForeignHoldingRanking,
+  getMarginShortRatioRanking,
+  getMaterialAnnouncements,
+} from "@/domains/market/market.service.js";
 
 beforeEach(() => {
   vi.mocked(fetchForeignHoldingRanking).mockReset();
   vi.mocked(fetchMarginShortRatioRanking).mockReset();
+  vi.mocked(fetchMaterialAnnouncements).mockReset();
 });
 
 describe("getForeignHoldingRanking", () => {
@@ -102,5 +112,51 @@ describe("getMarginShortRatioRanking", () => {
       { rank: 1, symbol: "3045", name: "台灣光罩", shortToMarginRatioPct: "44.35", marginTodayBalance: "717", shortTodayBalance: "318" },
       { rank: 2, symbol: "9999", name: null, shortToMarginRatioPct: "36.01", marginTodayBalance: "4476", shortTodayBalance: "1612" },
     ]);
+  });
+});
+
+describe("getMaterialAnnouncements", () => {
+  it("delegates a valid limit straight through", async () => {
+    vi.mocked(fetchMaterialAnnouncements).mockResolvedValue({ limit: 20, items: [], warnings: [] });
+
+    await getMaterialAnnouncements(20);
+
+    expect(fetchMaterialAnnouncements).toHaveBeenCalledWith(20);
+  });
+
+  // Bounds match analysis-ts's own validation (verified live: 1-50).
+  it.each([0, -1, 51, 2.5])("rejects an out-of-range limit (%s) without calling analysis-ts", async (value) => {
+    await expect(getMaterialAnnouncements(value)).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchMaterialAnnouncements).not.toHaveBeenCalled();
+  });
+
+  it.each([1, 50])("accepts the boundary values (%s)", async (value) => {
+    vi.mocked(fetchMaterialAnnouncements).mockResolvedValue({ limit: value, items: [], warnings: [] });
+
+    await expect(getMaterialAnnouncements(value)).resolves.toBeDefined();
+  });
+
+  it("passes each item's company name through directly from fetchMaterialAnnouncements", async () => {
+    vi.mocked(fetchMaterialAnnouncements).mockResolvedValue({
+      limit: 1,
+      items: [
+        {
+          symbol: "2072",
+          name: "世紀風電",
+          announcementDate: "2026-08-28",
+          announcementTime: "70003",
+          reportDate: "2026-08-29",
+          subject: "公告更名",
+          clause: "第51款",
+          factDate: "2026-08-24",
+          description: "詳如說明",
+        },
+      ],
+      warnings: [],
+    });
+
+    const result = await getMaterialAnnouncements(1);
+
+    expect(result.items[0]?.name).toBe("世紀風電");
   });
 });
