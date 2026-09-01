@@ -66,15 +66,20 @@ function daily(table: string): AnalysisMetricTable {
  * cleanly through toSnakeCase's existing lowercase-letter+digit rule (e.g. ma5d -> ma_5d, atr14d ->
  * atr_14d) — no new edge case, same rule that already handled beta1Y.
  *
- * evEbitda/pFcf/psr/ohlsonOScore/zmijewskiScore/beneishMScore still have real tables in the
- * catalog but aren't wired up here — none of the seeded preset templates need them yet; wire up on
- * demand rather than guessing ahead of an actual use.
+ * evEbitda/pFcf/psr/ohlsonOScore/zmijewskiScore still have real tables in the catalog but aren't wired
+ * up here — none of the seeded preset templates (screener filter presets or column presets) need them
+ * yet; wire up on demand rather than guessing ahead of an actual use.
  *
  * dupont wired up 2026-09-01 on demand (needed for analysis-ts's "profitabilityQuality"/獲利品質拆解
  * columnPreset). Ordinary quarterly() table (profitability_dupont), verified via information_schema —
  * plain camelCase->snake_case throughout (netProfitMarginQuarterly -> net_profit_margin_quarterly,
  * assetTurnoverQuarterly -> asset_turnover_quarterly, equityMultiplier -> equity_multiplier,
  * decomposedRoeQuarterlyPct -> decomposed_roe_quarterly_pct), no digit-suffix edge case.
+ *
+ * beneishMScore wired up 2026-09-01 on demand (a real "isn't wired up yet" 501, hit via analysis-ts's
+ * "financialHealth"/財務體質排雷 columnPreset, which references beneishMScore.mScore). Ordinary
+ * quarterly() table (guru_beneish_m_score), verified via information_schema — mScore -> m_score, no
+ * digit-suffix edge case.
  */
 export const ANALYSIS_METRIC_TABLES: Record<string, AnalysisMetricTable> = {
   accrualsRatio: quarterly("cash_flow_accruals_ratio"),
@@ -128,4 +133,5 @@ export const ANALYSIS_METRIC_TABLES: Record<string, AnalysisMetricTable> = {
   bias: daily("technicals_bias"),
   macd: daily("technicals_macd"),
   dupont: quarterly("profitability_dupont"),
+  beneishMScore: quarterly("guru_beneish_m_score"),
 };
