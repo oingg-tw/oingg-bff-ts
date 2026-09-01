@@ -111,6 +111,8 @@ GET /screener/ranking?field=...&direction=...&limit=...&columns=...
 - **行為一致性**：分頁邊界、`exclude` 篩選的 null 值處理、`asOfDate` 格式、排序 tie-breaking，都要逐一比對，細微差異不容易被發現。
 - **開發量**：analysis-ts 要把 bff-ts 這 400 行的動態查詢邏輯用自己的方式重做一遍，時程不是 bff-ts 這邊能承諾的。
 
+> **更新（2026-09-01 稍晚）**：階段一穩定後，已把階段二的完整規格（下方 `POST /screener`／`GET /screener/ranking` 草案、ROC 年份轉換的坑、latest-row-per-symbol 邏輯、目前的 metricKey→table 對照表）整份貼給 analysis-ts，請他們評估規模與時程。還沒收到回覆，尚未開始動工。
+
 ## 建議執行順序
 
 1. **先解決前置阻塞項**：跟 analysis-ts 對齊「twse/tpex 資料鏡像完整性」的現況與修復時程——這件事不解決，後面的階段一動不了。
