@@ -118,6 +118,32 @@ model ColumnPresetTemplate {
   @@map("column_preset_template")
 }
 
+/// Symbol -> company name reference data, cached from oingg-analysis-ts's GET /companies endpoint (see
+/// src/domains/companies). This is a deliberate exception to the general "bff-ts holds no copy of
+/// analysis-ts's market data" rule — justified specifically by a read:write-ratio + staleness-tolerance
+/// analysis (looked up on every screener row, changes a few times a year, a day-stale name is fine),
+/// unlike e.g. screener metric values (changes daily, paid users would see wrong rankings if stale).
+/// Refreshed via CompanySyncState's 24h freshness gate, not a blind sync-forever cache. TWSE+TPEx (per
+/// analysis-ts, company_profile mirrors both); `companyName` is null when they have no short name on file.
+model Company {
+  companyId   String   @id @map("company_id")
+  companyName String?  @map("company_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("company")
+}
+
+/// Tracks when the Company table was last synced from analysis-ts — a single row (id always 1). Checked
+/// before re-fetching so a restart (or the periodic re-check, see startCompanySync) within the 24h
+/// freshness window doesn't re-hit analysis-ts for reference data that changes a few times a year.
+model CompanySyncState {
+  id       Int      @id @default(1)
+  syncedAt DateTime @map("synced_at")
+
+  @@map("company_sync_state")
+}
+
 /// A minimal per-user profile row, keyed by Firebase uid (see src/domains/user, GET /users/me).
 /// Read-only from this service's side — nothing here creates a row yet (no signup/first-login flow
 /// exists), so a Firebase-authenticated caller with no row here still gets a 404 from /users/me.

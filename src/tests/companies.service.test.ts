@@ -4,59 +4,98 @@ vi.mock("../domains/companies/companies.client.js", () => ({
   fetchCompanies: vi.fn(),
 }));
 
+vi.mock("../domains/companies/companies.repository.js", () => ({
+  findCompanyNames: vi.fn(),
+  getCompaniesSyncedAt: vi.fn(),
+  replaceCompanies: vi.fn(),
+}));
+
 import { fetchCompanies } from "../domains/companies/companies.client.js";
-import { getCompanyNames } from "../domains/companies/companies.service.js";
+import {
+  findCompanyNames,
+  getCompaniesSyncedAt,
+  replaceCompanies,
+} from "../domains/companies/companies.repository.js";
+import { getCompanyNames, syncCompanies, syncCompaniesIfStale } from "../domains/companies/companies.service.js";
 
 const ALL_COMPANIES = [
   { companyId: "2330", companyName: "台積電" },
   { companyId: "2317", companyName: "鴻海" },
-  { companyId: "9999", companyName: null },
 ];
 
 beforeEach(() => {
   vi.mocked(fetchCompanies).mockReset();
+  vi.mocked(findCompanyNames).mockReset();
+  vi.mocked(getCompaniesSyncedAt).mockReset();
+  vi.mocked(replaceCompanies).mockReset();
 });
 
 describe("getCompanyNames", () => {
-  it("returns an empty map without calling fetchCompanies when given no symbols", async () => {
-    const result = await getCompanyNames([]);
+  it("reads from the local cache (repository), not a live fetch", async () => {
+    vi.mocked(findCompanyNames).mockResolvedValue(new Map([["2330", "台積電"]]));
 
-    expect(result).toEqual(new Map());
+    const result = await getCompanyNames(["2330"]);
+
+    expect(result).toEqual(new Map([["2330", "台積電"]]));
+    expect(findCompanyNames).toHaveBeenCalledWith(["2330"]);
+    expect(fetchCompanies).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncCompanies", () => {
+  it("fetches from analysis-ts and replaces the cached table", async () => {
+    vi.mocked(fetchCompanies).mockResolvedValue(ALL_COMPANIES);
+    vi.mocked(replaceCompanies).mockResolvedValue(undefined);
+
+    const summary = await syncCompanies();
+
+    expect(replaceCompanies).toHaveBeenCalledWith(ALL_COMPANIES);
+    expect(summary).toEqual({ companyCount: 2 });
+  });
+});
+
+describe("syncCompaniesIfStale", () => {
+  it("syncs when the cache has never been synced (null syncedAt)", async () => {
+    vi.mocked(getCompaniesSyncedAt).mockResolvedValue(null);
+    vi.mocked(fetchCompanies).mockResolvedValue(ALL_COMPANIES);
+    vi.mocked(replaceCompanies).mockResolvedValue(undefined);
+
+    const result = await syncCompaniesIfStale();
+
+    expect(fetchCompanies).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ companyCount: 2 });
+  });
+
+  it("skips syncing when the cache was synced less than 24h ago", async () => {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    vi.mocked(getCompaniesSyncedAt).mockResolvedValue(oneHourAgo);
+
+    const result = await syncCompaniesIfStale();
+
+    expect(fetchCompanies).not.toHaveBeenCalled();
+    expect(result).toBeNull();
+  });
+
+  // Regression-shaped: this is the whole point of persisting syncedAt in the DB rather than an
+  // in-memory flag — a restart 23 hours in must not re-trigger a sync just because the process is new.
+  it("still skips syncing when synced 23h59m ago, right at the edge of the freshness window", async () => {
+    const almost24hAgo = new Date(Date.now() - (24 * 60 * 60 * 1000 - 60_000));
+    vi.mocked(getCompaniesSyncedAt).mockResolvedValue(almost24hAgo);
+
+    await syncCompaniesIfStale();
+
     expect(fetchCompanies).not.toHaveBeenCalled();
   });
 
-  it("live-fetches the full company list and filters it down to only the requested symbols", async () => {
+  it("syncs again once more than 24h have passed since the last sync", async () => {
+    const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000);
+    vi.mocked(getCompaniesSyncedAt).mockResolvedValue(twentyFiveHoursAgo);
     vi.mocked(fetchCompanies).mockResolvedValue(ALL_COMPANIES);
+    vi.mocked(replaceCompanies).mockResolvedValue(undefined);
 
-    const result = await getCompanyNames(["2330", "9999"]);
+    const result = await syncCompaniesIfStale();
 
-    expect(result).toEqual(
-      new Map([
-        ["2330", "台積電"],
-        ["9999", null],
-      ]),
-    );
-    // 2317 was fetched (analysis-ts has no filtered endpoint) but must not appear in the result — nothing
-    // beyond what was actually asked for is kept.
-    expect(result.has("2317")).toBe(false);
-  });
-
-  it("omits a requested symbol entirely when analysis-ts doesn't know about it", async () => {
-    vi.mocked(fetchCompanies).mockResolvedValue(ALL_COMPANIES);
-
-    const result = await getCompanyNames(["2330", "not-a-real-symbol"]);
-
-    expect(result.has("not-a-real-symbol")).toBe(false);
-    expect(result.get("2330")).toBe("台積電");
-  });
-
-  // This is the core architectural point: no bff-owned copy of market data survives past one call.
-  it("hits fetchCompanies again on every call, holding nothing over from a previous lookup", async () => {
-    vi.mocked(fetchCompanies).mockResolvedValue(ALL_COMPANIES);
-
-    await getCompanyNames(["2330"]);
-    await getCompanyNames(["2317"]);
-
-    expect(fetchCompanies).toHaveBeenCalledTimes(2);
+    expect(fetchCompanies).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ companyCount: 2 });
   });
 });
