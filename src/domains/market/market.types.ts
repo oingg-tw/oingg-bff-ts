@@ -124,6 +124,8 @@ export interface DisposedStockEntry {
   announceDate: string;
   announcementCount: number | null;
   reason: string;
+  /** The count parsed out of `reason` (e.g. "連續五次" -> 5, "最近10個營業日內有6個營業日" -> 6). Null when the reason has no count concept at all (e.g. convertible-bond underlying) — not a parse failure, same spirit as AttentionStockCriteriaDetail but count-only (no dates — dispositionPeriod's start~end is already simple enough). Added by analysis-ts on 2026-09-02. */
+  reasonTimes: number | null;
   dispositionPeriod: string;
   dispositionMeasures: string | null;
   detail: string;

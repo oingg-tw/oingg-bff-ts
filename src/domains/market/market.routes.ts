@@ -293,8 +293,9 @@ marketRouter.get("/volume-top20", async (_req, res) => {
  *     summary: 處置股清單——依公告日期新到舊，上市＋上櫃合併
  *     description: >
  *       TPEx 目前沒有 announcementCount/dispositionMeasures/linkInformation 這幾個欄位，會是 null
- *       （不是查詢失敗）。sixDayChangePercent 是以 announceDate 為基準日，往前推 6 個交易日的累積漲跌幅
- *       （點對點，非逐日相加），資料不足 6 個交易日時是 null。
+ *       （不是查詢失敗）。reasonTimes 是從 reason 解析出的次數（例如「連續五次」→5），部分處置原因本身
+ *       沒有次數概念（例如可轉債標的證券）時是 null，不是解析失敗。sixDayChangePercent 是以 announceDate
+ *       為基準日，往前推 6 個交易日的累積漲跌幅（點對點，非逐日相加），資料不足 6 個交易日時是 null。
  *     tags:
  *       - Market
  *     parameters:
@@ -313,17 +314,18 @@ marketRouter.get("/volume-top20", async (_req, res) => {
  *             example:
  *               limit: 1
  *               items:
- *                 - symbol: "6226"
- *                   name: "光鼎"
- *                   market: "TWSE"
+ *                 - symbol: "3374"
+ *                   name: "精材"
+ *                   market: "TPEx"
  *                   announceDate: "2026-09-01"
- *                   announcementCount: 1
- *                   reason: "提供公布日期近一個月之「公布注意交易資訊」數據標準"
- *                   dispositionPeriod: "1150902~1150908"
- *                   dispositionMeasures: "第一次處置"
+ *                   announcementCount: null
+ *                   reason: "連續3個營業日及沖銷標準"
+ *                   reasonTimes: 3
+ *                   dispositionPeriod: "1150902~1150910"
+ *                   dispositionMeasures: null
  *                   detail: "..."
- *                   linkInformation: "..."
- *                   sixDayChangePercent: "42.65"
+ *                   linkInformation: null
+ *                   sixDayChangePercent: "37.85"
  *               warnings: []
  *       400:
  *         description: limit 不是 1~50 之間的整數。

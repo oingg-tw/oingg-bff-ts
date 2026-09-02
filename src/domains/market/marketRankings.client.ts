@@ -139,6 +139,7 @@ function normalizeDisposedStockEntry(raw: unknown): DisposedStockEntry {
     announceDate: toStringOrEmpty(r.announceDate),
     announcementCount: typeof r.announcementCount === "number" ? r.announcementCount : null,
     reason: toStringOrEmpty(r.reason),
+    reasonTimes: typeof r.reasonTimes === "number" ? r.reasonTimes : null,
     dispositionPeriod: toStringOrEmpty(r.dispositionPeriod),
     dispositionMeasures: toStringOrNull(r.dispositionMeasures),
     detail: toStringOrEmpty(r.detail),
