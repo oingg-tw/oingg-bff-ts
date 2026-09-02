@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { requireEnv } from "@/shared/env.js";
+import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
 import type { ClosePrice } from "@/domains/stock/stock.service.js";
 import type { StockQuote } from "@/domains/stock/stock.types.js";
 
@@ -75,7 +75,7 @@ export async function fetchStockQuote(symbol: string): Promise<StockQuote | null
 
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
     throw new AppError(
       `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,
@@ -122,7 +122,7 @@ export async function fetchStockPrices(symbols: string[]): Promise<Map<string, C
 
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
     throw new AppError(
       `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,

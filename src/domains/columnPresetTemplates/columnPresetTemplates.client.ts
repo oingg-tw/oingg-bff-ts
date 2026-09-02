@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { requireEnv } from "@/shared/env.js";
+import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
 import type { ColumnPresetTemplate } from "@/domains/columnPresetTemplates/columnPresetTemplates.types.js";
 
 interface RawColumnPresetTemplate {
@@ -40,7 +40,7 @@ export async function fetchColumnPresetTemplates(): Promise<ColumnPresetTemplate
 
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
     throw new AppError(
       `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,

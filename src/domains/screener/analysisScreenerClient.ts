@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { requireEnv } from "@/shared/env.js";
+import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
 import type { Pagination } from "@/domains/screener/pagination.js";
 import type { ScreenerFilter, ScreenerValue } from "@/domains/screener/screener.types.js";
 
@@ -73,6 +73,7 @@ async function postJson(path: string, body: unknown): Promise<unknown> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS),
     });
   } catch (error) {
     throw new AppError(
@@ -91,7 +92,7 @@ async function getJson(path: string, searchParams: Record<string, string>): Prom
 
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
     throw new AppError(
       `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,

@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { requireEnv } from "@/shared/env.js";
+import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
 import type { FilterCategory } from "@/domains/filterCatalog/filterCatalog.types.js";
 
 function isFilterCatalogResponse(body: unknown): body is { categories: FilterCategory[] } {
@@ -16,7 +16,7 @@ export async function fetchFilterCatalog(): Promise<FilterCategory[]> {
 
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
     // fetch() itself throws (not a rejected-but-caught HTTP response) for connection-level failures —
     // refused/unreachable host, DNS, timeout. Without this, that surfaces as a generic uncaught 500

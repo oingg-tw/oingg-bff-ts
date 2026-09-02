@@ -21,4 +21,13 @@ export const env = {
     .filter(Boolean),
 };
 
+/**
+ * bff-ts's entire purpose is fronting exactly one upstream dependency (analysis-ts) — every outbound
+ * `fetch()` to it must be bounded, or a single stalled analysis-ts request hangs indefinitely and takes
+ * the corresponding bff-ts request down with it (no isolation, since there's nothing else in the way).
+ * Applied via `signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS)` in each *.client.ts file that
+ * calls analysis-ts. 10s is generous for a same-region HTTP call but still a real bound.
+ */
+export const ANALYSIS_SERVICE_TIMEOUT_MS = 10_000;
+
 export { requireEnv };

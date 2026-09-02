@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { requireEnv } from "@/shared/env.js";
+import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
 import type { CompanyProfile } from "@/domains/stock/companyProfile.types.js";
 
 /** Same convention as stockQuote.client.ts's toStringOrNull — see that file for why. */
@@ -59,7 +59,7 @@ export async function fetchCompanyProfile(symbol: string): Promise<CompanyProfil
 
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
     throw new AppError(
       `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,
