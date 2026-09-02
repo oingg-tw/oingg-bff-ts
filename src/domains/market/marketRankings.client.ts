@@ -7,6 +7,7 @@ import type {
   DisposedStockEntry,
   DisposedStocksResult,
   EtfAssetClass,
+  EtfDistributionFrequency,
   EtfRankingEntry,
   EtfRankingMetric,
   EtfRankingResult,
@@ -220,6 +221,7 @@ function normalizeEtfRankingEntry(raw: unknown): EtfRankingEntry {
     market: normalizeMarket(r.market),
     assetClass: typeof r.assetClass === "string" ? (r.assetClass as EtfAssetClass) : null,
     isActive: r.isActive === true,
+    distributionFrequency: typeof r.distributionFrequency === "string" ? (r.distributionFrequency as EtfDistributionFrequency) : null,
     value: toStringOrEmpty(r.value),
     asOf: toStringOrEmpty(r.asOf),
   };

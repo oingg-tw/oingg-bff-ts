@@ -501,7 +501,8 @@ marketRouter.get("/price-change-ranking", async (req, res) => {
  *       基準年的資料。這支不排除任何 ETF 類型（槓桿/反向 ETF 也會出現）——跟股票排行端點的 ETF 排除邏輯
  *       相反，因為這支本來就是 ETF 排行。market/assetClass/isActive 是從 category（原始字串保留）解析
  *       出來的：market 是 TWSE/TPEx，assetClass 是國內成分證券/國外成分證券/債券成分/槓桿型/反向型/
- *       多資產/連結式（主動式 ETF 是 null），isActive 是是否為主動式 ETF。
+ *       多資產/連結式（主動式 ETF 是 null），isActive 是是否為主動式 ETF。distributionFrequency 是配息
+ *       頻率（月配/季配/半年配/年配/一年兩次配息/其他/不分配），查無資料時是 null。
  *     tags:
  *       - Market
  *     parameters:
@@ -543,6 +544,7 @@ marketRouter.get("/price-change-ranking", async (req, res) => {
  *                   market: "TWSE"
  *                   assetClass: "國內成分證券"
  *                   isActive: false
+ *                   distributionFrequency: "半年配"
  *                   value: "2283731446214"
  *                   asOf: "2026-07"
  *               warnings: []

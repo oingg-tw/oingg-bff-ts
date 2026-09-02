@@ -282,6 +282,8 @@ export type EtfAssetClass =
   | "多資產"
   | "連結式";
 
+export type EtfDistributionFrequency = "月配" | "季配" | "半年配" | "年配" | "一年兩次配息" | "其他" | "不分配";
+
 export interface EtfRankingEntry {
   rank: number;
   symbol: string;
@@ -295,6 +297,7 @@ export interface EtfRankingEntry {
   /** Null for actively-managed (主動式) ETFs, which don't fit this classification. */
   assetClass: EtfAssetClass | null;
   isActive: boolean;
+  distributionFrequency: EtfDistributionFrequency | null;
   value: string;
   asOf: string;
 }
