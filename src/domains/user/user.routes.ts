@@ -2,6 +2,7 @@ import { Router } from "ultimate-express";
 import { AppError } from "@/shared/errorHandler.js";
 import { requireAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
+import { getDashboardCardSettings, updateDashboardCardSettings } from "@/domains/user/dashboardCardSettings.service.js";
 import { getDisplaySettings, updateShowAsOfDate } from "@/domains/user/screenerDisplaySettings.service.js";
 import {
   getThemePreference,
@@ -413,3 +414,75 @@ userRouter.put(
     res.json({ displaySettings });
   },
 );
+
+/**
+ * @swagger
+ * /users/me/dashboard-cards:
+ *   get:
+ *     summary: 查詢目前登入使用者的首頁卡片顯示偏好
+ *     description: >
+ *       visibleCardIds 沒設定過是 null（不是 []）——null 代表「還沒存過偏好」，[] 代表「使用者主動把每張
+ *       卡片都關掉」，兩者語意不同。卡片 id 是前端自訂、會持續增加的清單，這個服務不驗證/不知道目前完整
+ *       清單有哪些，null 時前端應該自行套用自己的預設清單。
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 顯示偏好，包在 "dashboardCards" 這個 key 底下。
+ *         content:
+ *           application/json:
+ *             example:
+ *               dashboardCards:
+ *                 visibleCardIds: ["margin-short-ratio", "revenue-ranking", "volume-top20"]
+ *       401:
+ *         description: 缺少或無效的 Authorization header / token。
+ */
+userRouter.get("/me/dashboard-cards", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const dashboardCards = await getDashboardCardSettings(requireUser(req));
+  res.json({ dashboardCards });
+});
+
+/**
+ * @swagger
+ * /users/me/dashboard-cards:
+ *   put:
+ *     summary: 更新目前登入使用者的首頁卡片顯示偏好
+ *     description: 完整覆蓋整份清單（不是增量新增/刪除單一卡片）——前端要保留哪些卡片，就把完整清單傳過來。
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - visibleCardIds
+ *             properties:
+ *               visibleCardIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: 更新後的顯示偏好，包在 "dashboardCards" 這個 key 底下（跟 GET 同一個 shape）。
+ *         content:
+ *           application/json:
+ *             example:
+ *               dashboardCards:
+ *                 visibleCardIds: ["margin-short-ratio", "volume-top20"]
+ *       400:
+ *         description: visibleCardIds 沒給，或不是字串陣列。
+ *       401:
+ *         description: 缺少或無效的 Authorization header / token。
+ */
+userRouter.put("/me/dashboard-cards", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = req.body as { visibleCardIds?: unknown } | null;
+  const dashboardCards = await updateDashboardCardSettings(firebaseUid, body?.visibleCardIds);
+  res.json({ dashboardCards });
+});

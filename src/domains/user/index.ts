@@ -16,3 +16,8 @@ export {
   SYSTEM_DEFAULT_DISPLAY_SETTINGS,
 } from "@/domains/user/screenerDisplaySettings.service.js";
 export type { ScreenerDisplaySettings } from "@/domains/user/screenerDisplaySettings.types.js";
+export {
+  getDashboardCardSettings,
+  updateDashboardCardSettings,
+} from "@/domains/user/dashboardCardSettings.service.js";
+export type { DashboardCardSettings } from "@/domains/user/dashboardCardSettings.types.js";

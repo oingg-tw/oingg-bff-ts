@@ -199,6 +199,22 @@ model ScreenerDisplaySettings {
   @@map("screener_display_settings")
 }
 
+/// Which homepage dashboard cards a user has shown/hidden (see src/domains/user/dashboardCardSettings.*)
+/// — previously local-only client state (oingg-web-nuxt's useDashboardCards.ts useState, reset per
+/// device), now synced across devices. `visibleCardIds` is a plain JSON string array of frontend-owned
+/// card ids (e.g. "margin-short-ratio", "revenue-ranking") — not FK'd to anything, since the set of
+/// valid ids is a growing, frontend-defined list this service doesn't validate membership against; an id
+/// the frontend later retires just becomes inert data here. No row at all (not an empty array) means "no
+/// preference saved yet" — resolved to the frontend's own default list client-side, since bff-ts has no
+/// way to know what that current full list is.
+model DashboardCardSettings {
+  firebaseUid    String   @id @map("firebase_uid")
+  visibleCardIds Json     @map("visible_card_ids")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("dashboard_card_settings")
+}
+
 /// A user's stock watchlist (see src/domains/watchlist).
 model WatchlistItem {
   id          String   @id @default(uuid()) @db.Uuid
