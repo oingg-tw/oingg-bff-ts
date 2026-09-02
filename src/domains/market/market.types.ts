@@ -107,6 +107,12 @@ export interface VolumeTop20Entry {
   close: string | null;
   dir: string | null;
   change: string | null;
+  /**
+   * Single-day point-to-point % change, computed by analysis-ts itself from daily_price (not the
+   * source's own dir/change fields, since TPEx doesn't have those natively) — guarantees the same
+   * calculation for both markets. Null when there's no comparable prior trading day. Added 2026-09-02.
+   */
+  changePercent: string | null;
 }
 
 export interface VolumeTop20Result {
@@ -126,7 +132,19 @@ export interface DisposedStockEntry {
   reason: string;
   /** The count parsed out of `reason` (e.g. "連續五次" -> 5, "最近10個營業日內有6個營業日" -> 6). Null when the reason has no count concept at all (e.g. convertible-bond underlying) — not a parse failure, same spirit as AttentionStockCriteriaDetail but count-only (no dates — dispositionPeriod's start~end is already simple enough). Added by analysis-ts on 2026-09-02. */
   reasonTimes: number | null;
+  /**
+   * A short Chinese label parsed from `reason` (e.g. a reference to 本中心作業要點第四條第一項第一款 ->
+   * "漲跌異常"), matched against the official 公布或通知注意交易資訊暨處置作業要點's 13 clauses (第一款~
+   * 第十三款). Null when `reason` doesn't reference a recognizable clause/keyword (a plain "連續N次" with
+   * nothing else) — not guessed. Added by analysis-ts on 2026-09-02, who noted the TPEx-side clause
+   * numbering is inferred (matched to TWSE's near-identical rule names + verified against real data),
+   * not confirmed against TPEx's own official text (their page 403s) — may get corrected later.
+   */
+  reasonShort: string | null;
   dispositionPeriod: string;
+  /** `dispositionPeriod` split into two Gregorian-calendar dates — `dispositionPeriod` itself is unaffected. Added by analysis-ts on 2026-09-02. */
+  dispositionStartDate: string;
+  dispositionEndDate: string;
   dispositionMeasures: string | null;
   detail: string;
   linkInformation: string | null;

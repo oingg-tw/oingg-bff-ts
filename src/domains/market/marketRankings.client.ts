@@ -127,6 +127,7 @@ function normalizeVolumeTop20Entry(raw: unknown): VolumeTop20Entry {
     close: toStringOrNull(r.close),
     dir: toStringOrNull(r.dir),
     change: toStringOrNull(r.change),
+    changePercent: toStringOrNull(r.changePercent),
   };
 }
 
@@ -140,7 +141,10 @@ function normalizeDisposedStockEntry(raw: unknown): DisposedStockEntry {
     announcementCount: typeof r.announcementCount === "number" ? r.announcementCount : null,
     reason: toStringOrEmpty(r.reason),
     reasonTimes: typeof r.reasonTimes === "number" ? r.reasonTimes : null,
+    reasonShort: typeof r.reasonShort === "string" ? r.reasonShort : null,
     dispositionPeriod: toStringOrEmpty(r.dispositionPeriod),
+    dispositionStartDate: toStringOrEmpty(r.dispositionStartDate),
+    dispositionEndDate: toStringOrEmpty(r.dispositionEndDate),
     dispositionMeasures: toStringOrNull(r.dispositionMeasures),
     detail: toStringOrEmpty(r.detail),
     linkInformation: toStringOrNull(r.linkInformation),

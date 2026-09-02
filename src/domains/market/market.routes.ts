@@ -255,7 +255,9 @@ marketRouter.get("/revenue-ranking", async (req, res) => {
  *     summary: 成交量前20——上市＋上櫃合併，無查詢參數
  *     description: >
  *       刻意不排除 ETF／衍生性商品，跟本服務其他排行端點不同。TPEx 目前沒有 transaction/open/high/
- *       low/close/dir/change 這幾個欄位，會是 null（不是查詢失敗）。
+ *       low/close/dir/change 這幾個欄位，會是 null（不是查詢失敗）。changePercent 是單日點對點漲跌幅，
+ *       analysis-ts 自己用 daily_price 算的（不是來源的 dir/change 欄位），確保上市/上櫃算法一致，資料
+ *       不足時是 null。
  *     tags:
  *       - Market
  *     responses:
@@ -278,6 +280,7 @@ marketRouter.get("/revenue-ranking", async (req, res) => {
  *                   close: null
  *                   dir: null
  *                   change: null
+ *                   changePercent: "-4.09"
  *       502:
  *         description: analysis-ts 服務無法連線或回應格式異常。
  */
@@ -292,10 +295,15 @@ marketRouter.get("/volume-top20", async (_req, res) => {
  *   get:
  *     summary: 處置股清單——依公告日期新到舊，上市＋上櫃合併
  *     description: >
- *       TPEx 目前沒有 announcementCount/dispositionMeasures/linkInformation 這幾個欄位，會是 null
- *       （不是查詢失敗）。reasonTimes 是從 reason 解析出的次數（例如「連續五次」→5），部分處置原因本身
- *       沒有次數概念（例如可轉債標的證券）時是 null，不是解析失敗。sixDayChangePercent 是以 announceDate
- *       為基準日，往前推 6 個交易日的累積漲跌幅（點對點，非逐日相加），資料不足 6 個交易日時是 null。
+ *       只涵蓋真正的上市/上櫃公司（已比對 company_profile 排除非公司標的）。TPEx 目前沒有
+ *       announcementCount/dispositionMeasures/linkInformation 這幾個欄位，會是 null（不是查詢失敗）。
+ *       reasonTimes 是從 reason 解析出的次數（例如「連續五次」→5），reasonShort 是從 reason 解析出的
+ *       中文短標籤（對照官方注意/處置作業要點第四條第一款~第十三款），部分處置原因本身沒有次數/款次概念
+ *       （例如可轉債標的證券）時兩者都是 null，不是解析失敗——⚠️ reasonShort 的 TPEx 端款次編號是比對
+ *       TWSE 規則名稱推斷的，TPEx 官方頁面目前拿不到逐字確認，未來可能修正。dispositionStartDate/
+ *       dispositionEndDate 是把 dispositionPeriod 拆成的兩個西元日期欄位，dispositionPeriod 原始字串
+ *       仍保留。sixDayChangePercent 是以 announceDate 為基準日，往前推 6 個交易日的累積漲跌幅（點對點，
+ *       非逐日相加），資料不足 6 個交易日時是 null。
  *     tags:
  *       - Market
  *     parameters:
@@ -314,18 +322,21 @@ marketRouter.get("/volume-top20", async (_req, res) => {
  *             example:
  *               limit: 1
  *               items:
- *                 - symbol: "3374"
- *                   name: "精材"
+ *                 - symbol: "3629"
+ *                   name: "地心引力"
  *                   market: "TPEx"
  *                   announceDate: "2026-09-01"
  *                   announcementCount: null
- *                   reason: "連續3個營業日及沖銷標準"
+ *                   reason: "因連續3個營業日達本中心作業要點第四條第一項第一款"
  *                   reasonTimes: 3
- *                   dispositionPeriod: "1150902~1150910"
+ *                   reasonShort: "漲跌異常"
+ *                   dispositionPeriod: "1150902~1150908"
+ *                   dispositionStartDate: "2026-09-02"
+ *                   dispositionEndDate: "2026-09-08"
  *                   dispositionMeasures: null
  *                   detail: "..."
  *                   linkInformation: null
- *                   sixDayChangePercent: "37.85"
+ *                   sixDayChangePercent: "42.65"
  *               warnings: []
  *       400:
  *         description: limit 不是 1~50 之間的整數。
@@ -344,10 +355,11 @@ marketRouter.get("/disposed-stocks", async (req, res) => {
  *   get:
  *     summary: 注意股清單——依交易日新到舊，上市＋上櫃合併
  *     description: >
- *       criteriaDetails 是 analysis-ts 把 criteria 中文說明解析成的結構化資料（陣列，因為原始文字有時會
- *       串接兩個子句）。observationDays 只有「N個營業日內已有M次」格式才有值，解析失敗時是空陣列，
- *       criteria 原始文字不受影響。sixDayChangePercent 是以 tradeDate 為基準日，往前推 6 個交易日的
- *       累積漲跌幅（點對點，非逐日相加），資料不足 6 個交易日時是 null。
+ *       只涵蓋真正的上市/上櫃公司（已比對 company_profile 排除非公司標的）。criteriaDetails 是
+ *       analysis-ts 把 criteria 中文說明解析成的結構化資料（陣列，因為原始文字有時會串接兩個子句）。
+ *       observationDays 只有「N個營業日內已有M次」格式才有值，解析失敗時是空陣列，criteria 原始文字不受
+ *       影響。sixDayChangePercent 是以 tradeDate 為基準日，往前推 6 個交易日的累積漲跌幅（點對點，非逐日
+ *       相加），資料不足 6 個交易日時是 null。
  *     tags:
  *       - Market
  *     parameters:
