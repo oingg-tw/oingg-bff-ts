@@ -6,6 +6,7 @@ import type {
   AttentionStocksResult,
   DisposedStockEntry,
   DisposedStocksResult,
+  EtfAssetClass,
   EtfRankingEntry,
   EtfRankingMetric,
   EtfRankingResult,
@@ -216,6 +217,9 @@ function normalizeEtfRankingEntry(raw: unknown): EtfRankingEntry {
     shortName: toStringOrEmpty(r.shortName),
     issuerName: typeof r.companyName === "string" ? r.companyName : null,
     category: toStringOrEmpty(r.category),
+    market: normalizeMarket(r.market),
+    assetClass: typeof r.assetClass === "string" ? (r.assetClass as EtfAssetClass) : null,
+    isActive: r.isActive === true,
     value: toStringOrEmpty(r.value),
     asOf: toStringOrEmpty(r.asOf),
   };

@@ -499,7 +499,9 @@ marketRouter.get("/price-change-ranking", async (req, res) => {
  *       （asOf 是 "YYYY-MM"）；return3m~return10y 是各天期累積報酬率（不是年化）；expenseRatio 只用
  *       最新一個完整年度（asOf 是 "YYYY"），發行日落在該基準年（或更晚）的 ETF 會被排除，避免混進不同
  *       基準年的資料。這支不排除任何 ETF 類型（槓桿/反向 ETF 也會出現）——跟股票排行端點的 ETF 排除邏輯
- *       相反，因為這支本來就是 ETF 排行。
+ *       相反，因為這支本來就是 ETF 排行。market/assetClass/isActive 是從 category（原始字串保留）解析
+ *       出來的：market 是 TWSE/TPEx，assetClass 是國內成分證券/國外成分證券/債券成分/槓桿型/反向型/
+ *       多資產/連結式（主動式 ETF 是 null），isActive 是是否為主動式 ETF。
  *     tags:
  *       - Market
  *     parameters:
@@ -538,6 +540,9 @@ marketRouter.get("/price-change-ranking", async (req, res) => {
  *                   shortName: "元大台灣50"
  *                   issuerName: "元大投信"
  *                   category: "上市ETF_國內成分證券ETF"
+ *                   market: "TWSE"
+ *                   assetClass: "國內成分證券"
+ *                   isActive: false
  *                   value: "2283731446214"
  *                   asOf: "2026-07"
  *               warnings: []

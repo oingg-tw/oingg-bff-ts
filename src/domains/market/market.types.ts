@@ -273,6 +273,15 @@ export type EtfRankingMetric =
  * base years never mix. Includes every ETF type (leveraged/inverse included) — the opposite of the
  * stock-ranking endpoints' ETF exclusion, since this endpoint's whole purpose is ranking ETFs.
  */
+export type EtfAssetClass =
+  | "國內成分證券"
+  | "國外成分證券"
+  | "債券成分"
+  | "槓桿型"
+  | "反向型"
+  | "多資產"
+  | "連結式";
+
 export interface EtfRankingEntry {
   rank: number;
   symbol: string;
@@ -281,6 +290,11 @@ export interface EtfRankingEntry {
   /** The issuing investment trust company (e.g. "元大投信") — NOT a stock-company-reference-table match like other endpoints' `name`; ETFs don't have that kind of row. */
   issuerName: string | null;
   category: string;
+  /** `market`/`assetClass`/`isActive` are parsed out of `category` (e.g. "上市ETF_國外成分證券ETF") — `category`'s raw string is unaffected. Added by analysis-ts on 2026-09-02, as groundwork for an upcoming ETF zone/screener feature (design still being worked out with the user — expect a bigger API change later, similar in scope to POST /screener). */
+  market: Market;
+  /** Null for actively-managed (主動式) ETFs, which don't fit this classification. */
+  assetClass: EtfAssetClass | null;
+  isActive: boolean;
   value: string;
   asOf: string;
 }

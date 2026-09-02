@@ -810,6 +810,9 @@ describe("fetchEtfRanking", () => {
             shortName: "元大台灣50",
             companyName: "元大投信",
             category: "上市ETF_國內成分證券ETF",
+            market: "TWSE",
+            assetClass: "國內成分證券",
+            isActive: false,
             value: 2283731446214,
             asOf: "2026-07",
           },
@@ -832,6 +835,9 @@ describe("fetchEtfRanking", () => {
           shortName: "元大台灣50",
           issuerName: "元大投信",
           category: "上市ETF_國內成分證券ETF",
+          market: "TWSE",
+          assetClass: "國內成分證券",
+          isActive: false,
           value: "2283731446214",
           asOf: "2026-07",
         },
@@ -840,6 +846,38 @@ describe("fetchEtfRanking", () => {
     });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(url.toString()).toBe("http://filters.test/market/etf-ranking?metric=aum&order=desc&limit=1");
+  });
+
+  // Actively-managed (主動式) ETFs don't fit the assetClass classification at all — null, not a guess.
+  it("normalizes an active ETF's null assetClass and true isActive", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        metric: "aum",
+        order: "desc",
+        limit: 1,
+        rankings: [
+          {
+            rank: 1,
+            symbol: "00980A",
+            fundName: "主動式測試基金",
+            shortName: "主動式測試",
+            companyName: "測試投信",
+            category: "上市ETF_主動式ETF",
+            market: "TWSE",
+            assetClass: null,
+            isActive: true,
+            value: 100,
+            asOf: "2026-07",
+          },
+        ],
+        warnings: [],
+      },
+    });
+
+    const result = await fetchEtfRanking("aum", "desc", 1);
+
+    expect(result.rankings[0]).toMatchObject({ assetClass: null, isActive: true });
   });
 
   it("relays analysis-ts's 400 message for an invalid metric", async () => {
