@@ -33,6 +33,8 @@ export interface CompanyProfile {
   privatePlacementShares: string | null;
   preferredStockShares: string | null;
   financialReportType: string | null;
+  /** Human-readable label for `financialReportType` ("1" -> "個別財報", "2" -> "合併財報"), confirmed by analysis-ts against mops-ts's own definition. Added 2026-09-02. */
+  financialReportTypeName: string | null;
   stockTransferAgency: string | null;
   transferAgencyPhone: string | null;
   transferAgencyAddress: string | null;

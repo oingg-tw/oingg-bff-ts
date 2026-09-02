@@ -49,6 +49,7 @@ const RAW_PROFILE = {
   privatePlacementShares: "0",
   preferredStockShares: "0",
   financialReportType: "1",
+  financialReportTypeName: "個別財報",
   stockTransferAgency: "中國信託商業銀行 代理部",
   transferAgencyPhone: "02-6636-5566",
   transferAgencyAddress: "台北市重慶南路一段83號5樓",

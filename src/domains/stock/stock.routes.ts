@@ -78,6 +78,8 @@ stockRouter.get("/:symbol", async (req, res) => {
  *               listedDate: "1994-09-05"
  *               parValue: "10"
  *               paidInCapital: "259323700670"
+ *               financialReportType: "1"
+ *               financialReportTypeName: "個別財報"
  *               issuedShares: "25932370067"
  *               englishShortName: "TSMC"
  *               website: "https://www.tsmc.com"

@@ -32,6 +32,7 @@ function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
     privatePlacementShares: toStringOrNull(raw.privatePlacementShares),
     preferredStockShares: toStringOrNull(raw.preferredStockShares),
     financialReportType: toStringOrNull(raw.financialReportType),
+    financialReportTypeName: toStringOrNull(raw.financialReportTypeName),
     stockTransferAgency: toStringOrNull(raw.stockTransferAgency),
     transferAgencyPhone: toStringOrNull(raw.transferAgencyPhone),
     transferAgencyAddress: toStringOrNull(raw.transferAgencyAddress),
