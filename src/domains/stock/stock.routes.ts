@@ -45,7 +45,8 @@ stockRouter.get("/:symbol", async (req, res) => {
  *     summary: 查詢公司基本資料（董事長、發言人、實收資本額、簽證會計師等）
  *     description: >
  *       資料來自 oingg-analysis-ts 的 GET /companies/profile（上市查無資料才查上櫃）。不篩選 ETF／KY／
- *       興櫃身分——指名查哪支代號就照實回傳那家公司的資料。TPEx 沒有 englishAddress 欄位，一律是 null。
+ *       興櫃身分——指名查哪支代號就照實回傳那家公司的資料。TPEx 沒有 englishAddress、industryName 欄位，
+ *       一律是 null（不是查詢失敗，是 TPEx 資料源本來就沒有）。
  *     tags:
  *       - Stock
  *     parameters:
@@ -67,6 +68,8 @@ stockRouter.get("/:symbol", async (req, res) => {
  *               reportDate: "2026-08-29"
  *               name: "台灣積體電路製造股份有限公司"
  *               shortName: "台積電"
+ *               industry: "24"
+ *               industryName: "半導體業"
  *               chairman: "魏哲家"
  *               generalManager: "總裁: 魏哲家"
  *               spokesperson: "黃仁昭"

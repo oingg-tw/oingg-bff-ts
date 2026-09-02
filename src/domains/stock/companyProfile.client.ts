@@ -16,6 +16,7 @@ function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
     shortName: String(raw.shortName),
     foreignRegistrationCountry: toStringOrNull(raw.foreignRegistrationCountry),
     industry: toStringOrNull(raw.industry),
+    industryName: toStringOrNull(raw.industryName),
     address: toStringOrNull(raw.address),
     taxId: toStringOrNull(raw.taxId),
     chairman: toStringOrNull(raw.chairman),

@@ -14,6 +14,8 @@ export interface CompanyProfile {
   shortName: string;
   foreignRegistrationCountry: string | null;
   industry: string | null;
+  /** Human-readable label for `industry` (e.g. "半導體業" for code "24"). TWSE's company_profile has this natively; TPEx's export doesn't (always null there, pending tpex-ts) — analysis-ts deliberately isn't guessing a code table for it. Added 2026-09-02. */
+  industryName: string | null;
   address: string | null;
   taxId: string | null;
   chairman: string | null;

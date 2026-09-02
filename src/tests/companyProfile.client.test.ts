@@ -33,6 +33,7 @@ const RAW_PROFILE = {
   shortName: "台積電",
   foreignRegistrationCountry: null,
   industry: "24",
+  industryName: "半導體業",
   address: "新竹科學園區力行六路8號",
   taxId: "22099131",
   chairman: "魏哲家",
@@ -79,14 +80,19 @@ describe("fetchCompanyProfile", () => {
     await expect(fetchCompanyProfile("nope")).resolves.toBeNull();
   });
 
-  // TPEx has no englishAddress field at all on its source side — always null there, not a query failure.
-  it("keeps englishAddress null for a TPEx company", async () => {
-    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, market: "TPEx", englishAddress: null } });
+  // TPEx has no englishAddress or industryName field at all on its source side — always null there, not
+  // a query failure. industryName is null on TPEx pending tpex-ts (analysis-ts won't guess a code table).
+  it("keeps englishAddress and industryName null for a TPEx company", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { ...RAW_PROFILE, market: "TPEx", englishAddress: null, industryName: null },
+    });
 
     const result = await fetchCompanyProfile("8299");
 
     expect(result?.market).toBe("TPEx");
     expect(result?.englishAddress).toBeNull();
+    expect(result?.industryName).toBeNull();
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
