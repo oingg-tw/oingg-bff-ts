@@ -3,6 +3,7 @@ import helmet from "helmet";
 import { Router } from "ultimate-express";
 import { swaggerSpec, swaggerUi } from "@/adapters/swagger/index.js";
 import { authRouter } from "@/domains/auth/index.js";
+import { etfScreenerRouter } from "@/domains/etfScreener/index.js";
 import { filterCatalogRouter } from "@/domains/filterCatalog/index.js";
 import { holdingsRouter } from "@/domains/holdings/index.js";
 import { marketRouter } from "@/domains/market/index.js";
@@ -62,3 +63,4 @@ routes.use("/transactions", transactionsRouter); // GET/POST /transactions, GET/
 routes.use("/screener", screenerRoutes);
 routes.use("/filters", filterCatalogRouter); // GET /filters
 routes.use("/market", marketRouter); // GET /market/foreign-holding-ranking, GET /market/margin-short-ratio-ranking
+routes.use("/etf-screener", etfScreenerRouter); // GET /etf-screener/filters, POST /etf-screener
