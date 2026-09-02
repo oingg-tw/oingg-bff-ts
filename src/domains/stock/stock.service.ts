@@ -1,3 +1,5 @@
+import { fetchCompanyProfile } from "@/domains/stock/companyProfile.client.js";
+import type { CompanyProfile } from "@/domains/stock/companyProfile.types.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domains/stock/stockQuote.client.js";
 import type { StockQuote } from "@/domains/stock/stock.types.js";
 
@@ -18,4 +20,9 @@ export async function getStockQuote(symbol: string): Promise<StockQuote | null> 
  */
 export async function getLatestClosePrices(symbols: string[]): Promise<Map<string, ClosePrice>> {
   return fetchStockPrices(symbols);
+}
+
+/** Company basic-info profile — GET /stocks/:symbol/profile. */
+export async function getCompanyProfile(symbol: string): Promise<CompanyProfile | null> {
+  return fetchCompanyProfile(symbol);
 }

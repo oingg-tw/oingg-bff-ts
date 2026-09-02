@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
 import { AppError } from "@/shared/errorHandler.js";
-import { getStockQuote } from "@/domains/stock/stock.service.js";
+import { getCompanyProfile, getStockQuote } from "@/domains/stock/stock.service.js";
 
 export const stockRouter = Router();
 
@@ -36,4 +36,58 @@ stockRouter.get("/:symbol", async (req, res) => {
     throw new AppError(`No stock data found for symbol "${symbol}"`, 404);
   }
   res.json(quote);
+});
+
+/**
+ * @swagger
+ * /stocks/{symbol}/profile:
+ *   get:
+ *     summary: 查詢公司基本資料（董事長、發言人、實收資本額、簽證會計師等）
+ *     description: >
+ *       資料來自 oingg-analysis-ts 的 GET /companies/profile（上市查無資料才查上櫃）。不篩選 ETF／KY／
+ *       興櫃身分——指名查哪支代號就照實回傳那家公司的資料。TPEx 沒有 englishAddress 欄位，一律是 null。
+ *     tags:
+ *       - Stock
+ *     parameters:
+ *       - in: path
+ *         name: symbol
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 股票代號
+ *         example: "2330"
+ *     responses:
+ *       200:
+ *         description: 公司基本資料。
+ *         content:
+ *           application/json:
+ *             example:
+ *               symbol: "2330"
+ *               market: "TWSE"
+ *               reportDate: "2026-08-29"
+ *               name: "台灣積體電路製造股份有限公司"
+ *               shortName: "台積電"
+ *               chairman: "魏哲家"
+ *               generalManager: "總裁: 魏哲家"
+ *               spokesperson: "黃仁昭"
+ *               spokespersonTitle: "資深副總經理暨財務長"
+ *               establishedDate: "1987-02-21"
+ *               listedDate: "1994-09-05"
+ *               parValue: "10"
+ *               paidInCapital: "259323700670"
+ *               issuedShares: "25932370067"
+ *               englishShortName: "TSMC"
+ *               website: "https://www.tsmc.com"
+ *       404:
+ *         description: 上市、上櫃都查無此股票代號的公司基本資料。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+stockRouter.get("/:symbol/profile", async (req, res) => {
+  const { symbol } = req.params;
+  const profile = await getCompanyProfile(symbol);
+  if (!profile) {
+    throw new AppError(`No company profile found for symbol "${symbol}"`, 404);
+  }
+  res.json(profile);
 });
