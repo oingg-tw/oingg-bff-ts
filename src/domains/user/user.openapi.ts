@@ -1,5 +1,13 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
+import {
+  updateDashboardCardsSchema,
+  updateFullWidthSchema,
+  updateMarketColorConventionSchema,
+  updateShowAsOfDateSchema,
+  updateThemeAccentColorSchema,
+  updateThemeModeSchema,
+} from "@/domains/user/user.routes.js";
 
 const userProfileSchema = z
   .object({
@@ -74,7 +82,7 @@ registry.registerPath({
   tags: ["User"],
   security: [{ bearerAuth: [] }],
   request: {
-    body: { content: { "application/json": { schema: z.object({ mode: z.enum(["LIGHT", "DARK", "SYSTEM"]) }) } } },
+    body: { content: { "application/json": { schema: updateThemeModeSchema.openapi("UpdateThemeModeRequest") } } },
   },
   responses: {
     200: {
@@ -94,11 +102,7 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: {
     body: {
-      content: {
-        "application/json": {
-          schema: z.object({ accentColor: z.enum(["BLUE", "GREEN", "PURPLE", "ORANGE", "RED", "TEAL", "GOLD"]) }),
-        },
-      },
+      content: { "application/json": { schema: updateThemeAccentColorSchema.openapi("UpdateThemeAccentColorRequest") } },
     },
   },
   responses: {
@@ -120,9 +124,7 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: {
     body: {
-      content: {
-        "application/json": { schema: z.object({ marketColorConvention: z.enum(["ASIA", "WESTERN", "ACCESSIBLE"]) }) },
-      },
+      content: { "application/json": { schema: updateMarketColorConventionSchema.openapi("UpdateMarketColorConventionRequest") } },
     },
   },
   responses: {
@@ -144,7 +146,7 @@ registry.registerPath({
   tags: ["User"],
   security: [{ bearerAuth: [] }],
   request: {
-    body: { content: { "application/json": { schema: z.object({ isFullWidth: z.boolean() }) } } },
+    body: { content: { "application/json": { schema: updateFullWidthSchema.openapi("UpdateFullWidthRequest") } } },
   },
   responses: {
     200: {
@@ -177,7 +179,7 @@ registry.registerPath({
   tags: ["User"],
   security: [{ bearerAuth: [] }],
   request: {
-    body: { content: { "application/json": { schema: z.object({ showAsOfDate: z.boolean() }) } } },
+    body: { content: { "application/json": { schema: updateShowAsOfDateSchema.openapi("UpdateShowAsOfDateRequest") } } },
   },
   responses: {
     200: { description: "更新後的顯示設定。", content: { "application/json": { schema: displaySettingsResponseSchema } } },
@@ -211,7 +213,7 @@ registry.registerPath({
   tags: ["User"],
   security: [{ bearerAuth: [] }],
   request: {
-    body: { content: { "application/json": { schema: z.object({ visibleCardIds: z.array(z.string()) }) } } },
+    body: { content: { "application/json": { schema: updateDashboardCardsSchema.openapi("UpdateDashboardCardsRequest") } } },
   },
   responses: {
     200: {

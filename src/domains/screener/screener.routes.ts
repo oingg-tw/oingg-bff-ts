@@ -1,13 +1,14 @@
 import { Router } from "ultimate-express";
-import { AppError } from "@/shared/errorHandler.js";
-import { parseUuidParam } from "@/shared/uuid.js";
+import { z } from "zod";
+import { UUID_PATTERN } from "@/shared/uuid.js";
+import { parseBody } from "@/shared/validation.js";
 import { optionalAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 import { runRanking, runScreener, runScreenerValues } from "@/domains/screener/screener.service.js";
 import { resolveScreenerColumns } from "@/domains/screener/columnPresets.service.js";
-import { parsePagination } from "@/domains/screener/pagination.js";
-import { parseScreenerFilters, parseSort } from "@/domains/screener/screenerFilterInput.js";
-import type { ScreenerColumnRef, ScreenerFilter } from "@/domains/screener/screener.types.js";
+import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/domains/screener/pagination.js";
+import { screenerFiltersArraySchema } from "@/domains/screener/screenerFilterInput.js";
+import type { ScreenerColumnRef } from "@/domains/screener/screener.types.js";
 
 const DEFAULT_RANKING_LIMIT = 10;
 const MAX_RANKING_LIMIT = 50;
@@ -20,97 +21,54 @@ export const screenerRouter = Router();
 // through to the system default columns.
 screenerRouter.use(optionalAuth);
 
-function parseFilters(body: unknown): ScreenerFilter[] {
-  return parseScreenerFilters((body as { filters?: unknown } | null)?.filters);
-}
-
-function parseOptionalColumnPresetId(body: unknown): string | undefined {
-  const value = (body as { columnPresetId?: unknown } | null)?.columnPresetId;
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-  if (typeof value !== "string") {
-    throw new AppError('"columnPresetId" must be a UUID string', 400);
-  }
-  return parseUuidParam(value, "column preset");
-}
+export const screenerRequestSchema = z
+  .object({
+    filters: screenerFiltersArraySchema,
+    columnPresetId: z
+      .string({ error: '"columnPresetId" must be a UUID string' })
+      .regex(UUID_PATTERN, { error: '"columnPresetId" must be a valid UUID' })
+      .nullish(),
+    page: paginationSchema.shape.page,
+    pageSize: paginationSchema.shape.pageSize,
+    sortField: z
+      .string({ error: '"sortField" must be a non-empty string' })
+      .trim()
+      .min(1, '"sortField" must be a non-empty string')
+      .optional(),
+    sortOrder: z.enum(["asc", "desc"], { error: '"sortOrder" must be "asc" or "desc"' }).optional(),
+  })
+  .refine((data) => (data.sortField === undefined) === (data.sortOrder === undefined), {
+    message: '"sortField" and "sortOrder" must be given together, or not at all',
+    path: ["sortField"],
+  });
 
 screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = req.user?.uid;
-  const filters = parseFilters(req.body);
-  const requestedColumnPresetId = parseOptionalColumnPresetId(req.body);
-  const body = req.body as { page?: unknown; pageSize?: unknown; sortField?: unknown; sortOrder?: unknown } | null;
-  const pagination = parsePagination(body?.page, body?.pageSize);
-  const sort = parseSort(body?.sortField, body?.sortOrder);
+  const body = parseBody(screenerRequestSchema, req.body);
+  const filters = body.filters.map((f) => ({ field: f.field, min: f.min ?? null, max: f.max ?? null, exclude: f.exclude ?? false }));
+  const requestedColumnPresetId = body.columnPresetId ?? undefined;
+  const pagination = { page: body.page ?? 1, pageSize: body.pageSize ?? DEFAULT_PAGE_SIZE };
+  const sort = body.sortField !== undefined ? { field: body.sortField, order: body.sortOrder! } : undefined;
 
   const { columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, requestedColumnPresetId);
   const result = await runScreener(filters, columns, pagination, sort);
   res.json({ ...result, columnPresetId });
 });
 
-function parseSymbols(raw: unknown): string[] {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    throw new AppError('"symbols" must be a non-empty array of strings', 400);
-  }
-  return raw.map((value, index) => {
-    if (typeof value !== "string" || value.trim() === "") {
-      throw new AppError(`symbols[${index}] must be a non-empty string`, 400);
-    }
-    return value;
-  });
-}
-
-function parseColumnRefs(raw: unknown): ScreenerColumnRef[] {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    throw new AppError('"columns" must be a non-empty array', 400);
-  }
-  return raw.map((value, index) => {
-    if (typeof value !== "object" || value === null || typeof (value as { field?: unknown }).field !== "string") {
-      throw new AppError(`columns[${index}].field is required`, 400);
-    }
-    return { field: (value as { field: string }).field };
-  });
-}
+export const screenerValuesRequestSchema = z.object({
+  symbols: z.array(z.string().trim().min(1)).min(1, '"symbols" must be a non-empty array of strings'),
+  columns: z.array(z.object({ field: z.string().trim().min(1) })).min(1, '"columns" must be a non-empty array'),
+});
 
 screenerRouter.post("/values", async (req, res) => {
-  const body = req.body as { symbols?: unknown; columns?: unknown } | null;
-  const symbols = parseSymbols(body?.symbols);
-  const columns = parseColumnRefs(body?.columns);
-
-  const result = await runScreenerValues(symbols, columns);
+  const body = parseBody(screenerValuesRequestSchema, req.body);
+  const result = await runScreenerValues(body.symbols, body.columns);
   res.json(result);
 });
 
-function parseRankingDirection(raw: unknown): "asc" | "desc" {
-  if (raw === undefined) {
-    return "desc";
-  }
-  if (raw !== "asc" && raw !== "desc") {
-    throw new AppError('"direction" must be "asc" or "desc"', 400);
-  }
-  return raw;
-}
-
-function parseRankingLimit(raw: unknown): number {
-  if (raw === undefined) {
-    return DEFAULT_RANKING_LIMIT;
-  }
-  const value = typeof raw === "number" ? raw : Number(raw);
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new AppError('"limit" must be a positive integer', 400);
-  }
-  if (value > MAX_RANKING_LIMIT) {
-    throw new AppError(`"limit" must be at most ${MAX_RANKING_LIMIT}`, 400);
-  }
-  return value;
-}
-
-function parseRankingColumns(raw: unknown): ScreenerColumnRef[] {
+function parseRankingColumns(raw: string | undefined): ScreenerColumnRef[] {
   if (raw === undefined) {
     return [];
-  }
-  if (typeof raw !== "string" || raw.trim() === "") {
-    throw new AppError('"columns" must be a comma-separated string of fields', 400);
   }
   return raw
     .split(",")
@@ -119,15 +77,30 @@ function parseRankingColumns(raw: unknown): ScreenerColumnRef[] {
     .map((field) => ({ field }));
 }
 
-screenerRouter.get("/ranking", async (req, res) => {
-  const field = req.query.field;
-  if (typeof field !== "string" || field.trim() === "") {
-    throw new AppError('"field" query parameter is required', 400);
-  }
-  const direction = parseRankingDirection(req.query.direction);
-  const limit = parseRankingLimit(req.query.limit);
-  const columns = parseRankingColumns(req.query.columns);
+export const rankingQuerySchema = z.object({
+  field: z.string({ error: '"field" query parameter is required' }).trim().min(1, '"field" query parameter is required'),
+  direction: z.enum(["asc", "desc"], { error: '"direction" must be "asc" or "desc"' }).optional(),
+  limit: z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : v),
+    z
+      .coerce.number({ error: '"limit" must be a positive integer' })
+      .refine((n) => Number.isInteger(n) && n > 0, { message: '"limit" must be a positive integer' })
+      .refine((n) => n <= MAX_RANKING_LIMIT, { message: `"limit" must be at most ${MAX_RANKING_LIMIT}` })
+      .optional(),
+  ),
+  columns: z
+    .string({ error: '"columns" must be a comma-separated string of fields' })
+    .trim()
+    .min(1, '"columns" must be a comma-separated string of fields')
+    .optional(),
+});
 
-  const result = await runRanking(field, direction, limit, columns);
+screenerRouter.get("/ranking", async (req, res) => {
+  const query = parseBody(rankingQuerySchema, req.query);
+  const direction = query.direction ?? "desc";
+  const limit = query.limit ?? DEFAULT_RANKING_LIMIT;
+  const columns = parseRankingColumns(query.columns);
+
+  const result = await runRanking(query.field, direction, limit, columns);
   res.json(result);
 });

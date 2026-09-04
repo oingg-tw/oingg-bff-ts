@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
+import { createColumnPresetSchema, updateColumnPresetSchema } from "@/domains/screener/columnPresets.routes.js";
 
 export const columnPresetSchema = z
   .object({
@@ -16,21 +17,8 @@ const idParam = z.object({ id: z.string().openapi({ format: "uuid" }) });
 const unauthorized = errorResponse("缺少或無效的 Authorization header / token。");
 const notFound = errorResponse("不存在，或不屬於目前登入的使用者。");
 
-const createColumnPresetSchema = z
-  .object({
-    name: z.string().openapi({ example: "常用欄位" }),
-    isDefault: z.boolean().optional().openapi({ default: false }),
-    columns: z.array(z.object({ field: z.string().openapi({ example: "per.peRatio" }) })),
-  })
-  .openapi("CreateColumnPresetRequest");
-
-const updateColumnPresetSchema = z
-  .object({
-    name: z.string().optional(),
-    isDefault: z.boolean().optional(),
-    columns: z.array(z.object({ field: z.string() })).optional(),
-  })
-  .openapi("UpdateColumnPresetRequest");
+const createColumnPresetRequestSchema = createColumnPresetSchema.openapi("CreateColumnPresetRequest");
+const updateColumnPresetRequestSchema = updateColumnPresetSchema.openapi("UpdateColumnPresetRequest");
 
 registry.registerPath({
   method: "get",
@@ -55,7 +43,7 @@ registry.registerPath({
     "field 格式跟 filters 一樣是 \"<metricKey>.<fieldKey>\"，另外多支援一個特殊欄位 \"stock.price\"（股價，來自 twse/tpex，不是 filterCatalog 的一部分）。isDefault=true 時會自動取消同一使用者底下其他組合的預設狀態——同時間最多只有一組是預設。columns 可以是空陣列。",
   tags: ["Screener"],
   security: [{ bearerAuth: [] }],
-  request: { body: { required: true, content: { "application/json": { schema: createColumnPresetSchema } } } },
+  request: { body: { required: true, content: { "application/json": { schema: createColumnPresetRequestSchema } } } },
   responses: {
     201: { description: "新增成功的欄位組合。", content: { "application/json": { schema: z.object({ columnPreset: columnPresetSchema }) } } },
     400: errorResponse("缺少 name/columns，或有 field 既不是 filterCatalog 欄位也不是特殊欄位。"),
@@ -85,7 +73,7 @@ registry.registerPath({
   description: "columns 有給的話是整組覆蓋，不是增量。",
   tags: ["Screener"],
   security: [{ bearerAuth: [] }],
-  request: { params: idParam, body: { content: { "application/json": { schema: updateColumnPresetSchema } } } },
+  request: { params: idParam, body: { content: { "application/json": { schema: updateColumnPresetRequestSchema } } } },
   responses: {
     200: { description: "更新後的欄位組合。", content: { "application/json": { schema: z.object({ columnPreset: columnPresetSchema }) } } },
     400: errorResponse("有 field 既不是 filterCatalog 欄位也不是特殊欄位。"),
