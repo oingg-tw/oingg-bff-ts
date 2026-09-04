@@ -49,13 +49,13 @@ function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
 }
 
 /**
- * Fetches a company's basic-info profile from analysis-ts's GET /companies/profile?companyId=. Null on a
+ * Fetches a company's basic-info profile from analysis-ts's GET /companies/profile?symbol=. Null on a
  * 404 (TWSE checked first, then TPEx — analysis-ts only 404s if neither has it). Not filtered by ETF/KY/
  * 興櫃 status — whichever symbol is asked for is returned as-is, per analysis-ts directly.
  */
 export async function fetchCompanyProfile(symbol: string): Promise<CompanyProfile | null> {
   const url = new URL("/companies/profile", requireEnv("FILTERS_SERVICE_URL"));
-  url.searchParams.set("companyId", symbol);
+  url.searchParams.set("symbol", symbol);
 
   let response: Response;
   try {

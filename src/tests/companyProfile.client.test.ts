@@ -65,14 +65,14 @@ const RAW_PROFILE = {
 };
 
 describe("fetchCompanyProfile", () => {
-  it("requests /companies/profile?companyId= and normalizes parValue to a string", async () => {
+  it("requests /companies/profile?symbol= and normalizes parValue to a string", async () => {
     mockFetchOnce({ ok: true, body: RAW_PROFILE });
 
     const result = await fetchCompanyProfile("2330");
 
     expect(result).toEqual({ ...RAW_PROFILE, parValue: "10" });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/profile?companyId=2330");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/profile?symbol=2330");
   });
 
   it("returns null on a 404 (checked TWSE then TPEx, neither had it) instead of throwing", async () => {
