@@ -1,8 +1,60 @@
 import { Router } from "ultimate-express";
 import { AppError } from "@/shared/errorHandler.js";
-import { getCapitalStockHistory, getCompanyProfile, getStockQuote } from "@/domains/stock/stock.service.js";
+import { getCapitalStockHistory, getCompanyProfile, getExDividendNotices, getStockQuote } from "@/domains/stock/stock.service.js";
+
+const MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST = 100;
 
 export const stockRouter = Router();
+
+/**
+ * @swagger
+ * /stocks/ex-dividend-notices:
+ *   get:
+ *     summary: 批次查詢即將除息/除權的公告
+ *     description: >
+ *       資料來自 oingg-analysis-ts 的 GET /stocks/ex-dividend-notices。symbols 逗號分隔，一次最多 100 檔
+ *       （超過回 400）。查無未來除權息公告的代號不會出現在 notices 裡（不是空陣列）。同一代號的陣列已依
+ *       exDate 由近到遠排序。exType「權」底下有兩種互斥欄位組合：股票股利/盈餘轉增資用
+ *       stockDividendRatio；現金增資認股用 subscriptionRatio/subscriptionPricePerShare/sharesOffered/
+ *       sharesEmpOwner/sharesholderOwner/stockHoldingRatio，不會同時出現。純「息」只有 cashDividend
+ *       非 null。sharesOffered 等 4 個現金增資欄位的語意是 analysis-ts 依欄位命名推測，未跟 twse-ts
+ *       正式核對過。
+ *     tags:
+ *       - Stock
+ *     parameters:
+ *       - in: query
+ *         name: symbols
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 逗號分隔的股票代號，最多 100 檔
+ *         example: "2330,00939"
+ *     responses:
+ *       200:
+ *         description: 除權息公告，key 是股票代號，查無公告的代號不會出現。
+ *       400:
+ *         description: 缺少 symbols 參數，或超過 100 檔。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+stockRouter.get("/ex-dividend-notices", async (req, res) => {
+  const symbolsParam = req.query.symbols;
+  if (typeof symbolsParam !== "string" || symbolsParam.trim() === "") {
+    throw new AppError('Query parameter "symbols" is required (comma-separated stock symbols)', 400);
+  }
+  const symbols = symbolsParam
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (symbols.length > MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST) {
+    throw new AppError(
+      `Requested ${symbols.length} symbols at once, but this endpoint caps at ${MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST}`,
+      400,
+    );
+  }
+  const notices = await getExDividendNotices(symbols);
+  res.json({ notices: Object.fromEntries(notices) });
+});
 
 /**
  * @swagger

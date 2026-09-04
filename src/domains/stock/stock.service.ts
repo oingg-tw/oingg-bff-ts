@@ -2,6 +2,8 @@ import { fetchCapitalStockHistory } from "@/domains/stock/capitalStockHistory.cl
 import type { CapitalStockHistoryResult } from "@/domains/stock/capitalStockHistory.types.js";
 import { fetchCompanyProfile } from "@/domains/stock/companyProfile.client.js";
 import type { CompanyProfile } from "@/domains/stock/companyProfile.types.js";
+import { fetchExDividendNotices } from "@/domains/stock/exDividendNotices.client.js";
+import type { ExDividendNoticeEntry } from "@/domains/stock/exDividendNotices.types.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domains/stock/stockQuote.client.js";
 import type { StockQuote } from "@/domains/stock/stock.types.js";
 
@@ -32,4 +34,9 @@ export async function getCompanyProfile(symbol: string): Promise<CompanyProfile 
 /** Historical paid-in-capital/shares changes — GET /stocks/:symbol/capital-stock-history. */
 export async function getCapitalStockHistory(symbol: string): Promise<CapitalStockHistoryResult> {
   return fetchCapitalStockHistory(symbol);
+}
+
+/** Batched upcoming ex-dividend/ex-rights lookup — GET /stocks/ex-dividend-notices. */
+export async function getExDividendNotices(symbols: string[]): Promise<Map<string, ExDividendNoticeEntry[]>> {
+  return fetchExDividendNotices(symbols);
 }
