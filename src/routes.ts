@@ -36,17 +36,6 @@ routes.use(
   }),
 );
 
-/**
- * @swagger
- * /:
- *   get:
- *     summary: 伺服器啟動時間與運作時長
- *     tags:
- *       - System
- *     responses:
- *       200:
- *         description: 開機時間與 uptime。
- */
 routes.get("/", (_req, res) => {
   res.json({
     status: "ok",

@@ -1,24 +1,33 @@
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import swaggerJSDoc from "swagger-jsdoc";
+import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
 import swaggerUi from "swagger-ui-express";
+import { registry } from "@/adapters/swagger/registry.js";
 import { env } from "@/shared/env.js";
 
-// ESM has no __dirname; rebuild it from import.meta.url.
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Side-effect imports — each one calls registry.registerPath(...) for its domain's endpoints. All of
+// these must run before generateDocument() below, or the registry is incomplete for whatever hasn't
+// been imported yet (ESM hoists/runs import statements before any other top-level code in this file,
+// so this ordering is guaranteed regardless of what else imports these modules elsewhere — confirmed
+// with twse-ts, who hit this exact ordering trap themselves, 2026-09-04).
+import "@/root.openapi.js";
+import "@/domains/system/system.openapi.js";
+import "@/domains/auth/auth.openapi.js";
+import "@/domains/user/user.openapi.js";
+import "@/domains/stock/stock.openapi.js";
+import "@/domains/watchlist/watchlist.openapi.js";
+import "@/domains/holdings/holdings.openapi.js";
+import "@/domains/transactions/transactions.openapi.js";
+import "@/domains/filterCatalog/filterCatalog.openapi.js";
+import "@/domains/market/market.openapi.js";
+import "@/domains/etfScreener/etfScreener.openapi.js";
+import "@/domains/screener/screener.openapi.js";
+import "@/domains/screener/columnPresets.openapi.js";
+import "@/domains/screener/screenerPresets.openapi.js";
+import "@/domains/columnPresetTemplates/columnPresetTemplates.openapi.js";
+import "@/domains/presetTemplates/presetTemplates.openapi.js";
 
-// glob (used internally by swagger-jsdoc) treats "\" as an escape character, so Windows-style
-// paths from join() silently match zero files there. Normalize to "/".
-const toGlobPath = (...segments: string[]) => join(...segments).split("\\").join("/");
-
-// Unlike sibling services (which only ever run via tsx against src/), this one also runs compiled
-// output directly with `node dist/index.js`. tsc preserves comments, so the @swagger JSDoc blocks
-// survive into the .js files too — just match whichever extension this very module is running as.
-const sourceExtension = __filename.endsWith(".ts") ? "ts" : "js";
-
-const options: swaggerJSDoc.Options = {
-  definition: {
+function generateDocument() {
+  const generator = new OpenApiGeneratorV3(registry.definitions);
+  return generator.generateDocument({
     openapi: "3.0.0",
     info: {
       title: "oingg-bff-ts API",
@@ -40,22 +49,11 @@ const options: swaggerJSDoc.Options = {
       { name: "Holdings", description: "使用者持股管理 CRUD（獨立維護，不從交易日誌自動計算）" },
       { name: "Transactions", description: "交易日誌（買進／賣出交易紀錄）CRUD" },
       { name: "Screener", description: "依 filterCatalog 指標篩選個股，並依使用者設定的欄位偏好回傳結果" },
+      { name: "Market", description: "市場排行/清單（外資持股、券資比、注意股、處置股、成交量、漲跌幅、ETF 排行等）" },
+      { name: "ETF Screener", description: "ETF 篩選" },
     ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: "http",
-          scheme: "bearer",
-          description: "Firebase ID token（requireAuth middleware 驗證用）",
-        },
-      },
-    },
-  },
-  apis: [
-    toGlobPath(__dirname, `../../domains/**/*.${sourceExtension}`),
-    toGlobPath(__dirname, `../../routes.${sourceExtension}`),
-  ],
-};
+  });
+}
 
-export const swaggerSpec = swaggerJSDoc(options);
+export const swaggerSpec = generateDocument();
 export { swaggerUi };
