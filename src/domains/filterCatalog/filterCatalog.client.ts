@@ -22,19 +22,19 @@ export async function fetchFilterCatalog(): Promise<FilterCategory[]> {
     // refused/unreachable host, DNS, timeout. Without this, that surfaces as a generic uncaught 500
     // instead of a clear "the analysis service is down" 502 (same gap found and fixed in
     // valuationRanking.client.ts's fetchValuationRanking — this one was missed at the time).
-    throw new AppError(
-      `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,
-      502,
-    );
+    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
+    throw new AppError("Could not reach the analysis service", 502);
   }
 
   if (!response.ok) {
-    throw new AppError(`Filters service returned ${response.status} for ${url.toString()}`, 502);
+    console.error(`Filters service returned ${response.status} for ${url.toString()}`);
+    throw new AppError(`Filters service returned ${response.status}`, 502);
   }
 
   const body: unknown = await response.json();
   if (!isFilterCatalogResponse(body)) {
-    throw new AppError(`Filters service response at ${url.toString()} is missing a "categories" array`, 502);
+    console.error(`Filters service response at ${url.toString()} is missing a "categories" array`);
+    throw new AppError('Filters service response is missing a "categories" array', 502);
   }
 
   return body.categories;

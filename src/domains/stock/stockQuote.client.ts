@@ -77,22 +77,22 @@ export async function fetchStockQuote(symbol: string): Promise<StockQuote | null
   try {
     response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
-    throw new AppError(
-      `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,
-      502,
-    );
+    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
+    throw new AppError("Could not reach the analysis service", 502);
   }
 
   if (response.status === 404) {
     return null;
   }
   if (!response.ok) {
-    throw new AppError(`Stock quote endpoint returned ${response.status} for ${url.toString()}`, 502);
+    console.error(`Stock quote endpoint returned ${response.status} for ${url.toString()}`);
+    throw new AppError(`Stock quote endpoint returned ${response.status}`, 502);
   }
 
   const body: unknown = await response.json();
   if (!isStockQuote(body)) {
-    throw new AppError(`Stock quote endpoint response at ${url.toString()} is missing symbol/price/valuation`, 502);
+    console.error(`Stock quote endpoint response at ${url.toString()} is missing symbol/price/valuation`);
+    throw new AppError("Stock quote endpoint response is missing symbol/price/valuation", 502);
   }
 
   return normalizeStockQuote(body);
@@ -124,19 +124,19 @@ export async function fetchStockPrices(symbols: string[]): Promise<Map<string, C
   try {
     response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
-    throw new AppError(
-      `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,
-      502,
-    );
+    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
+    throw new AppError("Could not reach the analysis service", 502);
   }
 
   if (!response.ok) {
-    throw new AppError(`Stock prices endpoint returned ${response.status} for ${url.toString()}`, 502);
+    console.error(`Stock prices endpoint returned ${response.status} for ${url.toString()}`);
+    throw new AppError(`Stock prices endpoint returned ${response.status}`, 502);
   }
 
   const body: unknown = await response.json();
   if (!isPricesResponse(body)) {
-    throw new AppError(`Stock prices endpoint response at ${url.toString()} is missing a "prices" object`, 502);
+    console.error(`Stock prices endpoint response at ${url.toString()} is missing a "prices" object`);
+    throw new AppError('Stock prices endpoint response is missing a "prices" object', 502);
   }
 
   return new Map(Object.entries(body.prices).map(([symbol, price]) => [symbol, normalizeClosePrice(price)]));

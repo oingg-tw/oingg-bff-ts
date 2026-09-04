@@ -61,22 +61,22 @@ export async function fetchCompanyProfile(symbol: string): Promise<CompanyProfil
   try {
     response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
-    throw new AppError(
-      `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,
-      502,
-    );
+    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
+    throw new AppError("Could not reach the analysis service", 502);
   }
 
   if (response.status === 404) {
     return null;
   }
   if (!response.ok) {
-    throw new AppError(`Company profile endpoint returned ${response.status} for ${url.toString()}`, 502);
+    console.error(`Company profile endpoint returned ${response.status} for ${url.toString()}`);
+    throw new AppError(`Company profile endpoint returned ${response.status}`, 502);
   }
 
   const body: unknown = await response.json();
   if (typeof body !== "object" || body === null || typeof (body as { symbol?: unknown }).symbol !== "string") {
-    throw new AppError(`Company profile endpoint response at ${url.toString()} is missing symbol`, 502);
+    console.error(`Company profile endpoint response at ${url.toString()} is missing symbol`);
+    throw new AppError("Company profile endpoint response is missing symbol", 502);
   }
 
   return normalizeCompanyProfile(body as Record<string, unknown>);

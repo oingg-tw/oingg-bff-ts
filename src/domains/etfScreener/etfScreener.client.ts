@@ -64,10 +64,14 @@ async function handleJsonResponse(response: Response, url: URL): Promise<unknown
   if (response.status === 400) {
     const body: unknown = await response.json().catch(() => null);
     const message = (body as { message?: unknown } | null)?.message;
-    throw new AppError(typeof message === "string" ? message : `Invalid ETF screener request to ${url.toString()}`, 400);
+    if (typeof message !== "string") {
+      console.error(`Invalid ETF screener request to ${url.toString()}, no message in response body`);
+    }
+    throw new AppError(typeof message === "string" ? message : "Invalid ETF screener request", 400);
   }
   if (!response.ok) {
-    throw new AppError(`ETF screener endpoint returned ${response.status} for ${url.toString()}`, 502);
+    console.error(`ETF screener endpoint returned ${response.status} for ${url.toString()}`);
+    throw new AppError(`ETF screener endpoint returned ${response.status}`, 502);
   }
   return response.json();
 }
@@ -78,10 +82,8 @@ async function getJson(path: string): Promise<unknown> {
   try {
     response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
-    throw new AppError(
-      `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,
-      502,
-    );
+    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
+    throw new AppError("Could not reach the analysis service", 502);
   }
   return handleJsonResponse(response, url);
 }
@@ -97,10 +99,8 @@ async function postJson(path: string, body: unknown): Promise<unknown> {
       signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS),
     });
   } catch (error) {
-    throw new AppError(
-      `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,
-      502,
-    );
+    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
+    throw new AppError("Could not reach the analysis service", 502);
   }
   return handleJsonResponse(response, url);
 }

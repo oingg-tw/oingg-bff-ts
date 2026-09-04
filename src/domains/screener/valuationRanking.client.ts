@@ -60,18 +60,18 @@ export async function fetchValuationRanking(
     // fetch() itself throws (not a rejected-but-caught HTTP response) for connection-level failures —
     // refused/unreachable host, DNS, timeout. Without this, that surfaces as a generic uncaught 500
     // ("Internal server error") instead of a clear "the analysis service is down" 502.
-    throw new AppError(
-      `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,
-      502,
-    );
+    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
+    throw new AppError("Could not reach the analysis service", 502);
   }
   if (!response.ok) {
-    throw new AppError(`Analysis service returned ${response.status} for ${url.toString()}`, 502);
+    console.error(`Analysis service returned ${response.status} for ${url.toString()}`);
+    throw new AppError(`Analysis service returned ${response.status}`, 502);
   }
 
   const body: unknown = await response.json();
   if (!isAnalysisRankingResponse(body)) {
-    throw new AppError(`Analysis service response at ${url.toString()} is missing a "rankings" array`, 502);
+    console.error(`Analysis service response at ${url.toString()} is missing a "rankings" array`);
+    throw new AppError('Analysis service response is missing a "rankings" array', 502);
   }
 
   return { tradeDate: (body.tradeDate as string | undefined) ?? null, rankings: body.rankings.map(normalizeValuationRankingRow) };

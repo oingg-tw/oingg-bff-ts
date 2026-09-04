@@ -42,20 +42,20 @@ export async function fetchColumnPresetTemplates(): Promise<ColumnPresetTemplate
   try {
     response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
-    throw new AppError(
-      `Could not reach the analysis service at ${url.toString()}: ${error instanceof Error ? error.message : String(error)}`,
-      502,
-    );
+    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
+    throw new AppError("Could not reach the analysis service", 502);
   }
 
   if (!response.ok) {
-    throw new AppError(`Filters service returned ${response.status} for ${url.toString()}`, 502);
+    console.error(`Filters service returned ${response.status} for ${url.toString()}`);
+    throw new AppError(`Filters service returned ${response.status}`, 502);
   }
 
   const body: unknown = await response.json();
   const columnPresets = (body as { columnPresets?: unknown } | null)?.columnPresets;
   if (!isRawColumnPresetTemplateArray(columnPresets)) {
-    throw new AppError(`Filters service response at ${url.toString()} is missing a "columnPresets" array`, 502);
+    console.error(`Filters service response at ${url.toString()} is missing a "columnPresets" array`);
+    throw new AppError('Filters service response is missing a "columnPresets" array', 502);
   }
 
   return columnPresets.map((template) => ({ ...template, isDefault: template.isDefault ?? false }));
