@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
 import { AppError } from "@/shared/errorHandler.js";
-import { getCompanyProfile, getStockQuote } from "@/domains/stock/stock.service.js";
+import { getCapitalStockHistory, getCompanyProfile, getStockQuote } from "@/domains/stock/stock.service.js";
 
 export const stockRouter = Router();
 
@@ -95,4 +95,35 @@ stockRouter.get("/:symbol/profile", async (req, res) => {
     throw new AppError(`No company profile found for symbol "${symbol}"`, 404);
   }
   res.json(profile);
+});
+
+/**
+ * @swagger
+ * /stocks/{symbol}/capital-stock-history:
+ *   get:
+ *     summary: 查詢股本歷史（實收股本/股數變動，含現金增資、公積/盈餘轉增資、合併增資、減資等來源拆解）
+ *     description: >
+ *       資料來自 oingg-analysis-ts 的 GET /companies/capital-stock-history。entries 由新到舊排序；
+ *       changeSource 底下 5 個金額欄位固定同時存在（不相關的來源是 "0" 而非缺席），可能同時多個來源非零
+ *       （約 9% 的資料如此），capitalReduction 可能是負數，不要取絕對值。查無資料回傳空陣列，不是 404。
+ *     tags:
+ *       - Stock
+ *     parameters:
+ *       - in: path
+ *         name: symbol
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 股票代號
+ *         example: "2330"
+ *     responses:
+ *       200:
+ *         description: 股本歷史，查無資料時 entries 為空陣列。
+ *       502:
+ *         description: analysis-ts 服務無法連線或回應格式異常。
+ */
+stockRouter.get("/:symbol/capital-stock-history", async (req, res) => {
+  const { symbol } = req.params;
+  const history = await getCapitalStockHistory(symbol);
+  res.json(history);
 });

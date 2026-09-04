@@ -1,3 +1,5 @@
+import { fetchCapitalStockHistory } from "@/domains/stock/capitalStockHistory.client.js";
+import type { CapitalStockHistoryResult } from "@/domains/stock/capitalStockHistory.types.js";
 import { fetchCompanyProfile } from "@/domains/stock/companyProfile.client.js";
 import type { CompanyProfile } from "@/domains/stock/companyProfile.types.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domains/stock/stockQuote.client.js";
@@ -25,4 +27,9 @@ export async function getLatestClosePrices(symbols: string[]): Promise<Map<strin
 /** Company basic-info profile — GET /stocks/:symbol/profile. */
 export async function getCompanyProfile(symbol: string): Promise<CompanyProfile | null> {
   return fetchCompanyProfile(symbol);
+}
+
+/** Historical paid-in-capital/shares changes — GET /stocks/:symbol/capital-stock-history. */
+export async function getCapitalStockHistory(symbol: string): Promise<CapitalStockHistoryResult> {
+  return fetchCapitalStockHistory(symbol);
 }

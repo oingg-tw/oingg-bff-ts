@@ -9,14 +9,20 @@ vi.mock("@/domains/stock/companyProfile.client.js", () => ({
   fetchCompanyProfile: vi.fn(),
 }));
 
+vi.mock("@/domains/stock/capitalStockHistory.client.js", () => ({
+  fetchCapitalStockHistory: vi.fn(),
+}));
+
+import { fetchCapitalStockHistory } from "@/domains/stock/capitalStockHistory.client.js";
 import { fetchCompanyProfile } from "@/domains/stock/companyProfile.client.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domains/stock/stockQuote.client.js";
-import { getCompanyProfile, getLatestClosePrices, getStockQuote } from "@/domains/stock/stock.service.js";
+import { getCapitalStockHistory, getCompanyProfile, getLatestClosePrices, getStockQuote } from "@/domains/stock/stock.service.js";
 
 beforeEach(() => {
   vi.mocked(fetchStockQuote).mockReset();
   vi.mocked(fetchStockPrices).mockReset();
   vi.mocked(fetchCompanyProfile).mockReset();
+  vi.mocked(fetchCapitalStockHistory).mockReset();
 });
 
 describe("getStockQuote", () => {
@@ -58,5 +64,15 @@ describe("getCompanyProfile", () => {
     vi.mocked(fetchCompanyProfile).mockResolvedValue(null);
 
     await expect(getCompanyProfile("nope")).resolves.toBeNull();
+  });
+});
+
+describe("getCapitalStockHistory", () => {
+  it("delegates to fetchCapitalStockHistory and returns its result as-is", async () => {
+    const history = { symbol: "2330", entries: [] };
+    vi.mocked(fetchCapitalStockHistory).mockResolvedValue(history);
+
+    await expect(getCapitalStockHistory("2330")).resolves.toEqual(history);
+    expect(fetchCapitalStockHistory).toHaveBeenCalledWith("2330");
   });
 });
