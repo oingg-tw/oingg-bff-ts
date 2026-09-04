@@ -1,6 +1,7 @@
 import { fetchFilterCatalog } from "@/domains/filterCatalog/filterCatalog.client.js";
 import { listFilterCatalog, replaceFilterCatalog } from "@/domains/filterCatalog/filterCatalog.repository.js";
 import type { FilterCategory } from "@/domains/filterCatalog/filterCatalog.types.js";
+import { logger } from "@/shared/logger.js";
 
 const RETRY_DELAY_MS = 30_000;
 
@@ -20,7 +21,7 @@ export async function syncFilterCatalog(): Promise<FilterCatalogSyncSummary> {
   await replaceFilterCatalog(categories);
 
   const metricCount = categories.reduce((sum, category) => sum + category.metrics.length, 0);
-  console.log(`Synced filter catalog: ${categories.length} categories, ${metricCount} metrics`);
+  logger.info(`Synced filter catalog: ${categories.length} categories, ${metricCount} metrics`);
   return { categoryCount: categories.length, metricCount };
 }
 
@@ -36,13 +37,13 @@ export async function syncFilterCatalog(): Promise<FilterCatalogSyncSummary> {
 export function startFilterCatalogSync(retriesLeft = 1): void {
   syncFilterCatalog().catch((error: unknown) => {
     if (retriesLeft > 0) {
-      console.warn(
-        `Filter catalog sync failed, keeping existing data and retrying in ${RETRY_DELAY_MS / 1000}s:`,
-        error,
+      logger.warn(
+        { err: error },
+        `Filter catalog sync failed, keeping existing data and retrying in ${RETRY_DELAY_MS / 1000}s`,
       );
       setTimeout(() => startFilterCatalogSync(retriesLeft - 1), RETRY_DELAY_MS);
     } else {
-      console.error("Filter catalog sync failed again, giving up until the next restart:", error);
+      logger.error({ err: error }, "Filter catalog sync failed again, giving up until the next restart");
     }
   });
 }

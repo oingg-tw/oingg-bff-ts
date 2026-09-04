@@ -1,5 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
+import { logger } from "@/shared/logger.js";
 import type { ExDividendNoticeEntry, ExDividendType } from "@/domains/stock/exDividendNotices.types.js";
 
 const MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST = 100;
@@ -60,7 +61,7 @@ export async function fetchExDividendNotices(symbols: string[]): Promise<Map<str
 
   const body: unknown = await response.json();
   if (!isNoticesResponse(body)) {
-    console.error(`Ex-dividend notices endpoint response at ${url.toString()} is missing a "notices" object`);
+    logger.error({ url: url.toString() }, 'Ex-dividend notices endpoint response is missing a "notices" object');
     throw new AppError('Ex-dividend notices endpoint response is missing a "notices" object', 502);
   }
 

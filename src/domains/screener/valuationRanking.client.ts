@@ -1,5 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
+import { logger } from "@/shared/logger.js";
 
 export type ValuationRankingMetric = "peRatio" | "pbRatio" | "dividendYield";
 
@@ -54,7 +55,7 @@ export async function fetchValuationRanking(
 
   const body: unknown = await response.json();
   if (!isAnalysisRankingResponse(body)) {
-    console.error(`Analysis service response at ${url.toString()} is missing a "rankings" array`);
+    logger.error({ url: url.toString() }, 'Analysis service response is missing a "rankings" array');
     throw new AppError('Analysis service response is missing a "rankings" array', 502);
   }
 

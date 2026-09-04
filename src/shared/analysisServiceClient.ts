@@ -1,5 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
+import { logger } from "@/shared/logger.js";
 
 /** Builds a URL against analysis-ts's FILTERS_SERVICE_URL host, optionally setting query params. */
 export function buildAnalysisServiceUrl(path: string, searchParams?: Record<string, string>): URL {
@@ -23,7 +24,7 @@ export async function fetchAnalysisService(url: URL, init?: RequestInit): Promis
   try {
     return await fetch(url, { ...init, signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
-    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
+    logger.error({ err: error, url: url.toString() }, "Could not reach the analysis service");
     throw new AppError("Could not reach the analysis service", 502);
   }
 }
@@ -35,7 +36,7 @@ export async function fetchAnalysisService(url: URL, init?: RequestInit): Promis
  */
 export function assertAnalysisServiceOk(response: Response, url: URL, label: string): void {
   if (!response.ok) {
-    console.error(`${label} returned ${response.status} for ${url.toString()}`);
+    logger.error({ url: url.toString(), status: response.status }, `${label} returned a non-2xx status`);
     throw new AppError(`${label} returned ${response.status}`, 502);
   }
 }

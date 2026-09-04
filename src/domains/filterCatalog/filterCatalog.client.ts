@@ -1,5 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
+import { logger } from "@/shared/logger.js";
 import type { FilterCategory } from "@/domains/filterCatalog/filterCatalog.types.js";
 
 function isFilterCatalogResponse(body: unknown): body is { categories: FilterCategory[] } {
@@ -18,7 +19,7 @@ export async function fetchFilterCatalog(): Promise<FilterCategory[]> {
 
   const body: unknown = await response.json();
   if (!isFilterCatalogResponse(body)) {
-    console.error(`Filters service response at ${url.toString()} is missing a "categories" array`);
+    logger.error({ url: url.toString() }, 'Filters service response is missing a "categories" array');
     throw new AppError('Filters service response is missing a "categories" array', 502);
   }
 

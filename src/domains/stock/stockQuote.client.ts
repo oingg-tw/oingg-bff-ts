@@ -1,5 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
+import { logger } from "@/shared/logger.js";
 import type { ClosePrice } from "@/domains/stock/stock.service.js";
 import type { StockQuote } from "@/domains/stock/stock.types.js";
 
@@ -81,7 +82,7 @@ export async function fetchStockQuote(symbol: string): Promise<StockQuote | null
 
   const body: unknown = await response.json();
   if (!isStockQuote(body)) {
-    console.error(`Stock quote endpoint response at ${url.toString()} is missing symbol/price/valuation`);
+    logger.error({ url: url.toString() }, "Stock quote endpoint response is missing symbol/price/valuation");
     throw new AppError("Stock quote endpoint response is missing symbol/price/valuation", 502);
   }
 
@@ -113,7 +114,7 @@ export async function fetchStockPrices(symbols: string[]): Promise<Map<string, C
 
   const body: unknown = await response.json();
   if (!isPricesResponse(body)) {
-    console.error(`Stock prices endpoint response at ${url.toString()} is missing a "prices" object`);
+    logger.error({ url: url.toString() }, 'Stock prices endpoint response is missing a "prices" object');
     throw new AppError('Stock prices endpoint response is missing a "prices" object', 502);
   }
 

@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "ultimate-express";
 import { env } from "@/shared/env.js";
+import { logger } from "@/shared/logger.js";
 
 export class AppError extends Error {
   readonly statusCode: number;
@@ -23,7 +24,7 @@ export function notFoundHandler(req: Request, _res: Response, next: NextFunction
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof AppError) {
     if (!err.isOperational) {
-      console.error(err);
+      logger.error({ err }, "Non-operational AppError");
     }
     res.status(err.statusCode).json({
       error: { message: err.message, details: env.isProduction ? undefined : err.details },
@@ -31,6 +32,6 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
-  console.error(err);
+  logger.error({ err }, "Unhandled error");
   res.status(500).json({ error: { message: "Internal server error" } });
 }

@@ -1,5 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
+import { logger } from "@/shared/logger.js";
 import type { CompanyProfile } from "@/domains/stock/companyProfile.types.js";
 
 /** Same convention as stockQuote.client.ts's toStringOrNull — see that file for why. */
@@ -64,7 +65,7 @@ export async function fetchCompanyProfile(symbol: string): Promise<CompanyProfil
 
   const body: unknown = await response.json();
   if (typeof body !== "object" || body === null || typeof (body as { symbol?: unknown }).symbol !== "string") {
-    console.error(`Company profile endpoint response at ${url.toString()} is missing symbol`);
+    logger.error({ url: url.toString() }, "Company profile endpoint response is missing symbol");
     throw new AppError("Company profile endpoint response is missing symbol", 502);
   }
 

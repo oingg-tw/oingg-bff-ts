@@ -1,5 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
+import { logger } from "@/shared/logger.js";
 import type {
   AttentionStockCriteriaDetail,
   AttentionStockEntry,
@@ -235,7 +236,7 @@ async function getJson(path: string, searchParams: Record<string, string>): Prom
     const body: unknown = await response.json().catch(() => null);
     const message = (body as { message?: unknown } | null)?.message;
     if (typeof message !== "string") {
-      console.error(`Invalid request to ${url.toString()}, no message in response body`);
+      logger.error({ url: url.toString() }, "Invalid request, no message in response body");
     }
     throw new AppError(typeof message === "string" ? message : "Invalid request", 400);
   }

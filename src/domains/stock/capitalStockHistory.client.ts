@@ -1,5 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
+import { logger } from "@/shared/logger.js";
 import type {
   CapitalStockChangeSource,
   CapitalStockHistoryEntry,
@@ -50,7 +51,7 @@ export async function fetchCapitalStockHistory(symbol: string): Promise<CapitalS
 
   const body: unknown = await response.json();
   if (!isCapitalStockHistoryResponse(body)) {
-    console.error(`Capital stock history endpoint response at ${url.toString()} is missing an entries array`);
+    logger.error({ url: url.toString() }, "Capital stock history endpoint response is missing an entries array");
     throw new AppError("Capital stock history endpoint response is missing an entries array", 502);
   }
 

@@ -1,5 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
+import { logger } from "@/shared/logger.js";
 import type { Pagination } from "@/domains/screener/pagination.js";
 import type { ScreenerFilter, ScreenerValue } from "@/domains/screener/screener.types.js";
 
@@ -91,7 +92,7 @@ async function handleJsonResponse(response: Response, url: URL): Promise<unknown
     const body: unknown = await response.json().catch(() => null);
     const message = (body as { message?: unknown } | null)?.message;
     if (typeof message !== "string") {
-      console.error(`Invalid screener request to ${url.toString()}, no message in response body`);
+      logger.error({ url: url.toString() }, "Invalid screener request, no message in response body");
     }
     throw new AppError(typeof message === "string" ? message : "Invalid screener request", 400);
   }

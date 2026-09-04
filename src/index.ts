@@ -4,6 +4,7 @@ import { closeNeonPools, closePrismaClient, initNeonPools } from "@/adapters/neo
 import { startColumnPresetTemplateSync } from "@/domains/columnPresetTemplates/index.js";
 import { startFilterCatalogSync } from "@/domains/filterCatalog/index.js";
 import { env } from "@/shared/env.js";
+import { logger } from "@/shared/logger.js";
 
 async function main(): Promise<void> {
   initFirebase();
@@ -20,12 +21,12 @@ async function main(): Promise<void> {
   const app = createApp();
 
   const server = app.listen(env.port, () => {
-    console.log(`oingg-bff-ts listening on port ${env.port} (${env.nodeEnv})`);
-    console.log(`API docs available at http://localhost:${env.port}/api-docs`);
+    logger.info(`oingg-bff-ts listening on port ${env.port} (${env.nodeEnv})`);
+    logger.info(`API docs available at http://localhost:${env.port}/api-docs`);
   });
 
   const shutdown = async (signal: string): Promise<void> => {
-    console.log(`Received ${signal}, shutting down...`);
+    logger.info(`Received ${signal}, shutting down...`);
     server.close();
     await Promise.all([closeNeonPools(), closePrismaClient()]);
     process.exit(0);
@@ -36,6 +37,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error("Fatal error during startup:", error);
+  logger.error({ err: error }, "Fatal error during startup");
   process.exit(1);
 });

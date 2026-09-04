@@ -7,6 +7,7 @@ import {
   replaceColumnPresetTemplates,
 } from "@/domains/columnPresetTemplates/columnPresetTemplates.repository.js";
 import { AppError } from "@/shared/errorHandler.js";
+import { logger } from "@/shared/logger.js";
 import type { ColumnPresetTemplate } from "@/domains/columnPresetTemplates/columnPresetTemplates.types.js";
 
 const RETRY_DELAY_MS = 30_000;
@@ -44,7 +45,7 @@ export async function syncColumnPresetTemplates(): Promise<ColumnPresetTemplateS
   const templates = await fetchColumnPresetTemplates();
   await replaceColumnPresetTemplates(templates);
 
-  console.log(`Synced column preset templates: ${templates.length} templates`);
+  logger.info(`Synced column preset templates: ${templates.length} templates`);
   return { templateCount: templates.length };
 }
 
@@ -57,13 +58,13 @@ export async function syncColumnPresetTemplates(): Promise<ColumnPresetTemplateS
 export function startColumnPresetTemplateSync(retriesLeft = 1): void {
   syncColumnPresetTemplates().catch((error: unknown) => {
     if (retriesLeft > 0) {
-      console.warn(
-        `Column preset template sync failed, keeping existing data and retrying in ${RETRY_DELAY_MS / 1000}s:`,
-        error,
+      logger.warn(
+        { err: error },
+        `Column preset template sync failed, keeping existing data and retrying in ${RETRY_DELAY_MS / 1000}s`,
       );
       setTimeout(() => startColumnPresetTemplateSync(retriesLeft - 1), RETRY_DELAY_MS);
     } else {
-      console.error("Column preset template sync failed again, giving up until the next restart:", error);
+      logger.error({ err: error }, "Column preset template sync failed again, giving up until the next restart");
     }
   });
 }

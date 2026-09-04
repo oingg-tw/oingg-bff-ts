@@ -1,5 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
+import { logger } from "@/shared/logger.js";
 import type { ColumnPresetTemplate } from "@/domains/columnPresetTemplates/columnPresetTemplates.types.js";
 
 interface RawColumnPresetTemplate {
@@ -43,7 +44,7 @@ export async function fetchColumnPresetTemplates(): Promise<ColumnPresetTemplate
   const body: unknown = await response.json();
   const columnPresets = (body as { columnPresets?: unknown } | null)?.columnPresets;
   if (!isRawColumnPresetTemplateArray(columnPresets)) {
-    console.error(`Filters service response at ${url.toString()} is missing a "columnPresets" array`);
+    logger.error({ url: url.toString() }, 'Filters service response is missing a "columnPresets" array');
     throw new AppError('Filters service response is missing a "columnPresets" array', 502);
   }
 
