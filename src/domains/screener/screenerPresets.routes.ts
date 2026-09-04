@@ -1,10 +1,12 @@
 import { Router } from "ultimate-express";
+import { z } from "zod";
 import { AppError } from "@/shared/errorHandler.js";
-import { parseUuidParam } from "@/shared/uuid.js";
+import { UUID_PATTERN, parseUuidParam } from "@/shared/uuid.js";
+import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
-import { parsePagination } from "@/domains/screener/pagination.js";
-import { parseScreenerFilters, parseSort } from "@/domains/screener/screenerFilterInput.js";
+import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/domains/screener/pagination.js";
+import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/domains/screener/screenerFilterInput.js";
 import {
   addPreset,
   editPreset,
@@ -29,15 +31,18 @@ function parseId(raw: string): string {
   return parseUuidParam(raw, "preset");
 }
 
-function parseOptionalName(value: unknown): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (typeof value !== "string" || value.trim() === "") {
-    throw new AppError('"name" must be a non-empty string', 400);
-  }
-  return value.trim();
-}
+export const createScreenerPresetSchema = z.object({
+  filters: screenerFiltersArraySchema,
+});
+
+export const updateScreenerPresetSchema = z.object({
+  name: z
+    .string({ error: '"name" must be a non-empty string' })
+    .trim()
+    .min(1, '"name" must be a non-empty string')
+    .optional(),
+  filters: screenerFiltersArraySchema.optional(),
+});
 
 screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
@@ -47,10 +52,9 @@ screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
 
 screenerPresetsRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
-  const body = req.body as { filters?: unknown } | null;
-  const filters = parseScreenerFilters(body?.filters);
+  const body = parseBody(createScreenerPresetSchema, req.body);
 
-  const preset = await addPreset(firebaseUid, filters);
+  const preset = await addPreset(firebaseUid, normalizeScreenerFilters(body.filters));
   res.status(201).json({ preset });
 });
 
@@ -64,11 +68,11 @@ screenerPresetsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
 screenerPresetsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const id = parseId(req.params.id ?? "");
-  const body = req.body as { name?: unknown; filters?: unknown } | null;
+  const body = parseBody(updateScreenerPresetSchema, req.body ?? {});
 
   const preset = await editPreset(firebaseUid, id, {
-    name: parseOptionalName(body?.name),
-    filters: body?.filters === undefined ? undefined : parseScreenerFilters(body.filters),
+    name: body.name,
+    filters: body.filters === undefined ? undefined : normalizeScreenerFilters(body.filters),
   });
   res.json({ preset });
 });
@@ -80,22 +84,32 @@ screenerPresetsRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
   res.status(204).end();
 });
 
-function parseOptionalColumnPresetIdQuery(raw: unknown): string | undefined {
-  if (raw === undefined) {
-    return undefined;
-  }
-  if (typeof raw !== "string") {
-    throw new AppError(`Invalid columnPresetId "${String(raw)}"`, 400);
-  }
-  return parseUuidParam(raw, "column preset");
-}
+export const runPresetQuerySchema = z
+  .object({
+    columnPresetId: z
+      .string({ error: '"columnPresetId" must be a UUID string' })
+      .regex(UUID_PATTERN, { error: '"columnPresetId" must be a valid UUID' })
+      .optional(),
+    page: paginationSchema.shape.page,
+    pageSize: paginationSchema.shape.pageSize,
+    sortField: z
+      .string({ error: '"sortField" must be a non-empty string' })
+      .trim()
+      .min(1, '"sortField" must be a non-empty string')
+      .optional(),
+    sortOrder: z.enum(["asc", "desc"], { error: '"sortOrder" must be "asc" or "desc"' }).optional(),
+  })
+  .refine((data) => (data.sortField === undefined) === (data.sortOrder === undefined), {
+    message: '"sortField" and "sortOrder" must be given together, or not at all',
+    path: ["sortField"],
+  });
 
 screenerPresetsRouter.get("/:id/run", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const id = parseId(req.params.id ?? "");
-  const columnPresetId = parseOptionalColumnPresetIdQuery(req.query.columnPresetId);
-  const pagination = parsePagination(req.query.page, req.query.pageSize);
-  const sort = parseSort(req.query.sortField, req.query.sortOrder);
-  const result = await runPreset(firebaseUid, id, pagination, columnPresetId, sort);
+  const query = parseBody(runPresetQuerySchema, req.query);
+  const pagination = { page: query.page ?? 1, pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE };
+  const sort = query.sortField !== undefined ? { field: query.sortField, order: query.sortOrder! } : undefined;
+  const result = await runPreset(firebaseUid, id, pagination, query.columnPresetId, sort);
   res.json(result);
 });

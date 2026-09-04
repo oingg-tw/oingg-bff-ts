@@ -14,6 +14,11 @@ export const screenerFilterSchema = z.object({
 
 export const screenerFiltersArraySchema = z.array(screenerFilterSchema);
 
+/** Normalizes a schema-parsed filters array to ScreenerFilter[] (min/max default null, exclude default false). */
+export function normalizeScreenerFilters(filters: z.infer<typeof screenerFiltersArraySchema>): ScreenerFilter[] {
+  return filters.map((f) => ({ field: f.field, min: f.min ?? null, max: f.max ?? null, exclude: f.exclude ?? false }));
+}
+
 /**
  * Parses/validates a raw `filters` array from a request body. Shared by POST /screener and the preset
  * CRUD routes — same schema also drives their OpenAPI docs (see screenerFilterSchema above).
@@ -22,8 +27,7 @@ export function parseScreenerFilters(filtersRaw: unknown, path = "filters"): Scr
   if (!Array.isArray(filtersRaw)) {
     throw new AppError(`"${path}" must be an array`, 400);
   }
-  const parsed = parseBody(screenerFiltersArraySchema, filtersRaw);
-  return parsed.map((f) => ({ field: f.field, min: f.min ?? null, max: f.max ?? null, exclude: f.exclude ?? false }));
+  return normalizeScreenerFilters(parseBody(screenerFiltersArraySchema, filtersRaw));
 }
 
 const sortValueSchema = z.object({

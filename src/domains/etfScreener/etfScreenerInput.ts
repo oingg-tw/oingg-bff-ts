@@ -1,24 +1,35 @@
+import { z } from "zod";
 import { AppError } from "@/shared/errorHandler.js";
+import { parseBody } from "@/shared/validation.js";
 import type { EtfScreenerSort } from "@/domains/etfScreener/etfScreener.client.js";
 import type { EtfColumnRef, EtfScreenerFilter } from "@/domains/etfScreener/etfScreener.types.js";
 
-function parseNullableNumber(value: unknown, path: string): number | null {
-  if (value === null || value === undefined) {
-    return null;
+/**
+ * Each filter is either numeric (`min`/`max`/`exclude`) or categorical (`values` array) — `values`'s
+ * presence is the discriminator. Which shape is actually correct for a given field is validated by
+ * analysis-ts itself (no local catalog cache here to check against), so a numeric filter sent for a
+ * categorical field (or vice versa) surfaces as their 400, not this schema's.
+ */
+export const etfFilterSchema = z.object({
+  field: z.string({ error: "field is required" }).trim().min(1, "field is required"),
+  min: z.number({ error: "min must be a number or null" }).nullish(),
+  max: z.number({ error: "max must be a number or null" }).nullish(),
+  exclude: z.boolean({ error: "exclude must be a boolean" }).optional(),
+  values: z
+    .array(z.string({ error: "values must be an array of strings" }), { error: "values must be an array of strings" })
+    .optional(),
+});
+
+export const etfScreenerFiltersArraySchema = z.array(etfFilterSchema);
+
+export function toEtfScreenerFilter(f: z.infer<typeof etfFilterSchema>): EtfScreenerFilter {
+  if (f.values !== undefined) {
+    return { field: f.field, values: f.values };
   }
-  if (typeof value !== "number") {
-    throw new AppError(`${path} must be a number or null`, 400);
-  }
-  return value;
+  return { field: f.field, min: f.min ?? null, max: f.max ?? null, exclude: f.exclude ?? false };
 }
 
-/**
- * Parses a raw `filters` array from a request body. Each filter is either numeric (`min`/`max`/
- * `exclude`) or categorical (`values` array) — `values`'s presence is the discriminator. Which shape is
- * actually correct for a given field is validated by analysis-ts itself (no local catalog cache here to
- * check against), so a numeric filter sent for a categorical field (or vice versa) surfaces as their 400,
- * not this parser's.
- */
+/** Parses a raw `filters` array from a request body. Same schema also drives the OpenAPI docs. */
 export function parseEtfScreenerFilters(filtersRaw: unknown, path = "filters"): EtfScreenerFilter[] {
   if (filtersRaw === undefined) {
     return [];
@@ -26,35 +37,13 @@ export function parseEtfScreenerFilters(filtersRaw: unknown, path = "filters"): 
   if (!Array.isArray(filtersRaw)) {
     throw new AppError(`"${path}" must be an array`, 400);
   }
-
-  return filtersRaw.map((raw, index) => {
-    if (typeof raw !== "object" || raw === null) {
-      throw new AppError(`${path}[${index}] must be an object`, 400);
-    }
-    const { field, min, max, exclude, values } = raw as Record<string, unknown>;
-
-    if (typeof field !== "string" || field.trim() === "") {
-      throw new AppError(`${path}[${index}].field is required`, 400);
-    }
-
-    if (values !== undefined) {
-      if (!Array.isArray(values) || !values.every((v) => typeof v === "string")) {
-        throw new AppError(`${path}[${index}].values must be an array of strings`, 400);
-      }
-      return { field, values };
-    }
-
-    if (exclude !== undefined && typeof exclude !== "boolean") {
-      throw new AppError(`${path}[${index}].exclude must be a boolean`, 400);
-    }
-    return {
-      field,
-      min: parseNullableNumber(min, `${path}[${index}].min`),
-      max: parseNullableNumber(max, `${path}[${index}].max`),
-      exclude: exclude ?? false,
-    };
-  });
+  return parseBody(etfScreenerFiltersArraySchema, filtersRaw).map(toEtfScreenerFilter);
 }
+
+export const etfColumnSchema = z.object({
+  field: z.string({ error: "field is required" }).trim().min(1, "field is required"),
+});
+export const etfColumnsArraySchema = z.array(etfColumnSchema);
 
 export function parseEtfColumns(columnsRaw: unknown, path = "columns"): EtfColumnRef[] {
   if (columnsRaw === undefined) {
@@ -63,17 +52,16 @@ export function parseEtfColumns(columnsRaw: unknown, path = "columns"): EtfColum
   if (!Array.isArray(columnsRaw)) {
     throw new AppError(`"${path}" must be an array`, 400);
   }
-  return columnsRaw.map((raw, index) => {
-    if (typeof raw !== "object" || raw === null) {
-      throw new AppError(`${path}[${index}] must be an object`, 400);
-    }
-    const { field } = raw as Record<string, unknown>;
-    if (typeof field !== "string" || field.trim() === "") {
-      throw new AppError(`${path}[${index}].field is required`, 400);
-    }
-    return { field };
-  });
+  return parseBody(etfColumnsArraySchema, columnsRaw);
 }
+
+const etfSortValueSchema = z.object({
+  sortField: z
+    .string({ error: '"sortField" must be a non-empty string' })
+    .trim()
+    .min(1, '"sortField" must be a non-empty string'),
+  sortOrder: z.enum(["asc", "desc"], { error: '"sortOrder" must be "asc" or "desc"' }),
+});
 
 /** analysis-ts requires both or neither, same as the stock screener's sortField/sortOrder — fail fast here to avoid the round trip. */
 export function parseEtfSort(sortFieldRaw: unknown, sortOrderRaw: unknown): EtfScreenerSort | undefined {
@@ -83,28 +71,29 @@ export function parseEtfSort(sortFieldRaw: unknown, sortOrderRaw: unknown): EtfS
   if (sortFieldRaw === undefined || sortOrderRaw === undefined) {
     throw new AppError('"sortField" and "sortOrder" must be given together, or not at all', 400);
   }
-  if (typeof sortFieldRaw !== "string" || sortFieldRaw.trim() === "") {
-    throw new AppError('"sortField" must be a non-empty string', 400);
-  }
-  if (sortOrderRaw !== "asc" && sortOrderRaw !== "desc") {
-    throw new AppError('"sortOrder" must be "asc" or "desc"', 400);
-  }
-  return { field: sortFieldRaw, order: sortOrderRaw };
+  const parsed = parseBody(etfSortValueSchema, { sortField: sortFieldRaw, sortOrder: sortOrderRaw });
+  return { field: parsed.sortField, order: parsed.sortOrder };
 }
 
 export const DEFAULT_ETF_SCREENER_PAGE_SIZE = 50;
 export const MAX_ETF_SCREENER_PAGE_SIZE = 200;
 
-function parsePositiveInt(raw: unknown, defaultValue: number, field: string): number {
-  if (raw === undefined || raw === null || raw === "") {
-    return defaultValue;
-  }
-  const value = typeof raw === "number" ? raw : Number(raw);
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new AppError(`"${field}" must be a positive integer`, 400);
-  }
-  return value;
+function positiveIntSchema(field: string) {
+  return z.preprocess(
+    (v) => (v === undefined || v === null || v === "" ? undefined : v),
+    z
+      .coerce.number({ error: `"${field}" must be a positive integer` })
+      .refine((n) => Number.isInteger(n) && n > 0, { message: `"${field}" must be a positive integer` })
+      .optional(),
+  );
 }
+
+export const etfScreenerPaginationSchema = z.object({
+  page: positiveIntSchema("page"),
+  pageSize: positiveIntSchema("pageSize").refine((n) => n === undefined || n <= MAX_ETF_SCREENER_PAGE_SIZE, {
+    message: `"pageSize" must be at most ${MAX_ETF_SCREENER_PAGE_SIZE}`,
+  }),
+});
 
 export interface EtfScreenerPagination {
   page: number;
@@ -112,10 +101,6 @@ export interface EtfScreenerPagination {
 }
 
 export function parseEtfScreenerPagination(rawPage: unknown, rawPageSize: unknown): EtfScreenerPagination {
-  const page = parsePositiveInt(rawPage, 1, "page");
-  const pageSize = parsePositiveInt(rawPageSize, DEFAULT_ETF_SCREENER_PAGE_SIZE, "pageSize");
-  if (pageSize > MAX_ETF_SCREENER_PAGE_SIZE) {
-    throw new AppError(`"pageSize" must be at most ${MAX_ETF_SCREENER_PAGE_SIZE}`, 400);
-  }
-  return { page, pageSize };
+  const parsed = parseBody(etfScreenerPaginationSchema, { page: rawPage, pageSize: rawPageSize });
+  return { page: parsed.page ?? 1, pageSize: parsed.pageSize ?? DEFAULT_ETF_SCREENER_PAGE_SIZE };
 }

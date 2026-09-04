@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
+import { etfScreenerRequestSchema } from "@/domains/etfScreener/etfScreener.routes.js";
 
 const upstream502 = errorResponse("analysis-ts 服務無法連線或回應格式異常。");
 
@@ -37,24 +38,9 @@ registry.registerPath({
   },
 });
 
-const etfScreenerFilterSchema = z.object({
-  field: z.string(),
-  min: z.number().nullish(),
-  max: z.number().nullish(),
-  exclude: z.boolean().optional(),
-  values: z.array(z.string()).optional(),
+const etfScreenerRequestDocSchema = etfScreenerRequestSchema.openapi("EtfScreenerRequest", {
+  example: { filters: [{ field: "market", values: ["TWSE"] }], columns: [{ field: "aum" }], page: 1, pageSize: 50 },
 });
-
-const etfScreenerRequestSchema = z
-  .object({
-    filters: z.array(etfScreenerFilterSchema).optional(),
-    columns: z.array(z.object({ field: z.string() })).optional(),
-    page: z.number().int().optional().openapi({ default: 1 }),
-    pageSize: z.number().int().optional().openapi({ default: 50, description: "最多 200。" }),
-    sortField: z.string().optional().openapi({ description: "要嘛跟 sortOrder 一起給，要嘛都不給；只給一個會 400。" }),
-    sortOrder: z.enum(["asc", "desc"]).optional(),
-  })
-  .openapi("EtfScreenerRequest");
 
 const etfScreenerResultSchema = z
   .object({
@@ -100,7 +86,7 @@ registry.registerPath({
     "不需要登入。filters 跟 columns 至少要提供一個（可以只給 columns 列出所有 ETF 不加篩選）。filters 依欄位種類分兩種形狀：數字欄位用 { field, min, max, exclude? }（語意同股票 screener）；類別欄位（market/assetClass/isActive）用 { field, values: [...] }（IN 語意）。實際欄位要用數字還是類別形狀由 analysis-ts 驗證，用錯形狀會收到說明是哪個欄位、該用哪種形狀的錯誤訊息。results[].values 是 Record<field, number|string|boolean|null>，不是像股票 screener 那樣包成 { value, asOfDate } 物件——這是 ETF screener 系列的第一版，形狀之後可能還會調整。symbol/fundName/shortName/issuerName/category 固定回傳，不需要放進 columns。expenseRatio 只用最新一個完整年度，發行不滿一年的 ETF 這個欄位是 null（不是整檔被排除）。",
   tags: ["ETF Screener"],
   request: {
-    body: { required: true, content: { "application/json": { schema: etfScreenerRequestSchema } } },
+    body: { required: true, content: { "application/json": { schema: etfScreenerRequestDocSchema } } },
   },
   responses: {
     200: { description: "篩選結果。", content: { "application/json": { schema: etfScreenerResultSchema } } },

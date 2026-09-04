@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
+import {
+  createScreenerPresetSchema,
+  runPresetQuerySchema,
+  updateScreenerPresetSchema,
+} from "@/domains/screener/screenerPresets.routes.js";
 
 const presetFilterViewSchema = z.object({
   field: z.string(),
@@ -23,12 +28,10 @@ const idParam = z.object({ id: z.string().openapi({ format: "uuid" }) });
 const unauthorized = errorResponse("缺少或無效的 Authorization header / token。");
 const notFound = errorResponse("不存在，或不屬於目前登入的使用者。");
 
-const filterInputSchema = z.object({
-  field: z.string().openapi({ example: "roe.roeTtmPct" }),
-  min: z.number().nullish().openapi({ example: 30 }),
-  max: z.number().nullish(),
-  exclude: z.boolean().optional().openapi({ default: false }),
+const createScreenerPresetDocSchema = createScreenerPresetSchema.openapi("CreateScreenerPresetRequest", {
+  example: { filters: [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }] },
 });
+const updateScreenerPresetDocSchema = updateScreenerPresetSchema.openapi("UpdateScreenerPresetRequest");
 
 registry.registerPath({
   method: "get",
@@ -56,7 +59,7 @@ registry.registerPath({
   request: {
     body: {
       required: true,
-      content: { "application/json": { schema: z.object({ filters: z.array(filterInputSchema) }).openapi("CreateScreenerPresetRequest") } },
+      content: { "application/json": { schema: createScreenerPresetDocSchema } },
     },
   },
   responses: {
@@ -92,13 +95,7 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: {
     params: idParam,
-    body: {
-      content: {
-        "application/json": {
-          schema: z.object({ name: z.string().optional(), filters: z.array(filterInputSchema).optional() }).openapi("UpdateScreenerPresetRequest"),
-        },
-      },
-    },
+    body: { content: { "application/json": { schema: updateScreenerPresetDocSchema } } },
   },
   responses: {
     200: { description: "更新後的篩選組合。", content: { "application/json": { schema: z.object({ preset: presetSchema }) } } },
@@ -147,14 +144,8 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: {
     params: idParam,
-    query: z.object({
-      columnPresetId: z.string().optional().openapi({ format: "uuid", description: "切換成用這組欄位組合檢視，並記成這個 preset 下次的預設欄位組合。" }),
-      page: z.coerce.number().int().optional().openapi({ default: 1, description: "頁碼（從 1 開始）。" }),
-      pageSize: z.coerce.number().int().optional().openapi({ default: 50, description: "每頁筆數，最多 200。" }),
-      sortField: z.string().optional().openapi({
-        description: "要依哪個欄位排序——\"symbol\"，或最終解析出來的顯示欄位之一（不能是 \"stock.price\"）。要嘛跟 sortOrder 一起給，要嘛都不給；只給一個會 400。",
-      }),
-      sortOrder: z.enum(["asc", "desc"]).optional(),
+    query: runPresetQuerySchema.openapi("RunScreenerPresetQuery", {
+      example: { page: 1, pageSize: 50 },
     }),
   },
   responses: {

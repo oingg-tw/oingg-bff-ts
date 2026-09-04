@@ -7,7 +7,7 @@ import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 import { runRanking, runScreener, runScreenerValues } from "@/domains/screener/screener.service.js";
 import { resolveScreenerColumns } from "@/domains/screener/columnPresets.service.js";
 import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/domains/screener/pagination.js";
-import { screenerFiltersArraySchema } from "@/domains/screener/screenerFilterInput.js";
+import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/domains/screener/screenerFilterInput.js";
 import type { ScreenerColumnRef } from "@/domains/screener/screener.types.js";
 
 const DEFAULT_RANKING_LIMIT = 10;
@@ -45,7 +45,7 @@ export const screenerRequestSchema = z
 screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = req.user?.uid;
   const body = parseBody(screenerRequestSchema, req.body);
-  const filters = body.filters.map((f) => ({ field: f.field, min: f.min ?? null, max: f.max ?? null, exclude: f.exclude ?? false }));
+  const filters = normalizeScreenerFilters(body.filters);
   const requestedColumnPresetId = body.columnPresetId ?? undefined;
   const pagination = { page: body.page ?? 1, pageSize: body.pageSize ?? DEFAULT_PAGE_SIZE };
   const sort = body.sortField !== undefined ? { field: body.sortField, order: body.sortOrder! } : undefined;
