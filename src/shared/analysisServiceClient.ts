@@ -19,10 +19,16 @@ export function buildAnalysisServiceUrl(path: string, searchParams?: Record<stri
  * The internal URL is logged server-side only; the client-facing message never includes it (would leak
  * bff-ts's internal service topology to the end user — see errorHandler.ts, which only gates `details`
  * by NODE_ENV, never `message`).
+ *
+ * analysis-ts requires an `X-Api-Key` header on every domainApi request as of 2026-09-04 (health check
+ * and /batch/compute are the only exceptions, neither of which bff-ts calls) — attached here, the single
+ * place every outbound request already flows through, so every call site gets it automatically.
  */
 export async function fetchAnalysisService(url: URL, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  headers.set("X-Api-Key", requireEnv("BFF_API_KEY"));
   try {
-    return await fetch(url, { ...init, signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
+    return await fetch(url, { ...init, headers, signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
     logger.error({ err: error, url: url.toString() }, "Could not reach the analysis service");
     throw new AppError("Could not reach the analysis service", 502);
