@@ -12,5 +12,12 @@ export default defineConfig({
   test: {
     // Makes describe/it/expect global, so test files don't need to import them.
     globals: true,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "json-summary"],
+      // Prisma's generated client is checked-in-shape vendor code, not something this project writes
+      // or tests directly; excluding it keeps the report meaningful for actual application code.
+      exclude: ["src/generated/**", "src/tests/**"],
+    },
   },
 });
