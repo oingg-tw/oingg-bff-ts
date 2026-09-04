@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import type { CompanyProfile } from "@/domains/stock/companyProfile.types.js";
 
 /** Same convention as stockQuote.client.ts's toStringOrNull — see that file for why. */
@@ -54,24 +54,13 @@ function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
  * 興櫃 status — whichever symbol is asked for is returned as-is, per analysis-ts directly.
  */
 export async function fetchCompanyProfile(symbol: string): Promise<CompanyProfile | null> {
-  const url = new URL("/companies/profile", requireEnv("FILTERS_SERVICE_URL"));
-  url.searchParams.set("symbol", symbol);
-
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
-  } catch (error) {
-    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
-    throw new AppError("Could not reach the analysis service", 502);
-  }
+  const url = buildAnalysisServiceUrl("/companies/profile", { symbol });
+  const response = await fetchAnalysisService(url);
 
   if (response.status === 404) {
     return null;
   }
-  if (!response.ok) {
-    console.error(`Company profile endpoint returned ${response.status} for ${url.toString()}`);
-    throw new AppError(`Company profile endpoint returned ${response.status}`, 502);
-  }
+  assertAnalysisServiceOk(response, url, "Company profile endpoint");
 
   const body: unknown = await response.json();
   if (typeof body !== "object" || body === null || typeof (body as { symbol?: unknown }).symbol !== "string") {

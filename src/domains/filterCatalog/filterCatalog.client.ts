@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import type { FilterCategory } from "@/domains/filterCatalog/filterCatalog.types.js";
 
 function isFilterCatalogResponse(body: unknown): body is { categories: FilterCategory[] } {
@@ -12,24 +12,9 @@ function isFilterCatalogResponse(body: unknown): body is { categories: FilterCat
 
 /** Fetches the filter category/metric/field catalog from oingg-analysis-ts's `/filters` endpoint. */
 export async function fetchFilterCatalog(): Promise<FilterCategory[]> {
-  const url = new URL("/filters", requireEnv("FILTERS_SERVICE_URL"));
-
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
-  } catch (error) {
-    // fetch() itself throws (not a rejected-but-caught HTTP response) for connection-level failures —
-    // refused/unreachable host, DNS, timeout. Without this, that surfaces as a generic uncaught 500
-    // instead of a clear "the analysis service is down" 502 (same gap found and fixed in
-    // valuationRanking.client.ts's fetchValuationRanking — this one was missed at the time).
-    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
-    throw new AppError("Could not reach the analysis service", 502);
-  }
-
-  if (!response.ok) {
-    console.error(`Filters service returned ${response.status} for ${url.toString()}`);
-    throw new AppError(`Filters service returned ${response.status}`, 502);
-  }
+  const url = buildAnalysisServiceUrl("/filters");
+  const response = await fetchAnalysisService(url);
+  assertAnalysisServiceOk(response, url, "Filters service");
 
   const body: unknown = await response.json();
   if (!isFilterCatalogResponse(body)) {

@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import type {
   AttentionStockCriteriaDetail,
   AttentionStockEntry,
@@ -228,18 +228,8 @@ function normalizeEtfRankingEntry(raw: unknown): EtfRankingEntry {
 }
 
 async function getJson(path: string, searchParams: Record<string, string>): Promise<unknown> {
-  const url = new URL(path, requireEnv("FILTERS_SERVICE_URL"));
-  for (const [key, value] of Object.entries(searchParams)) {
-    url.searchParams.set(key, value);
-  }
-
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
-  } catch (error) {
-    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
-    throw new AppError("Could not reach the analysis service", 502);
-  }
+  const url = buildAnalysisServiceUrl(path, searchParams);
+  const response = await fetchAnalysisService(url);
 
   if (response.status === 400) {
     const body: unknown = await response.json().catch(() => null);
@@ -249,10 +239,7 @@ async function getJson(path: string, searchParams: Record<string, string>): Prom
     }
     throw new AppError(typeof message === "string" ? message : "Invalid request", 400);
   }
-  if (!response.ok) {
-    console.error(`Market ranking endpoint returned ${response.status} for ${url.toString()}`);
-    throw new AppError(`Market ranking endpoint returned ${response.status}`, 502);
-  }
+  assertAnalysisServiceOk(response, url, "Market ranking endpoint");
   return response.json();
 }
 

@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import type { ColumnPresetTemplate } from "@/domains/columnPresetTemplates/columnPresetTemplates.types.js";
 
 interface RawColumnPresetTemplate {
@@ -36,20 +36,9 @@ function isRawColumnPresetTemplateArray(value: unknown): value is RawColumnPrese
  * one extra GET at startup — negligible since this only runs once per process start.
  */
 export async function fetchColumnPresetTemplates(): Promise<ColumnPresetTemplate[]> {
-  const url = new URL("/filters", requireEnv("FILTERS_SERVICE_URL"));
-
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
-  } catch (error) {
-    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
-    throw new AppError("Could not reach the analysis service", 502);
-  }
-
-  if (!response.ok) {
-    console.error(`Filters service returned ${response.status} for ${url.toString()}`);
-    throw new AppError(`Filters service returned ${response.status}`, 502);
-  }
+  const url = buildAnalysisServiceUrl("/filters");
+  const response = await fetchAnalysisService(url);
+  assertAnalysisServiceOk(response, url, "Filters service");
 
   const body: unknown = await response.json();
   const columnPresets = (body as { columnPresets?: unknown } | null)?.columnPresets;

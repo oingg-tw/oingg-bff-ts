@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 
 export type ValuationRankingMetric = "peRatio" | "pbRatio" | "dividendYield";
 
@@ -48,25 +48,9 @@ export async function fetchValuationRanking(
   order: "asc" | "desc",
   limit: number,
 ): Promise<ValuationRankingResult> {
-  const url = new URL("/valuation/ranking", requireEnv("FILTERS_SERVICE_URL"));
-  url.searchParams.set("metric", metric);
-  url.searchParams.set("order", order);
-  url.searchParams.set("limit", String(limit));
-
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
-  } catch (error) {
-    // fetch() itself throws (not a rejected-but-caught HTTP response) for connection-level failures —
-    // refused/unreachable host, DNS, timeout. Without this, that surfaces as a generic uncaught 500
-    // ("Internal server error") instead of a clear "the analysis service is down" 502.
-    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
-    throw new AppError("Could not reach the analysis service", 502);
-  }
-  if (!response.ok) {
-    console.error(`Analysis service returned ${response.status} for ${url.toString()}`);
-    throw new AppError(`Analysis service returned ${response.status}`, 502);
-  }
+  const url = buildAnalysisServiceUrl("/valuation/ranking", { metric, order, limit: String(limit) });
+  const response = await fetchAnalysisService(url);
+  assertAnalysisServiceOk(response, url, "Analysis service");
 
   const body: unknown = await response.json();
   if (!isAnalysisRankingResponse(body)) {

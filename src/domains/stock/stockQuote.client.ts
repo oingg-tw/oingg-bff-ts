@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import type { ClosePrice } from "@/domains/stock/stock.service.js";
 import type { StockQuote } from "@/domains/stock/stock.types.js";
 
@@ -71,23 +71,13 @@ function normalizeClosePrice(price: ClosePrice): ClosePrice {
 
 /** Fetches a single stock's latest price/valuation from oingg-analysis-ts. Null on a 404 (unknown symbol in either market — analysis-ts checks both). */
 export async function fetchStockQuote(symbol: string): Promise<StockQuote | null> {
-  const url = new URL(`/stocks/${encodeURIComponent(symbol)}/quote`, requireEnv("FILTERS_SERVICE_URL"));
-
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
-  } catch (error) {
-    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
-    throw new AppError("Could not reach the analysis service", 502);
-  }
+  const url = buildAnalysisServiceUrl(`/stocks/${encodeURIComponent(symbol)}/quote`);
+  const response = await fetchAnalysisService(url);
 
   if (response.status === 404) {
     return null;
   }
-  if (!response.ok) {
-    console.error(`Stock quote endpoint returned ${response.status} for ${url.toString()}`);
-    throw new AppError(`Stock quote endpoint returned ${response.status}`, 502);
-  }
+  assertAnalysisServiceOk(response, url, "Stock quote endpoint");
 
   const body: unknown = await response.json();
   if (!isStockQuote(body)) {
@@ -117,21 +107,9 @@ export async function fetchStockPrices(symbols: string[]): Promise<Map<string, C
     );
   }
 
-  const url = new URL("/stocks/prices", requireEnv("FILTERS_SERVICE_URL"));
-  url.searchParams.set("symbols", symbols.join(","));
-
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
-  } catch (error) {
-    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
-    throw new AppError("Could not reach the analysis service", 502);
-  }
-
-  if (!response.ok) {
-    console.error(`Stock prices endpoint returned ${response.status} for ${url.toString()}`);
-    throw new AppError(`Stock prices endpoint returned ${response.status}`, 502);
-  }
+  const url = buildAnalysisServiceUrl("/stocks/prices", { symbols: symbols.join(",") });
+  const response = await fetchAnalysisService(url);
+  assertAnalysisServiceOk(response, url, "Stock prices endpoint");
 
   const body: unknown = await response.json();
   if (!isPricesResponse(body)) {

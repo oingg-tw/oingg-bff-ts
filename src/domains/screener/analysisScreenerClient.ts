@@ -1,5 +1,5 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import type { Pagination } from "@/domains/screener/pagination.js";
 import type { ScreenerFilter, ScreenerValue } from "@/domains/screener/screener.types.js";
 
@@ -65,36 +65,18 @@ function normalizeRows(rows: unknown): AnalysisScreenerResultRow[] {
 }
 
 async function postJson(path: string, body: unknown): Promise<unknown> {
-  const url = new URL(path, requireEnv("FILTERS_SERVICE_URL"));
-
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS),
-    });
-  } catch (error) {
-    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
-    throw new AppError("Could not reach the analysis service", 502);
-  }
+  const url = buildAnalysisServiceUrl(path);
+  const response = await fetchAnalysisService(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   return handleJsonResponse(response, url);
 }
 
 async function getJson(path: string, searchParams: Record<string, string>): Promise<unknown> {
-  const url = new URL(path, requireEnv("FILTERS_SERVICE_URL"));
-  for (const [key, value] of Object.entries(searchParams)) {
-    url.searchParams.set(key, value);
-  }
-
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
-  } catch (error) {
-    console.error(`Could not reach the analysis service at ${url.toString()}:`, error);
-    throw new AppError("Could not reach the analysis service", 502);
-  }
+  const url = buildAnalysisServiceUrl(path, searchParams);
+  const response = await fetchAnalysisService(url);
   return handleJsonResponse(response, url);
 }
 
@@ -113,10 +95,7 @@ async function handleJsonResponse(response: Response, url: URL): Promise<unknown
     }
     throw new AppError(typeof message === "string" ? message : "Invalid screener request", 400);
   }
-  if (!response.ok) {
-    console.error(`Screener endpoint returned ${response.status} for ${url.toString()}`);
-    throw new AppError(`Screener endpoint returned ${response.status}`, 502);
-  }
+  assertAnalysisServiceOk(response, url, "Screener endpoint");
   return response.json();
 }
 
