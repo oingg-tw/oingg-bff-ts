@@ -38,6 +38,7 @@ const RAW_ENTRY_SINGLE_SOURCE = {
     other: null,
   },
   remarks: null,
+  sharesChangePercent: -0.59,
 };
 
 describe("fetchCapitalStockHistory", () => {
@@ -89,6 +90,18 @@ describe("fetchCapitalStockHistory", () => {
 
     expect(result.entries[0]?.changeSource.other).toBeNull();
     expect(result.entries[0]?.remarks).toBeNull();
+  });
+
+  // entries is newest-to-oldest, so the "earlier" entry sharesChangePercent compares against is the
+  // *next* array element, not the previous one — the oldest entry (nothing earlier) is null.
+  it("keeps sharesChangePercent null on the oldest entry (nothing earlier to compare against)", async () => {
+    const oldest = { ...RAW_ENTRY_SINGLE_SOURCE, effectiveDate: "1994-09", sharesChangePercent: null };
+    mockFetchOnce({ ok: true, body: { symbol: "2330", entries: [RAW_ENTRY_SINGLE_SOURCE, oldest] } });
+
+    const result = await fetchCapitalStockHistory("2330");
+
+    expect(result.entries[0]?.sharesChangePercent).toBe(-0.59);
+    expect(result.entries[1]?.sharesChangePercent).toBeNull();
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {

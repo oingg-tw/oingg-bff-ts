@@ -30,6 +30,7 @@ function normalizeEntry(raw: unknown): CapitalStockHistoryEntry {
     paidInCapital: String(r.paidInCapital),
     changeSource: normalizeChangeSource(r.changeSource),
     remarks: toStringOrNull(r.remarks),
+    sharesChangePercent: typeof r.sharesChangePercent === "number" ? r.sharesChangePercent : null,
   };
 }
 

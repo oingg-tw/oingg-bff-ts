@@ -105,7 +105,9 @@ stockRouter.get("/:symbol/profile", async (req, res) => {
  *     description: >
  *       資料來自 oingg-analysis-ts 的 GET /companies/capital-stock-history。entries 由新到舊排序；
  *       changeSource 底下 5 個金額欄位固定同時存在（不相關的來源是 "0" 而非缺席），可能同時多個來源非零
- *       （約 9% 的資料如此），capitalReduction 可能是負數，不要取絕對值。查無資料回傳空陣列，不是 404。
+ *       （約 9% 的資料如此），capitalReduction 可能是負數，不要取絕對值。sharesChangePercent 是跟「時間
+ *       序上更早」那筆比較的流通股數變動百分比——因為 entries 是新到舊排序，「更早」指的是陣列裡的下一筆
+ *       （index+1），不是上一筆；最舊一筆没有更早的可比較，是 null。查無資料回傳空陣列，不是 404。
  *     tags:
  *       - Stock
  *     parameters:

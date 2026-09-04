@@ -22,6 +22,12 @@ export interface CapitalStockHistoryEntry {
   paidInCapital: string;
   changeSource: CapitalStockChangeSource;
   remarks: string | null;
+  /**
+   * % change in paidInShares vs. the chronologically-*earlier* entry — since `entries` is newest-to-oldest,
+   * that's the *next* array element (index+1), not the previous one. Rounded to 2 decimals by analysis-ts.
+   * null on the oldest entry (nothing earlier to compare against).
+   */
+  sharesChangePercent: number | null;
 }
 
 export interface CapitalStockHistoryResult {
