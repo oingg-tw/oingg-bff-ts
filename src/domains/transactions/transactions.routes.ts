@@ -1,6 +1,8 @@
 import { Router } from "ultimate-express";
+import { z } from "zod";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseUuidParam } from "@/shared/uuid.js";
+import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 import {
@@ -27,26 +29,28 @@ function parseId(raw: string): string {
   return parseUuidParam(raw, "transaction");
 }
 
-function parseNote(note: unknown): string | null {
-  if (note === undefined || note === null) {
-    return null;
-  }
-  if (typeof note !== "string") {
-    throw new AppError('"note" must be a string', 400);
-  }
-  return note;
-}
+/** action's own enum validity (BUY/SELL) is checked in transactions.service.ts's assertValidAction — kept
+ * as a plain string here so that check's error message/behavior doesn't change. */
+const createTransactionSchema = z.object({
+  symbol: z.string().trim().min(1, '"symbol" is required'),
+  action: z.string(),
+  quantity: z.number(),
+  price: z.number(),
+  fee: z.number().optional(),
+  tax: z.number().optional(),
+  tradeDate: z.string(),
+  note: z.string().nullish(),
+});
 
-interface TransactionBody {
-  symbol?: unknown;
-  action?: unknown;
-  quantity?: unknown;
-  price?: unknown;
-  fee?: unknown;
-  tax?: unknown;
-  tradeDate?: unknown;
-  note?: unknown;
-}
+const updateTransactionSchema = z.object({
+  action: z.string().optional(),
+  quantity: z.number().optional(),
+  price: z.number().optional(),
+  fee: z.number().optional(),
+  tax: z.number().optional(),
+  tradeDate: z.string().optional(),
+  note: z.string().nullish(),
+});
 
 /**
  * @swagger
@@ -135,36 +139,17 @@ transactionsRouter.get("/", async (req: AuthenticatedRequest, res) => {
  */
 transactionsRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
-  const body = (req.body ?? {}) as TransactionBody;
-
-  if (typeof body.symbol !== "string" || body.symbol.trim() === "") {
-    throw new AppError('"symbol" is required', 400);
-  }
-  if (typeof body.quantity !== "number") {
-    throw new AppError('"quantity" is required and must be a number', 400);
-  }
-  if (typeof body.price !== "number") {
-    throw new AppError('"price" is required and must be a number', 400);
-  }
-  if (typeof body.tradeDate !== "string") {
-    throw new AppError('"tradeDate" is required and must be a string', 400);
-  }
-  if (body.fee !== undefined && typeof body.fee !== "number") {
-    throw new AppError('"fee" must be a number', 400);
-  }
-  if (body.tax !== undefined && typeof body.tax !== "number") {
-    throw new AppError('"tax" must be a number', 400);
-  }
+  const body = parseBody(createTransactionSchema, req.body);
 
   const input: TransactionInput = {
-    symbol: body.symbol.trim(),
+    symbol: body.symbol,
     action: body.action as TransactionInput["action"],
     quantity: body.quantity,
     price: body.price,
     fee: body.fee ?? 0,
     tax: body.tax ?? 0,
     tradeDate: body.tradeDate,
-    note: parseNote(body.note),
+    note: body.note ?? null,
   };
 
   const transaction = await addTransaction(firebaseUid, input);
@@ -256,44 +241,29 @@ transactionsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
 transactionsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const id = parseId(req.params.id ?? "");
-  const body = (req.body ?? {}) as TransactionBody;
+  const body = parseBody(updateTransactionSchema, req.body ?? {});
 
   const update: TransactionUpdate = {};
   if (body.action !== undefined) {
     update.action = body.action as TransactionUpdate["action"];
   }
   if (body.quantity !== undefined) {
-    if (typeof body.quantity !== "number") {
-      throw new AppError('"quantity" must be a number', 400);
-    }
     update.quantity = body.quantity;
   }
   if (body.price !== undefined) {
-    if (typeof body.price !== "number") {
-      throw new AppError('"price" must be a number', 400);
-    }
     update.price = body.price;
   }
   if (body.fee !== undefined) {
-    if (typeof body.fee !== "number") {
-      throw new AppError('"fee" must be a number', 400);
-    }
     update.fee = body.fee;
   }
   if (body.tax !== undefined) {
-    if (typeof body.tax !== "number") {
-      throw new AppError('"tax" must be a number', 400);
-    }
     update.tax = body.tax;
   }
   if (body.tradeDate !== undefined) {
-    if (typeof body.tradeDate !== "string") {
-      throw new AppError('"tradeDate" must be a string', 400);
-    }
     update.tradeDate = body.tradeDate;
   }
   if (body.note !== undefined) {
-    update.note = parseNote(body.note);
+    update.note = body.note;
   }
 
   const transaction = await editTransaction(firebaseUid, id, update);

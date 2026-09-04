@@ -1,6 +1,8 @@
 import { Router } from "ultimate-express";
+import { z } from "zod";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseUuidParam } from "@/shared/uuid.js";
+import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 import { addHolding, editHolding, getHoldingOrThrow, getHoldings, removeHolding } from "@/domains/holdings/holdings.service.js";
@@ -21,22 +23,18 @@ function parseId(raw: string): string {
   return parseUuidParam(raw, "holding");
 }
 
-function parseNote(note: unknown): string | null {
-  if (note === undefined || note === null) {
-    return null;
-  }
-  if (typeof note !== "string") {
-    throw new AppError('"note" must be a string', 400);
-  }
-  return note;
-}
+const createHoldingSchema = z.object({
+  symbol: z.string().trim().min(1, '"symbol" is required'),
+  quantity: z.number(),
+  averageCost: z.number(),
+  note: z.string().nullish(),
+});
 
-interface CreateHoldingBody {
-  symbol?: unknown;
-  quantity?: unknown;
-  averageCost?: unknown;
-  note?: unknown;
-}
+const updateHoldingSchema = z.object({
+  quantity: z.number().optional(),
+  averageCost: z.number().optional(),
+  note: z.string().nullish(),
+});
 
 /**
  * @swagger
@@ -106,19 +104,9 @@ holdingsRouter.get("/", async (req: AuthenticatedRequest, res) => {
  */
 holdingsRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
-  const body = (req.body ?? {}) as CreateHoldingBody;
+  const body = parseBody(createHoldingSchema, req.body);
 
-  if (typeof body.symbol !== "string" || body.symbol.trim() === "") {
-    throw new AppError('"symbol" is required', 400);
-  }
-  if (typeof body.quantity !== "number") {
-    throw new AppError('"quantity" is required and must be a number', 400);
-  }
-  if (typeof body.averageCost !== "number") {
-    throw new AppError('"averageCost" is required and must be a number', 400);
-  }
-
-  const holding = await addHolding(firebaseUid, body.symbol.trim(), body.quantity, body.averageCost, parseNote(body.note));
+  const holding = await addHolding(firebaseUid, body.symbol, body.quantity, body.averageCost, body.note ?? null);
   res.status(201).json({ holding });
 });
 
@@ -198,23 +186,17 @@ holdingsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
 holdingsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const id = parseId(req.params.id ?? "");
-  const body = (req.body ?? {}) as CreateHoldingBody;
+  const body = parseBody(updateHoldingSchema, req.body ?? {});
 
   const update: HoldingUpdate = {};
   if (body.quantity !== undefined) {
-    if (typeof body.quantity !== "number") {
-      throw new AppError('"quantity" must be a number', 400);
-    }
     update.quantity = body.quantity;
   }
   if (body.averageCost !== undefined) {
-    if (typeof body.averageCost !== "number") {
-      throw new AppError('"averageCost" must be a number', 400);
-    }
     update.averageCost = body.averageCost;
   }
   if (body.note !== undefined) {
-    update.note = parseNote(body.note);
+    update.note = body.note;
   }
 
   const holding = await editHolding(firebaseUid, id, update);

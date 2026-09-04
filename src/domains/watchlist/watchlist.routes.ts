@@ -1,6 +1,8 @@
 import { Router } from "ultimate-express";
+import { z } from "zod";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseUuidParam } from "@/shared/uuid.js";
+import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 import {
@@ -26,16 +28,14 @@ function parseId(raw: string): string {
   return parseUuidParam(raw, "watchlist item");
 }
 
-function parseNote(body: unknown): string | null {
-  const note = (body as { note?: unknown } | null)?.note;
-  if (note === undefined || note === null) {
-    return null;
-  }
-  if (typeof note !== "string") {
-    throw new AppError('"note" must be a string', 400);
-  }
-  return note;
-}
+const addWatchlistItemSchema = z.object({
+  symbol: z.string().trim().min(1, '"symbol" is required'),
+  note: z.string().nullish(),
+});
+
+const updateWatchlistItemSchema = z.object({
+  note: z.string().nullish(),
+});
 
 /**
  * @swagger
@@ -98,13 +98,9 @@ watchlistRouter.get("/", async (req: AuthenticatedRequest, res) => {
  */
 watchlistRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
-  const symbol = (req.body as { symbol?: unknown } | null)?.symbol;
+  const body = parseBody(addWatchlistItemSchema, req.body);
 
-  if (typeof symbol !== "string" || symbol.trim() === "") {
-    throw new AppError('"symbol" is required', 400);
-  }
-
-  const item = await addWatchlistItem(firebaseUid, symbol.trim(), parseNote(req.body));
+  const item = await addWatchlistItem(firebaseUid, body.symbol, body.note ?? null);
   res.status(201).json({ item });
 });
 
@@ -180,7 +176,8 @@ watchlistRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
 watchlistRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const id = parseId(req.params.id ?? "");
-  const item = await editWatchlistItemNote(firebaseUid, id, parseNote(req.body));
+  const body = parseBody(updateWatchlistItemSchema, req.body ?? {});
+  const item = await editWatchlistItemNote(firebaseUid, id, body.note ?? null);
   res.json({ item });
 });
 
