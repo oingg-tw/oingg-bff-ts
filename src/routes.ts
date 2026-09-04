@@ -1,4 +1,5 @@
 import cors from "cors";
+import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import { Router } from "ultimate-express";
 import { swaggerSpec, swaggerUi } from "@/adapters/swagger/index.js";
@@ -13,7 +14,7 @@ import { startedAt, systemRouter } from "@/domains/system/index.js";
 import { transactionsRouter } from "@/domains/transactions/index.js";
 import { userRouter } from "@/domains/user/index.js";
 import { watchlistRouter } from "@/domains/watchlist/index.js";
-import { env } from "@/shared/env.js";
+import { env, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from "@/shared/env.js";
 
 // Single place to see every mounted path — check here before grepping through src/domains.
 export const routes = Router();
@@ -23,6 +24,17 @@ export const routes = Router();
 // to actually appear on responses (verified via curl, not just code inspection — see security report).
 routes.use(helmet());
 routes.use(cors({ origin: env.corsOrigins }));
+routes.use(
+  rateLimit({
+    windowMs: RATE_LIMIT_WINDOW_MS,
+    limit: RATE_LIMIT_MAX_REQUESTS,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req, res) => {
+      res.status(429).json({ error: { message: "Too many requests" } });
+    },
+  }),
+);
 
 /**
  * @swagger

@@ -30,4 +30,12 @@ export const env = {
  */
 export const ANALYSIS_SERVICE_TIMEOUT_MS = 10_000;
 
+/**
+ * Applied globally (see routes.ts) as a first, IP-based line of defense — bff-ts has no rate limiting
+ * at all otherwise. 300 req/min is generous enough not to bother a real user or the screener's normal
+ * polling, but bounds worst-case load on analysis-ts (bff-ts's only upstream) from any single source.
+ */
+export const RATE_LIMIT_WINDOW_MS = 60_000;
+export const RATE_LIMIT_MAX_REQUESTS = 300;
+
 export { requireEnv };
