@@ -7,6 +7,7 @@ import { authRouter } from "@/domains/auth/index.js";
 import { etfScreenerRouter } from "@/domains/etfScreener/index.js";
 import { filterCatalogRouter } from "@/domains/filterCatalog/index.js";
 import { holdingsRouter } from "@/domains/holdings/index.js";
+import { industriesRouter } from "@/domains/industries/index.js";
 import { marketRouter } from "@/domains/market/index.js";
 import { screenerRoutes } from "@/domains/screener/index.js";
 import { stockRouter } from "@/domains/stock/index.js";
@@ -65,3 +66,4 @@ routes.use("/screener", screenerRoutes);
 routes.use("/filters", filterCatalogRouter); // GET /filters
 routes.use("/market", marketRouter); // GET /market/foreign-holding-ranking, GET /market/margin-short-ratio-ranking
 routes.use("/etf-screener", etfScreenerRouter); // GET /etf-screener/filters, POST /etf-screener
+routes.use("/industries", industriesRouter); // GET /industries/tree

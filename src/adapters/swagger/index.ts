@@ -19,6 +19,7 @@ import "@/domains/transactions/transactions.openapi.js";
 import "@/domains/filterCatalog/filterCatalog.openapi.js";
 import "@/domains/market/market.openapi.js";
 import "@/domains/etfScreener/etfScreener.openapi.js";
+import "@/domains/industries/industries.openapi.js";
 import "@/domains/screener/screener.openapi.js";
 import "@/domains/screener/columnPresets.openapi.js";
 import "@/domains/screener/screenerPresets.openapi.js";
@@ -51,6 +52,7 @@ function generateDocument() {
       { name: "Screener", description: "依 filterCatalog 指標篩選個股，並依使用者設定的欄位偏好回傳結果" },
       { name: "Market", description: "市場排行/清單（外資持股、券資比、注意股、處置股、成交量、漲跌幅、ETF 排行等）" },
       { name: "ETF Screener", description: "ETF 篩選" },
+      { name: "Industries", description: "產業分類樹（財政部稅籍五層分類）" },
     ],
   });
 }
