@@ -48,7 +48,6 @@ const RAW_ENTRY = {
   redeemable: true,
   redemptionDate: "2023-12-13",
   redemptionConditions: "本公司得於發行日滿五年後之次日起按實際發行價格收回",
-  callProtectionYears: 5,
   callRiskAmount: 6.55,
 };
 
@@ -76,23 +75,21 @@ describe("fetchPreferredStocks", () => {
     expect(calledUrl.toString()).toBe("http://filters.test/preferred-stocks?limit=200&symbol=1101B");
   });
 
-  // callProtectionYears/callRiskAmount added by analysis-ts 2026-09-06 — pass through as plain numbers.
-  it("passes through callProtectionYears and callRiskAmount", async () => {
+  // callRiskAmount added by analysis-ts 2026-09-06 — pass through as a plain number.
+  it("passes through callRiskAmount", async () => {
     mockFetchOnce({ ok: true, body: { entries: [RAW_ENTRY] } });
 
     const result = await fetchPreferredStocks("1101B");
 
-    expect(result.entries[0]?.callProtectionYears).toBe(5);
     expect(result.entries[0]?.callRiskAmount).toBe(6.55);
   });
 
-  it("keeps callProtectionYears/callRiskAmount null when analysis-ts sends null (not redeemable)", async () => {
-    const entry = { ...RAW_ENTRY, redeemable: false, callProtectionYears: null, callRiskAmount: null };
+  it("keeps callRiskAmount null when analysis-ts sends null (not redeemable)", async () => {
+    const entry = { ...RAW_ENTRY, redeemable: false, callRiskAmount: null };
     mockFetchOnce({ ok: true, body: { entries: [entry] } });
 
     const result = await fetchPreferredStocks("1101B");
 
-    expect(result.entries[0]?.callProtectionYears).toBeNull();
     expect(result.entries[0]?.callRiskAmount).toBeNull();
   });
 

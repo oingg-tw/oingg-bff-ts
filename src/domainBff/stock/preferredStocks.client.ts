@@ -44,7 +44,6 @@ function normalizeEntry(raw: unknown): PreferredStockEntry {
     redeemable: r.redeemable === true,
     redemptionDate: toStringOrNull(r.redemptionDate),
     redemptionConditions: toStringOrNull(r.redemptionConditions),
-    callProtectionYears: toNumberOrNull(r.callProtectionYears),
     callRiskAmount: toNumberOrNull(r.callRiskAmount),
   };
 }

@@ -53,8 +53,6 @@ export interface PreferredStockEntry {
   redemptionDate: string | null;
   /** Null when redeemable is false. */
   redemptionConditions: string | null;
-  /** Years of call protection before the issue becomes redeemable. Added by analysis-ts 2026-09-06. */
-  callProtectionYears: number | null;
   /**
    * analysis-ts's own "買回風險" figure, null when `redeemable` is false. Confirmed formula (2026-09-06,
    * after an initial wrong description was caught by comparing live numbers and corrected by
