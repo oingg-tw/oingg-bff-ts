@@ -34,6 +34,11 @@ export interface PreferredStockEntry {
   convertible: boolean;
   /** Null when convertible is false. */
   conversionStartDate: string | null;
+  /**
+   * The issuing company's call right (公司贖回權) — the company's option to redeem the shares, NOT an
+   * investor put right (投資人賣回權). Confirmed with the user directly (2026-09-06): this endpoint has
+   * no field for an investor put right at all, only this company-side call right.
+   */
   redeemable: boolean;
   /** Null when redeemable is false. */
   redemptionDate: string | null;
