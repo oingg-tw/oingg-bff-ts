@@ -30,8 +30,8 @@ bff-ts 修復完成後，唯一還會直連的資料庫只剩自己的 `DATABASE
 
 | 現況 | 檔案 | 狀態 |
 | :---- | :---- | :---- |
-| twse/tpex 的 `daily_price`／`daily_valuation` 直連 | `src/domains/stock/stock.service.ts` | **已修復**（2026-09-01）。改呼叫 analysis-ts 的 `GET /stocks/:symbol/quote`／`GET /stocks/prices`（見 `stockQuote.client.ts`）。 |
-| 直查 analysis-ts 自己 DB 裡的 30+ 張指標表（動態 CTE/JOIN） | `src/domains/screener/screener.service.ts`、`analysisMetricTables.ts` | 尚未處理，繞過 analysis-ts 的服務邊界直連它的 DB |
+| twse/tpex 的 `daily_price`／`daily_valuation` 直連 | `src/domainBff/stock/stock.service.ts` | **已修復**（2026-09-01）。改呼叫 analysis-ts 的 `GET /stocks/:symbol/quote`／`GET /stocks/prices`（見 `stockQuote.client.ts`）。 |
+| 直查 analysis-ts 自己 DB 裡的 30+ 張指標表（動態 CTE/JOIN） | `src/domainBff/screener/screener.service.ts`、`analysisMetricTables.ts` | 尚未處理，繞過 analysis-ts 的服務邊界直連它的 DB |
 
 ## 前置阻塞項：analysis-ts 對 twse/tpex 的鏡像目前不完整
 

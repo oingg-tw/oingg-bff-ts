@@ -25,7 +25,7 @@
  */
 import "dotenv/config";
 import { getPrismaClient, closePrismaClient } from "../src/adapters/neon/prismaClient.js";
-import type { PresetTemplateFilter } from "../src/domains/presetTemplates/presetTemplates.types.js";
+import type { PresetTemplateFilter } from "../src/domainBusiness/presetTemplates/presetTemplates.types.js";
 
 interface TemplateSeed {
   name: string;
