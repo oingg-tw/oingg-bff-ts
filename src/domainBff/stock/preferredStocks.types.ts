@@ -56,13 +56,15 @@ export interface PreferredStockEntry {
   /** Years of call protection before the issue becomes redeemable. Added by analysis-ts 2026-09-06. */
   callProtectionYears: number | null;
   /**
-   * analysis-ts's own "買回風險" figure (added 2026-09-06), null when `redeemable` is false. Passed
-   * through as-is, but its actual sign does NOT match analysis-ts's own stated formula
-   * ("現價-發行價", i.e. latestClosePrice - issuePrice, same as this module's priceMinusIssuePrice) — real
-   * examples (1101B: close 43.45 < issue 50, yet callRiskAmount is +6.55 not -6.55; 1522A: close 51 >
-   * issue 50, yet callRiskAmount is -1 not +1) show it's actually issuePrice - latestClosePrice, the
-   * opposite sign. Flagged with analysis-ts (2026-09-06), unresolved — do NOT treat this as
-   * interchangeable with priceMinusIssuePrice until that's confirmed one way or the other.
+   * analysis-ts's own "買回風險" figure, null when `redeemable` is false. Confirmed formula (2026-09-06,
+   * after an initial wrong description was caught by comparing live numbers and corrected by
+   * analysis-ts): issuePrice - latestClosePrice — i.e. `callRiskAmount === -priceMinusIssuePrice`
+   * exactly, same magnitude, opposite sign. Negative means the current price already exceeds the issue
+   * price, so a call at/near issue price would force investors to realize that loss (the "risk" this
+   * field names); positive means no such risk. Deliberately kept alongside priceMinusIssuePrice rather
+   * than replacing it — different null-gating (this is null when not redeemable; priceMinusIssuePrice
+   * is always populated whenever there's price data) and web-nuxt hasn't decided which sign convention
+   * reads better for their card yet.
    */
   callRiskAmount: number | null;
 }

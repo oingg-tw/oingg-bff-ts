@@ -49,7 +49,7 @@ const RAW_ENTRY = {
   redemptionDate: "2023-12-13",
   redemptionConditions: "本公司得於發行日滿五年後之次日起按實際發行價格收回",
   callProtectionYears: 5,
-  callRiskAmount: -6.55,
+  callRiskAmount: 6.55,
 };
 
 // analysis-ts never sends this — it's computed here (latestClosePrice - issuePrice), so the normalized
@@ -83,7 +83,7 @@ describe("fetchPreferredStocks", () => {
     const result = await fetchPreferredStocks("1101B");
 
     expect(result.entries[0]?.callProtectionYears).toBe(5);
-    expect(result.entries[0]?.callRiskAmount).toBe(-6.55);
+    expect(result.entries[0]?.callRiskAmount).toBe(6.55);
   });
 
   it("keeps callProtectionYears/callRiskAmount null when analysis-ts sends null (not redeemable)", async () => {
