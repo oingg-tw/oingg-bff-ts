@@ -48,6 +48,8 @@ const RAW_ENTRY = {
   redeemable: true,
   redemptionDate: "2023-12-13",
   redemptionConditions: "本公司得於發行日滿五年後之次日起按實際發行價格收回",
+  callProtectionYears: 5,
+  callRiskAmount: -6.55,
 };
 
 // analysis-ts never sends this — it's computed here (latestClosePrice - issuePrice), so the normalized
@@ -55,23 +57,43 @@ const RAW_ENTRY = {
 const EXPECTED_ENTRY = { ...RAW_ENTRY, priceMinusIssuePrice: -6.55 };
 
 describe("fetchPreferredStocks", () => {
-  it("requests /preferred-stocks without a symbol param when omitted, and normalizes entries", async () => {
-    mockFetchOnce({ ok: true, body: { entries: [RAW_ENTRY] } });
+  it("requests /preferred-stocks without a symbol param when omitted (but with a large limit to defeat analysis-ts's own default pagination), and normalizes entries", async () => {
+    mockFetchOnce({ ok: true, body: { count: 1, limit: 50, offset: 0, entries: [RAW_ENTRY] } });
 
     const result = await fetchPreferredStocks();
 
     expect(result).toEqual({ entries: [EXPECTED_ENTRY] });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/preferred-stocks");
+    expect(calledUrl.toString()).toBe("http://filters.test/preferred-stocks?limit=200");
   });
 
-  it("requests /preferred-stocks?symbol= with the given symbol", async () => {
+  it("requests /preferred-stocks?symbol=&limit= with the given symbol", async () => {
     mockFetchOnce({ ok: true, body: { entries: [RAW_ENTRY] } });
 
     await fetchPreferredStocks("1101B");
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/preferred-stocks?symbol=1101B");
+    expect(calledUrl.toString()).toBe("http://filters.test/preferred-stocks?limit=200&symbol=1101B");
+  });
+
+  // callProtectionYears/callRiskAmount added by analysis-ts 2026-09-06 — pass through as plain numbers.
+  it("passes through callProtectionYears and callRiskAmount", async () => {
+    mockFetchOnce({ ok: true, body: { entries: [RAW_ENTRY] } });
+
+    const result = await fetchPreferredStocks("1101B");
+
+    expect(result.entries[0]?.callProtectionYears).toBe(5);
+    expect(result.entries[0]?.callRiskAmount).toBe(-6.55);
+  });
+
+  it("keeps callProtectionYears/callRiskAmount null when analysis-ts sends null (not redeemable)", async () => {
+    const entry = { ...RAW_ENTRY, redeemable: false, callProtectionYears: null, callRiskAmount: null };
+    mockFetchOnce({ ok: true, body: { entries: [entry] } });
+
+    const result = await fetchPreferredStocks("1101B");
+
+    expect(result.entries[0]?.callProtectionYears).toBeNull();
+    expect(result.entries[0]?.callRiskAmount).toBeNull();
   });
 
   it("returns an empty entries array for a symbol with no match, without throwing", async () => {

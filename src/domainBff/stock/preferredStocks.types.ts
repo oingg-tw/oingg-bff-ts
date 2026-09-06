@@ -53,6 +53,18 @@ export interface PreferredStockEntry {
   redemptionDate: string | null;
   /** Null when redeemable is false. */
   redemptionConditions: string | null;
+  /** Years of call protection before the issue becomes redeemable. Added by analysis-ts 2026-09-06. */
+  callProtectionYears: number | null;
+  /**
+   * analysis-ts's own "買回風險" figure (added 2026-09-06), null when `redeemable` is false. Passed
+   * through as-is, but its actual sign does NOT match analysis-ts's own stated formula
+   * ("現價-發行價", i.e. latestClosePrice - issuePrice, same as this module's priceMinusIssuePrice) — real
+   * examples (1101B: close 43.45 < issue 50, yet callRiskAmount is +6.55 not -6.55; 1522A: close 51 >
+   * issue 50, yet callRiskAmount is -1 not +1) show it's actually issuePrice - latestClosePrice, the
+   * opposite sign. Flagged with analysis-ts (2026-09-06), unresolved — do NOT treat this as
+   * interchangeable with priceMinusIssuePrice until that's confirmed one way or the other.
+   */
+  callRiskAmount: number | null;
 }
 
 export interface PreferredStocksResult {

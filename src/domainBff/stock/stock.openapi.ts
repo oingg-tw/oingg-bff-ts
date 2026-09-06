@@ -257,6 +257,8 @@ const preferredStockEntrySchema = z
     redeemable: z.boolean(),
     redemptionDate: z.string().nullable(),
     redemptionConditions: z.string().nullable(),
+    callProtectionYears: z.number().nullable(),
+    callRiskAmount: z.number().nullable(),
   })
   .openapi("PreferredStockEntry", {
     example: {
@@ -282,6 +284,8 @@ const preferredStockEntrySchema = z
       redeemable: true,
       redemptionDate: "2023-12-13",
       redemptionConditions: "本公司得於發行日滿五年後之次日起按實際發行價格收回",
+      callProtectionYears: 5,
+      callRiskAmount: -6.55,
     },
   });
 
@@ -290,7 +294,7 @@ registry.registerPath({
   path: "/stocks/preferred-stocks",
   summary: "查詢特別股清單（僅上市，上櫃無對應資料源）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /preferred-stocks。不給 symbol 回傳目前所有上市特別股（截至 2026-09-06 共 28 檔）；給 symbol 查無資料回傳空陣列，不是 404。dividendRate 是每股固定配息金額（新台幣元），不是百分比——不要跟 nominalDividendRatePct（票面利率，發行時基準、之後不變）或 currentYieldPct（目前殖利率，隨股價每天變動，查無股價時為 null）搞混，三者是不同概念。redeemable/redemptionDate/redemptionConditions 是「公司贖回權」（公司可要求收回），不是「投資人賣回權」——這支端點沒有投資人賣回權的對應欄位。priceMinusIssuePrice（現價減發行價，四捨五入到小數點後 2 位）不是 analysis-ts 給的，是 bff-ts 自己算的（latestClosePrice - issuePrice），latestClosePrice 為 null 時這個欄位也是 null。",
+    "資料來自 oingg-analysis-ts 的 GET /preferred-stocks。不給 symbol 回傳目前所有上市特別股（截至 2026-09-06 共 28 檔）；給 symbol 查無資料回傳空陣列，不是 404。dividendRate 是每股固定配息金額（新台幣元），不是百分比——不要跟 nominalDividendRatePct（票面利率，發行時基準、之後不變）或 currentYieldPct（目前殖利率，隨股價每天變動，查無股價時為 null）搞混，三者是不同概念。redeemable/redemptionDate/redemptionConditions 是「公司贖回權」（公司可要求收回），不是「投資人賣回權」——這支端點沒有投資人賣回權的對應欄位。priceMinusIssuePrice（現價減發行價，四捨五入到小數點後 2 位）不是 analysis-ts 給的，是 bff-ts 自己算的（latestClosePrice - issuePrice），latestClosePrice 為 null 時這個欄位也是 null。callProtectionYears（贖回保護期年數）、callRiskAmount（買回風險，只在 redeemable 為 true 時才有值）則是 analysis-ts 原生提供的欄位（2026-09-06 新增），原樣轉發——但 callRiskAmount 的正負號跟 analysis-ts 自己說的公式（現價-發行價）對不起來，實測是反過來的（發行價-現價），已跟 analysis-ts 確認中，暫時不要當成跟 priceMinusIssuePrice 同一個東西直接替換。此端點固定向 analysis-ts 要求較大的 limit（避免其分頁機制截斷「查全部」的用法），本身對外不提供分頁參數，回應固定是 { entries: [...] }。",
   tags: ["Stock"],
   request: {
     query: preferredStocksQuerySchema.openapi("PreferredStocksQuery", { example: { symbol: "1101B" } }),

@@ -44,6 +44,8 @@ function normalizeEntry(raw: unknown): PreferredStockEntry {
     redeemable: r.redeemable === true,
     redemptionDate: toStringOrNull(r.redemptionDate),
     redemptionConditions: toStringOrNull(r.redemptionConditions),
+    callProtectionYears: toNumberOrNull(r.callProtectionYears),
+    callRiskAmount: toNumberOrNull(r.callRiskAmount),
   };
 }
 
@@ -52,12 +54,21 @@ function isPreferredStocksResponse(body: unknown): body is { entries: unknown[] 
 }
 
 /**
+ * analysis-ts added pagination (2026-09-06): the response now also carries count/limit/offset (default
+ * limit 50, max 200 — confirmed live, a limit above 200 is a 400), matching GET /companies. There are
+ * only 28 issues today so the default wouldn't truncate yet, but bff-ts's own contract here has no
+ * pagination of its own — always request analysis-ts's own maximum so "no symbol" reliably means "every
+ * issue", not "whatever analysis-ts's current default page size happens to be".
+ */
+const LIST_ALL_LIMIT = "200";
+
+/**
  * Fetches TWSE-listed preferred stocks from analysis-ts's GET /preferred-stocks. Omitting `symbol`
  * returns every currently-listed issue (28 as of 2026-09-06); a given symbol with no match comes back
  * as an empty `entries` array, never a 404 (confirmed with analysis-ts directly).
  */
 export async function fetchPreferredStocks(symbol?: string): Promise<PreferredStocksResult> {
-  const searchParams: Record<string, string> = {};
+  const searchParams: Record<string, string> = { limit: LIST_ALL_LIMIT };
   if (symbol !== undefined) {
     searchParams.symbol = symbol;
   }
