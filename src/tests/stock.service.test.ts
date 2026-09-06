@@ -21,10 +21,15 @@ vi.mock("@/domainBff/stock/financialStatement.client.js", () => ({
   fetchFinancialStatement: vi.fn(),
 }));
 
+vi.mock("@/domainBff/stock/preferredStocks.client.js", () => ({
+  fetchPreferredStocks: vi.fn(),
+}));
+
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
 import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
 import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.client.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
+import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
 import {
   assertSymbolExists,
@@ -33,6 +38,7 @@ import {
   getExDividendNotices,
   getFinancialStatement,
   getLatestClosePrices,
+  getPreferredStocks,
   getStockQuote,
 } from "@/domainBff/stock/stock.service.js";
 
@@ -43,6 +49,7 @@ beforeEach(() => {
   vi.mocked(fetchCapitalStockHistory).mockReset();
   vi.mocked(fetchExDividendNotices).mockReset();
   vi.mocked(fetchFinancialStatement).mockReset();
+  vi.mocked(fetchPreferredStocks).mockReset();
 });
 
 describe("getStockQuote", () => {
@@ -159,5 +166,23 @@ describe("getFinancialStatement", () => {
     await getFinancialStatement("2330", "incomeStatement");
 
     expect(fetchFinancialStatement).toHaveBeenCalledWith("2330", "incomeStatement", undefined, undefined);
+  });
+});
+
+describe("getPreferredStocks", () => {
+  it("delegates to fetchPreferredStocks and returns its result as-is", async () => {
+    const result = { entries: [{ symbol: "1101B" }] } as never;
+    vi.mocked(fetchPreferredStocks).mockResolvedValue(result);
+
+    await expect(getPreferredStocks("1101B")).resolves.toEqual(result);
+    expect(fetchPreferredStocks).toHaveBeenCalledWith("1101B");
+  });
+
+  it("forwards undefined through when no symbol is given (analysis-ts returns every listed issue)", async () => {
+    vi.mocked(fetchPreferredStocks).mockResolvedValue({ entries: [] });
+
+    await getPreferredStocks();
+
+    expect(fetchPreferredStocks).toHaveBeenCalledWith(undefined);
   });
 });

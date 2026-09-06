@@ -7,6 +7,8 @@ import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.clie
 import type { ExDividendNoticeEntry } from "@/domainBff/stock/exDividendNotices.types.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
 import type { FinancialStatementResult, FinancialStatementType } from "@/domainBff/stock/financialStatement.types.js";
+import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
+import type { PreferredStocksResult } from "@/domainBff/stock/preferredStocks.types.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
 import type { StockQuote } from "@/domainBff/stock/stock.types.js";
 
@@ -65,4 +67,9 @@ export async function getFinancialStatement(
   season?: string,
 ): Promise<FinancialStatementResult> {
   return fetchFinancialStatement(symbol, statementType, year, season);
+}
+
+/** TWSE-listed preferred stocks (all, or one symbol) — GET /stocks/preferred-stocks. */
+export async function getPreferredStocks(symbol?: string): Promise<PreferredStocksResult> {
+  return fetchPreferredStocks(symbol);
 }

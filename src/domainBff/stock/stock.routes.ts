@@ -7,6 +7,7 @@ import {
   getCompanyProfile,
   getExDividendNotices,
   getFinancialStatement,
+  getPreferredStocks,
   getStockQuote,
 } from "@/domainBff/stock/stock.service.js";
 
@@ -31,6 +32,17 @@ stockRouter.get("/ex-dividend-notices", async (req, res) => {
   }
   const notices = await getExDividendNotices(symbols);
   res.json({ notices: Object.fromEntries(notices) });
+});
+
+export const preferredStocksQuerySchema = z.object({
+  symbol: z.string().trim().min(1, '"symbol" must be a non-empty string').optional(),
+});
+
+// Mounted before the "/:symbol" catch-all below, or "preferred-stocks" would be captured as a symbol.
+stockRouter.get("/preferred-stocks", async (req, res) => {
+  const query = parseBody(preferredStocksQuerySchema, req.query);
+  const result = await getPreferredStocks(query.symbol);
+  res.json(result);
 });
 
 stockRouter.get("/:symbol", async (req, res) => {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
-import { financialStatementQuerySchema } from "@/domainBff/stock/stock.routes.js";
+import { financialStatementQuerySchema, preferredStocksQuerySchema } from "@/domainBff/stock/stock.routes.js";
 
 const symbolParam = z.object({ symbol: z.string().openapi({ example: "2330", description: "股票代號" }) });
 const unauthorized502 = errorResponse("analysis-ts 服務無法連線或回應格式異常。");
@@ -229,6 +229,79 @@ registry.registerPath({
       content: { "application/json": { schema: financialStatementSchema } },
     },
     400: errorResponse('"statementType" 缺少或無效，或 year/season 只給了其中一個。'),
+    502: unauthorized502,
+  },
+});
+
+const preferredStockEntrySchema = z
+  .object({
+    symbol: z.string(),
+    name: z.string(),
+    isinCode: z.string(),
+    listedDate: z.string(),
+    marketType: z.string(),
+    issueDate: z.string(),
+    issuePrice: z.number(),
+    dividendRate: z.number(),
+    nominalDividendRatePct: z.number(),
+    currentYieldPct: z.number().nullable(),
+    latestClosePrice: z.number().nullable(),
+    latestPriceDate: z.string().nullable(),
+    cumulativeDividend: z.boolean(),
+    participatingExcessDividend: z.boolean(),
+    liquidationPreference: z.boolean(),
+    votingRights: z.boolean(),
+    convertible: z.boolean(),
+    conversionStartDate: z.string().nullable(),
+    redeemable: z.boolean(),
+    redemptionDate: z.string().nullable(),
+    redemptionConditions: z.string().nullable(),
+  })
+  .openapi("PreferredStockEntry", {
+    example: {
+      symbol: "1101B",
+      name: "台泥乙特",
+      isinCode: "TW0001101B05",
+      listedDate: "2019-01-29",
+      marketType: "上市",
+      issueDate: "2018-12-13",
+      issuePrice: 50,
+      dividendRate: 1.75,
+      nominalDividendRatePct: 3.5,
+      currentYieldPct: 4.03,
+      latestClosePrice: 43.45,
+      latestPriceDate: "2026-09-04",
+      cumulativeDividend: false,
+      participatingExcessDividend: false,
+      liquidationPreference: true,
+      votingRights: false,
+      convertible: false,
+      conversionStartDate: null,
+      redeemable: true,
+      redemptionDate: "2023-12-13",
+      redemptionConditions: "本公司得於發行日滿五年後之次日起按實際發行價格收回",
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/preferred-stocks",
+  summary: "查詢特別股清單（僅上市，上櫃無對應資料源）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /preferred-stocks。不給 symbol 回傳目前所有上市特別股（截至 2026-09-06 共 28 檔）；給 symbol 查無資料回傳空陣列，不是 404。dividendRate 是每股固定配息金額（新台幣元），不是百分比——不要跟 nominalDividendRatePct（票面利率，發行時基準、之後不變）或 currentYieldPct（目前殖利率，隨股價每天變動，查無股價時為 null）搞混，三者是不同概念。",
+  tags: ["Stock"],
+  request: {
+    query: preferredStocksQuerySchema.openapi("PreferredStocksQuery", { example: { symbol: "1101B" } }),
+  },
+  responses: {
+    200: {
+      description: "特別股清單，查無資料時 entries 為空陣列。",
+      content: {
+        "application/json": {
+          schema: z.object({ entries: z.array(preferredStockEntrySchema) }).openapi("PreferredStocks"),
+        },
+      },
+    },
     502: unauthorized502,
   },
 });
