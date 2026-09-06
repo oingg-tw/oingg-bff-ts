@@ -9,8 +9,8 @@ import { env } from "@/shared/env.js";
 // so this ordering is guaranteed regardless of what else imports these modules elsewhere — confirmed
 // with twse-ts, who hit this exact ordering trap themselves, 2026-09-04).
 import "@/root.openapi.js";
-import "@/domains/system/system.openapi.js";
-import "@/domains/auth/auth.openapi.js";
+import "@/domainBusiness/system/system.openapi.js";
+import "@/domainBusiness/auth/auth.openapi.js";
 import "@/domainBusiness/user/user.openapi.js";
 import "@/domainBff/stock/stock.openapi.js";
 import "@/domainBusiness/watchlist/watchlist.openapi.js";

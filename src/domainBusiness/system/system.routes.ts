@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
-import { getHealthReport } from "@/domains/system/system.service.js";
-import { startedAt } from "@/domains/system/system.state.js";
+import { getHealthReport } from "@/domainBusiness/system/system.service.js";
+import { startedAt } from "@/domainBusiness/system/system.state.js";
 
 export const systemRouter = Router();
 

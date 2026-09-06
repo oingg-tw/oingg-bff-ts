@@ -2,8 +2,8 @@ import { Router } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseBody } from "@/shared/validation.js";
-import { requireAuth } from "@/domains/auth/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
+import { requireAuth } from "@/domainBusiness/auth/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
 import { getDashboardCardSettings, updateDashboardCardSettings } from "@/domainBusiness/user/dashboardCardSettings.service.js";
 import { getDisplaySettings, updateShowAsOfDate } from "@/domainBusiness/user/screenerDisplaySettings.service.js";
 import {

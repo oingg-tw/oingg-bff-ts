@@ -7,7 +7,7 @@ vi.mock("@/adapters/neon/index.js", () => ({
 }));
 
 import { getPrismaClient, listNeonPoolNames, queryNeon } from "@/adapters/neon/index.js";
-import { getHealthReport } from "@/domains/system/system.service.js";
+import { getHealthReport } from "@/domainBusiness/system/system.service.js";
 
 const STARTED_AT = new Date("2026-08-30T00:00:00.000Z");
 

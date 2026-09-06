@@ -3,8 +3,8 @@ import { z } from "zod";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
-import { requireAuth } from "@/domains/auth/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
+import { requireAuth } from "@/domainBusiness/auth/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
 import { assertSymbolExists } from "@/domainBff/stock/index.js";
 import {
   addWatchlistItem,
