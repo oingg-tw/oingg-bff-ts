@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchEtfFilterCatalog, fetchEtfScreenerResults } from "@/domains/etfScreener/etfScreener.client.js";
+import { fetchEtfFilterCatalog, fetchEtfScreenerResults } from "@/bff/etfScreener/etfScreener.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;

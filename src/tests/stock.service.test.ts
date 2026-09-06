@@ -1,26 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domains/stock/stockQuote.client.js", () => ({
+vi.mock("@/bff/stock/stockQuote.client.js", () => ({
   fetchStockQuote: vi.fn(),
   fetchStockPrices: vi.fn(),
 }));
 
-vi.mock("@/domains/stock/companyProfile.client.js", () => ({
+vi.mock("@/bff/stock/companyProfile.client.js", () => ({
   fetchCompanyProfile: vi.fn(),
 }));
 
-vi.mock("@/domains/stock/capitalStockHistory.client.js", () => ({
+vi.mock("@/bff/stock/capitalStockHistory.client.js", () => ({
   fetchCapitalStockHistory: vi.fn(),
 }));
 
-vi.mock("@/domains/stock/exDividendNotices.client.js", () => ({
+vi.mock("@/bff/stock/exDividendNotices.client.js", () => ({
   fetchExDividendNotices: vi.fn(),
 }));
 
-import { fetchCapitalStockHistory } from "@/domains/stock/capitalStockHistory.client.js";
-import { fetchCompanyProfile } from "@/domains/stock/companyProfile.client.js";
-import { fetchExDividendNotices } from "@/domains/stock/exDividendNotices.client.js";
-import { fetchStockPrices, fetchStockQuote } from "@/domains/stock/stockQuote.client.js";
+import { fetchCapitalStockHistory } from "@/bff/stock/capitalStockHistory.client.js";
+import { fetchCompanyProfile } from "@/bff/stock/companyProfile.client.js";
+import { fetchExDividendNotices } from "@/bff/stock/exDividendNotices.client.js";
+import { fetchStockPrices, fetchStockQuote } from "@/bff/stock/stockQuote.client.js";
 import {
   assertSymbolExists,
   getCapitalStockHistory,
@@ -28,7 +28,7 @@ import {
   getExDividendNotices,
   getLatestClosePrices,
   getStockQuote,
-} from "@/domains/stock/stock.service.js";
+} from "@/bff/stock/stock.service.js";
 
 beforeEach(() => {
   vi.mocked(fetchStockQuote).mockReset();

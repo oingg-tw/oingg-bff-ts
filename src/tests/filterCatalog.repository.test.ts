@@ -16,8 +16,8 @@ vi.mock("@/adapters/neon/index.js", () => ({
   getPrismaClient: () => mockPrisma,
 }));
 
-import { listFilterCatalog, replaceFilterCatalog } from "@/domains/filterCatalog/filterCatalog.repository.js";
-import type { FilterCategory } from "@/domains/filterCatalog/filterCatalog.types.js";
+import { listFilterCatalog, replaceFilterCatalog } from "@/business/filterCatalog/filterCatalog.repository.js";
+import type { FilterCategory } from "@/business/filterCatalog/filterCatalog.types.js";
 
 const SAMPLE_CATALOG: FilterCategory[] = [
   {
