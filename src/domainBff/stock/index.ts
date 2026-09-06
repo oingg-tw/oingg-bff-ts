@@ -4,6 +4,7 @@ export {
   getCapitalStockHistory,
   getCompanyProfile,
   getExDividendNotices,
+  getFinancialStatement,
   getLatestClosePrices,
   getStockQuote,
 } from "@/domainBff/stock/stock.service.js";
@@ -16,3 +17,4 @@ export type {
   CapitalStockHistoryResult,
 } from "@/domainBff/stock/capitalStockHistory.types.js";
 export type { ExDividendNoticeEntry, ExDividendType } from "@/domainBff/stock/exDividendNotices.types.js";
+export type { FinancialStatementResult, FinancialStatementType } from "@/domainBff/stock/financialStatement.types.js";

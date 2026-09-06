@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
+import { financialStatementQuerySchema } from "@/domainBff/stock/stock.routes.js";
 
 const symbolParam = z.object({ symbol: z.string().openapi({ example: "2330", description: "股票代號" }) });
 const unauthorized502 = errorResponse("analysis-ts 服務無法連線或回應格式異常。");
@@ -169,6 +170,65 @@ registry.registerPath({
       description: "股本歷史，查無資料時 entries 為空陣列。",
       content: { "application/json": { schema: capitalStockHistorySchema } },
     },
+    502: unauthorized502,
+  },
+});
+
+const financialStatementSchema = z
+  .object({
+    symbol: z.string(),
+    statementType: z.enum(["balanceSheet", "incomeStatement", "cashFlowStatement"]),
+    dataType: z.string().nullable(),
+    subsidiaryCompanyId: z.string().nullable(),
+    year: z.string().nullable(),
+    season: z.string().nullable(),
+    reportDate: z.string().nullable(),
+    found: z.boolean(),
+    statement: z.record(z.string(), z.string().nullable()).nullable(),
+  })
+  .openapi("FinancialStatement", {
+    example: {
+      symbol: "2330",
+      statementType: "balanceSheet",
+      dataType: "2",
+      subsidiaryCompanyId: "",
+      year: "115",
+      season: "2",
+      reportDate: "2026-06-30",
+      found: true,
+      statement: {
+        cashAndEquivalents: "3134218213",
+        accountsReceivable: "435762477",
+        inventory: "385524542",
+        currentAssets: "4565700742",
+        totalAssets: "9375654727",
+        shortTermBorrowings: null,
+        totalLiabilities: "2901183746",
+        totalEquity: "6474470981",
+        totalLiabilitiesAndEquity: "9375654727",
+      },
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/financial-statement",
+  summary: "查詢一季完整的財報原始科目金額（會計模式用，非比率指標）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/financial-statement。三種 statementType 各自的科目欄位不同（balanceSheet/incomeStatement/cashFlowStatement），欄位為 camelCase，金額一律序列化成字串（bigint 避免精度問題），incomeStatement 的 eps/epsDiluted 原始資料就是字串（非序列化所致）。欄位值為 null 代表財報本來就沒揭露該科目或為零，不代表查詢失敗。不給 year/season 會查最新一季；查無資料（代號不存在，或指定的 year/season 沒有申報資料）回應 found:false、statement:null，仍是 200，不是 404。dataType/subsidiaryCompanyId 是 analysis-ts 內部欄位原樣轉發，語意未正式核對過。",
+  tags: ["Stock"],
+  request: {
+    params: symbolParam,
+    query: financialStatementQuerySchema.openapi("FinancialStatementQuery", {
+      example: { statementType: "balanceSheet", year: "115", season: "2" },
+    }),
+  },
+  responses: {
+    200: {
+      description: "一季財報原始科目金額，查無資料時 found 為 false、statement 為 null。",
+      content: { "application/json": { schema: financialStatementSchema } },
+    },
+    400: errorResponse('"statementType" 缺少或無效，或 year/season 只給了其中一個。'),
     502: unauthorized502,
   },
 });

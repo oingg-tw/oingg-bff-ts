@@ -5,6 +5,8 @@ import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js"
 import type { CompanyProfile } from "@/domainBff/stock/companyProfile.types.js";
 import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.client.js";
 import type { ExDividendNoticeEntry } from "@/domainBff/stock/exDividendNotices.types.js";
+import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
+import type { FinancialStatementResult, FinancialStatementType } from "@/domainBff/stock/financialStatement.types.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
 import type { StockQuote } from "@/domainBff/stock/stock.types.js";
 
@@ -53,4 +55,14 @@ export async function getCapitalStockHistory(symbol: string): Promise<CapitalSto
 /** Batched upcoming ex-dividend/ex-rights lookup — GET /stocks/ex-dividend-notices. */
 export async function getExDividendNotices(symbols: string[]): Promise<Map<string, ExDividendNoticeEntry[]>> {
   return fetchExDividendNotices(symbols);
+}
+
+/** One quarter's raw financial statement (for 會計模式) — GET /stocks/:symbol/financial-statement. */
+export async function getFinancialStatement(
+  symbol: string,
+  statementType: FinancialStatementType,
+  year?: string,
+  season?: string,
+): Promise<FinancialStatementResult> {
+  return fetchFinancialStatement(symbol, statementType, year, season);
 }

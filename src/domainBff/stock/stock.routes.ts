@@ -1,6 +1,14 @@
 import { Router } from "ultimate-express";
+import { z } from "zod";
 import { AppError } from "@/shared/errorHandler.js";
-import { getCapitalStockHistory, getCompanyProfile, getExDividendNotices, getStockQuote } from "@/domainBff/stock/stock.service.js";
+import { parseBody } from "@/shared/validation.js";
+import {
+  getCapitalStockHistory,
+  getCompanyProfile,
+  getExDividendNotices,
+  getFinancialStatement,
+  getStockQuote,
+} from "@/domainBff/stock/stock.service.js";
 
 const MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST = 100;
 
@@ -47,4 +55,24 @@ stockRouter.get("/:symbol/capital-stock-history", async (req, res) => {
   const { symbol } = req.params;
   const history = await getCapitalStockHistory(symbol);
   res.json(history);
+});
+
+export const financialStatementQuerySchema = z
+  .object({
+    statementType: z.enum(["balanceSheet", "incomeStatement", "cashFlowStatement"], {
+      error: '"statementType" must be "balanceSheet", "incomeStatement", or "cashFlowStatement"',
+    }),
+    year: z.string().trim().min(1, '"year" must be a non-empty string').optional(),
+    season: z.string().trim().min(1, '"season" must be a non-empty string').optional(),
+  })
+  .refine((data) => (data.year === undefined) === (data.season === undefined), {
+    message: '"year" and "season" must be given together, or not at all',
+    path: ["year"],
+  });
+
+stockRouter.get("/:symbol/financial-statement", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(financialStatementQuerySchema, req.query);
+  const statement = await getFinancialStatement(symbol, query.statementType, query.year, query.season);
+  res.json(statement);
 });

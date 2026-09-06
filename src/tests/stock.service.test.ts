@@ -17,15 +17,21 @@ vi.mock("@/domainBff/stock/exDividendNotices.client.js", () => ({
   fetchExDividendNotices: vi.fn(),
 }));
 
+vi.mock("@/domainBff/stock/financialStatement.client.js", () => ({
+  fetchFinancialStatement: vi.fn(),
+}));
+
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
 import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
 import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.client.js";
+import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
 import {
   assertSymbolExists,
   getCapitalStockHistory,
   getCompanyProfile,
   getExDividendNotices,
+  getFinancialStatement,
   getLatestClosePrices,
   getStockQuote,
 } from "@/domainBff/stock/stock.service.js";
@@ -36,6 +42,7 @@ beforeEach(() => {
   vi.mocked(fetchCompanyProfile).mockReset();
   vi.mocked(fetchCapitalStockHistory).mockReset();
   vi.mocked(fetchExDividendNotices).mockReset();
+  vi.mocked(fetchFinancialStatement).mockReset();
 });
 
 describe("getStockQuote", () => {
@@ -114,5 +121,43 @@ describe("getExDividendNotices", () => {
 
     await expect(getExDividendNotices(["2330", "00939"])).resolves.toBe(notices);
     expect(fetchExDividendNotices).toHaveBeenCalledWith(["2330", "00939"]);
+  });
+});
+
+describe("getFinancialStatement", () => {
+  it("delegates to fetchFinancialStatement and returns its result as-is", async () => {
+    const statement = {
+      symbol: "2330",
+      statementType: "balanceSheet" as const,
+      dataType: "2",
+      subsidiaryCompanyId: "",
+      year: "115",
+      season: "2",
+      reportDate: "2026-06-30",
+      found: true,
+      statement: { totalAssets: "9375654727" },
+    };
+    vi.mocked(fetchFinancialStatement).mockResolvedValue(statement);
+
+    await expect(getFinancialStatement("2330", "balanceSheet", "115", "2")).resolves.toEqual(statement);
+    expect(fetchFinancialStatement).toHaveBeenCalledWith("2330", "balanceSheet", "115", "2");
+  });
+
+  it("forwards undefined year/season through when omitted (analysis-ts resolves latest quarter)", async () => {
+    vi.mocked(fetchFinancialStatement).mockResolvedValue({
+      symbol: "2330",
+      statementType: "incomeStatement",
+      dataType: "2",
+      subsidiaryCompanyId: "",
+      year: "115",
+      season: "2",
+      reportDate: "2026-06-30",
+      found: true,
+      statement: {},
+    });
+
+    await getFinancialStatement("2330", "incomeStatement");
+
+    expect(fetchFinancialStatement).toHaveBeenCalledWith("2330", "incomeStatement", undefined, undefined);
   });
 });
