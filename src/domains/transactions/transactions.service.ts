@@ -1,5 +1,4 @@
 import { AppError } from "@/shared/errorHandler.js";
-import { getStockQuote } from "@/domains/stock/index.js";
 import {
   createTransaction,
   deleteTransaction,
@@ -12,13 +11,6 @@ import {
 import type { StockTransaction, TransactionAction } from "@/domains/transactions/transactions.types.js";
 
 const TRADE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-async function assertSymbolExists(symbol: string): Promise<void> {
-  const quote = await getStockQuote(symbol);
-  if (!quote) {
-    throw new AppError(`Unknown stock symbol "${symbol}"`, 404);
-  }
-}
 
 function assertValidAction(action: unknown): asserts action is TransactionAction {
   if (action !== "BUY" && action !== "SELL") {
@@ -56,6 +48,11 @@ export async function getTransactionOrThrow(firebaseUid: string, id: string): Pr
   return transaction;
 }
 
+/**
+ * Symbol existence is validated by the caller (transactions.routes.ts, via bff-ts's
+ * stock.assertSymbolExists) before this is invoked — this domain's own service has no reason to reach
+ * across into the stock pass-through's live quote data itself.
+ */
 export async function addTransaction(firebaseUid: string, input: TransactionInput): Promise<StockTransaction> {
   assertValidAction(input.action);
   assertValidQuantity(input.quantity);
@@ -63,7 +60,6 @@ export async function addTransaction(firebaseUid: string, input: TransactionInpu
   assertValidAmount(input.fee, "fee", { allowZero: true });
   assertValidAmount(input.tax, "tax", { allowZero: true });
   assertValidTradeDate(input.tradeDate);
-  await assertSymbolExists(input.symbol);
 
   return createTransaction(firebaseUid, input);
 }

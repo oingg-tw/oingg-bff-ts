@@ -2,12 +2,7 @@ import { Prisma } from "@/generated/prisma/client.js";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
 import { findFilterFields } from "@/domains/filterCatalog/index.js";
-import type { ScreenerSort } from "@/domains/screener/analysisScreenerClient.js";
-import { resolveScreenerColumns } from "@/domains/screener/columnPresets.service.js";
-import type { ResolvedScreenerColumns } from "@/domains/screener/columnPresets.service.js";
-import type { Pagination } from "@/domains/screener/pagination.js";
-import { runScreener } from "@/domains/screener/screener.service.js";
-import type { ScreenerFilter, ScreenerResult } from "@/domains/screener/screener.types.js";
+import type { ScreenerFilter } from "@/domains/screener/screener.types.js";
 import {
   createPreset,
   deletePreset,
@@ -204,49 +199,16 @@ export async function removePreset(firebaseUid: string, id: string): Promise<voi
 }
 
 /**
- * Re-runs a saved preset's filters and returns both the filter definition and the matching stocks.
- *
- * Column resolution order: an explicit `columnPresetId` (and when given, it's saved as this preset's
- * new "last viewed with" column preset, i.e. switching columns sticks for next time) → else the column
- * preset this filter combo was last viewed with → else the user's own default column preset → else the
- * hardcoded system default.
- *
- * Perf (2026-09-01): when `columnPresetId` is given explicitly, resolving it doesn't need
- * `preset.lastColumnPresetId` at all — findPreset and resolveScreenerColumns are independent lookups
- * against the same remote DB in that case, so they run concurrently instead of paying two sequential
- * round trips. Only the no-explicit-columnPresetId path genuinely needs findPreset's result first.
- * setLastColumnPreset is also now skipped when nothing actually changed — every "same columnPresetId as
- * last time" call (e.g. paging through the same view) used to fire a write that changed nothing.
+ * Records which column preset a saved filter preset was last run with — called from the bff layer's
+ * runPreset orchestration (see screener/runPreset.ts) after it resolves columns via analysisScreenerClient
+ * and this domain's own resolveScreenerColumns. Exported as a service-level wrapper (rather than letting
+ * the bff layer reach into screenerPresets.repository.ts directly) so this domain's persistence details
+ * stay behind its own service boundary.
  */
-export async function runPreset(
+export async function updateLastColumnPreset(
   firebaseUid: string,
   id: string,
-  pagination: Pagination,
-  columnPresetId?: string,
-  sort?: ScreenerSort,
-): Promise<{ preset: PresetView; screener: ScreenerResult; columnPresetId: string | null }> {
-  let row: PresetRow | null;
-  let resolved: ResolvedScreenerColumns;
-
-  if (columnPresetId !== undefined) {
-    [row, resolved] = await Promise.all([
-      findPreset(firebaseUid, id),
-      resolveScreenerColumns(firebaseUid, columnPresetId),
-    ]);
-  } else {
-    row = await findPreset(firebaseUid, id);
-    resolved = await resolveScreenerColumns(firebaseUid, row?.lastColumnPresetId ?? undefined);
-  }
-
-  if (!row) {
-    throw new AppError(`Screener preset ${id} not found`, 404);
-  }
-  const preset = toView(row);
-
-  if (columnPresetId !== undefined && resolved.columnPresetId !== preset.lastColumnPresetId) {
-    await setLastColumnPreset(firebaseUid, id, resolved.columnPresetId ?? columnPresetId);
-  }
-
-  const screener = await runScreener(preset.filters, resolved.columns, pagination, sort);
-  return { preset, screener, columnPresetId: resolved.columnPresetId };
+  columnPresetId: string,
+): Promise<void> {
+  await setLastColumnPreset(firebaseUid, id, columnPresetId);
 }

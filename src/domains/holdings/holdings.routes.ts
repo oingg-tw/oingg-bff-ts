@@ -5,6 +5,7 @@ import { parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
+import { assertSymbolExists } from "@/domains/stock/index.js";
 import { addHolding, editHolding, getHoldingOrThrow, getHoldings, removeHolding } from "@/domains/holdings/holdings.service.js";
 import type { HoldingUpdate } from "@/domains/holdings/holdings.repository.js";
 
@@ -46,6 +47,7 @@ holdingsRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const body = parseBody(createHoldingSchema, req.body);
 
+  await assertSymbolExists(body.symbol);
   const holding = await addHolding(firebaseUid, body.symbol, body.quantity, body.averageCost, body.note ?? null);
   res.status(201).json({ holding });
 });

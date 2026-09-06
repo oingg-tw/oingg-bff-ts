@@ -5,6 +5,7 @@ import { parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
+import { assertSymbolExists } from "@/domains/stock/index.js";
 import {
   addTransaction,
   editTransaction,
@@ -74,6 +75,7 @@ transactionsRouter.post("/", async (req: AuthenticatedRequest, res) => {
     note: body.note ?? null,
   };
 
+  await assertSymbolExists(input.symbol);
   const transaction = await addTransaction(firebaseUid, input);
   res.status(201).json({ transaction });
 });

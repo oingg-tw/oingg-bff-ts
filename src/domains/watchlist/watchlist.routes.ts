@@ -5,6 +5,7 @@ import { parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
+import { assertSymbolExists } from "@/domains/stock/index.js";
 import {
   addWatchlistItem,
   editWatchlistItemNote,
@@ -47,6 +48,7 @@ watchlistRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const body = parseBody(addWatchlistItemSchema, req.body);
 
+  await assertSymbolExists(body.symbol);
   const item = await addWatchlistItem(firebaseUid, body.symbol, body.note ?? null);
   res.status(201).json({ item });
 });

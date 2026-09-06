@@ -1,6 +1,5 @@
 import { Prisma } from "@/generated/prisma/client.js";
 import { AppError } from "@/shared/errorHandler.js";
-import { getStockQuote } from "@/domains/stock/index.js";
 import {
   createHolding,
   deleteHolding,
@@ -15,13 +14,6 @@ const UNIQUE_CONSTRAINT_VIOLATION = "P2002";
 
 function isUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_CONSTRAINT_VIOLATION;
-}
-
-async function assertSymbolExists(symbol: string): Promise<void> {
-  const quote = await getStockQuote(symbol);
-  if (!quote) {
-    throw new AppError(`Unknown stock symbol "${symbol}"`, 404);
-  }
 }
 
 function assertValidQuantity(quantity: number): void {
@@ -48,6 +40,11 @@ export async function getHoldingOrThrow(firebaseUid: string, id: string): Promis
   return holding;
 }
 
+/**
+ * Symbol existence is validated by the caller (holdings.routes.ts, via bff-ts's stock.assertSymbolExists)
+ * before this is invoked — this domain's own service has no reason to reach across into the stock
+ * pass-through's live quote data itself.
+ */
 export async function addHolding(
   firebaseUid: string,
   symbol: string,
@@ -57,7 +54,6 @@ export async function addHolding(
 ): Promise<Holding> {
   assertValidQuantity(quantity);
   assertValidAverageCost(averageCost);
-  await assertSymbolExists(symbol);
 
   try {
     return await createHolding(firebaseUid, symbol, quantity, averageCost, note);

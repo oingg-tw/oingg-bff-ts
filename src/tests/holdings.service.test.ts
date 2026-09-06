@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domains/stock/index.js", () => ({
-  getStockQuote: vi.fn(),
-}));
-
 vi.mock("@/domains/holdings/holdings.repository.js", () => ({
   createHolding: vi.fn(),
   deleteHolding: vi.fn(),
@@ -13,7 +9,6 @@ vi.mock("@/domains/holdings/holdings.repository.js", () => ({
 }));
 
 import { Prisma } from "@/generated/prisma/client.js";
-import { getStockQuote } from "@/domains/stock/index.js";
 import {
   createHolding,
   deleteHolding,
@@ -34,31 +29,21 @@ const SAMPLE_HOLDING = {
   updatedAt: "2026-08-30T00:00:00.000Z",
 };
 
-const SAMPLE_QUOTE = { symbol: "2330", price: null, valuation: null };
-
 describe("addHolding", () => {
   beforeEachReset();
 
   it("rejects a non-positive-integer quantity without touching the database", async () => {
     await expect(addHolding("uid1", "2330", 0, 550.5, null)).rejects.toMatchObject({ statusCode: 400 });
     await expect(addHolding("uid1", "2330", 1.5, 550.5, null)).rejects.toMatchObject({ statusCode: 400 });
-    expect(getStockQuote).not.toHaveBeenCalled();
+    expect(createHolding).not.toHaveBeenCalled();
   });
 
   it("rejects a negative averageCost without touching the database", async () => {
     await expect(addHolding("uid1", "2330", 1000, -1, null)).rejects.toMatchObject({ statusCode: 400 });
-    expect(getStockQuote).not.toHaveBeenCalled();
-  });
-
-  it("rejects a symbol that doesn't exist in either market with a 404", async () => {
-    vi.mocked(getStockQuote).mockResolvedValue(null);
-
-    await expect(addHolding("uid1", "NOPE", 1000, 550.5, null)).rejects.toMatchObject({ statusCode: 404 });
     expect(createHolding).not.toHaveBeenCalled();
   });
 
   it("creates the holding once the symbol and values are valid", async () => {
-    vi.mocked(getStockQuote).mockResolvedValue(SAMPLE_QUOTE);
     vi.mocked(createHolding).mockResolvedValue(SAMPLE_HOLDING);
 
     const result = await addHolding("uid1", "2330", 1000, 550.5, null);
@@ -68,7 +53,6 @@ describe("addHolding", () => {
   });
 
   it("turns a duplicate-symbol conflict (Prisma P2002) into a 409 AppError", async () => {
-    vi.mocked(getStockQuote).mockResolvedValue(SAMPLE_QUOTE);
     vi.mocked(createHolding).mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "test" }),
     );
@@ -128,7 +112,6 @@ describe("removeHolding", () => {
 
 function beforeEachReset() {
   beforeEach(() => {
-    vi.mocked(getStockQuote).mockReset();
     vi.mocked(createHolding).mockReset();
     vi.mocked(findHolding).mockReset();
     vi.mocked(updateHolding).mockReset();

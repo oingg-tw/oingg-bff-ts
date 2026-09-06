@@ -7,14 +7,8 @@ import { requireAuth } from "@/domains/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domains/auth/auth.types.js";
 import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/domains/screener/pagination.js";
 import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/domains/screener/screenerFilterInput.js";
-import {
-  addPreset,
-  editPreset,
-  getPresetOrThrow,
-  getPresets,
-  removePreset,
-  runPreset,
-} from "@/domains/screener/screenerPresets.service.js";
+import { addPreset, editPreset, getPresetOrThrow, getPresets, removePreset } from "@/domains/screener/screenerPresets.service.js";
+import { runPreset } from "@/domains/screener/runPreset.js";
 
 export const screenerPresetsRouter = Router();
 

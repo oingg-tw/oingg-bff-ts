@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domains/stock/index.js", () => ({
-  getStockQuote: vi.fn(),
-}));
-
 vi.mock("@/domains/watchlist/watchlist.repository.js", () => ({
   createWatchlistItem: vi.fn(),
   deleteWatchlistItem: vi.fn(),
@@ -13,7 +9,6 @@ vi.mock("@/domains/watchlist/watchlist.repository.js", () => ({
 }));
 
 import { Prisma } from "@/generated/prisma/client.js";
-import { getStockQuote } from "@/domains/stock/index.js";
 import {
   createWatchlistItem,
   deleteWatchlistItem,
@@ -37,23 +32,12 @@ const SAMPLE_ITEM = {
   updatedAt: "2026-08-24T00:00:00.000Z",
 };
 
-const SAMPLE_QUOTE = { symbol: "2330", price: null, valuation: null };
-
 describe("addWatchlistItem", () => {
   beforeEach(() => {
-    vi.mocked(getStockQuote).mockReset();
     vi.mocked(createWatchlistItem).mockReset();
   });
 
-  it("rejects a symbol that doesn't exist in either market with a 404, without touching the database", async () => {
-    vi.mocked(getStockQuote).mockResolvedValue(null);
-
-    await expect(addWatchlistItem("uid1", "NOPE", null)).rejects.toMatchObject({ statusCode: 404 });
-    expect(createWatchlistItem).not.toHaveBeenCalled();
-  });
-
-  it("creates the item once the symbol is confirmed to exist", async () => {
-    vi.mocked(getStockQuote).mockResolvedValue(SAMPLE_QUOTE);
+  it("creates the item", async () => {
     vi.mocked(createWatchlistItem).mockResolvedValue(SAMPLE_ITEM);
 
     const result = await addWatchlistItem("uid1", "2330", "watching for a dip");
@@ -67,7 +51,6 @@ describe("addWatchlistItem", () => {
   // Checking for the wrong code silently let the raw Prisma error escape as an unhandled 500
   // instead of the intended 409, which is exactly what happened before this was fixed.
   it("turns a duplicate-symbol conflict (Prisma P2002) into a 409 AppError", async () => {
-    vi.mocked(getStockQuote).mockResolvedValue(SAMPLE_QUOTE);
     vi.mocked(createWatchlistItem).mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
         code: "P2002",
@@ -82,7 +65,6 @@ describe("addWatchlistItem", () => {
   });
 
   it("does not mask database errors that aren't a unique-constraint violation", async () => {
-    vi.mocked(getStockQuote).mockResolvedValue(SAMPLE_QUOTE);
     const dbError = new Error("connection reset");
     vi.mocked(createWatchlistItem).mockRejectedValue(dbError);
 

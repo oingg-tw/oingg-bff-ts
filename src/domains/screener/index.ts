@@ -23,7 +23,8 @@ export {
   removeColumnPreset,
   resolveScreenerColumns,
 } from "@/domains/screener/columnPresets.service.js";
-export { addPreset, editPreset, getPresetOrThrow, getPresets, removePreset, runPreset } from "@/domains/screener/screenerPresets.service.js";
+export { addPreset, editPreset, getPresetOrThrow, getPresets, removePreset } from "@/domains/screener/screenerPresets.service.js";
+export { runPreset } from "@/domains/screener/runPreset.js";
 export type { ScreenerColumnRef, ScreenerFilter, ScreenerResult, ScreenerResultColumn, ScreenerResultRow } from "@/domains/screener/screener.types.js";
 export type { ColumnPresetColumnView, ColumnPresetView } from "@/domains/screener/columnPresets.service.js";
 export type { PresetFilterView, PresetView } from "@/domains/screener/screenerPresets.service.js";

@@ -1,6 +1,5 @@
 import { Prisma } from "@/generated/prisma/client.js";
 import { AppError } from "@/shared/errorHandler.js";
-import { getStockQuote } from "@/domains/stock/index.js";
 import {
   createWatchlistItem,
   deleteWatchlistItem,
@@ -17,13 +16,6 @@ function isUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_CONSTRAINT_VIOLATION;
 }
 
-async function assertSymbolExists(symbol: string): Promise<void> {
-  const quote = await getStockQuote(symbol);
-  if (!quote) {
-    throw new AppError(`Unknown stock symbol "${symbol}"`, 404);
-  }
-}
-
 export async function getWatchlist(firebaseUid: string): Promise<WatchlistItem[]> {
   return listWatchlistItems(firebaseUid);
 }
@@ -36,13 +28,16 @@ export async function getWatchlistItemOrThrow(firebaseUid: string, id: string): 
   return item;
 }
 
+/**
+ * Symbol existence is validated by the caller (watchlist.routes.ts, via bff-ts's stock.assertSymbolExists)
+ * before this is invoked — this domain's own service has no reason to reach across into the stock
+ * pass-through's live quote data itself.
+ */
 export async function addWatchlistItem(
   firebaseUid: string,
   symbol: string,
   note: string | null,
 ): Promise<WatchlistItem> {
-  await assertSymbolExists(symbol);
-
   try {
     return await createWatchlistItem(firebaseUid, symbol, note);
   } catch (error) {

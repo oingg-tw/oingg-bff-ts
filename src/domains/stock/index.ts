@@ -1,5 +1,6 @@
 export { stockRouter } from "@/domains/stock/stock.routes.js";
 export {
+  assertSymbolExists,
   getCapitalStockHistory,
   getCompanyProfile,
   getExDividendNotices,

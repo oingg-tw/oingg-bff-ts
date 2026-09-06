@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domains/stock/index.js", () => ({
-  getStockQuote: vi.fn(),
-}));
-
 vi.mock("@/domains/transactions/transactions.repository.js", () => ({
   createTransaction: vi.fn(),
   deleteTransaction: vi.fn(),
@@ -12,7 +8,6 @@ vi.mock("@/domains/transactions/transactions.repository.js", () => ({
   updateTransaction: vi.fn(),
 }));
 
-import { getStockQuote } from "@/domains/stock/index.js";
 import {
   createTransaction,
   deleteTransaction,
@@ -42,8 +37,6 @@ const SAMPLE_TRANSACTION = {
   updatedAt: "2026-08-30T00:00:00.000Z",
 };
 
-const SAMPLE_QUOTE = { symbol: "2330", price: null, valuation: null };
-
 const VALID_INPUT = {
   symbol: "2330",
   action: "BUY" as const,
@@ -56,7 +49,6 @@ const VALID_INPUT = {
 };
 
 beforeEach(() => {
-  vi.mocked(getStockQuote).mockReset();
   vi.mocked(createTransaction).mockReset();
   vi.mocked(findTransaction).mockReset();
   vi.mocked(updateTransaction).mockReset();
@@ -68,7 +60,7 @@ describe("addTransaction", () => {
     await expect(
       addTransaction("uid1", { ...VALID_INPUT, action: "HOLD" as never }),
     ).rejects.toMatchObject({ statusCode: 400 });
-    expect(getStockQuote).not.toHaveBeenCalled();
+    expect(createTransaction).not.toHaveBeenCalled();
   });
 
   it("rejects a non-positive-integer quantity", async () => {
@@ -98,15 +90,7 @@ describe("addTransaction", () => {
     });
   });
 
-  it("rejects a symbol that doesn't exist in either market with a 404", async () => {
-    vi.mocked(getStockQuote).mockResolvedValue(null);
-
-    await expect(addTransaction("uid1", VALID_INPUT)).rejects.toMatchObject({ statusCode: 404 });
-    expect(createTransaction).not.toHaveBeenCalled();
-  });
-
-  it("creates the transaction once every field validates and the symbol is confirmed to exist", async () => {
-    vi.mocked(getStockQuote).mockResolvedValue(SAMPLE_QUOTE);
+  it("creates the transaction once every field validates", async () => {
     vi.mocked(createTransaction).mockResolvedValue(SAMPLE_TRANSACTION);
 
     const result = await addTransaction("uid1", VALID_INPUT);

@@ -1,3 +1,4 @@
+import { AppError } from "@/shared/errorHandler.js";
 import { fetchCapitalStockHistory } from "@/domains/stock/capitalStockHistory.client.js";
 import type { CapitalStockHistoryResult } from "@/domains/stock/capitalStockHistory.types.js";
 import { fetchCompanyProfile } from "@/domains/stock/companyProfile.client.js";
@@ -12,9 +13,22 @@ export interface ClosePrice {
   tradeDate: string | null;
 }
 
-/** Single-symbol quote — holdings/transactions/watchlist symbol validation, GET /stocks/:symbol. */
+/** Single-symbol quote — GET /stocks/:symbol. */
 export async function getStockQuote(symbol: string): Promise<StockQuote | null> {
   return fetchStockQuote(symbol);
+}
+
+/**
+ * Shared by the holdings/transactions/watchlist route handlers (業務中台) to confirm a symbol is real
+ * before creating a row for it — kept on this side (bff) rather than called from inside those domains'
+ * own services, since checking against a live quote is a call into this BFF's pass-through data, not
+ * something the owning domain's CRUD service should reach across module boundaries for itself.
+ */
+export async function assertSymbolExists(symbol: string): Promise<void> {
+  const quote = await getStockQuote(symbol);
+  if (!quote) {
+    throw new AppError(`Unknown stock symbol "${symbol}"`, 404);
+  }
 }
 
 /**

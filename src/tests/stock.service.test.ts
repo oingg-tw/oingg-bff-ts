@@ -22,6 +22,7 @@ import { fetchCompanyProfile } from "@/domains/stock/companyProfile.client.js";
 import { fetchExDividendNotices } from "@/domains/stock/exDividendNotices.client.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domains/stock/stockQuote.client.js";
 import {
+  assertSymbolExists,
   getCapitalStockHistory,
   getCompanyProfile,
   getExDividendNotices,
@@ -50,6 +51,23 @@ describe("getStockQuote", () => {
     vi.mocked(fetchStockQuote).mockResolvedValue(null);
 
     await expect(getStockQuote("nope")).resolves.toBeNull();
+  });
+});
+
+describe("assertSymbolExists", () => {
+  it("resolves silently when the symbol has a quote", async () => {
+    vi.mocked(fetchStockQuote).mockResolvedValue({ symbol: "2330", price: null, valuation: null });
+
+    await expect(assertSymbolExists("2330")).resolves.toBeUndefined();
+  });
+
+  it("throws a 404 AppError when the symbol doesn't exist in either market", async () => {
+    vi.mocked(fetchStockQuote).mockResolvedValue(null);
+
+    await expect(assertSymbolExists("NOPE")).rejects.toMatchObject({
+      statusCode: 404,
+      message: 'Unknown stock symbol "NOPE"',
+    });
   });
 });
 
