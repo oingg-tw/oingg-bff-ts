@@ -5,7 +5,7 @@ vi.stubGlobal("fetch", fetchMock);
 
 process.env.FILTERS_SERVICE_URL = "http://localhost:5000";
 
-import { fetchValuationRanking } from "@/bff/screener/valuationRanking.client.js";
+import { fetchValuationRanking } from "@/domainBff/screener/valuationRanking.client.js";
 
 function jsonResponse(status: number, body: unknown) {
   return {

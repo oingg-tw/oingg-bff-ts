@@ -46,7 +46,7 @@ model PresetTemplate {
   @@map("preset_template")
 }
 
-/// Filter catalog, synced from oingg-analysis-ts's /filters endpoint at startup (see src/domains/filterCatalog).
+/// Filter catalog, synced from oingg-analysis-ts's /filters endpoint at startup (see src/domainBusiness/filterCatalog).
 /// `position` mirrors this row's index in the source /filters array, so GET /filters on this service
 /// can reproduce the same category/metric/field ordering the frontend would get from oingg-analysis-ts
 /// directly — the source order matters for UX (e.g. "profitability" before more niche categories).
@@ -103,7 +103,7 @@ model FilterMetricField {
 /// Curated, product-defined column-preset templates (e.g. "存股領息", "獲利品質拆解"), synced from
 /// oingg-analysis-ts's /filters endpoint at startup — same mechanism/rationale as FilterCategory above,
 /// just a separate table since these aren't part of the category/metric/field catalog tree (see
-/// src/domains/columnPresetTemplates). `fieldKeys` is a plain JSON string array of "<metricKey>.<fieldKey>"
+/// src/domainBusiness/columnPresetTemplates). `fieldKeys` is a plain JSON string array of "<metricKey>.<fieldKey>"
 /// refs, the same format ColumnPresetField.field uses — applying a template is just handing its fieldKeys
 /// straight to createColumnPreset as a new personal ColumnPreset, not FK'd to FilterMetricField (so a
 /// template referencing a field the catalog later drops doesn't cascade-delete anything here; it just
@@ -124,7 +124,7 @@ model ColumnPresetTemplate {
   @@map("column_preset_template")
 }
 
-/// A minimal per-user profile row, keyed by Firebase uid (see src/domains/user, GET /users/me).
+/// A minimal per-user profile row, keyed by Firebase uid (see src/domainBusiness/user, GET /users/me).
 /// Read-only from this service's side — nothing here creates a row yet (no signup/first-login flow
 /// exists), so a Firebase-authenticated caller with no row here still gets a 404 from /users/me.
 /// Previously `findUserByFirebaseUid` looked this up via `queryNeon("main", ...)` against a
@@ -166,7 +166,7 @@ enum MarketColorConvention {
   ACCESSIBLE
 }
 
-/// A user's UI theme preference (see src/domains/user). All fields are nullable — null means
+/// A user's UI theme preference (see src/domainBusiness/user). All fields are nullable — null means
 /// "not explicitly chosen, use the current system default" resolved live in the service layer (see
 /// SYSTEM_DEFAULT_THEME in theme.service.ts), not frozen into this row at write time. That way a user
 /// who only ever picked one field still tracks any future change to the default for the others, instead
@@ -184,7 +184,7 @@ model UserThemePreference {
   @@map("user_theme_preference")
 }
 
-/// A user's screener display preferences (see src/domains/user/screenerDisplaySettings.* — lives in the
+/// A user's screener display preferences (see src/domainBusiness/user/screenerDisplaySettings.* — lives in the
 /// user domain, not screener, since it's only usable by registered users, unlike the guest-friendly
 /// screener endpoints themselves). Separate from
 /// UserThemePreference (general UI look) and ScreenerPreset (saved filter combos)/ColumnPreset (saved
@@ -199,7 +199,7 @@ model ScreenerDisplaySettings {
   @@map("screener_display_settings")
 }
 
-/// Which homepage dashboard cards a user has shown/hidden (see src/domains/user/dashboardCardSettings.*)
+/// Which homepage dashboard cards a user has shown/hidden (see src/domainBusiness/user/dashboardCardSettings.*)
 /// — previously local-only client state (oingg-web-nuxt's useDashboardCards.ts useState, reset per
 /// device), now synced across devices. `visibleCardIds` is a plain JSON string array of frontend-owned
 /// card ids (e.g. "margin-short-ratio", "revenue-ranking") — not FK'd to anything, since the set of
@@ -215,7 +215,7 @@ model DashboardCardSettings {
   @@map("dashboard_card_settings")
 }
 
-/// A user's stock watchlist (see src/domains/watchlist).
+/// A user's stock watchlist (see src/domainBusiness/watchlist).
 model WatchlistItem {
   id          String   @id @default(uuid()) @db.Uuid
   firebaseUid String   @map("firebase_uid")
@@ -229,7 +229,7 @@ model WatchlistItem {
   @@map("watchlist_item")
 }
 
-/// A user's named, reusable set of display columns for /screener results (see src/domains/screener) —
+/// A user's named, reusable set of display columns for /screener results (see src/domainBusiness/screener) —
 /// independent from ScreenerPreset (filter combos); a ScreenerPreset just remembers the last one it was
 /// viewed with (see ScreenerPreset.lastColumnPreset). `field` is a plain string, not FK'd to
 /// FilterMetricField, because it can also be a "special" non-catalog field (currently just
@@ -265,7 +265,7 @@ model ColumnPresetField {
 }
 
 /// A user's named, saved combination of screener filters (e.g. "績優股" = ROE > 30 AND grossMarginTtm >
-/// 60) — see src/domains/screener. GET /screener/presets/:id/run re-runs the saved filters and returns
+/// 60) — see src/domainBusiness/screener. GET /screener/presets/:id/run re-runs the saved filters and returns
 /// both the matching stocks and the filter definition in one response, so the frontend only needs the id.
 model ScreenerPreset {
   id          String   @id @default(uuid()) @db.Uuid
@@ -288,7 +288,7 @@ model ScreenerPreset {
 
 /// A user's current position in a stock (持股管理) — maintained independently of StockTransaction,
 /// not computed from it. Quantity/averageCost are whatever the user says they are; adjusting them after
-/// recording a trade in StockTransaction is a separate, manual step (see src/domains/holdings).
+/// recording a trade in StockTransaction is a separate, manual step (see src/domainBusiness/holdings).
 model Holding {
   id          String   @id @default(uuid()) @db.Uuid
   firebaseUid String   @map("firebase_uid")

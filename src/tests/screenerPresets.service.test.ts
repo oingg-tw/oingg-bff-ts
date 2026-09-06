@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/business/filterCatalog/index.js", () => ({
+vi.mock("@/domainBusiness/filterCatalog/index.js", () => ({
   findFilterFields: vi.fn(),
 }));
 
-vi.mock("@/business/screener/screenerPresets.repository.js", () => ({
+vi.mock("@/domainBusiness/screener/screenerPresets.repository.js", () => ({
   createPreset: vi.fn(),
   deletePreset: vi.fn(),
   findPreset: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock("@/business/screener/screenerPresets.repository.js", () => ({
 }));
 
 import { Prisma } from "@/generated/prisma/client.js";
-import { findFilterFields } from "@/business/filterCatalog/index.js";
+import { findFilterFields } from "@/domainBusiness/filterCatalog/index.js";
 import {
   createPreset,
   deletePreset,
@@ -22,8 +22,8 @@ import {
   listPresets,
   setLastColumnPreset,
   updatePreset,
-} from "@/business/screener/screenerPresets.repository.js";
-import { addPreset, editPreset, getPresetOrThrow, removePreset } from "@/business/screener/screenerPresets.service.js";
+} from "@/domainBusiness/screener/screenerPresets.repository.js";
+import { addPreset, editPreset, getPresetOrThrow, removePreset } from "@/domainBusiness/screener/screenerPresets.service.js";
 
 type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
 

@@ -1,8 +1,8 @@
 import { createApp } from "@/app.js";
 import { initFirebase } from "@/adapters/firebase/index.js";
 import { closeNeonPools, closePrismaClient, initNeonPools } from "@/adapters/neon/index.js";
-import { startColumnPresetTemplateSync } from "@/business/columnPresetTemplates/index.js";
-import { startFilterCatalogSync } from "@/business/filterCatalog/index.js";
+import { startColumnPresetTemplateSync } from "@/domainBusiness/columnPresetTemplates/index.js";
+import { startFilterCatalogSync } from "@/domainBusiness/filterCatalog/index.js";
 import { env } from "@/shared/env.js";
 import { logger } from "@/shared/logger.js";
 

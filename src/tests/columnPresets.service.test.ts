@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/business/filterCatalog/index.js", () => ({
+vi.mock("@/domainBusiness/filterCatalog/index.js", () => ({
   findFilterFields: vi.fn(),
 }));
 
-vi.mock("@/business/screener/columnPresets.repository.js", () => ({
+vi.mock("@/domainBusiness/screener/columnPresets.repository.js", () => ({
   createColumnPreset: vi.fn(),
   deleteColumnPreset: vi.fn(),
   findColumnPreset: vi.fn(),
@@ -13,27 +13,27 @@ vi.mock("@/business/screener/columnPresets.repository.js", () => ({
   updateColumnPreset: vi.fn(),
 }));
 
-vi.mock("@/business/columnPresetTemplates/columnPresetTemplates.repository.js", () => ({
+vi.mock("@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js", () => ({
   findDefaultColumnPresetTemplate: vi.fn(),
 }));
 
 import { Prisma } from "@/generated/prisma/client.js";
-import { findFilterFields } from "@/business/filterCatalog/index.js";
-import { findDefaultColumnPresetTemplate } from "@/business/columnPresetTemplates/columnPresetTemplates.repository.js";
+import { findFilterFields } from "@/domainBusiness/filterCatalog/index.js";
+import { findDefaultColumnPresetTemplate } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js";
 import {
   createColumnPreset,
   findColumnPreset,
   findDefaultColumnPreset,
   listColumnPresets,
   updateColumnPreset,
-} from "@/business/screener/columnPresets.repository.js";
+} from "@/domainBusiness/screener/columnPresets.repository.js";
 import {
   addColumnPreset,
   addColumnPresetWithName,
   editColumnPreset,
   getColumnPresets,
   resolveScreenerColumns,
-} from "@/business/screener/columnPresets.service.js";
+} from "@/domainBusiness/screener/columnPresets.service.js";
 
 type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/business/user/dashboardCardSettings.repository.js", () => ({
+vi.mock("@/domainBusiness/user/dashboardCardSettings.repository.js", () => ({
   findDashboardCardSettings: vi.fn(),
   upsertDashboardCardSettings: vi.fn(),
 }));
@@ -8,11 +8,11 @@ vi.mock("@/business/user/dashboardCardSettings.repository.js", () => ({
 import {
   findDashboardCardSettings,
   upsertDashboardCardSettings,
-} from "@/business/user/dashboardCardSettings.repository.js";
+} from "@/domainBusiness/user/dashboardCardSettings.repository.js";
 import {
   getDashboardCardSettings,
   updateDashboardCardSettings,
-} from "@/business/user/dashboardCardSettings.service.js";
+} from "@/domainBusiness/user/dashboardCardSettings.service.js";
 
 describe("getDashboardCardSettings", () => {
   beforeEach(() => {

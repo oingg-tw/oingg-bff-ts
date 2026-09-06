@@ -1,32 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/business/columnPresetTemplates/columnPresetTemplates.repository.js", () => ({
+vi.mock("@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js", () => ({
   findColumnPresetTemplate: vi.fn(),
   listColumnPresetTemplates: vi.fn(),
   replaceColumnPresetTemplates: vi.fn(),
 }));
 
-vi.mock("@/business/columnPresetTemplates/columnPresetTemplates.client.js", () => ({
+vi.mock("@/domainBusiness/columnPresetTemplates/columnPresetTemplates.client.js", () => ({
   fetchColumnPresetTemplates: vi.fn(),
 }));
 
-vi.mock("@/business/screener/columnPresets.service.js", () => ({
+vi.mock("@/domainBusiness/screener/columnPresets.service.js", () => ({
   addColumnPresetWithName: vi.fn(),
 }));
 
-import { addColumnPresetWithName } from "@/business/screener/columnPresets.service.js";
-import { fetchColumnPresetTemplates } from "@/business/columnPresetTemplates/columnPresetTemplates.client.js";
+import { addColumnPresetWithName } from "@/domainBusiness/screener/columnPresets.service.js";
+import { fetchColumnPresetTemplates } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.client.js";
 import {
   findColumnPresetTemplate,
   listColumnPresetTemplates,
   replaceColumnPresetTemplates,
-} from "@/business/columnPresetTemplates/columnPresetTemplates.repository.js";
+} from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js";
 import {
   applyColumnPresetTemplate,
   getColumnPresetTemplateOrThrow,
   getColumnPresetTemplates,
   syncColumnPresetTemplates,
-} from "@/business/columnPresetTemplates/columnPresetTemplates.service.js";
+} from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.service.js";
 
 const PROFITABILITY_QUALITY_TEMPLATE = {
   key: "profitabilityQuality",

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/business/transactions/transactions.repository.js", () => ({
+vi.mock("@/domainBusiness/transactions/transactions.repository.js", () => ({
   createTransaction: vi.fn(),
   deleteTransaction: vi.fn(),
   findTransaction: vi.fn(),
@@ -13,13 +13,13 @@ import {
   deleteTransaction,
   findTransaction,
   updateTransaction,
-} from "@/business/transactions/transactions.repository.js";
+} from "@/domainBusiness/transactions/transactions.repository.js";
 import {
   addTransaction,
   editTransaction,
   getTransactionOrThrow,
   removeTransaction,
-} from "@/business/transactions/transactions.service.js";
+} from "@/domainBusiness/transactions/transactions.service.js";
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 

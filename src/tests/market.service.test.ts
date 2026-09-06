@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/bff/market/marketRankings.client.js", () => ({
+vi.mock("@/domainBff/market/marketRankings.client.js", () => ({
   fetchForeignHoldingRanking: vi.fn(),
   fetchMarginShortRatioRanking: vi.fn(),
   fetchMaterialAnnouncements: vi.fn(),
@@ -24,7 +24,7 @@ import {
   fetchPriceLimitRange,
   fetchRevenueRanking,
   fetchVolumeTop20,
-} from "@/bff/market/marketRankings.client.js";
+} from "@/domainBff/market/marketRankings.client.js";
 import {
   getAttentionStocks,
   getDisposedStocks,
@@ -36,7 +36,7 @@ import {
   getPriceLimitRange,
   getRevenueRanking,
   getVolumeTop20,
-} from "@/bff/market/market.service.js";
+} from "@/domainBff/market/market.service.js";
 
 beforeEach(() => {
   vi.mocked(fetchForeignHoldingRanking).mockReset();

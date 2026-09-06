@@ -1,22 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/business/screener/screenerPresets.repository.js", () => ({
+vi.mock("@/domainBusiness/screener/screenerPresets.repository.js", () => ({
   findPreset: vi.fn(),
   setLastColumnPreset: vi.fn(),
 }));
 
-vi.mock("@/bff/screener/screener.service.js", () => ({
+vi.mock("@/domainBff/screener/screener.service.js", () => ({
   runScreener: vi.fn(),
 }));
 
-vi.mock("@/business/screener/columnPresets.service.js", () => ({
+vi.mock("@/domainBusiness/screener/columnPresets.service.js", () => ({
   resolveScreenerColumns: vi.fn(),
 }));
 
-import { resolveScreenerColumns } from "@/business/screener/columnPresets.service.js";
-import { runPreset } from "@/bff/screener/runPreset.js";
-import { findPreset, setLastColumnPreset } from "@/business/screener/screenerPresets.repository.js";
-import { runScreener } from "@/bff/screener/screener.service.js";
+import { resolveScreenerColumns } from "@/domainBusiness/screener/columnPresets.service.js";
+import { runPreset } from "@/domainBff/screener/runPreset.js";
+import { findPreset, setLastColumnPreset } from "@/domainBusiness/screener/screenerPresets.repository.js";
+import { runScreener } from "@/domainBff/screener/screener.service.js";
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 const COLUMN_PRESET_ID = "bbbbbbbb-0000-4000-8000-000000000007";

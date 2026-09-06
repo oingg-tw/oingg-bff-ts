@@ -10,7 +10,7 @@ import {
   fetchPriceLimitRange,
   fetchRevenueRanking,
   fetchVolumeTop20,
-} from "@/bff/market/marketRankings.client.js";
+} from "@/domainBff/market/marketRankings.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;

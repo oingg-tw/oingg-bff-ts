@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchColumnPresetTemplates } from "@/business/columnPresetTemplates/columnPresetTemplates.client.js";
+import { fetchColumnPresetTemplates } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;

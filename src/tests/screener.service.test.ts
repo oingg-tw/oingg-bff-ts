@@ -1,29 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/bff/screener/analysisScreenerClient.js", () => ({
+vi.mock("@/domainBff/screener/analysisScreenerClient.js", () => ({
   fetchScreenerResults: vi.fn(),
   fetchScreenerRanking: vi.fn(),
   fetchScreenerValues: vi.fn(),
 }));
 
-vi.mock("@/business/filterCatalog/index.js", () => ({
+vi.mock("@/domainBusiness/filterCatalog/index.js", () => ({
   findFilterFields: vi.fn(),
 }));
 
-vi.mock("@/bff/stock/index.js", () => ({
+vi.mock("@/domainBff/stock/index.js", () => ({
   getLatestClosePrices: vi.fn(),
 }));
 
-vi.mock("@/bff/screener/valuationRanking.client.js", () => ({
+vi.mock("@/domainBff/screener/valuationRanking.client.js", () => ({
   fetchValuationRanking: vi.fn(),
 }));
 
-import { fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/bff/screener/analysisScreenerClient.js";
-import { findFilterFields } from "@/business/filterCatalog/index.js";
-import { getLatestClosePrices } from "@/bff/stock/index.js";
-import { fetchValuationRanking } from "@/bff/screener/valuationRanking.client.js";
-import { runRanking, runScreener, runScreenerValues } from "@/bff/screener/screener.service.js";
-import type { Pagination } from "@/bff/screener/pagination.js";
+import { fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domainBff/screener/analysisScreenerClient.js";
+import { findFilterFields } from "@/domainBusiness/filterCatalog/index.js";
+import { getLatestClosePrices } from "@/domainBff/stock/index.js";
+import { fetchValuationRanking } from "@/domainBff/screener/valuationRanking.client.js";
+import { runRanking, runScreener, runScreenerValues } from "@/domainBff/screener/screener.service.js";
+import type { Pagination } from "@/domainBff/screener/pagination.js";
 
 const DEFAULT_PAGINATION: Pagination = { page: 1, pageSize: 50 };
 

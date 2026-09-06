@@ -19,8 +19,8 @@ import {
   findDefaultColumnPresetTemplate,
   listColumnPresetTemplates,
   replaceColumnPresetTemplates,
-} from "@/business/columnPresetTemplates/columnPresetTemplates.repository.js";
-import type { ColumnPresetTemplate } from "@/business/columnPresetTemplates/columnPresetTemplates.types.js";
+} from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js";
+import type { ColumnPresetTemplate } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.types.js";
 
 const SAMPLE_TEMPLATES: ColumnPresetTemplate[] = [
   {
