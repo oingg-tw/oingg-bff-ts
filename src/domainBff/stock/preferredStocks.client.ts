@@ -11,8 +11,16 @@ function toStringOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+/** Rounds to 2 decimals — avoids floating-point noise from a plain subtraction (e.g. 43.45 - 50). */
+function roundTo2Decimals(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 function normalizeEntry(raw: unknown): PreferredStockEntry {
   const r = raw as Record<string, unknown>;
+  const issuePrice = Number(r.issuePrice);
+  const latestClosePrice = toNumberOrNull(r.latestClosePrice);
+
   return {
     symbol: String(r.symbol),
     name: String(r.name),
@@ -20,12 +28,13 @@ function normalizeEntry(raw: unknown): PreferredStockEntry {
     listedDate: String(r.listedDate),
     marketType: String(r.marketType),
     issueDate: String(r.issueDate),
-    issuePrice: Number(r.issuePrice),
+    issuePrice,
     dividendRate: Number(r.dividendRate),
     nominalDividendRatePct: Number(r.nominalDividendRatePct),
     currentYieldPct: toNumberOrNull(r.currentYieldPct),
-    latestClosePrice: toNumberOrNull(r.latestClosePrice),
+    latestClosePrice,
     latestPriceDate: toStringOrNull(r.latestPriceDate),
+    priceMinusIssuePrice: latestClosePrice === null ? null : roundTo2Decimals(latestClosePrice - issuePrice),
     cumulativeDividend: r.cumulativeDividend === true,
     participatingExcessDividend: r.participatingExcessDividend === true,
     liquidationPreference: r.liquidationPreference === true,

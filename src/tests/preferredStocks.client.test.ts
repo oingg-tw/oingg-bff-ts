@@ -50,13 +50,17 @@ const RAW_ENTRY = {
   redemptionConditions: "本公司得於發行日滿五年後之次日起按實際發行價格收回",
 };
 
+// analysis-ts never sends this — it's computed here (latestClosePrice - issuePrice), so the normalized
+// result always has one field the raw input doesn't.
+const EXPECTED_ENTRY = { ...RAW_ENTRY, priceMinusIssuePrice: -6.55 };
+
 describe("fetchPreferredStocks", () => {
   it("requests /preferred-stocks without a symbol param when omitted, and normalizes entries", async () => {
     mockFetchOnce({ ok: true, body: { entries: [RAW_ENTRY] } });
 
     const result = await fetchPreferredStocks();
 
-    expect(result).toEqual({ entries: [RAW_ENTRY] });
+    expect(result).toEqual({ entries: [EXPECTED_ENTRY] });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/preferred-stocks");
   });
@@ -96,6 +100,48 @@ describe("fetchPreferredStocks", () => {
 
     expect(result.entries[0]?.currentYieldPct).toBeNull();
     expect(result.entries[0]?.latestClosePrice).toBeNull();
+  });
+
+  // priceMinusIssuePrice is computed here (latestClosePrice - issuePrice), not sent by analysis-ts —
+  // web-nuxt's deliberate request (2026-09-06) to centralize this arithmetic on the backend.
+  describe("priceMinusIssuePrice", () => {
+    it("computes latestClosePrice minus issuePrice, rounded to 2 decimals", async () => {
+      mockFetchOnce({ ok: true, body: { entries: [RAW_ENTRY] } });
+
+      const result = await fetchPreferredStocks("1101B");
+
+      expect(result.entries[0]?.priceMinusIssuePrice).toBe(-6.55);
+    });
+
+    it("is null when latestClosePrice is null (no price data)", async () => {
+      const entry = { ...RAW_ENTRY, latestClosePrice: null };
+      mockFetchOnce({ ok: true, body: { entries: [entry] } });
+
+      const result = await fetchPreferredStocks("1101B");
+
+      expect(result.entries[0]?.priceMinusIssuePrice).toBeNull();
+    });
+
+    // Regression guard: a plain `latestClosePrice - issuePrice` can produce floating-point noise
+    // (e.g. 0.1 - 0.05 style errors) — must come back as a clean 2-decimal number, not something like
+    // 10.299999999999997.
+    it("avoids floating-point noise from the subtraction", async () => {
+      const entry = { ...RAW_ENTRY, issuePrice: 10, latestClosePrice: 10.1 };
+      mockFetchOnce({ ok: true, body: { entries: [entry] } });
+
+      const result = await fetchPreferredStocks("1101B");
+
+      expect(result.entries[0]?.priceMinusIssuePrice).toBe(0.1);
+    });
+
+    it("handles a positive price-vs-issue-price gap (currently trading above issue price)", async () => {
+      const entry = { ...RAW_ENTRY, issuePrice: 50, latestClosePrice: 55.5 };
+      mockFetchOnce({ ok: true, body: { entries: [entry] } });
+
+      const result = await fetchPreferredStocks("1101B");
+
+      expect(result.entries[0]?.priceMinusIssuePrice).toBe(5.5);
+    });
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {

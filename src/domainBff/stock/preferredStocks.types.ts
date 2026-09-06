@@ -27,6 +27,15 @@ export interface PreferredStockEntry {
   currentYieldPct: number | null;
   latestClosePrice: number | null;
   latestPriceDate: string | null;
+  /**
+   * latestClosePrice - issuePrice, rounded to 2 decimals — not from analysis-ts, computed here at
+   * web-nuxt's deliberate request (2026-09-06) to keep this kind of derived arithmetic centralized on
+   * the backend rather than duplicated across frontend call sites. Null whenever latestClosePrice is
+   * null (no price data). This is the "vs. issue price" complement to a "vs. call price" premium figure
+   * web-nuxt also wants, which isn't computable yet since callPrice isn't available from analysis-ts.
+   */
+  priceMinusIssuePrice: number | null;
+
   cumulativeDividend: boolean;
   participatingExcessDividend: boolean;
   liquidationPreference: boolean;
