@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "ultimate-express";
-import { requireEnv } from "@/shared/env.js";
+import { env, requireEnv } from "@/shared/env.js";
 
 const BASIC_PREFIX = "Basic ";
 
@@ -30,12 +30,19 @@ function timingSafeEqualString(a: string, b: string): boolean {
  * developers/team members browsing docs, not end users of the product, and a browser natively prompts
  * for username/password on a 401 + WWW-Authenticate.
  *
- * Fails closed (500, via requireEnv throwing) if API_DOCS_USER/API_DOCS_PASSWORD aren't configured at
- * all, in every environment — same reasoning as TASK_SECRET elsewhere in the ecosystem: exercise this
- * code path in dev too (with a throwaway value) instead of leaving it silently untested until a real
- * deploy exposes the gap.
+ * Skipped entirely outside production (2026-09-06, reversing the original "fail closed everywhere"
+ * design): web-nuxt's sandboxed dev environment can't complete a Basic Auth challenge, and this is only
+ * a reconnaissance-surface concern in the first place (every actual sensitive endpoint has its own
+ * Firebase requireAuth regardless — see the security discussion this reverses), not worth blocking dev
+ * workflows over. Still fails closed (500, via requireEnv throwing) in production if
+ * API_DOCS_USER/API_DOCS_PASSWORD aren't configured.
  */
 export function requireApiDocsAuth(req: Request, res: Response, next: NextFunction): void {
+  if (!env.isProduction) {
+    next();
+    return;
+  }
+
   const expectedUser = stripQuotes(requireEnv("API_DOCS_USER"));
   const expectedPassword = stripQuotes(requireEnv("API_DOCS_PASSWORD"));
 

@@ -1,5 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { requireApiDocsAuth } from "@/adapters/swagger/apiDocsAuth.js";
+
+let mockIsProduction = false;
+
+vi.mock("@/shared/env.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/shared/env.js")>();
+  return {
+    ...actual,
+    env: {
+      ...actual.env,
+      get isProduction() {
+        return mockIsProduction;
+      },
+    },
+  };
+});
+
+const { requireApiDocsAuth } = await import("@/adapters/swagger/apiDocsAuth.js");
 
 const ORIGINAL_USER = process.env.API_DOCS_USER;
 const ORIGINAL_PASSWORD = process.env.API_DOCS_PASSWORD;
@@ -22,6 +38,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  mockIsProduction = false;
   if (ORIGINAL_USER === undefined) {
     delete process.env.API_DOCS_USER;
   } else {
@@ -34,7 +51,41 @@ afterEach(() => {
   }
 });
 
-describe("requireApiDocsAuth", () => {
+describe("requireApiDocsAuth outside production", () => {
+  beforeEach(() => {
+    mockIsProduction = false;
+  });
+
+  // web-nuxt's sandboxed dev environment can't complete a Basic Auth challenge — this check is skipped
+  // entirely outside production (2026-09-06), so no env vars or credentials are needed at all here.
+  it("calls next() unconditionally, even with no Authorization header", () => {
+    const req = { headers: {} } as import("ultimate-express").Request;
+    const res = mockRes();
+    const next = vi.fn();
+
+    requireApiDocsAuth(req, res, next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("calls next() unconditionally even when API_DOCS_USER/API_DOCS_PASSWORD aren't configured", () => {
+    delete process.env.API_DOCS_USER;
+    delete process.env.API_DOCS_PASSWORD;
+    const req = { headers: {} } as import("ultimate-express").Request;
+    const res = mockRes();
+    const next = vi.fn();
+
+    expect(() => requireApiDocsAuth(req, res, next)).not.toThrow();
+    expect(next).toHaveBeenCalledOnce();
+  });
+});
+
+describe("requireApiDocsAuth in production", () => {
+  beforeEach(() => {
+    mockIsProduction = true;
+  });
+
   it("calls next() when the Authorization header has the correct credentials", () => {
     const req = { headers: { authorization: basicAuthHeader("dev", "dev-local-secret") } } as import("ultimate-express").Request;
     const res = mockRes();
