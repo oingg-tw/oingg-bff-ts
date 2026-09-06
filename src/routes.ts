@@ -2,6 +2,7 @@ import cors from "cors";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import { Router } from "ultimate-express";
+import { requireApiDocsAuth } from "@/adapters/swagger/apiDocsAuth.js";
 import { swaggerSpec, swaggerUi } from "@/adapters/swagger/index.js";
 import { authRouter } from "@/domains/auth/index.js";
 import { etfScreenerRouter } from "@/domainBff/etfScreener/index.js";
@@ -45,7 +46,7 @@ routes.get("/", (_req, res) => {
   });
 });
 
-routes.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+routes.use("/api-docs", requireApiDocsAuth, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 routes.use("/system", systemRouter); // GET /system/health
 routes.use("/auth", authRouter); // GET /auth/me
