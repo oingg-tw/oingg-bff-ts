@@ -5,6 +5,10 @@ import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/domainBusiness/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
 import { getDashboardCardSettings, updateDashboardCardSettings } from "@/domainBusiness/user/dashboardCardSettings.service.js";
+import {
+  getPreferredStocksPreferences,
+  updatePreferredStocksPreferences,
+} from "@/domainBusiness/user/preferredStocksPreferences.service.js";
 import { getDisplaySettings, updateShowAsOfDate } from "@/domainBusiness/user/screenerDisplaySettings.service.js";
 import {
   getStockDetailPreferences,
@@ -41,6 +45,10 @@ export const updateDashboardCardsSchema = z.object({ visibleCardIds: z.array(z.s
 export const updateStockDetailPreferencesSchema = z.object({
   mode: z.enum(["CARD", "ACCOUNTING"]),
   visibleCardIds: z.array(z.string()),
+});
+export const updatePreferredStocksPreferencesSchema = z.object({
+  columnPresetId: z.enum(["ALL", "CONTRACT_TERMS", "VALUATION", "CALL_RISK"]),
+  columnOrder: z.array(z.string()),
 });
 
 userRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
@@ -119,4 +127,20 @@ userRouter.put("/me/stock-detail-preferences", requireAuth, async (req: Authenti
   const body = parseBody(updateStockDetailPreferencesSchema, req.body);
   const stockDetailPreferences = await updateStockDetailPreferences(firebaseUid, body.mode, body.visibleCardIds);
   res.json({ stockDetailPreferences });
+});
+
+userRouter.get("/me/preferred-stocks-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const preferredStocksPreferences = await getPreferredStocksPreferences(requireUser(req));
+  res.json({ preferredStocksPreferences });
+});
+
+userRouter.put("/me/preferred-stocks-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = parseBody(updatePreferredStocksPreferencesSchema, req.body);
+  const preferredStocksPreferences = await updatePreferredStocksPreferences(
+    firebaseUid,
+    body.columnPresetId,
+    body.columnOrder,
+  );
+  res.json({ preferredStocksPreferences });
 });

@@ -4,6 +4,7 @@ import {
   updateDashboardCardsSchema,
   updateFullWidthSchema,
   updateMarketColorConventionSchema,
+  updatePreferredStocksPreferencesSchema,
   updateShowAsOfDateSchema,
   updateStockDetailPreferencesSchema,
   updateThemeAccentColorSchema,
@@ -52,6 +53,18 @@ const stockDetailPreferencesSchema = z
     example: { mode: "CARD", visibleCardIds: ["profile", "per-river", "pbr-river", "eps", "revenue"] },
   });
 const stockDetailPreferencesResponseSchema = z.object({ stockDetailPreferences: stockDetailPreferencesSchema });
+
+const preferredStocksPreferencesSchema = z
+  .object({
+    columnPresetId: z.enum(["ALL", "CONTRACT_TERMS", "VALUATION", "CALL_RISK"]).nullable(),
+    columnOrder: z.array(z.string()).nullable(),
+  })
+  .openapi("PreferredStocksPreferences", {
+    example: { columnPresetId: "CONTRACT_TERMS", columnOrder: ["dividend-type", "participation", "issue-price"] },
+  });
+const preferredStocksPreferencesResponseSchema = z.object({
+  preferredStocksPreferences: preferredStocksPreferencesSchema,
+});
 
 const unauthorized = errorResponse("缺少或無效的 Authorization header / token。");
 
@@ -273,6 +286,49 @@ registry.registerPath({
       content: { "application/json": { schema: stockDetailPreferencesResponseSchema } },
     },
     400: errorResponse("mode 不在允許的選項內，或 visibleCardIds 沒給／不是字串陣列。"),
+    401: unauthorized,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/users/me/preferred-stocks-preferences",
+  summary: "查詢目前登入使用者的特別股清單頁顯示偏好",
+  description:
+    "/preferred-stocks 頁面選中的欄位預設分頁（columnPresetId: ALL/CONTRACT_TERMS/VALUATION/CALL_RISK，對應全部欄位/契約條款/估值指標/贖回風險）與可拖曳排序的欄位順序（columnOrder）。兩者都沒設定過是 null——null 代表「還沒存過偏好」，跟 dashboard-cards/stock-detail-preferences 一致。columnOrder 的欄位 id 是前端自訂清單，這個服務不驗證/不知道目前完整清單有哪些。",
+  tags: ["User"],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "顯示偏好，包在 \"preferredStocksPreferences\" 這個 key 底下。",
+      content: { "application/json": { schema: preferredStocksPreferencesResponseSchema } },
+    },
+    401: unauthorized,
+  },
+});
+
+registry.registerPath({
+  method: "put",
+  path: "/users/me/preferred-stocks-preferences",
+  summary: "更新目前登入使用者的特別股清單頁顯示偏好",
+  description: "columnPresetId 跟 columnOrder 一起整包覆蓋（沒有只改其中一個的端點）——前端的顯示設定本來就是兩者一起存。",
+  tags: ["User"],
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: updatePreferredStocksPreferencesSchema.openapi("UpdatePreferredStocksPreferencesRequest"),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "更新後的顯示偏好，包在 \"preferredStocksPreferences\" 這個 key 底下（跟 GET 同一個 shape）。",
+      content: { "application/json": { schema: preferredStocksPreferencesResponseSchema } },
+    },
+    400: errorResponse("columnPresetId 不在允許的選項內，或 columnOrder 沒給／不是字串陣列。"),
     401: unauthorized,
   },
 });

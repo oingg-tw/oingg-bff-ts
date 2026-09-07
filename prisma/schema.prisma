@@ -238,6 +238,33 @@ model StockDetailPreferences {
   @@map("stock_detail_preferences")
 }
 
+/// Which column-preset tab is selected on /preferred-stocks' table (全部欄位/契約條款/估值指標/贖回風險).
+/// SCREAMING_SNAKE_CASE for the multi-word values — no other enum in this schema has a multi-word value,
+/// this is the pattern to follow if one comes up again.
+enum PreferredStocksColumnPreset {
+  ALL
+  CONTRACT_TERMS
+  VALUATION
+  CALL_RISK
+}
+
+/// A user's /preferred-stocks display preferences (see
+/// src/domainBusiness/user/preferredStocksPreferences.*) — previously local-only client state (Vue
+/// useState, lost on reload), now synced across devices, same pattern as StockDetailPreferences above.
+/// `columnOrder` is a plain JSON string array of frontend-owned column ids (e.g. "dividend-type",
+/// "issue-price") for the drag-reorderable table — not FK'd to anything, same reasoning as
+/// DashboardCardSettings.visibleCardIds. Both fields are always written together (the settings UI saves
+/// both at once) — no row at all means "no preference saved yet" for both, resolved to the frontend's
+/// own local default.
+model PreferredStocksPreferences {
+  firebaseUid    String                      @id @map("firebase_uid")
+  columnPresetId PreferredStocksColumnPreset @map("column_preset_id")
+  columnOrder    Json                        @map("column_order")
+  updatedAt      DateTime                    @default(now()) @updatedAt @map("updated_at")
+
+  @@map("preferred_stocks_preferences")
+}
+
 /// A user's stock watchlist (see src/domainBusiness/watchlist).
 model WatchlistItem {
   id          String   @id @default(uuid()) @db.Uuid
