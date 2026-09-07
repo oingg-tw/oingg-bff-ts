@@ -29,22 +29,36 @@ vi.mock("@/domainBff/stock/metricHistory.client.js", () => ({
   fetchMetricHistory: vi.fn(),
 }));
 
+vi.mock("@/domainBff/stock/roeRoaHistory.client.js", () => ({
+  fetchRoeHistory: vi.fn(),
+  fetchRoaHistory: vi.fn(),
+}));
+
+vi.mock("@/domainBff/stock/dupontHistory.client.js", () => ({
+  fetchDupontHistory: vi.fn(),
+}));
+
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
 import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
+import { fetchDupontHistory } from "@/domainBff/stock/dupontHistory.client.js";
 import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.client.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
 import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
 import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
+import { fetchRoaHistory, fetchRoeHistory } from "@/domainBff/stock/roeRoaHistory.client.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
 import {
   assertSymbolExists,
   getCapitalStockHistory,
   getCompanyProfile,
+  getDupontHistory,
   getExDividendNotices,
   getFinancialStatement,
   getLatestClosePrices,
   getMetricHistory,
   getPreferredStocks,
+  getRoaHistory,
+  getRoeHistory,
   getStockQuote,
 } from "@/domainBff/stock/stock.service.js";
 
@@ -57,6 +71,9 @@ beforeEach(() => {
   vi.mocked(fetchFinancialStatement).mockReset();
   vi.mocked(fetchPreferredStocks).mockReset();
   vi.mocked(fetchMetricHistory).mockReset();
+  vi.mocked(fetchRoeHistory).mockReset();
+  vi.mocked(fetchRoaHistory).mockReset();
+  vi.mocked(fetchDupontHistory).mockReset();
 });
 
 describe("getStockQuote", () => {
@@ -209,5 +226,35 @@ describe("getMetricHistory", () => {
     await getMetricHistory("2330", "eps", "Q");
 
     expect(fetchMetricHistory).toHaveBeenCalledWith("2330", "eps", "Q", undefined);
+  });
+});
+
+describe("getRoeHistory", () => {
+  it("delegates to fetchRoeHistory and returns its result as-is", async () => {
+    const result = { symbol: "2330", basis: "TTM", entries: [] } as never;
+    vi.mocked(fetchRoeHistory).mockResolvedValue(result);
+
+    await expect(getRoeHistory("2330", "TTM", 5)).resolves.toEqual(result);
+    expect(fetchRoeHistory).toHaveBeenCalledWith("2330", "TTM", 5);
+  });
+});
+
+describe("getRoaHistory", () => {
+  it("delegates to fetchRoaHistory and returns its result as-is", async () => {
+    const result = { symbol: "2330", basis: "Q_ANN", entries: [] } as never;
+    vi.mocked(fetchRoaHistory).mockResolvedValue(result);
+
+    await expect(getRoaHistory("2330", "Q_ANN")).resolves.toEqual(result);
+    expect(fetchRoaHistory).toHaveBeenCalledWith("2330", "Q_ANN", undefined);
+  });
+});
+
+describe("getDupontHistory", () => {
+  it("delegates to fetchDupontHistory and returns its result as-is", async () => {
+    const result = { symbol: "2330", basis: "Q", entries: [] } as never;
+    vi.mocked(fetchDupontHistory).mockResolvedValue(result);
+
+    await expect(getDupontHistory("2330", "Q", 10)).resolves.toEqual(result);
+    expect(fetchDupontHistory).toHaveBeenCalledWith("2330", "Q", 10);
   });
 });

@@ -5,14 +5,28 @@ import { parseBody } from "@/shared/validation.js";
 import {
   getCapitalStockHistory,
   getCompanyProfile,
+  getDupontHistory,
   getExDividendNotices,
   getFinancialStatement,
   getMetricHistory,
   getPreferredStocks,
+  getRoaHistory,
+  getRoeHistory,
   getStockQuote,
 } from "@/domainBff/stock/stock.service.js";
 
 const MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST = 100;
+
+/** Shared by every history endpoint's query schema — matches analysis-ts's own 1-40 bound. */
+const historyLimitSchema = z.preprocess(
+  (v) => (v === undefined || v === "" ? undefined : v),
+  z
+    .coerce.number({ error: '"limit" must be an integer between 1 and 40' })
+    .refine((n) => Number.isInteger(n) && n >= 1 && n <= 40, {
+      message: '"limit" must be an integer between 1 and 40',
+    })
+    .optional(),
+);
 
 export const stockRouter = Router();
 
@@ -95,20 +109,43 @@ export const metricHistoryQuerySchema = z.object({
     error: '"metricCode" must be "eps", "peRatio", or "pbRatio"',
   }),
   basis: z.enum(["TTM", "Q"], { error: '"basis" must be "TTM" or "Q"' }),
-  limit: z.preprocess(
-    (v) => (v === undefined || v === "" ? undefined : v),
-    z
-      .coerce.number({ error: '"limit" must be an integer between 1 and 40' })
-      .refine((n) => Number.isInteger(n) && n >= 1 && n <= 40, {
-        message: '"limit" must be an integer between 1 and 40',
-      })
-      .optional(),
-  ),
+  limit: historyLimitSchema,
 });
 
 stockRouter.get("/:symbol/metric-history", async (req, res) => {
   const { symbol } = req.params;
   const query = parseBody(metricHistoryQuerySchema, req.query);
   const history = await getMetricHistory(symbol, query.metricCode, query.basis, query.limit);
+  res.json(history);
+});
+
+export const roeRoaHistoryQuerySchema = z.object({
+  basis: z.enum(["Q", "Q_ANN", "TTM"], { error: '"basis" must be "Q", "Q_ANN", or "TTM"' }),
+  limit: historyLimitSchema,
+});
+
+stockRouter.get("/:symbol/roe-history", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(roeRoaHistoryQuerySchema, req.query);
+  const history = await getRoeHistory(symbol, query.basis, query.limit);
+  res.json(history);
+});
+
+stockRouter.get("/:symbol/roa-history", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(roeRoaHistoryQuerySchema, req.query);
+  const history = await getRoaHistory(symbol, query.basis, query.limit);
+  res.json(history);
+});
+
+export const dupontHistoryQuerySchema = z.object({
+  basis: z.enum(["Q", "TTM"], { error: '"basis" must be "Q" or "TTM"' }),
+  limit: historyLimitSchema,
+});
+
+stockRouter.get("/:symbol/dupont-history", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(dupontHistoryQuerySchema, req.query);
+  const history = await getDupontHistory(symbol, query.basis, query.limit);
   res.json(history);
 });

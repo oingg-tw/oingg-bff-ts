@@ -7,10 +7,14 @@ import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.clie
 import type { ExDividendNoticeEntry } from "@/domainBff/stock/exDividendNotices.types.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
 import type { FinancialStatementResult, FinancialStatementType } from "@/domainBff/stock/financialStatement.types.js";
+import { fetchDupontHistory } from "@/domainBff/stock/dupontHistory.client.js";
+import type { DupontHistoryBasis, DupontHistoryResult } from "@/domainBff/stock/dupontHistory.types.js";
 import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
 import type { MetricHistoryBasis, MetricHistoryCode, MetricHistoryResult } from "@/domainBff/stock/metricHistory.types.js";
 import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
 import type { PreferredStocksResult } from "@/domainBff/stock/preferredStocks.types.js";
+import { fetchRoaHistory, fetchRoeHistory } from "@/domainBff/stock/roeRoaHistory.client.js";
+import type { RoaHistoryResult, RoeHistoryResult, RoeRoaHistoryBasis } from "@/domainBff/stock/roeRoaHistory.types.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
 import type { StockQuote } from "@/domainBff/stock/stock.types.js";
 
@@ -84,4 +88,31 @@ export async function getMetricHistory(
   limit?: number,
 ): Promise<MetricHistoryResult> {
   return fetchMetricHistory(symbol, metricCode, basis, limit);
+}
+
+/** Quarterly ROE (股東權益報酬率) time series — GET /stocks/:symbol/roe-history. */
+export async function getRoeHistory(
+  symbol: string,
+  basis: RoeRoaHistoryBasis,
+  limit?: number,
+): Promise<RoeHistoryResult> {
+  return fetchRoeHistory(symbol, basis, limit);
+}
+
+/** Quarterly ROA (資產報酬率) time series — GET /stocks/:symbol/roa-history. */
+export async function getRoaHistory(
+  symbol: string,
+  basis: RoeRoaHistoryBasis,
+  limit?: number,
+): Promise<RoaHistoryResult> {
+  return fetchRoaHistory(symbol, basis, limit);
+}
+
+/** Quarterly DuPont-decomposed ROE time series — GET /stocks/:symbol/dupont-history. */
+export async function getDupontHistory(
+  symbol: string,
+  basis: DupontHistoryBasis,
+  limit?: number,
+): Promise<DupontHistoryResult> {
+  return fetchDupontHistory(symbol, basis, limit);
 }

@@ -1,9 +1,11 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
 import {
+  dupontHistoryQuerySchema,
   financialStatementQuerySchema,
   metricHistoryQuerySchema,
   preferredStocksQuerySchema,
+  roeRoaHistoryQuerySchema,
 } from "@/domainBff/stock/stock.routes.js";
 
 const symbolParam = z.object({ symbol: z.string().openapi({ example: "2330", description: "股票代號" }) });
@@ -406,6 +408,140 @@ registry.registerPath({
       content: { "application/json": { schema: metricHistorySchema } },
     },
     400: errorResponse("metricCode/basis 組合不合法、limit 超出 1-40 範圍，或缺少必填參數。"),
+    502: unauthorized502,
+  },
+});
+
+const roeHistorySchema = z
+  .object({
+    symbol: z.string(),
+    basis: z.enum(["Q", "Q_ANN", "TTM"]),
+    entries: z.array(metricHistoryEntrySchema),
+  })
+  .openapi("RoeHistory", {
+    example: {
+      symbol: "2330",
+      basis: "TTM",
+      entries: [
+        { fiscalYear: 2025, fiscalQuarter: 4, value: 31.7, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false },
+        { fiscalYear: 2026, fiscalQuarter: 1, value: 32.74, nullReason: null, knowledgeDate: "2026-05-12", knowledgeDateIsFallback: false },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/roe-history",
+  summary: "查詢股東權益報酬率（ROE）的季度歷史數列",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/roe-history。basis 允許 Q（單季）、Q_ANN（單季年化，即單季數字 ×4）、TTM（近四季）——跟 metric-history 不同，這支端點的三種 basis 都允許，不是每個 metricCode 各自限定一種。limit 預設 20、最大 40。查無資料回傳空陣列，不是 404。entries 由舊到新排序。",
+  tags: ["Stock"],
+  request: {
+    params: symbolParam,
+    query: roeRoaHistoryQuerySchema.openapi("RoeRoaHistoryQuery", { example: { basis: "TTM", limit: 20 } }),
+  },
+  responses: {
+    200: {
+      description: "季度數列，查無資料時 entries 為空陣列。",
+      content: { "application/json": { schema: roeHistorySchema } },
+    },
+    400: errorResponse("basis 不合法、limit 超出 1-40 範圍，或缺少必填參數。"),
+    502: unauthorized502,
+  },
+});
+
+const roaHistorySchema = z
+  .object({
+    symbol: z.string(),
+    basis: z.enum(["Q", "Q_ANN", "TTM"]),
+    entries: z.array(metricHistoryEntrySchema),
+  })
+  .openapi("RoaHistory", {
+    example: {
+      symbol: "2330",
+      basis: "TTM",
+      entries: [
+        { fiscalYear: 2025, fiscalQuarter: 4, value: 21.65, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false },
+        { fiscalYear: 2026, fiscalQuarter: 1, value: 22.27, nullReason: null, knowledgeDate: "2026-05-12", knowledgeDateIsFallback: false },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/roa-history",
+  summary: "查詢資產報酬率（ROA）的季度歷史數列",
+  description: "資料來自 oingg-analysis-ts 的 GET /companies/roa-history。basis/limit/查無資料的行為跟 roe-history 完全一致，見該端點說明。",
+  tags: ["Stock"],
+  request: {
+    params: symbolParam,
+    query: roeRoaHistoryQuerySchema.openapi("RoaHistoryQuery", { example: { basis: "TTM", limit: 20 } }),
+  },
+  responses: {
+    200: {
+      description: "季度數列，查無資料時 entries 為空陣列。",
+      content: { "application/json": { schema: roaHistorySchema } },
+    },
+    400: errorResponse("basis 不合法、limit 超出 1-40 範圍，或缺少必填參數。"),
+    502: unauthorized502,
+  },
+});
+
+const dupontHistoryEntrySchema = z.object({
+  fiscalYear: z.number(),
+  fiscalQuarter: z.number(),
+  netProfitMarginPct: z.number().nullable(),
+  assetTurnover: z.number().nullable(),
+  equityMultiplier: z.number().nullable(),
+  decomposedRoePct: z.number().nullable(),
+  nullReason: z.string().nullable(),
+  knowledgeDate: z.string(),
+  knowledgeDateIsFallback: z.boolean(),
+});
+
+const dupontHistorySchema = z
+  .object({
+    symbol: z.string(),
+    basis: z.enum(["Q", "TTM"]),
+    entries: z.array(dupontHistoryEntrySchema),
+  })
+  .openapi("DupontHistory", {
+    example: {
+      symbol: "2330",
+      basis: "Q",
+      entries: [
+        {
+          fiscalYear: 2025,
+          fiscalQuarter: 2,
+          netProfitMarginPct: 42.65,
+          assetTurnover: 0.13,
+          equityMultiplier: 1.53,
+          decomposedRoePct: 8.48,
+          nullReason: null,
+          knowledgeDate: "2025-08-12",
+          knowledgeDateIsFallback: false,
+        },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/dupont-history",
+  summary: "查詢 ROE 杜邦分析（淨利率×資產週轉率×權益乘數）的季度歷史數列",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/dupont-history。跟 metric-history/roe-history/roa-history 不同，這支端點每季回傳的是拆解後的多個數字（netProfitMarginPct、assetTurnover、equityMultiplier、decomposedRoePct），不是單一 value。basis 只允許 Q、TTM，沒有 Q_ANN（跟 roe/roa-history 不同）。equityMultiplier 實測在 basis=TTM 時常是 null、basis=Q 時才有值，還沒跟 analysis-ts 正式確認原因，不要假設所有 TTM 資料都一定沒有這個欄位。limit 預設 20、最大 40。查無資料回傳空陣列，不是 404。entries 由舊到新排序。",
+  tags: ["Stock"],
+  request: {
+    params: symbolParam,
+    query: dupontHistoryQuerySchema.openapi("DupontHistoryQuery", { example: { basis: "Q", limit: 20 } }),
+  },
+  responses: {
+    200: {
+      description: "季度數列，查無資料時 entries 為空陣列。",
+      content: { "application/json": { schema: dupontHistorySchema } },
+    },
+    400: errorResponse("basis 不合法、limit 超出 1-40 範圍，或缺少必填參數。"),
     502: unauthorized502,
   },
 });

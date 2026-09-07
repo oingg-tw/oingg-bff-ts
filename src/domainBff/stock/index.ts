@@ -3,11 +3,14 @@ export {
   assertSymbolExists,
   getCapitalStockHistory,
   getCompanyProfile,
+  getDupontHistory,
   getExDividendNotices,
   getFinancialStatement,
   getLatestClosePrices,
   getMetricHistory,
   getPreferredStocks,
+  getRoaHistory,
+  getRoeHistory,
   getStockQuote,
 } from "@/domainBff/stock/stock.service.js";
 export type { ClosePrice } from "@/domainBff/stock/stock.service.js";
@@ -27,3 +30,10 @@ export type {
   MetricHistoryEntry,
   MetricHistoryResult,
 } from "@/domainBff/stock/metricHistory.types.js";
+export type { FlatHistoryEntry } from "@/domainBff/stock/metricHistoryShared.js";
+export type { RoaHistoryResult, RoeHistoryResult, RoeRoaHistoryBasis } from "@/domainBff/stock/roeRoaHistory.types.js";
+export type {
+  DupontHistoryBasis,
+  DupontHistoryEntry,
+  DupontHistoryResult,
+} from "@/domainBff/stock/dupontHistory.types.js";
