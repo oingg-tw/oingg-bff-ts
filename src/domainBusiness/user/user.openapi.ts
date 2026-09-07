@@ -5,6 +5,7 @@ import {
   updateFullWidthSchema,
   updateMarketColorConventionSchema,
   updateShowAsOfDateSchema,
+  updateStockDetailPreferencesSchema,
   updateThemeAccentColorSchema,
   updateThemeModeSchema,
 } from "@/domainBusiness/user/user.routes.js";
@@ -41,6 +42,16 @@ const dashboardCardsSchema = z
     example: { visibleCardIds: ["margin-short-ratio", "revenue-ranking", "volume-top20"] },
   });
 const dashboardCardsResponseSchema = z.object({ dashboardCards: dashboardCardsSchema });
+
+const stockDetailPreferencesSchema = z
+  .object({
+    mode: z.enum(["CARD", "ACCOUNTING"]).nullable(),
+    visibleCardIds: z.array(z.string()).nullable(),
+  })
+  .openapi("StockDetailPreferences", {
+    example: { mode: "CARD", visibleCardIds: ["profile", "per-river", "pbr-river", "eps", "revenue"] },
+  });
+const stockDetailPreferencesResponseSchema = z.object({ stockDetailPreferences: stockDetailPreferencesSchema });
 
 const unauthorized = errorResponse("缺少或無效的 Authorization header / token。");
 
@@ -221,6 +232,47 @@ registry.registerPath({
       content: { "application/json": { schema: dashboardCardsResponseSchema } },
     },
     400: errorResponse("visibleCardIds 沒給，或不是字串陣列。"),
+    401: unauthorized,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/users/me/stock-detail-preferences",
+  summary: "查詢目前登入使用者的個股詳細頁顯示偏好",
+  description:
+    "/stock/[code].vue 的版面模式（mode: CARD/ACCOUNTING，2026-09-07 從三選一「簡易/專家/會計」收斂成二選一，因為簡易/專家從未真正呈現不同內容）與資訊卡片顯示偏好（visibleCardIds），兩者都沒設定過是 null——null 代表「還沒存過偏好」，[] 代表「使用者主動把每張卡片都關掉」，兩者語意不同（跟 dashboard-cards 一致）。卡片 id 是前端自訂清單，這個服務不驗證/不知道目前完整清單有哪些。",
+  tags: ["User"],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "顯示偏好，包在 \"stockDetailPreferences\" 這個 key 底下。",
+      content: { "application/json": { schema: stockDetailPreferencesResponseSchema } },
+    },
+    401: unauthorized,
+  },
+});
+
+registry.registerPath({
+  method: "put",
+  path: "/users/me/stock-detail-preferences",
+  summary: "更新目前登入使用者的個股詳細頁顯示偏好",
+  description: "mode 跟 visibleCardIds 一起整包覆蓋（沒有只改其中一個的端點）——前端的設定彈窗本來就是兩者一起存。",
+  tags: ["User"],
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: updateStockDetailPreferencesSchema.openapi("UpdateStockDetailPreferencesRequest") },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "更新後的顯示偏好，包在 \"stockDetailPreferences\" 這個 key 底下（跟 GET 同一個 shape）。",
+      content: { "application/json": { schema: stockDetailPreferencesResponseSchema } },
+    },
+    400: errorResponse("mode 不在允許的選項內，或 visibleCardIds 沒給／不是字串陣列。"),
     401: unauthorized,
   },
 });

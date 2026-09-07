@@ -7,6 +7,10 @@ import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
 import { getDashboardCardSettings, updateDashboardCardSettings } from "@/domainBusiness/user/dashboardCardSettings.service.js";
 import { getDisplaySettings, updateShowAsOfDate } from "@/domainBusiness/user/screenerDisplaySettings.service.js";
 import {
+  getStockDetailPreferences,
+  updateStockDetailPreferences,
+} from "@/domainBusiness/user/stockDetailPreferences.service.js";
+import {
   getThemePreference,
   updateIsFullWidth,
   updateMarketColorConvention,
@@ -34,6 +38,10 @@ export const updateMarketColorConventionSchema = z.object({
 export const updateFullWidthSchema = z.object({ isFullWidth: z.boolean() });
 export const updateShowAsOfDateSchema = z.object({ showAsOfDate: z.boolean() });
 export const updateDashboardCardsSchema = z.object({ visibleCardIds: z.array(z.string()) });
+export const updateStockDetailPreferencesSchema = z.object({
+  mode: z.enum(["CARD", "ACCOUNTING"]),
+  visibleCardIds: z.array(z.string()),
+});
 
 userRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
   const profile = await getUserByFirebaseUidOrThrow(requireUser(req));
@@ -99,4 +107,16 @@ userRouter.put("/me/dashboard-cards", requireAuth, async (req: AuthenticatedRequ
   const body = parseBody(updateDashboardCardsSchema, req.body);
   const dashboardCards = await updateDashboardCardSettings(firebaseUid, body.visibleCardIds);
   res.json({ dashboardCards });
+});
+
+userRouter.get("/me/stock-detail-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const stockDetailPreferences = await getStockDetailPreferences(requireUser(req));
+  res.json({ stockDetailPreferences });
+});
+
+userRouter.put("/me/stock-detail-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = parseBody(updateStockDetailPreferencesSchema, req.body);
+  const stockDetailPreferences = await updateStockDetailPreferences(firebaseUid, body.mode, body.visibleCardIds);
+  res.json({ stockDetailPreferences });
 });

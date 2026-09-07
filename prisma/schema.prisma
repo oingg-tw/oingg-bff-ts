@@ -215,6 +215,29 @@ model DashboardCardSettings {
   @@map("dashboard_card_settings")
 }
 
+/// 卡片 vs. 會計 — oingg-web-nuxt's /stock/[code].vue layout mode. Was a 3-way 簡易/專家/會計 choice until
+/// 2026-09-07, collapsed to 2-way since 簡易/專家 never actually differentiated content.
+enum StockDetailPageMode {
+  CARD
+  ACCOUNTING
+}
+
+/// A user's /stock/[code].vue display preferences (see src/domainBusiness/user/stockDetailPreferences.*)
+/// — previously local-only client state (Vue useState, lost on reload), now synced across devices, same
+/// pattern as DashboardCardSettings above. `visibleCardIds` is a plain JSON string array of frontend-owned
+/// info-card ids (profile/per-river/pbr-river/eps/revenue/share-capital/ex-dividend) — not FK'd to
+/// anything, same reasoning as DashboardCardSettings.visibleCardIds. Both fields are always written
+/// together (the settings popover saves the whole thing at once, see updateStockDetailPreferences) — no
+/// row at all means "no preference saved yet" for both, resolved to the frontend's own local default.
+model StockDetailPreferences {
+  firebaseUid    String              @id @map("firebase_uid")
+  mode           StockDetailPageMode
+  visibleCardIds Json                @map("visible_card_ids")
+  updatedAt      DateTime            @default(now()) @updatedAt @map("updated_at")
+
+  @@map("stock_detail_preferences")
+}
+
 /// A user's stock watchlist (see src/domainBusiness/watchlist).
 model WatchlistItem {
   id          String   @id @default(uuid()) @db.Uuid
