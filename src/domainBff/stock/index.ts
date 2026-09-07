@@ -6,6 +6,7 @@ export {
   getExDividendNotices,
   getFinancialStatement,
   getLatestClosePrices,
+  getMetricHistory,
   getPreferredStocks,
   getStockQuote,
 } from "@/domainBff/stock/stock.service.js";
@@ -20,3 +21,9 @@ export type {
 export type { ExDividendNoticeEntry, ExDividendType } from "@/domainBff/stock/exDividendNotices.types.js";
 export type { FinancialStatementResult, FinancialStatementType } from "@/domainBff/stock/financialStatement.types.js";
 export type { PreferredStockEntry, PreferredStocksResult } from "@/domainBff/stock/preferredStocks.types.js";
+export type {
+  MetricHistoryBasis,
+  MetricHistoryCode,
+  MetricHistoryEntry,
+  MetricHistoryResult,
+} from "@/domainBff/stock/metricHistory.types.js";

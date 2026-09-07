@@ -7,6 +7,7 @@ import {
   getCompanyProfile,
   getExDividendNotices,
   getFinancialStatement,
+  getMetricHistory,
   getPreferredStocks,
   getStockQuote,
 } from "@/domainBff/stock/stock.service.js";
@@ -87,4 +88,27 @@ stockRouter.get("/:symbol/financial-statement", async (req, res) => {
   const query = parseBody(financialStatementQuerySchema, req.query);
   const statement = await getFinancialStatement(symbol, query.statementType, query.year, query.season);
   res.json(statement);
+});
+
+export const metricHistoryQuerySchema = z.object({
+  metricCode: z.enum(["eps", "peRatio", "pbRatio"], {
+    error: '"metricCode" must be "eps", "peRatio", or "pbRatio"',
+  }),
+  basis: z.enum(["TTM", "Q"], { error: '"basis" must be "TTM" or "Q"' }),
+  limit: z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : v),
+    z
+      .coerce.number({ error: '"limit" must be an integer between 1 and 40' })
+      .refine((n) => Number.isInteger(n) && n >= 1 && n <= 40, {
+        message: '"limit" must be an integer between 1 and 40',
+      })
+      .optional(),
+  ),
+});
+
+stockRouter.get("/:symbol/metric-history", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(metricHistoryQuerySchema, req.query);
+  const history = await getMetricHistory(symbol, query.metricCode, query.basis, query.limit);
+  res.json(history);
 });

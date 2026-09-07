@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
-import { financialStatementQuerySchema, preferredStocksQuerySchema } from "@/domainBff/stock/stock.routes.js";
+import {
+  financialStatementQuerySchema,
+  metricHistoryQuerySchema,
+  preferredStocksQuerySchema,
+} from "@/domainBff/stock/stock.routes.js";
 
 const symbolParam = z.object({ symbol: z.string().openapi({ example: "2330", description: "股票代號" }) });
 const unauthorized502 = errorResponse("analysis-ts 服務無法連線或回應格式異常。");
@@ -345,6 +349,55 @@ registry.registerPath({
       },
     },
     400: errorResponse("缺少 symbols 參數，或超過 100 檔。"),
+    502: unauthorized502,
+  },
+});
+
+const metricHistoryEntrySchema = z.object({
+  fiscalYear: z.number(),
+  fiscalQuarter: z.number(),
+  value: z.number().nullable(),
+  nullReason: z.string().nullable(),
+  knowledgeDate: z.string(),
+  knowledgeDateIsFallback: z.boolean(),
+});
+
+const metricHistorySchema = z
+  .object({
+    symbol: z.string(),
+    metricCode: z.enum(["eps", "peRatio", "pbRatio"]),
+    basis: z.enum(["TTM", "Q"]),
+    entries: z.array(metricHistoryEntrySchema),
+  })
+  .openapi("MetricHistory", {
+    example: {
+      symbol: "2330",
+      metricCode: "peRatio",
+      basis: "TTM",
+      entries: [
+        { fiscalYear: 2025, fiscalQuarter: 2, value: 13.55, nullReason: null, knowledgeDate: "2025-08-12", knowledgeDateIsFallback: false },
+        { fiscalYear: 2025, fiscalQuarter: 3, value: 15.93, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/metric-history",
+  summary: "查詢 EPS/本益比/本淨比的季度歷史數列（個股詳細頁圖表用）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/metric-history——這是 analysis-ts 自己用驗證過的 eps/bvps 公式重新算出來的數字，不是轉發原始 daily_valuation；knowledgeDate 對齊財報公告日，不是逐日更新的市場數據。metricCode 只允許特定的 basis 組合（實測，不是每個都一樣）：eps 可以是 TTM 或 Q，peRatio 只能 TTM，pbRatio 只能 Q，給錯組合 analysis-ts 會回 400，這裡原樣轉發那個錯誤訊息。limit 預設 20、最大 40。查無資料（代號沒 backfill 過，或代號不存在）回傳空陣列，不是 404——截至 2026-09-07 只有 2330 有資料，其餘代號都是空的。entries 由舊到新排序。",
+  tags: ["Stock"],
+  request: {
+    params: symbolParam,
+    query: metricHistoryQuerySchema.openapi("MetricHistoryQuery", { example: { metricCode: "peRatio", basis: "TTM", limit: 20 } }),
+  },
+  responses: {
+    200: {
+      description: "季度數列，查無資料時 entries 為空陣列。",
+      content: { "application/json": { schema: metricHistorySchema } },
+    },
+    400: errorResponse("metricCode/basis 組合不合法、limit 超出 1-40 範圍，或缺少必填參數。"),
     502: unauthorized502,
   },
 });

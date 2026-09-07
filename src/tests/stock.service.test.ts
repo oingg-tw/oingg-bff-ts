@@ -25,10 +25,15 @@ vi.mock("@/domainBff/stock/preferredStocks.client.js", () => ({
   fetchPreferredStocks: vi.fn(),
 }));
 
+vi.mock("@/domainBff/stock/metricHistory.client.js", () => ({
+  fetchMetricHistory: vi.fn(),
+}));
+
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
 import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
 import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.client.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
+import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
 import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
 import {
@@ -38,6 +43,7 @@ import {
   getExDividendNotices,
   getFinancialStatement,
   getLatestClosePrices,
+  getMetricHistory,
   getPreferredStocks,
   getStockQuote,
 } from "@/domainBff/stock/stock.service.js";
@@ -50,6 +56,7 @@ beforeEach(() => {
   vi.mocked(fetchExDividendNotices).mockReset();
   vi.mocked(fetchFinancialStatement).mockReset();
   vi.mocked(fetchPreferredStocks).mockReset();
+  vi.mocked(fetchMetricHistory).mockReset();
 });
 
 describe("getStockQuote", () => {
@@ -184,5 +191,23 @@ describe("getPreferredStocks", () => {
     await getPreferredStocks();
 
     expect(fetchPreferredStocks).toHaveBeenCalledWith(undefined);
+  });
+});
+
+describe("getMetricHistory", () => {
+  it("delegates to fetchMetricHistory and returns its result as-is", async () => {
+    const result = { symbol: "2330", metricCode: "peRatio", basis: "TTM", entries: [] } as never;
+    vi.mocked(fetchMetricHistory).mockResolvedValue(result);
+
+    await expect(getMetricHistory("2330", "peRatio", "TTM", 5)).resolves.toEqual(result);
+    expect(fetchMetricHistory).toHaveBeenCalledWith("2330", "peRatio", "TTM", 5);
+  });
+
+  it("forwards undefined limit through when omitted (analysis-ts applies its own default)", async () => {
+    vi.mocked(fetchMetricHistory).mockResolvedValue({ symbol: "2330", metricCode: "eps", basis: "Q", entries: [] });
+
+    await getMetricHistory("2330", "eps", "Q");
+
+    expect(fetchMetricHistory).toHaveBeenCalledWith("2330", "eps", "Q", undefined);
   });
 });

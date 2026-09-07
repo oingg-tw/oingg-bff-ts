@@ -7,6 +7,8 @@ import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.clie
 import type { ExDividendNoticeEntry } from "@/domainBff/stock/exDividendNotices.types.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
 import type { FinancialStatementResult, FinancialStatementType } from "@/domainBff/stock/financialStatement.types.js";
+import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
+import type { MetricHistoryBasis, MetricHistoryCode, MetricHistoryResult } from "@/domainBff/stock/metricHistory.types.js";
 import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
 import type { PreferredStocksResult } from "@/domainBff/stock/preferredStocks.types.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
@@ -72,4 +74,14 @@ export async function getFinancialStatement(
 /** TWSE-listed preferred stocks (all, or one symbol) — GET /stocks/preferred-stocks. */
 export async function getPreferredStocks(symbol?: string): Promise<PreferredStocksResult> {
   return fetchPreferredStocks(symbol);
+}
+
+/** Quarterly EPS/PER/PBR time series (for stock-detail charts) — GET /stocks/:symbol/metric-history. */
+export async function getMetricHistory(
+  symbol: string,
+  metricCode: MetricHistoryCode,
+  basis: MetricHistoryBasis,
+  limit?: number,
+): Promise<MetricHistoryResult> {
+  return fetchMetricHistory(symbol, metricCode, basis, limit);
 }
