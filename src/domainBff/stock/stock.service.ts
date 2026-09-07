@@ -11,6 +11,8 @@ import { fetchDupontHistory } from "@/domainBff/stock/dupontHistory.client.js";
 import type { DupontHistoryBasis, DupontHistoryResult } from "@/domainBff/stock/dupontHistory.types.js";
 import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
 import type { MetricHistoryBasis, MetricHistoryCode, MetricHistoryResult } from "@/domainBff/stock/metricHistory.types.js";
+import { fetchMonthlyRevenueHistory } from "@/domainBff/stock/monthlyRevenueHistory.client.js";
+import type { MonthlyRevenueHistoryResult } from "@/domainBff/stock/monthlyRevenueHistory.types.js";
 import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
 import type { PreferredStocksResult } from "@/domainBff/stock/preferredStocks.types.js";
 import { fetchRoaHistory, fetchRoeHistory } from "@/domainBff/stock/roeRoaHistory.client.js";
@@ -115,4 +117,9 @@ export async function getDupontHistory(
   limit?: number,
 ): Promise<DupontHistoryResult> {
   return fetchDupontHistory(symbol, basis, limit);
+}
+
+/** Monthly revenue/YoY/MoM history (月營收年增率) — GET /stocks/:symbol/monthly-revenue-history. */
+export async function getMonthlyRevenueHistory(symbol: string, limit?: number): Promise<MonthlyRevenueHistoryResult> {
+  return fetchMonthlyRevenueHistory(symbol, limit);
 }

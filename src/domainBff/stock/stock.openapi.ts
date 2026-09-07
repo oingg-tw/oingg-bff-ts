@@ -4,6 +4,7 @@ import {
   dupontHistoryQuerySchema,
   financialStatementQuerySchema,
   metricHistoryQuerySchema,
+  monthlyRevenueHistoryQuerySchema,
   preferredStocksQuerySchema,
   roeRoaHistoryQuerySchema,
 } from "@/domainBff/stock/stock.routes.js";
@@ -552,6 +553,67 @@ registry.registerPath({
       content: { "application/json": { schema: dupontHistorySchema } },
     },
     400: errorResponse("basis 不合法、limit 超出 1-40 範圍，或缺少必填參數。"),
+    502: unauthorized502,
+  },
+});
+
+const monthlyRevenueHistoryEntrySchema = z.object({
+  yearMonth: z.string(),
+  reportDate: z.string(),
+  industry: z.string(),
+  currentMonthRevenue: z.string(),
+  lastYearSameMonthRevenue: z.string(),
+  yoyChangePercent: z.number().nullable(),
+  momChangePercent: z.number().nullable(),
+  cumulativeRevenue: z.string(),
+  cumulativeLastYearRevenue: z.string(),
+  cumulativeChangePercent: z.number().nullable(),
+  note: z.string().nullable(),
+});
+
+const monthlyRevenueHistorySchema = z
+  .object({
+    symbol: z.string(),
+    entries: z.array(monthlyRevenueHistoryEntrySchema),
+  })
+  .openapi("MonthlyRevenueHistory", {
+    example: {
+      symbol: "2330",
+      entries: [
+        {
+          yearMonth: "2026-07",
+          reportDate: "2026-08-10",
+          industry: "半導體業",
+          currentMonthRevenue: "467580548",
+          lastYearSameMonthRevenue: "323165707",
+          yoyChangePercent: 44.69,
+          momChangePercent: 5.62,
+          cumulativeRevenue: "2872064238",
+          cumulativeLastYearRevenue: "2096211240",
+          cumulativeChangePercent: 37.01,
+          note: null,
+        },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/monthly-revenue-history",
+  summary: "查詢月營收年增率/月增率歷史（月營收年增率圖表用）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/monthly-revenue-history——一次性 60 個月 backfill（截至 2026-09-07 僅 2330 有資料，其餘代號回傳空陣列，不是 404）。currentMonthRevenue/lastYearSameMonthRevenue/cumulativeRevenue/cumulativeLastYearRevenue 是新台幣千元金額，序列化成字串避免精度問題；yoyChangePercent/momChangePercent/cumulativeChangePercent 是數字，缺乏可比較基期時為 null（例如整個序列最早一個月沒有更早的月份可比，momChangePercent 會是 null，即使 yoyChangePercent 有值）。note 是公司自行揭露的說明文字，analysis-ts 會給字面上的「無」字串（不是 null）代表公司回報「沒有特別說明」，真正的 null 只有在完全沒有揭露欄位時才會出現。limit 是 1-120（跟其他歷史類端點的 1-40 不一樣，這支端點自己的上限比較大），不給 limit 預設回傳全部（不像 metric-history 系列預設只給 20 筆）。entries 由舊到新排序。",
+  tags: ["Stock"],
+  request: {
+    params: symbolParam,
+    query: monthlyRevenueHistoryQuerySchema.openapi("MonthlyRevenueHistoryQuery", { example: { limit: 12 } }),
+  },
+  responses: {
+    200: {
+      description: "月營收歷史，查無資料時 entries 為空陣列。",
+      content: { "application/json": { schema: monthlyRevenueHistorySchema } },
+    },
+    400: errorResponse("limit 超出 1-120 範圍，或缺少必填參數。"),
     502: unauthorized502,
   },
 });

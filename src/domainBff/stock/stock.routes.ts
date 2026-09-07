@@ -9,6 +9,7 @@ import {
   getExDividendNotices,
   getFinancialStatement,
   getMetricHistory,
+  getMonthlyRevenueHistory,
   getPreferredStocks,
   getRoaHistory,
   getRoeHistory,
@@ -17,16 +18,21 @@ import {
 
 const MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST = 100;
 
-/** Shared by every history endpoint's query schema — matches analysis-ts's own 1-40 bound. */
-const historyLimitSchema = z.preprocess(
-  (v) => (v === undefined || v === "" ? undefined : v),
-  z
-    .coerce.number({ error: '"limit" must be an integer between 1 and 40' })
-    .refine((n) => Number.isInteger(n) && n >= 1 && n <= 40, {
-      message: '"limit" must be an integer between 1 and 40',
-    })
-    .optional(),
-);
+/** A "limit" query param bounded to [min, max] — each history endpoint below matches analysis-ts's own bound for that specific endpoint (they're not all the same). */
+function limitSchema(min: number, max: number) {
+  return z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : v),
+    z
+      .coerce.number({ error: `"limit" must be an integer between ${min} and ${max}` })
+      .refine((n) => Number.isInteger(n) && n >= min && n <= max, {
+        message: `"limit" must be an integer between ${min} and ${max}`,
+      })
+      .optional(),
+  );
+}
+
+/** Shared by metric-history/roe-history/roa-history/dupont-history — matches analysis-ts's own 1-40 bound. */
+const historyLimitSchema = limitSchema(1, 40);
 
 export const stockRouter = Router();
 
@@ -147,5 +153,18 @@ stockRouter.get("/:symbol/dupont-history", async (req, res) => {
   const { symbol } = req.params;
   const query = parseBody(dupontHistoryQuerySchema, req.query);
   const history = await getDupontHistory(symbol, query.basis, query.limit);
+  res.json(history);
+});
+
+// analysis-ts's own bound for this endpoint is 1-120, NOT the same 1-40 as the other history endpoints
+// above — confirmed live, 2026-09-07.
+export const monthlyRevenueHistoryQuerySchema = z.object({
+  limit: limitSchema(1, 120),
+});
+
+stockRouter.get("/:symbol/monthly-revenue-history", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(monthlyRevenueHistoryQuerySchema, req.query);
+  const history = await getMonthlyRevenueHistory(symbol, query.limit);
   res.json(history);
 });

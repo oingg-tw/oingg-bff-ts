@@ -38,12 +38,17 @@ vi.mock("@/domainBff/stock/dupontHistory.client.js", () => ({
   fetchDupontHistory: vi.fn(),
 }));
 
+vi.mock("@/domainBff/stock/monthlyRevenueHistory.client.js", () => ({
+  fetchMonthlyRevenueHistory: vi.fn(),
+}));
+
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
 import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
 import { fetchDupontHistory } from "@/domainBff/stock/dupontHistory.client.js";
 import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.client.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
 import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
+import { fetchMonthlyRevenueHistory } from "@/domainBff/stock/monthlyRevenueHistory.client.js";
 import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
 import { fetchRoaHistory, fetchRoeHistory } from "@/domainBff/stock/roeRoaHistory.client.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
@@ -56,6 +61,7 @@ import {
   getFinancialStatement,
   getLatestClosePrices,
   getMetricHistory,
+  getMonthlyRevenueHistory,
   getPreferredStocks,
   getRoaHistory,
   getRoeHistory,
@@ -74,6 +80,7 @@ beforeEach(() => {
   vi.mocked(fetchRoeHistory).mockReset();
   vi.mocked(fetchRoaHistory).mockReset();
   vi.mocked(fetchDupontHistory).mockReset();
+  vi.mocked(fetchMonthlyRevenueHistory).mockReset();
 });
 
 describe("getStockQuote", () => {
@@ -256,5 +263,23 @@ describe("getDupontHistory", () => {
 
     await expect(getDupontHistory("2330", "Q", 10)).resolves.toEqual(result);
     expect(fetchDupontHistory).toHaveBeenCalledWith("2330", "Q", 10);
+  });
+});
+
+describe("getMonthlyRevenueHistory", () => {
+  it("delegates to fetchMonthlyRevenueHistory and returns its result as-is", async () => {
+    const result = { symbol: "2330", entries: [] } as never;
+    vi.mocked(fetchMonthlyRevenueHistory).mockResolvedValue(result);
+
+    await expect(getMonthlyRevenueHistory("2330", 12)).resolves.toEqual(result);
+    expect(fetchMonthlyRevenueHistory).toHaveBeenCalledWith("2330", 12);
+  });
+
+  it("forwards undefined limit through when omitted (analysis-ts returns everything)", async () => {
+    vi.mocked(fetchMonthlyRevenueHistory).mockResolvedValue({ symbol: "2330", entries: [] });
+
+    await getMonthlyRevenueHistory("2330");
+
+    expect(fetchMonthlyRevenueHistory).toHaveBeenCalledWith("2330", undefined);
   });
 });

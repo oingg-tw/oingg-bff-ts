@@ -8,6 +8,7 @@ export {
   getFinancialStatement,
   getLatestClosePrices,
   getMetricHistory,
+  getMonthlyRevenueHistory,
   getPreferredStocks,
   getRoaHistory,
   getRoeHistory,
@@ -37,3 +38,7 @@ export type {
   DupontHistoryEntry,
   DupontHistoryResult,
 } from "@/domainBff/stock/dupontHistory.types.js";
+export type {
+  MonthlyRevenueHistoryEntry,
+  MonthlyRevenueHistoryResult,
+} from "@/domainBff/stock/monthlyRevenueHistory.types.js";
