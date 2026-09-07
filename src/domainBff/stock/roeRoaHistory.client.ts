@@ -16,8 +16,8 @@ export async function fetchRoeHistory(
   if (limit !== undefined) {
     searchParams.limit = String(limit);
   }
-  const entries = await fetchFlatMetricHistory("/companies/roe-history", searchParams, "ROE history");
-  return { symbol, basis, entries };
+  const page = await fetchFlatMetricHistory("/companies/roe-history", searchParams, "ROE history");
+  return { symbol, basis, ...page };
 }
 
 /**
@@ -33,6 +33,6 @@ export async function fetchRoaHistory(
   if (limit !== undefined) {
     searchParams.limit = String(limit);
   }
-  const entries = await fetchFlatMetricHistory("/companies/roa-history", searchParams, "ROA history");
-  return { symbol, basis, entries };
+  const page = await fetchFlatMetricHistory("/companies/roa-history", searchParams, "ROA history");
+  return { symbol, basis, ...page };
 }

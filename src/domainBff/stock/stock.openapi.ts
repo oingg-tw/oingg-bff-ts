@@ -378,6 +378,8 @@ const metricHistorySchema = z
     symbol: z.string(),
     metricCode: z.enum(["eps", "peRatio", "pbRatio"]),
     basis: z.enum(["TTM", "Q"]),
+    total: z.number(),
+    hasMore: z.boolean(),
     entries: z.array(metricHistoryEntrySchema),
   })
   .openapi("MetricHistory", {
@@ -385,6 +387,8 @@ const metricHistorySchema = z
       symbol: "2330",
       metricCode: "peRatio",
       basis: "TTM",
+      total: 23,
+      hasMore: false,
       entries: [
         { fiscalYear: 2025, fiscalQuarter: 2, value: 13.55, nullReason: null, knowledgeDate: "2025-08-12", knowledgeDateIsFallback: false },
         { fiscalYear: 2025, fiscalQuarter: 3, value: 15.93, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false },
@@ -397,7 +401,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/metric-history",
   summary: "查詢 EPS/本益比/本淨比的季度歷史數列（個股詳細頁圖表用）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/metric-history——這是 analysis-ts 自己用驗證過的 eps/bvps 公式重新算出來的數字，不是轉發原始 daily_valuation；knowledgeDate 對齊財報公告日，不是逐日更新的市場數據。metricCode 只允許特定的 basis 組合（實測，不是每個都一樣）：eps 可以是 TTM 或 Q，peRatio 只能 TTM，pbRatio 只能 Q，給錯組合 analysis-ts 會回 400，這裡原樣轉發那個錯誤訊息。limit 預設 20、最大 40。查無資料（代號沒 backfill 過，或代號不存在）回傳空陣列，不是 404——截至 2026-09-07 只有 2330 有資料，其餘代號都是空的。entries 由舊到新排序。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/metric-history——這是 analysis-ts 自己用驗證過的 eps/bvps 公式重新算出來的數字，不是轉發原始 daily_valuation；knowledgeDate 對齊財報公告日，不是逐日更新的市場數據。metricCode 只允許特定的 basis 組合（實測，不是每個都一樣）：eps 可以是 TTM 或 Q，peRatio 只能 TTM，pbRatio 只能 Q，給錯組合 analysis-ts 會回 400，這裡原樣轉發那個錯誤訊息。limit 預設 20、最大 40。total 是這個 symbol/metricCode/basis 組合總共有幾筆（不是這次回傳的筆數），hasMore 代表加大 limit 是否還能拿到更多。查無資料（代號沒 backfill 過，或代號不存在）回傳空陣列，不是 404——截至 2026-09-07 只有 2330 有資料，其餘代號都是空的。entries 由舊到新排序。",
   tags: ["Stock"],
   request: {
     params: symbolParam,
@@ -417,12 +421,16 @@ const roeHistorySchema = z
   .object({
     symbol: z.string(),
     basis: z.enum(["Q", "Q_ANN", "TTM"]),
+    total: z.number(),
+    hasMore: z.boolean(),
     entries: z.array(metricHistoryEntrySchema),
   })
   .openapi("RoeHistory", {
     example: {
       symbol: "2330",
       basis: "TTM",
+      total: 20,
+      hasMore: true,
       entries: [
         { fiscalYear: 2025, fiscalQuarter: 4, value: 31.7, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false },
         { fiscalYear: 2026, fiscalQuarter: 1, value: 32.74, nullReason: null, knowledgeDate: "2026-05-12", knowledgeDateIsFallback: false },
@@ -435,7 +443,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/roe-history",
   summary: "查詢股東權益報酬率（ROE）的季度歷史數列",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/roe-history。basis 允許 Q（單季）、Q_ANN（單季年化，即單季數字 ×4）、TTM（近四季）——跟 metric-history 不同，這支端點的三種 basis 都允許，不是每個 metricCode 各自限定一種。limit 預設 20、最大 40。查無資料回傳空陣列，不是 404。entries 由舊到新排序。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/roe-history。basis 允許 Q（單季）、Q_ANN（單季年化，即單季數字 ×4）、TTM（近四季）——跟 metric-history 不同，這支端點的三種 basis 都允許，不是每個 metricCode 各自限定一種。limit 預設 20、最大 40。total/hasMore 意義同 metric-history。查無資料回傳空陣列，不是 404。entries 由舊到新排序。",
   tags: ["Stock"],
   request: {
     params: symbolParam,
@@ -455,12 +463,16 @@ const roaHistorySchema = z
   .object({
     symbol: z.string(),
     basis: z.enum(["Q", "Q_ANN", "TTM"]),
+    total: z.number(),
+    hasMore: z.boolean(),
     entries: z.array(metricHistoryEntrySchema),
   })
   .openapi("RoaHistory", {
     example: {
       symbol: "2330",
       basis: "TTM",
+      total: 20,
+      hasMore: true,
       entries: [
         { fiscalYear: 2025, fiscalQuarter: 4, value: 21.65, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false },
         { fiscalYear: 2026, fiscalQuarter: 1, value: 22.27, nullReason: null, knowledgeDate: "2026-05-12", knowledgeDateIsFallback: false },
@@ -509,12 +521,16 @@ const dupontHistorySchema = z
   .object({
     symbol: z.string(),
     basis: z.enum(["Q", "TTM"]),
+    total: z.number(),
+    hasMore: z.boolean(),
     entries: z.array(dupontHistoryEntrySchema),
   })
   .openapi("DupontHistory", {
     example: {
       symbol: "2330",
       basis: "Q",
+      total: 20,
+      hasMore: true,
       entries: [
         {
           fiscalYear: 2026,
@@ -541,7 +557,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/dupont-history",
   summary: "查詢 ROE 杜邦分析（3 因子＋5 因子拆解）的季度歷史數列",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/dupont-history。跟 metric-history/roe-history/roa-history 不同，這支端點每季回傳的是拆解後的多個數字，不是單一 value：3 因子（netProfitMarginPct×assetTurnover×equityMultiplier=decomposedRoePct）以及 5 因子擴展版（dupontTaxBurdenPct×dupontInterestBurdenPct×dupontEbitMarginPct×assetTurnover×equityMultiplier=dupontExtendedRoePct，2026-09-07 新增，同一個回應內，不需要額外參數）。5 因子有自己獨立的 dupontExtendedRoeNullReason，跟 3 因子的 nullReason 是分開的兩個欄位——5 因子的完整性檢查比 3 因子嚴格，可能 3 因子都有值但 5 因子還是 null。basis 只允許 Q、TTM，沒有 Q_ANN（跟 roe/roa-history 不同）。equityMultiplier 實測在 basis=TTM 時常是 null、basis=Q 時才有值，還沒跟 analysis-ts 正式確認原因，不要假設所有 TTM 資料都一定沒有這個欄位。limit 預設 20、最大 40。查無資料回傳空陣列，不是 404。entries 由舊到新排序。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/dupont-history。跟 metric-history/roe-history/roa-history 不同，這支端點每季回傳的是拆解後的多個數字，不是單一 value：3 因子（netProfitMarginPct×assetTurnover×equityMultiplier=decomposedRoePct）以及 5 因子擴展版（dupontTaxBurdenPct×dupontInterestBurdenPct×dupontEbitMarginPct×assetTurnover×equityMultiplier=dupontExtendedRoePct，2026-09-07 新增，同一個回應內，不需要額外參數）。5 因子有自己獨立的 dupontExtendedRoeNullReason，跟 3 因子的 nullReason 是分開的兩個欄位——5 因子的完整性檢查比 3 因子嚴格，可能 3 因子都有值但 5 因子還是 null。basis 只允許 Q、TTM，沒有 Q_ANN（跟 roe/roa-history 不同）。equityMultiplier 實測在 basis=TTM 時常是 null、basis=Q 時才有值，還沒跟 analysis-ts 正式確認原因，不要假設所有 TTM 資料都一定沒有這個欄位。limit 預設 20、最大 40。total/hasMore 意義同 metric-history。查無資料回傳空陣列，不是 404。entries 由舊到新排序。",
   tags: ["Stock"],
   request: {
     params: symbolParam,
@@ -574,11 +590,15 @@ const monthlyRevenueHistoryEntrySchema = z.object({
 const monthlyRevenueHistorySchema = z
   .object({
     symbol: z.string(),
+    total: z.number(),
+    hasMore: z.boolean(),
     entries: z.array(monthlyRevenueHistoryEntrySchema),
   })
   .openapi("MonthlyRevenueHistory", {
     example: {
       symbol: "2330",
+      total: 60,
+      hasMore: true,
       entries: [
         {
           yearMonth: "2026-07",
@@ -602,7 +622,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/monthly-revenue-history",
   summary: "查詢月營收年增率/月增率歷史（月營收年增率圖表用）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/monthly-revenue-history——一次性 60 個月 backfill（截至 2026-09-07 僅 2330 有資料，其餘代號回傳空陣列，不是 404）。currentMonthRevenue/lastYearSameMonthRevenue/cumulativeRevenue/cumulativeLastYearRevenue 是新台幣千元金額，序列化成字串避免精度問題；yoyChangePercent/momChangePercent/cumulativeChangePercent 是數字，缺乏可比較基期時為 null（例如整個序列最早一個月沒有更早的月份可比，momChangePercent 會是 null，即使 yoyChangePercent 有值）。note 是公司自行揭露的說明文字，analysis-ts 會給字面上的「無」字串（不是 null）代表公司回報「沒有特別說明」，真正的 null 只有在完全沒有揭露欄位時才會出現。limit 是 1-120（跟其他歷史類端點的 1-40 不一樣，這支端點自己的上限比較大），不給 limit 預設回傳全部（不像 metric-history 系列預設只給 20 筆）。entries 由舊到新排序。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/monthly-revenue-history——一次性 60 個月 backfill（截至 2026-09-07 僅 2330 有資料，其餘代號回傳空陣列，不是 404）。currentMonthRevenue/lastYearSameMonthRevenue/cumulativeRevenue/cumulativeLastYearRevenue 是新台幣千元金額，序列化成字串避免精度問題；yoyChangePercent/momChangePercent/cumulativeChangePercent 是數字，缺乏可比較基期時為 null（例如整個序列最早一個月沒有更早的月份可比，momChangePercent 會是 null，即使 yoyChangePercent 有值）。note 是公司自行揭露的說明文字，analysis-ts 會給字面上的「無」字串（不是 null）代表公司回報「沒有特別說明」，真正的 null 只有在完全沒有揭露欄位時才會出現。limit 是 1-120（跟其他歷史類端點的 1-40 不一樣，這支端點自己的上限比較大），不給 limit 預設回傳全部（不像 metric-history 系列預設只給 20 筆）。total/hasMore 意義同 metric-history。entries 由舊到新排序。",
   tags: ["Stock"],
   request: {
     params: symbolParam,

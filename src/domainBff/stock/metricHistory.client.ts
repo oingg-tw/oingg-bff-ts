@@ -25,6 +25,6 @@ export async function fetchMetricHistory(
     searchParams.limit = String(limit);
   }
 
-  const entries = await fetchFlatMetricHistory("/companies/metric-history", searchParams, "Metric history");
-  return { symbol, metricCode, basis, entries };
+  const page = await fetchFlatMetricHistory("/companies/metric-history", searchParams, "Metric history");
+  return { symbol, metricCode, basis, ...page };
 }

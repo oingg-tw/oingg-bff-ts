@@ -30,6 +30,8 @@ const RAW_BODY = {
   symbol: "2330",
   metricCode: "peRatio",
   basis: "TTM",
+  total: 23,
+  hasMore: false,
   entries: [
     { fiscalYear: 2025, fiscalQuarter: 2, value: 13.55, nullReason: null, knowledgeDate: "2025-08-12", knowledgeDateIsFallback: false },
     { fiscalYear: 2025, fiscalQuarter: 3, value: 15.93, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false },
@@ -59,14 +61,34 @@ describe("fetchMetricHistory", () => {
   });
 
   it("returns an empty entries array for an unbackfilled or unknown symbol, without throwing", async () => {
-    mockFetchOnce({ ok: true, body: { symbol: "2317", metricCode: "peRatio", basis: "TTM", entries: [] } });
+    mockFetchOnce({ ok: true, body: { symbol: "2317", metricCode: "peRatio", basis: "TTM", total: 0, hasMore: false, entries: [] } });
 
     await expect(fetchMetricHistory("2317", "peRatio", "TTM")).resolves.toEqual({
       symbol: "2317",
       metricCode: "peRatio",
       basis: "TTM",
+      total: 0,
+      hasMore: false,
       entries: [],
     });
+  });
+
+  it("passes through total/hasMore", async () => {
+    mockFetchOnce({ ok: true, body: RAW_BODY });
+
+    const result = await fetchMetricHistory("2330", "peRatio", "TTM");
+
+    expect(result.total).toBe(23);
+    expect(result.hasMore).toBe(false);
+  });
+
+  it("defaults total/hasMore to 0/false when analysis-ts's response is missing them", async () => {
+    mockFetchOnce({ ok: true, body: { symbol: "2330", metricCode: "peRatio", basis: "TTM", entries: [] } });
+
+    const result = await fetchMetricHistory("2330", "peRatio", "TTM");
+
+    expect(result.total).toBe(0);
+    expect(result.hasMore).toBe(false);
   });
 
   it("preserves a null value with its nullReason", async () => {

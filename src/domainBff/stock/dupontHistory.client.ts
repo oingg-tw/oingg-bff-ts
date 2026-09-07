@@ -2,6 +2,7 @@ import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { DupontHistoryBasis, DupontHistoryEntry, DupontHistoryResult } from "@/domainBff/stock/dupontHistory.types.js";
+import { extractHistoryPageMeta } from "@/domainBff/stock/metricHistoryShared.js";
 
 function toNumberOrNull(value: unknown): number | null {
   return typeof value === "number" ? value : null;
@@ -71,5 +72,5 @@ export async function fetchDupontHistory(
     throw new AppError("Dupont history endpoint response is missing an entries array", 502);
   }
 
-  return { symbol, basis, entries: body.entries.map(normalizeEntry) };
+  return { symbol, basis, ...extractHistoryPageMeta(body), entries: body.entries.map(normalizeEntry) };
 }

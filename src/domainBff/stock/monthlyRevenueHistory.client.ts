@@ -5,6 +5,7 @@ import type {
   MonthlyRevenueHistoryEntry,
   MonthlyRevenueHistoryResult,
 } from "@/domainBff/stock/monthlyRevenueHistory.types.js";
+import { extractHistoryPageMeta } from "@/domainBff/stock/metricHistoryShared.js";
 
 function toStringOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;
@@ -71,5 +72,5 @@ export async function fetchMonthlyRevenueHistory(symbol: string, limit?: number)
     throw new AppError("Monthly revenue history endpoint response is missing an entries array", 502);
   }
 
-  return { symbol, entries: body.entries.map(normalizeEntry) };
+  return { symbol, ...extractHistoryPageMeta(body), entries: body.entries.map(normalizeEntry) };
 }

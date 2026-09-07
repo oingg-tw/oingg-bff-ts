@@ -76,12 +76,12 @@ const OLDEST_ENTRY = {
 };
 
 describe("fetchMonthlyRevenueHistory", () => {
-  it("requests /companies/monthly-revenue-history with symbol and normalizes entries (dropping total/hasMore)", async () => {
+  it("requests /companies/monthly-revenue-history with symbol and normalizes entries, including total/hasMore", async () => {
     mockFetchOnce({ ok: true, body: RECENT_BODY });
 
     const result = await fetchMonthlyRevenueHistory("2330");
 
-    expect(result).toEqual({ symbol: "2330", entries: RECENT_BODY.entries });
+    expect(result).toEqual({ symbol: "2330", total: 60, hasMore: true, entries: RECENT_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/monthly-revenue-history?symbol=2330");
   });
@@ -98,7 +98,12 @@ describe("fetchMonthlyRevenueHistory", () => {
   it("returns an empty entries array for an unbackfilled or unknown symbol, without throwing", async () => {
     mockFetchOnce({ ok: true, body: { symbol: "2317", total: 0, hasMore: false, entries: [] } });
 
-    await expect(fetchMonthlyRevenueHistory("2317")).resolves.toEqual({ symbol: "2317", entries: [] });
+    await expect(fetchMonthlyRevenueHistory("2317")).resolves.toEqual({
+      symbol: "2317",
+      total: 0,
+      hasMore: false,
+      entries: [],
+    });
   });
 
   // Revenue amounts are bigint-serialized strings — must be passed through as strings, never coerced

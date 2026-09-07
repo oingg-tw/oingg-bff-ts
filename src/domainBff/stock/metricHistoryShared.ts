@@ -15,6 +15,20 @@ export interface FlatHistoryEntry {
   knowledgeDateIsFallback: boolean;
 }
 
+/**
+ * Pagination metadata analysis-ts added to every history endpoint in this domain (2026-09-07, same day
+ * as the endpoints themselves — not present in the very first responses this codebase saw, which is why
+ * it was initially missed on 3 of the 5 endpoints until web-nuxt's tenYearDisabled UI logic surfaced the
+ * gap). `total` is the full count available (not just what this page returned); `hasMore` is whether a
+ * higher `limit` would return more entries than this call did.
+ */
+export interface HistoryPageMeta {
+  total: number;
+  hasMore: boolean;
+}
+
+export type FlatHistoryPage = HistoryPageMeta & { entries: FlatHistoryEntry[] };
+
 function toNumberOrNull(value: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
@@ -40,6 +54,19 @@ function isFlatHistoryResponse(body: unknown): body is { entries: unknown[] } {
 }
 
 /**
+ * `total`/`hasMore` are read the same way across every history endpoint in this domain (including
+ * dupont-history and monthly-revenue-history, which don't use fetchFlatMetricHistory below since their
+ * entry shape differs) — pulled out so all 5 clients extract them identically instead of duplicating
+ * the same two-line cast.
+ */
+export function extractHistoryPageMeta(body: Record<string, unknown>): HistoryPageMeta {
+  return {
+    total: typeof body.total === "number" ? body.total : 0,
+    hasMore: body.hasMore === true,
+  };
+}
+
+/**
  * Shared fetch+normalize logic for analysis-ts's family of "one quarterly figure per entry" history
  * endpoints (metric-history, roe-history, roa-history) — all share the identical entry shape, differing
  * only in URL path and which basis values each accepts (confirmed live, 2026-09-07: metric-history's
@@ -53,7 +80,7 @@ export async function fetchFlatMetricHistory(
   path: string,
   searchParams: Record<string, string>,
   label: string,
-): Promise<FlatHistoryEntry[]> {
+): Promise<FlatHistoryPage> {
   const url = buildAnalysisServiceUrl(path, searchParams);
   const response = await fetchAnalysisService(url);
 
@@ -73,5 +100,8 @@ export async function fetchFlatMetricHistory(
     throw new AppError(`${label} endpoint response is missing an entries array`, 502);
   }
 
-  return body.entries.map(normalizeFlatHistoryEntry);
+  return {
+    ...extractHistoryPageMeta(body),
+    entries: body.entries.map(normalizeFlatHistoryEntry),
+  };
 }

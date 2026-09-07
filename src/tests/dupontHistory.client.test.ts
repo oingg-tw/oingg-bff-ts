@@ -80,12 +80,12 @@ const TTM_BODY = {
 };
 
 describe("fetchDupontHistory", () => {
-  it("requests /companies/dupont-history with symbol/basis and normalizes entries (dropping total/hasMore)", async () => {
+  it("requests /companies/dupont-history with symbol/basis and normalizes entries, including total/hasMore", async () => {
     mockFetchOnce({ ok: true, body: Q_BODY });
 
     const result = await fetchDupontHistory("2330", "Q");
 
-    expect(result).toEqual({ symbol: "2330", basis: "Q", entries: Q_BODY.entries });
+    expect(result).toEqual({ symbol: "2330", basis: "Q", total: 20, hasMore: true, entries: Q_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/dupont-history?symbol=2330&basis=Q");
   });
@@ -148,7 +148,13 @@ describe("fetchDupontHistory", () => {
   it("returns an empty entries array for an unbackfilled or unknown symbol, without throwing", async () => {
     mockFetchOnce({ ok: true, body: { symbol: "ZZZZ", basis: "Q", total: 0, hasMore: false, entries: [] } });
 
-    await expect(fetchDupontHistory("ZZZZ", "Q")).resolves.toEqual({ symbol: "ZZZZ", basis: "Q", entries: [] });
+    await expect(fetchDupontHistory("ZZZZ", "Q")).resolves.toEqual({
+      symbol: "ZZZZ",
+      basis: "Q",
+      total: 0,
+      hasMore: false,
+      entries: [],
+    });
   });
 
   it("relays analysis-ts's 400 message for an invalid basis (e.g. Q_ANN, which dupont-history doesn't support)", async () => {

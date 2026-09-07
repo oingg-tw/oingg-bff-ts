@@ -50,12 +50,12 @@ const ROA_BODY = {
 };
 
 describe("fetchRoeHistory", () => {
-  it("requests /companies/roe-history with symbol/basis and normalizes entries (dropping total/hasMore)", async () => {
+  it("requests /companies/roe-history with symbol/basis and normalizes entries, including total/hasMore", async () => {
     mockFetchOnce({ ok: true, body: ROE_BODY });
 
     const result = await fetchRoeHistory("2330", "TTM");
 
-    expect(result).toEqual({ symbol: "2330", basis: "TTM", entries: ROE_BODY.entries });
+    expect(result).toEqual({ symbol: "2330", basis: "TTM", total: 20, hasMore: true, entries: ROE_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&basis=TTM");
   });
@@ -81,7 +81,13 @@ describe("fetchRoeHistory", () => {
   it("returns an empty entries array for an unbackfilled or unknown symbol, without throwing", async () => {
     mockFetchOnce({ ok: true, body: { symbol: "ZZZZ", metricCode: "roe", basis: "TTM", total: 0, hasMore: false, entries: [] } });
 
-    await expect(fetchRoeHistory("ZZZZ", "TTM")).resolves.toEqual({ symbol: "ZZZZ", basis: "TTM", entries: [] });
+    await expect(fetchRoeHistory("ZZZZ", "TTM")).resolves.toEqual({
+      symbol: "ZZZZ",
+      basis: "TTM",
+      total: 0,
+      hasMore: false,
+      entries: [],
+    });
   });
 
   it("relays analysis-ts's 400 message for an invalid basis", async () => {
@@ -101,12 +107,12 @@ describe("fetchRoeHistory", () => {
 });
 
 describe("fetchRoaHistory", () => {
-  it("requests /companies/roa-history with symbol/basis and normalizes entries", async () => {
+  it("requests /companies/roa-history with symbol/basis and normalizes entries, including total/hasMore", async () => {
     mockFetchOnce({ ok: true, body: ROA_BODY });
 
     const result = await fetchRoaHistory("2330", "TTM");
 
-    expect(result).toEqual({ symbol: "2330", basis: "TTM", entries: ROA_BODY.entries });
+    expect(result).toEqual({ symbol: "2330", basis: "TTM", total: 20, hasMore: true, entries: ROA_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/roa-history?symbol=2330&basis=TTM");
   });

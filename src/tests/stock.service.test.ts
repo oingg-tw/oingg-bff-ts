@@ -228,7 +228,7 @@ describe("getMetricHistory", () => {
   });
 
   it("forwards undefined limit through when omitted (analysis-ts applies its own default)", async () => {
-    vi.mocked(fetchMetricHistory).mockResolvedValue({ symbol: "2330", metricCode: "eps", basis: "Q", entries: [] });
+    vi.mocked(fetchMetricHistory).mockResolvedValue({ symbol: "2330", metricCode: "eps", basis: "Q", total: 0, hasMore: false, entries: [] });
 
     await getMetricHistory("2330", "eps", "Q");
 
@@ -276,7 +276,7 @@ describe("getMonthlyRevenueHistory", () => {
   });
 
   it("forwards undefined limit through when omitted (analysis-ts returns everything)", async () => {
-    vi.mocked(fetchMonthlyRevenueHistory).mockResolvedValue({ symbol: "2330", entries: [] });
+    vi.mocked(fetchMonthlyRevenueHistory).mockResolvedValue({ symbol: "2330", total: 0, hasMore: false, entries: [] });
 
     await getMonthlyRevenueHistory("2330");
 
