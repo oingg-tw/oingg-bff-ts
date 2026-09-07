@@ -262,6 +262,10 @@ const preferredStockEntrySchema = z
     redemptionDate: z.string().nullable(),
     redemptionConditions: z.string().nullable(),
     callRiskAmount: z.number().nullable(),
+    ytwPct: z.number().nullable(),
+    ytcPct: z.number().nullable(),
+    ytcAssumption: z.enum(["scheduled_redemption_date", "past_redemption_date_assumed_next_period"]).nullable(),
+    negativeConvexityWarning: z.boolean().nullable(),
   })
   .openapi("PreferredStockEntry", {
     example: {
@@ -288,6 +292,10 @@ const preferredStockEntrySchema = z
       redemptionDate: "2023-12-13",
       redemptionConditions: "本公司得於發行日滿五年後之次日起按實際發行價格收回",
       callRiskAmount: 6.55,
+      ytwPct: 4.03,
+      ytcPct: 19.1,
+      ytcAssumption: "past_redemption_date_assumed_next_period",
+      negativeConvexityWarning: false,
     },
   });
 
@@ -296,7 +304,7 @@ registry.registerPath({
   path: "/stocks/preferred-stocks",
   summary: "查詢特別股清單（僅上市，上櫃無對應資料源）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /preferred-stocks。不給 symbol 回傳目前所有上市特別股（截至 2026-09-06 共 28 檔）；給 symbol 查無資料回傳空陣列，不是 404。dividendRate 是每股固定配息金額（新台幣元），不是百分比——不要跟 nominalDividendRatePct（票面利率，發行時基準、之後不變）或 currentYieldPct（目前殖利率，隨股價每天變動，查無股價時為 null）搞混，三者是不同概念。redeemable/redemptionDate/redemptionConditions 是「公司贖回權」（公司可要求收回），不是「投資人賣回權」——這支端點沒有投資人賣回權的對應欄位。priceMinusIssuePrice（現價減發行價，四捨五入到小數點後 2 位）不是 analysis-ts 給的，是 bff-ts 自己算的（latestClosePrice - issuePrice），latestClosePrice 為 null 時這個欄位也是 null。callRiskAmount（買回風險，只在 redeemable 為 true 時才有值）是 analysis-ts 原生提供的欄位（2026-09-06 新增；同時新增的 callProtectionYears 已於同日移除，redemptionDate/redemptionConditions 已足以表達贖回期資訊），原樣轉發。callRiskAmount 公式已與 analysis-ts 確認為「發行價-現價」，正負號跟 priceMinusIssuePrice（現價-發行價）正好相反、數值相同（callRiskAmount === -priceMinusIssuePrice）——負值代表現價已超過發行價、有被贖回吃虧的風險，正值代表沒有此風險；兩個欄位目前都保留，因為 null 的條件不同（callRiskAmount 只在 redeemable 才有值，priceMinusIssuePrice 只要有股價就有值）。此端點固定向 analysis-ts 要求較大的 limit（避免其分頁機制截斷「查全部」的用法），本身對外不提供分頁參數，回應固定是 { entries: [...] }。",
+    "資料來自 oingg-analysis-ts 的 GET /preferred-stocks。不給 symbol 回傳目前所有上市特別股（截至 2026-09-06 共 28 檔）；給 symbol 查無資料回傳空陣列，不是 404。dividendRate 是每股固定配息金額（新台幣元），不是百分比——不要跟 nominalDividendRatePct（票面利率，發行時基準、之後不變）或 currentYieldPct（目前殖利率，隨股價每天變動，查無股價時為 null）搞混，三者是不同概念。redeemable/redemptionDate/redemptionConditions 是「公司贖回權」（公司可要求收回），不是「投資人賣回權」——這支端點沒有投資人賣回權的對應欄位。priceMinusIssuePrice（現價減發行價，四捨五入到小數點後 2 位）不是 analysis-ts 給的，是 bff-ts 自己算的（latestClosePrice - issuePrice），latestClosePrice 為 null 時這個欄位也是 null。callRiskAmount（買回風險，只在 redeemable 為 true 時才有值）是 analysis-ts 原生提供的欄位（2026-09-06 新增；同時新增的 callProtectionYears 已於同日移除，redemptionDate/redemptionConditions 已足以表達贖回期資訊），原樣轉發。callRiskAmount 公式已與 analysis-ts 確認為「發行價-現價」，正負號跟 priceMinusIssuePrice（現價-發行價）正好相反、數值相同（callRiskAmount === -priceMinusIssuePrice）——負值代表現價已超過發行價、有被贖回吃虧的風險，正值代表沒有此風險；兩個欄位目前都保留，因為 null 的條件不同（callRiskAmount 只在 redeemable 才有值，priceMinusIssuePrice 只要有股價就有值）。此端點固定向 analysis-ts 要求較大的 limit（避免其分頁機制截斷「查全部」的用法），本身對外不提供分頁參數，回應固定是 { entries: [...] }。ytwPct（最差殖利率）、ytcPct（贖回殖利率）、ytcAssumption（ytcPct 假設用哪個贖回日：scheduled_redemption_date 是還沒到期的真實贖回日，past_redemption_date_assumed_next_period 是真實贖回日已過、公司還沒行使贖回權時改用下一期估算）、negativeConvexityWarning（是否有負凸性風險，價格上漲空間被贖回價封頂）是 analysis-ts 原生提供的欄位（2026-09-07 新增），原樣轉發。negativeConvexityWarning 是三態欄位：redeemable 為 false 時是 null（不是 false）——概念上不適用，不要跟 false 混為一談；ytcPct/ytcAssumption 也是只在 redeemable 為 true 時才有值。ytwPct 例外：即使 redeemable 是 false 也有值（等於 currentYieldPct，因為沒有贖回選擇權時「最差」就是持有到期本身）。",
   tags: ["Stock"],
   request: {
     query: preferredStocksQuerySchema.openapi("PreferredStocksQuery", { example: { symbol: "1101B" } }),

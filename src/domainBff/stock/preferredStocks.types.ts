@@ -65,6 +65,29 @@ export interface PreferredStockEntry {
    * reads better for their card yet.
    */
   callRiskAmount: number | null;
+  /**
+   * 最差殖利率 (Yield to Worst) — added by analysis-ts 2026-09-07. Populated whenever there's price data,
+   * even when `redeemable` is false (equals `currentYieldPct` in that case, since nothing worse than
+   * holding to maturity can happen without a call option). Null only when there's no price data at all.
+   */
+  ytwPct: number | null;
+  /** 贖回殖利率 (Yield to Call) — null when `redeemable` is false. Added by analysis-ts 2026-09-07. */
+  ytcPct: number | null;
+  /**
+   * Which redemption date `ytcPct` assumed — `scheduled_redemption_date` (the security's actual
+   * `redemptionDate` hasn't passed yet) or `past_redemption_date_assumed_next_period` (the real
+   * redemption date is already in the past — the company simply hasn't exercised its call option yet —
+   * so analysis-ts assumed the next period instead of leaving this unanswerable). Null when `redeemable`
+   * is false. Added by analysis-ts 2026-09-07.
+   */
+  ytcAssumption: "scheduled_redemption_date" | "past_redemption_date_assumed_next_period" | null;
+  /**
+   * True when a price rise would shrink potential upside faster than a price fall grows potential
+   * downside (the security's price is capped near its call price) — a genuinely three-valued field:
+   * null (not `false`) when `redeemable` is false, since the concept doesn't apply at all without a call
+   * option. Added by analysis-ts 2026-09-07 — do not coerce null to false, they mean different things.
+   */
+  negativeConvexityWarning: boolean | null;
 }
 
 export interface PreferredStocksResult {

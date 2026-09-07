@@ -11,6 +11,11 @@ function toStringOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+/** Preserves null as a distinct third state — never coerces null to false (unlike the plain-boolean fields above, which have no meaningful null case). */
+function toBooleanOrNull(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
 /** Rounds to 2 decimals — avoids floating-point noise from a plain subtraction (e.g. 43.45 - 50). */
 function roundTo2Decimals(value: number): number {
   return Math.round(value * 100) / 100;
@@ -45,6 +50,13 @@ function normalizeEntry(raw: unknown): PreferredStockEntry {
     redemptionDate: toStringOrNull(r.redemptionDate),
     redemptionConditions: toStringOrNull(r.redemptionConditions),
     callRiskAmount: toNumberOrNull(r.callRiskAmount),
+    ytwPct: toNumberOrNull(r.ytwPct),
+    ytcPct: toNumberOrNull(r.ytcPct),
+    ytcAssumption:
+      r.ytcAssumption === "scheduled_redemption_date" || r.ytcAssumption === "past_redemption_date_assumed_next_period"
+        ? r.ytcAssumption
+        : null,
+    negativeConvexityWarning: toBooleanOrNull(r.negativeConvexityWarning),
   };
 }
 

@@ -49,6 +49,10 @@ const RAW_ENTRY = {
   redemptionDate: "2023-12-13",
   redemptionConditions: "本公司得於發行日滿五年後之次日起按實際發行價格收回",
   callRiskAmount: 6.55,
+  ytwPct: 4.03,
+  ytcPct: 19.1,
+  ytcAssumption: "past_redemption_date_assumed_next_period",
+  negativeConvexityWarning: false,
 };
 
 // analysis-ts never sends this — it's computed here (latestClosePrice - issuePrice), so the normalized
@@ -91,6 +95,59 @@ describe("fetchPreferredStocks", () => {
     const result = await fetchPreferredStocks("1101B");
 
     expect(result.entries[0]?.callRiskAmount).toBeNull();
+  });
+
+  // ytwPct/ytcPct/ytcAssumption/negativeConvexityWarning added by analysis-ts 2026-09-07.
+  describe("ytwPct/ytcPct/ytcAssumption/negativeConvexityWarning", () => {
+    it("passes through all four fields", async () => {
+      mockFetchOnce({ ok: true, body: { entries: [RAW_ENTRY] } });
+
+      const result = await fetchPreferredStocks("1101B");
+
+      expect(result.entries[0]?.ytwPct).toBe(4.03);
+      expect(result.entries[0]?.ytcPct).toBe(19.1);
+      expect(result.entries[0]?.ytcAssumption).toBe("past_redemption_date_assumed_next_period");
+      expect(result.entries[0]?.negativeConvexityWarning).toBe(false);
+    });
+
+    // A genuinely three-valued field: null (not false) when redeemable is false, since the concept of
+    // "capped upside from a call option" doesn't apply at all without one. Coercing to false would lose
+    // that distinction.
+    it("preserves negativeConvexityWarning as null (not false) when analysis-ts sends null", async () => {
+      const entry = {
+        ...RAW_ENTRY,
+        redeemable: false,
+        ytcPct: null,
+        ytcAssumption: null,
+        negativeConvexityWarning: null,
+      };
+      mockFetchOnce({ ok: true, body: { entries: [entry] } });
+
+      const result = await fetchPreferredStocks("1101B");
+
+      expect(result.entries[0]?.negativeConvexityWarning).toBeNull();
+      expect(result.entries[0]?.ytcPct).toBeNull();
+      expect(result.entries[0]?.ytcAssumption).toBeNull();
+    });
+
+    // ytwPct is the one field in this group that stays populated even when not redeemable — it just
+    // equals currentYieldPct in that case (nothing worse than holding to maturity without a call option).
+    it("keeps ytwPct populated even when not redeemable", async () => {
+      const entry = {
+        ...RAW_ENTRY,
+        redeemable: false,
+        ytcPct: null,
+        ytcAssumption: null,
+        negativeConvexityWarning: null,
+        ytwPct: 2.61,
+        currentYieldPct: 2.61,
+      };
+      mockFetchOnce({ ok: true, body: { entries: [entry] } });
+
+      const result = await fetchPreferredStocks("1101B");
+
+      expect(result.entries[0]?.ytwPct).toBe(2.61);
+    });
   });
 
   it("returns an empty entries array for a symbol with no match, without throwing", async () => {
