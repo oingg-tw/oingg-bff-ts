@@ -49,6 +49,19 @@ describe("fetchMetricHistory", () => {
     expect(calledUrl.toString()).toBe("http://filters.test/companies/metric-history?symbol=2330&metricCode=peRatio&basis=TTM");
   });
 
+  // bvps added by analysis-ts as a 4th metricCode (2026-09-07) — only allows basis=Q, confirmed live.
+  it("accepts bvps as a metricCode", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { symbol: "2330", metricCode: "bvps", basis: "Q", total: 23, hasMore: true, entries: [] },
+    });
+
+    await fetchMetricHistory("2330", "bvps", "Q");
+
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/metric-history?symbol=2330&metricCode=bvps&basis=Q");
+  });
+
   it("includes limit in the request when given", async () => {
     mockFetchOnce({ ok: true, body: RAW_BODY });
 
