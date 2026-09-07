@@ -21,6 +21,11 @@ function normalizeEntry(raw: unknown): DupontHistoryEntry {
     equityMultiplier: toNumberOrNull(r.equityMultiplier),
     decomposedRoePct: toNumberOrNull(r.decomposedRoePct),
     nullReason: toStringOrNull(r.nullReason),
+    dupontTaxBurdenPct: toNumberOrNull(r.dupontTaxBurdenPct),
+    dupontInterestBurdenPct: toNumberOrNull(r.dupontInterestBurdenPct),
+    dupontEbitMarginPct: toNumberOrNull(r.dupontEbitMarginPct),
+    dupontExtendedRoePct: toNumberOrNull(r.dupontExtendedRoePct),
+    dupontExtendedRoeNullReason: toStringOrNull(r.dupontExtendedRoeNullReason),
     knowledgeDate: String(r.knowledgeDate),
     knowledgeDateIsFallback: r.knowledgeDateIsFallback === true,
   };

@@ -25,26 +25,57 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// Real 2330 data given directly by analysis-ts (2026-09-07).
+// Real 2330 data given directly by analysis-ts (2026-09-07, including the 5-factor extension added
+// the same day).
 const Q_BODY = {
   symbol: "2330",
   basis: "Q",
   total: 20,
   hasMore: true,
   entries: [
-    { fiscalYear: 2025, fiscalQuarter: 2, netProfitMarginPct: 42.65, assetTurnover: 0.13, equityMultiplier: 1.53, decomposedRoePct: 8.48, nullReason: null, knowledgeDate: "2025-08-12", knowledgeDateIsFallback: false },
+    {
+      fiscalYear: 2026,
+      fiscalQuarter: 1,
+      netProfitMarginPct: 50.48,
+      assetTurnover: 0.13,
+      equityMultiplier: 1.47,
+      decomposedRoePct: 9.65,
+      nullReason: null,
+      dupontTaxBurdenPct: 83.23,
+      dupontInterestBurdenPct: 99.61,
+      dupontEbitMarginPct: 60.89,
+      dupontExtendedRoePct: 9.65,
+      dupontExtendedRoeNullReason: null,
+      knowledgeDate: "2026-05-12",
+      knowledgeDateIsFallback: false,
+    },
   ],
 };
 
 // TTM entries observed with equityMultiplier null in real data — must be preserved as null, not
-// coerced or dropped.
+// coerced or dropped. dupontExtendedRoePct stays populated here even though equityMultiplier is null.
 const TTM_BODY = {
   symbol: "2330",
   basis: "TTM",
   total: 20,
   hasMore: true,
   entries: [
-    { fiscalYear: 2025, fiscalQuarter: 4, netProfitMarginPct: 45.1, assetTurnover: 0.48, equityMultiplier: null, decomposedRoePct: 31.61, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false },
+    {
+      fiscalYear: 2026,
+      fiscalQuarter: 1,
+      netProfitMarginPct: 47,
+      assetTurnover: 0.47,
+      equityMultiplier: null,
+      decomposedRoePct: 32.47,
+      nullReason: null,
+      dupontTaxBurdenPct: 83.91,
+      dupontInterestBurdenPct: 99.46,
+      dupontEbitMarginPct: 56.31,
+      dupontExtendedRoePct: 32.47,
+      dupontExtendedRoeNullReason: null,
+      knowledgeDate: "2026-05-12",
+      knowledgeDateIsFallback: false,
+    },
   ],
 };
 
@@ -69,15 +100,49 @@ describe("fetchDupontHistory", () => {
   });
 
   // Observed live: equityMultiplier is null under basis=TTM for real 2330 data — must stay null, not
-  // be coerced to 0 or dropped from the entry.
-  it("preserves a null equityMultiplier as-is", async () => {
+  // be coerced to 0 or dropped from the entry. dupontExtendedRoePct stays populated regardless.
+  it("preserves a null equityMultiplier as-is, independent of dupontExtendedRoePct", async () => {
     mockFetchOnce({ ok: true, body: TTM_BODY });
 
     const result = await fetchDupontHistory("2330", "TTM");
 
     expect(result.entries[0]?.equityMultiplier).toBeNull();
-    expect(result.entries[0]?.netProfitMarginPct).toBe(45.1);
-    expect(result.entries[0]?.decomposedRoePct).toBe(31.61);
+    expect(result.entries[0]?.netProfitMarginPct).toBe(47);
+    expect(result.entries[0]?.decomposedRoePct).toBe(32.47);
+    expect(result.entries[0]?.dupontExtendedRoePct).toBe(32.47);
+  });
+
+  // The 5-factor extension (added by analysis-ts 2026-09-07, same response, no new params) has its own
+  // independent null-reason field — must not be conflated with the 3-factor `nullReason`.
+  it("passes through the 5-factor extended DuPont fields", async () => {
+    mockFetchOnce({ ok: true, body: Q_BODY });
+
+    const result = await fetchDupontHistory("2330", "Q");
+
+    expect(result.entries[0]?.dupontTaxBurdenPct).toBe(83.23);
+    expect(result.entries[0]?.dupontInterestBurdenPct).toBe(99.61);
+    expect(result.entries[0]?.dupontEbitMarginPct).toBe(60.89);
+    expect(result.entries[0]?.dupontExtendedRoePct).toBe(9.65);
+    expect(result.entries[0]?.dupontExtendedRoeNullReason).toBeNull();
+  });
+
+  it("preserves dupontExtendedRoeNullReason independently of nullReason", async () => {
+    const entry = {
+      ...Q_BODY.entries[0],
+      nullReason: null,
+      dupontTaxBurdenPct: null,
+      dupontInterestBurdenPct: null,
+      dupontEbitMarginPct: null,
+      dupontExtendedRoePct: null,
+      dupontExtendedRoeNullReason: "missing_ebit_input",
+    };
+    mockFetchOnce({ ok: true, body: { ...Q_BODY, entries: [entry] } });
+
+    const result = await fetchDupontHistory("2330", "Q");
+
+    expect(result.entries[0]?.nullReason).toBeNull();
+    expect(result.entries[0]?.dupontExtendedRoeNullReason).toBe("missing_ebit_input");
+    expect(result.entries[0]?.dupontExtendedRoePct).toBeNull();
   });
 
   it("returns an empty entries array for an unbackfilled or unknown symbol, without throwing", async () => {
