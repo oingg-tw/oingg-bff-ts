@@ -376,7 +376,7 @@ const metricHistoryEntrySchema = z.object({
 const metricHistorySchema = z
   .object({
     symbol: z.string(),
-    metricCode: z.enum(["eps", "peRatio", "pbRatio", "bvps"]),
+    metricCode: z.enum(["eps", "peRatio", "pbRatio", "bvps", "stockPrice"]),
     basis: z.enum(["TTM", "Q"]),
     total: z.number(),
     hasMore: z.boolean(),
@@ -401,7 +401,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/metric-history",
   summary: "查詢 EPS/本益比/本淨比的季度歷史數列（個股詳細頁圖表用）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/metric-history——這是 analysis-ts 自己用驗證過的 eps/bvps 公式重新算出來的數字，不是轉發原始 daily_valuation；knowledgeDate 對齊財報公告日，不是逐日更新的市場數據。metricCode 只允許特定的 basis 組合（實測，不是每個都一樣）：eps 可以是 TTM 或 Q，peRatio 只能 TTM，pbRatio 只能 Q，bvps（每股淨值，2026-09-07 加入）只能 Q，給錯組合 analysis-ts 會回 400，這裡原樣轉發那個錯誤訊息。limit 預設 20、最大 40。total 是這個 symbol/metricCode/basis 組合總共有幾筆（不是這次回傳的筆數），hasMore 代表加大 limit 是否還能拿到更多。查無資料（代號沒 backfill 過，或代號不存在）回傳空陣列，不是 404——截至 2026-09-07 只有 2330 有資料，其餘代號都是空的。entries 由舊到新排序。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/metric-history——這是 analysis-ts 自己用驗證過的 eps/bvps 公式重新算出來的數字，不是轉發原始 daily_valuation；knowledgeDate 對齊財報公告日，不是逐日更新的市場數據。metricCode 只允許特定的 basis 組合（實測，不是每個都一樣）：eps 可以是 TTM 或 Q，peRatio 只能 TTM，pbRatio 只能 Q，bvps（每股淨值，2026-09-07 加入）只能 Q，stockPrice（財報公告日當天股價，2026-09-07 加入，取代前端用 peRatio×EPS 反推股價的做法）也只能 Q，給錯組合 analysis-ts 會回 400，這裡原樣轉發那個錯誤訊息。limit 預設 20、最大 40。total 是這個 symbol/metricCode/basis 組合總共有幾筆（不是這次回傳的筆數），hasMore 代表加大 limit 是否還能拿到更多。查無資料（代號沒 backfill 過，或代號不存在）回傳空陣列，不是 404——截至 2026-09-07 只有 2330 有資料，其餘代號都是空的。entries 由舊到新排序。",
   tags: ["Stock"],
   request: {
     params: symbolParam,

@@ -62,6 +62,21 @@ describe("fetchMetricHistory", () => {
     expect(calledUrl.toString()).toBe("http://filters.test/companies/metric-history?symbol=2330&metricCode=bvps&basis=Q");
   });
 
+  // stockPrice added by analysis-ts as a 5th metricCode (2026-09-07) — the knowledgeDate-aligned close
+  // price used to compute peRatio/pbRatio, replacing web-nuxt's peRatio×EPS derivation. Only basis=Q,
+  // confirmed live.
+  it("accepts stockPrice as a metricCode", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { symbol: "2330", metricCode: "stockPrice", basis: "Q", total: 23, hasMore: true, entries: [] },
+    });
+
+    await fetchMetricHistory("2330", "stockPrice", "Q");
+
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/metric-history?symbol=2330&metricCode=stockPrice&basis=Q");
+  });
+
   it("includes limit in the request when given", async () => {
     mockFetchOnce({ ok: true, body: RAW_BODY });
 

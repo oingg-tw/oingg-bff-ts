@@ -111,8 +111,8 @@ stockRouter.get("/:symbol/financial-statement", async (req, res) => {
 });
 
 export const metricHistoryQuerySchema = z.object({
-  metricCode: z.enum(["eps", "peRatio", "pbRatio", "bvps"], {
-    error: '"metricCode" must be "eps", "peRatio", "pbRatio", or "bvps"',
+  metricCode: z.enum(["eps", "peRatio", "pbRatio", "bvps", "stockPrice"], {
+    error: '"metricCode" must be "eps", "peRatio", "pbRatio", "bvps", or "stockPrice"',
   }),
   basis: z.enum(["TTM", "Q"], { error: '"basis" must be "TTM" or "Q"' }),
   limit: historyLimitSchema,

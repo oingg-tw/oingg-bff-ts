@@ -1,6 +1,6 @@
 import type { FlatHistoryEntry } from "@/domainBff/stock/metricHistoryShared.js";
 
-export type MetricHistoryCode = "eps" | "peRatio" | "pbRatio" | "bvps";
+export type MetricHistoryCode = "eps" | "peRatio" | "pbRatio" | "bvps" | "stockPrice";
 export type MetricHistoryBasis = "TTM" | "Q";
 
 export type MetricHistoryEntry = FlatHistoryEntry;
