@@ -154,15 +154,6 @@ const TEMPLATES: TemplateSeed[] = [
     pendingReason: "此策略所需的價量技術指標開發中，敬請期待。",
     filters: [],
   },
-  {
-    name: "低波動穩健",
-    category: "量化因子",
-    description: "保守型資產配置用——用 Beta 篩出相對大盤波動較小的個股（沒有直接的股價年化波動率指標，Beta 是目前可用的代理指標）。",
-    tier: "PAID",
-    status: "AVAILABLE",
-    pendingReason: null,
-    filters: [filter("beta.beta1Y", null, 0.8)],
-  },
   // Blocked on: institutional (三大法人) buy/sell data — no service in the ecosystem ingests or
   // computes this at all yet.
   {
