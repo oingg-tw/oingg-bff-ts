@@ -15,9 +15,23 @@ export interface FilterCatalogSyncSummary {
   metricCount: number;
 }
 
-/** Fetches the filter catalog from the filters service and stores it in the BFF's own database. */
+/**
+ * Fetches the filter catalog from the filters service and stores it in the BFF's own database.
+ *
+ * Refuses to apply an empty catalog (2026-09-08: analysis-ts's own /filters briefly returned
+ * `categories: []` mid-migration) — `replaceFilterCatalog([])` would otherwise delete every
+ * FilterCategory/FilterMetric/FilterMetricField row, which cascades into ScreenerPresetFilter and
+ * destroys every user's saved filter conditions, not just empties the catalog UI. An upstream response
+ * with zero categories is far more likely to be a transient/mid-deploy state than "there are now
+ * genuinely no filterable fields at all", so this is treated as a sync failure (kept + retried by the
+ * caller) rather than valid data to apply.
+ */
 export async function syncFilterCatalog(): Promise<FilterCatalogSyncSummary> {
   const categories = await fetchFilterCatalog();
+  if (categories.length === 0) {
+    throw new Error("Filters service returned an empty catalog (0 categories) — refusing to wipe local data");
+  }
+
   await replaceFilterCatalog(categories);
 
   const metricCount = categories.reduce((sum, category) => sum + category.metrics.length, 0);
