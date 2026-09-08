@@ -62,13 +62,20 @@ export interface PreferredStockEntry {
   /** 贖回殖利率 (Yield to Call) — null when `redeemable` is false. Added by analysis-ts 2026-09-07. */
   ytcPct: number | null;
   /**
-   * Which redemption date `ytcPct` assumed — `scheduled_redemption_date` (the security's actual
-   * `redemptionDate` hasn't passed yet) or `past_redemption_date_assumed_next_period` (the real
-   * redemption date is already in the past — the company simply hasn't exercised its call option yet —
-   * so analysis-ts assumed the next period instead of leaving this unanswerable). Null when `redeemable`
-   * is false. Added by analysis-ts 2026-09-07.
+   * Which redemption-date assumption `ytcPct` used: `scheduled_redemption_date` (the security's actual
+   * `redemptionDate` hasn't passed yet), `past_redemption_date_assumed_next_period` (the real
+   * redemption date is already in the past — the company hasn't exercised its call option yet — so
+   * analysis-ts assumed the next period), or `no_scheduled_redemption_date_assumed_next_period` (the
+   * terms have no scheduled redemption date at all, also assumed next period). Null when `redeemable`
+   * is false. Added by analysis-ts 2026-09-07; third value confirmed live via GET
+   * /stocks/preferred-stocks/field-catalog 2026-09-08 (real data, e.g. 1312A) — a prior version of this
+   * client only recognized the first two values and silently coerced this one to null.
    */
-  ytcAssumption: "scheduled_redemption_date" | "past_redemption_date_assumed_next_period" | null;
+  ytcAssumption:
+    | "scheduled_redemption_date"
+    | "past_redemption_date_assumed_next_period"
+    | "no_scheduled_redemption_date_assumed_next_period"
+    | null;
   /**
    * 溢價率 — (latestClosePrice - issuePrice) / issuePrice × 100, rounded to 2 decimals. Null unless
    * `redeemable` is true AND both `issuePrice`/`latestClosePrice` are non-null (not 0 in the

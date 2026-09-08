@@ -40,7 +40,9 @@ function normalizeEntry(raw: unknown): PreferredStockEntry {
     ytwPct: toNumberOrNull(r.ytwPct),
     ytcPct: toNumberOrNull(r.ytcPct),
     ytcAssumption:
-      r.ytcAssumption === "scheduled_redemption_date" || r.ytcAssumption === "past_redemption_date_assumed_next_period"
+      r.ytcAssumption === "scheduled_redemption_date" ||
+      r.ytcAssumption === "past_redemption_date_assumed_next_period" ||
+      r.ytcAssumption === "no_scheduled_redemption_date_assumed_next_period"
         ? r.ytcAssumption
         : null,
     premiumRatePct: toNumberOrNull(r.premiumRatePct),

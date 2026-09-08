@@ -15,6 +15,8 @@ import { fetchMonthlyRevenueHistory } from "@/domainBff/stock/monthlyRevenueHist
 import type { MonthlyRevenueHistoryResult } from "@/domainBff/stock/monthlyRevenueHistory.types.js";
 import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
 import type { PreferredStocksResult } from "@/domainBff/stock/preferredStocks.types.js";
+import { fetchPreferredStockFieldCatalog } from "@/domainBff/stock/preferredStocksFieldCatalog.client.js";
+import type { PreferredStockFieldCatalogResult } from "@/domainBff/stock/preferredStocksFieldCatalog.types.js";
 import { fetchRoaHistory, fetchRoeHistory } from "@/domainBff/stock/roeRoaHistory.client.js";
 import type { RoaHistoryResult, RoeHistoryResult, RoeRoaHistoryBasis } from "@/domainBff/stock/roeRoaHistory.types.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
@@ -80,6 +82,11 @@ export async function getFinancialStatement(
 /** TWSE-listed preferred stocks (all, or one symbol) — GET /stocks/preferred-stocks. */
 export async function getPreferredStocks(symbol?: string): Promise<PreferredStocksResult> {
   return fetchPreferredStocks(symbol);
+}
+
+/** Static formula/inputs documentation for preferred-stock derived fields — GET /stocks/preferred-stocks/field-catalog. */
+export async function getPreferredStockFieldCatalog(): Promise<PreferredStockFieldCatalogResult> {
+  return fetchPreferredStockFieldCatalog();
 }
 
 /** Quarterly EPS/PER/PBR time series (for stock-detail charts) — GET /stocks/:symbol/metric-history. */

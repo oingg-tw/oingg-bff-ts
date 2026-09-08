@@ -107,6 +107,18 @@ describe("fetchPreferredStocks", () => {
       expect(result.entries[0]?.ytcAssumption).toBe("past_redemption_date_assumed_next_period");
     });
 
+    // Third value confirmed live via GET /stocks/preferred-stocks/field-catalog and real data (1312A,
+    // 2026-09-08) — a prior version of the client only recognized the other two values and silently
+    // coerced this one to null.
+    it("recognizes no_scheduled_redemption_date_assumed_next_period as a valid ytcAssumption value", async () => {
+      const entry = { ...RAW_ENTRY, ytcAssumption: "no_scheduled_redemption_date_assumed_next_period" };
+      mockFetchOnce({ ok: true, body: { entries: [entry] } });
+
+      const result = await fetchPreferredStocks("1101B");
+
+      expect(result.entries[0]?.ytcAssumption).toBe("no_scheduled_redemption_date_assumed_next_period");
+    });
+
     it("nulls out ytcPct/ytcAssumption when analysis-ts sends null (not redeemable)", async () => {
       const entry = {
         ...RAW_ENTRY,

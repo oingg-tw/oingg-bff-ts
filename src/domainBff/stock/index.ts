@@ -9,6 +9,7 @@ export {
   getLatestClosePrices,
   getMetricHistory,
   getMonthlyRevenueHistory,
+  getPreferredStockFieldCatalog,
   getPreferredStocks,
   getRoaHistory,
   getRoeHistory,
@@ -25,6 +26,10 @@ export type {
 export type { ExDividendNoticeEntry, ExDividendType } from "@/domainBff/stock/exDividendNotices.types.js";
 export type { FinancialStatementResult, FinancialStatementType } from "@/domainBff/stock/financialStatement.types.js";
 export type { PreferredStockEntry, PreferredStocksResult } from "@/domainBff/stock/preferredStocks.types.js";
+export type {
+  PreferredStockFieldCatalogEntry,
+  PreferredStockFieldCatalogResult,
+} from "@/domainBff/stock/preferredStocksFieldCatalog.types.js";
 export type {
   MetricHistoryBasis,
   MetricHistoryCode,

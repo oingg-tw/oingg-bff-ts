@@ -25,6 +25,10 @@ vi.mock("@/domainBff/stock/preferredStocks.client.js", () => ({
   fetchPreferredStocks: vi.fn(),
 }));
 
+vi.mock("@/domainBff/stock/preferredStocksFieldCatalog.client.js", () => ({
+  fetchPreferredStockFieldCatalog: vi.fn(),
+}));
+
 vi.mock("@/domainBff/stock/metricHistory.client.js", () => ({
   fetchMetricHistory: vi.fn(),
 }));
@@ -50,6 +54,7 @@ import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.cl
 import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
 import { fetchMonthlyRevenueHistory } from "@/domainBff/stock/monthlyRevenueHistory.client.js";
 import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
+import { fetchPreferredStockFieldCatalog } from "@/domainBff/stock/preferredStocksFieldCatalog.client.js";
 import { fetchRoaHistory, fetchRoeHistory } from "@/domainBff/stock/roeRoaHistory.client.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
 import {
@@ -62,6 +67,7 @@ import {
   getLatestClosePrices,
   getMetricHistory,
   getMonthlyRevenueHistory,
+  getPreferredStockFieldCatalog,
   getPreferredStocks,
   getRoaHistory,
   getRoeHistory,
@@ -76,6 +82,7 @@ beforeEach(() => {
   vi.mocked(fetchExDividendNotices).mockReset();
   vi.mocked(fetchFinancialStatement).mockReset();
   vi.mocked(fetchPreferredStocks).mockReset();
+  vi.mocked(fetchPreferredStockFieldCatalog).mockReset();
   vi.mocked(fetchMetricHistory).mockReset();
   vi.mocked(fetchRoeHistory).mockReset();
   vi.mocked(fetchRoaHistory).mockReset();
@@ -215,6 +222,16 @@ describe("getPreferredStocks", () => {
     await getPreferredStocks();
 
     expect(fetchPreferredStocks).toHaveBeenCalledWith(undefined);
+  });
+});
+
+describe("getPreferredStockFieldCatalog", () => {
+  it("delegates to fetchPreferredStockFieldCatalog and returns its result as-is", async () => {
+    const result = { fields: [{ field: "premiumRatePct" }] } as never;
+    vi.mocked(fetchPreferredStockFieldCatalog).mockResolvedValue(result);
+
+    await expect(getPreferredStockFieldCatalog()).resolves.toEqual(result);
+    expect(fetchPreferredStockFieldCatalog).toHaveBeenCalledWith();
   });
 });
 

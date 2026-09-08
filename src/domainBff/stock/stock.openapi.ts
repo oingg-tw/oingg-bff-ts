@@ -266,7 +266,13 @@ const preferredStockEntrySchema = z
     callRiskAmount: z.number().nullable(),
     ytwPct: z.number().nullable(),
     ytcPct: z.number().nullable(),
-    ytcAssumption: z.enum(["scheduled_redemption_date", "past_redemption_date_assumed_next_period"]).nullable(),
+    ytcAssumption: z
+      .enum([
+        "scheduled_redemption_date",
+        "past_redemption_date_assumed_next_period",
+        "no_scheduled_redemption_date_assumed_next_period",
+      ])
+      .nullable(),
     premiumRatePct: z.number().nullable(),
   })
   .openapi("PreferredStockEntry", {
@@ -305,7 +311,7 @@ registry.registerPath({
   path: "/stocks/preferred-stocks",
   summary: "查詢特別股清單（僅上市，上櫃無對應資料源）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /preferred-stocks。不給 symbol 回傳目前所有上市特別股（截至 2026-09-06 共 28 檔）；給 symbol 查無資料回傳空陣列，不是 404。dividendRate 是每股固定配息金額（新台幣元），不是百分比——不要跟 nominalDividendRatePct（票面利率，發行時基準、之後不變）或 currentYieldPct（目前殖利率，隨股價每天變動，查無股價時為 null）搞混，三者是不同概念。redeemable/redemptionDate/redemptionConditions 是「公司贖回權」（公司可要求收回），不是「投資人賣回權」——這支端點沒有投資人賣回權的對應欄位。callRiskAmount（買回風險，只在 redeemable 為 true 時才有值）是 analysis-ts 原生提供的欄位（2026-09-06 新增；同時新增的 callProtectionYears 已於同日移除，redemptionDate/redemptionConditions 已足以表達贖回期資訊），原樣轉發，公式為「發行價-現價」：負值代表現價已超過發行價、有被贖回吃虧的風險，正值代表沒有此風險。此端點固定向 analysis-ts 要求較大的 limit（避免其分頁機制截斷「查全部」的用法），本身對外不提供分頁參數，回應固定是 { entries: [...] }。ytwPct（最差殖利率）、ytcPct（贖回殖利率）、ytcAssumption（ytcPct 假設用哪個贖回日：scheduled_redemption_date 是還沒到期的真實贖回日，past_redemption_date_assumed_next_period 是真實贖回日已過、公司還沒行使贖回權時改用下一期估算）是 analysis-ts 原生提供的欄位（2026-09-07 新增），原樣轉發，只在 redeemable 為 true 時才有值；ytwPct 例外，即使 redeemable 是 false 也有值（等於 currentYieldPct，因為沒有贖回選擇權時「最差」就是持有到期本身）。premiumRatePct（溢價率，(現價-發行價)/發行價×100，四捨五入到小數點後 2 位）是 analysis-ts 原生提供的欄位（2026-09-08 新增，取代舊的 negativeConvexityWarning 布林值），只在 redeemable 為 true 且現價/發行價都非 null 時才有值，否則為 null（不是 0）。",
+    "資料來自 oingg-analysis-ts 的 GET /preferred-stocks。不給 symbol 回傳目前所有上市特別股（截至 2026-09-06 共 28 檔）；給 symbol 查無資料回傳空陣列，不是 404。dividendRate 是每股固定配息金額（新台幣元），不是百分比——不要跟 nominalDividendRatePct（票面利率，發行時基準、之後不變）或 currentYieldPct（目前殖利率，隨股價每天變動，查無股價時為 null）搞混，三者是不同概念。redeemable/redemptionDate/redemptionConditions 是「公司贖回權」（公司可要求收回），不是「投資人賣回權」——這支端點沒有投資人賣回權的對應欄位。callRiskAmount（買回風險，只在 redeemable 為 true 時才有值）是 analysis-ts 原生提供的欄位（2026-09-06 新增；同時新增的 callProtectionYears 已於同日移除，redemptionDate/redemptionConditions 已足以表達贖回期資訊），原樣轉發，公式為「發行價-現價」：負值代表現價已超過發行價、有被贖回吃虧的風險，正值代表沒有此風險。此端點固定向 analysis-ts 要求較大的 limit（避免其分頁機制截斷「查全部」的用法），本身對外不提供分頁參數，回應固定是 { entries: [...] }。ytwPct（最差殖利率）、ytcPct（贖回殖利率）、ytcAssumption（ytcPct 假設用哪個贖回日：scheduled_redemption_date 是還沒到期的真實贖回日，past_redemption_date_assumed_next_period 是真實贖回日已過、公司還沒行使贖回權時改用下一期估算，no_scheduled_redemption_date_assumed_next_period 是條款本身沒有排定贖回日、同樣改用下一期估算）是 analysis-ts 原生提供的欄位（2026-09-07 新增），原樣轉發，只在 redeemable 為 true 時才有值；ytwPct 例外，即使 redeemable 是 false 也有值（等於 currentYieldPct，因為沒有贖回選擇權時「最差」就是持有到期本身）。premiumRatePct（溢價率，(現價-發行價)/發行價×100，四捨五入到小數點後 2 位）是 analysis-ts 原生提供的欄位（2026-09-08 新增，取代舊的 negativeConvexityWarning 布林值），只在 redeemable 為 true 且現價/發行價都非 null 時才有值，否則為 null（不是 0）。",
   tags: ["Stock"],
   request: {
     query: preferredStocksQuerySchema.openapi("PreferredStocksQuery", { example: { symbol: "1101B" } }),
@@ -316,6 +322,46 @@ registry.registerPath({
       content: {
         "application/json": {
           schema: z.object({ entries: z.array(preferredStockEntrySchema) }).openapi("PreferredStocks"),
+        },
+      },
+    },
+    502: unauthorized502,
+  },
+});
+
+const preferredStockFieldCatalogEntrySchema = z.object({
+  field: z.string(),
+  label: z.string(),
+  formula: z.string(),
+  inputs: z.array(z.string()),
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/preferred-stocks/field-catalog",
+  summary: "特別股衍生欄位的公式/輸入來源說明（premiumRatePct、ytcPct 等）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /preferred-stocks/field-catalog。純靜態文件，不查詢資料庫、不受任何查詢參數影響，同樣的回應每次都一樣（已與 analysis-ts 確認，2026-09-08）。原樣轉發，不加工。目前涵蓋 nominalDividendRatePct、currentYieldPct、premiumRatePct、ytcPct、ytcAssumption、ytwPct 六個欄位的公式與輸入欄位清單。",
+  tags: ["Stock"],
+  responses: {
+    200: {
+      description: "衍生欄位公式說明清單。",
+      content: {
+        "application/json": {
+          schema: z
+            .object({ fields: z.array(preferredStockFieldCatalogEntrySchema) })
+            .openapi("PreferredStockFieldCatalog", {
+              example: {
+                fields: [
+                  {
+                    field: "premiumRatePct",
+                    label: "溢價率",
+                    formula: "(latestClosePrice - issuePrice) / issuePrice * 100，只在 redeemable=true 時才計算",
+                    inputs: ["latestClosePrice", "issuePrice", "redeemable"],
+                  },
+                ],
+              },
+            }),
         },
       },
     },

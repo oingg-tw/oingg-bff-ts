@@ -10,6 +10,7 @@ import {
   getFinancialStatement,
   getMetricHistory,
   getMonthlyRevenueHistory,
+  getPreferredStockFieldCatalog,
   getPreferredStocks,
   getRoaHistory,
   getRoeHistory,
@@ -63,6 +64,12 @@ export const preferredStocksQuerySchema = z.object({
 stockRouter.get("/preferred-stocks", async (req, res) => {
   const query = parseBody(preferredStocksQuerySchema, req.query);
   const result = await getPreferredStocks(query.symbol);
+  res.json(result);
+});
+
+// Static, param-free — analysis-ts confirmed no DB query, same response every time (2026-09-08).
+stockRouter.get("/preferred-stocks/field-catalog", async (_req, res) => {
+  const result = await getPreferredStockFieldCatalog();
   res.json(result);
 });
 
