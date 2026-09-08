@@ -7,6 +7,8 @@ import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.clie
 import type { ExDividendNoticeEntry } from "@/domainBff/stock/exDividendNotices.types.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
 import type { FinancialStatementResult, FinancialStatementType } from "@/domainBff/stock/financialStatement.types.js";
+import { fetchForeignShareholdingHistory } from "@/domainBff/stock/foreignShareholdingHistory.client.js";
+import type { ForeignShareholdingHistoryResult } from "@/domainBff/stock/foreignShareholdingHistory.types.js";
 import { fetchDupontHistory } from "@/domainBff/stock/dupontHistory.client.js";
 import type { DupontHistoryBasis, DupontHistoryResult } from "@/domainBff/stock/dupontHistory.types.js";
 import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
@@ -129,4 +131,9 @@ export async function getDupontHistory(
 /** Monthly revenue/YoY/MoM history (月營收年增率) — GET /stocks/:symbol/monthly-revenue-history. */
 export async function getMonthlyRevenueHistory(symbol: string, limit?: number): Promise<MonthlyRevenueHistoryResult> {
   return fetchMonthlyRevenueHistory(symbol, limit);
+}
+
+/** Daily foreign-shareholding-percentage history — GET /stocks/:symbol/foreign-shareholding-history. */
+export async function getForeignShareholdingHistory(symbol: string, limit?: number): Promise<ForeignShareholdingHistoryResult> {
+  return fetchForeignShareholdingHistory(symbol, limit);
 }

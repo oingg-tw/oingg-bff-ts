@@ -8,6 +8,7 @@ import {
   getDupontHistory,
   getExDividendNotices,
   getFinancialStatement,
+  getForeignShareholdingHistory,
   getMetricHistory,
   getMonthlyRevenueHistory,
   getPreferredStockFieldCatalog,
@@ -173,5 +174,18 @@ stockRouter.get("/:symbol/monthly-revenue-history", async (req, res) => {
   const { symbol } = req.params;
   const query = parseBody(monthlyRevenueHistoryQuerySchema, req.query);
   const history = await getMonthlyRevenueHistory(symbol, query.limit);
+  res.json(history);
+});
+
+// analysis-ts's own bound for this endpoint is 1-1500 (confirmed live, 2026-09-08) — much wider than
+// the other history endpoints since this is daily (not quarterly/monthly) data.
+export const foreignShareholdingHistoryQuerySchema = z.object({
+  limit: limitSchema(1, 1500),
+});
+
+stockRouter.get("/:symbol/foreign-shareholding-history", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(foreignShareholdingHistoryQuerySchema, req.query);
+  const history = await getForeignShareholdingHistory(symbol, query.limit);
   res.json(history);
 });

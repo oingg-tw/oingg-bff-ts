@@ -3,6 +3,7 @@ import { errorResponse, registry } from "@/adapters/swagger/registry.js";
 import {
   dupontHistoryQuerySchema,
   financialStatementQuerySchema,
+  foreignShareholdingHistoryQuerySchema,
   metricHistoryQuerySchema,
   monthlyRevenueHistoryQuerySchema,
   preferredStocksQuerySchema,
@@ -678,6 +679,49 @@ registry.registerPath({
       content: { "application/json": { schema: monthlyRevenueHistorySchema } },
     },
     400: errorResponse("limit 超出 1-120 範圍，或缺少必填參數。"),
+    502: unauthorized502,
+  },
+});
+
+const foreignShareholdingHistoryEntrySchema = z.object({
+  tradeDate: z.string(),
+  sharesHeldPercent: z.number(),
+  foreignLimitPercent: z.number(),
+  availableInvestPercent: z.number(),
+});
+
+const foreignShareholdingHistorySchema = z
+  .object({
+    symbol: z.string(),
+    entries: z.array(foreignShareholdingHistoryEntrySchema),
+  })
+  .openapi("ForeignShareholdingHistory", {
+    example: {
+      symbol: "2330",
+      entries: [
+        { tradeDate: "2026-09-07", sharesHeldPercent: 69.27, foreignLimitPercent: 100, availableInvestPercent: 30.72 },
+        { tradeDate: "2026-09-04", sharesHeldPercent: 69.21, foreignLimitPercent: 100, availableInvestPercent: 30.78 },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/foreign-shareholding-history",
+  summary: "查詢外資持股比例每日歷史",
+  description:
+    "資料來自 oingg-analysis-ts 自己的 GET /stocks/:symbol/foreign-shareholding-history——跟這個網域其他歷史類端點不同，analysis-ts 這支本來就是 /stocks/:symbol/... 的路徑形狀（不是 /companies/xxx-history?symbol=），沒有 basis 參數。entries 是「新到舊」排序，跟 metric-history/roe-history/roa-history/dupont-history/monthly-revenue-history 的「舊到新」相反，請留意。limit 是 1-1500（確認過是即時資料，遠比其他季度/月度歷史端點的上限大），不給 limit 預設只回 250 筆，不是全部——實測 2330 給 limit=1500 拿到 1224 筆回溯到 2021 年，不給 limit 只有 250 筆回溯到 2025-08，兩者範圍不同，不要假設不給 limit 等於「查全部」。這支端點沒有 total/hasMore 欄位（跟其他 5 支歷史端點不同，已直接向 analysis-ts 確認過回應形狀，不是遺漏）。foreignLimitPercent 是該股票的外資持股上限（法規），100 代表無上限；availableInvestPercent = foreignLimitPercent - sharesHeldPercent，還有多少空間才會觸頂。查無資料（代號不存在）回傳空陣列，不是 404。",
+  tags: ["Stock"],
+  request: {
+    params: symbolParam,
+    query: foreignShareholdingHistoryQuerySchema.openapi("ForeignShareholdingHistoryQuery", { example: { limit: 90 } }),
+  },
+  responses: {
+    200: {
+      description: "每日外資持股比例歷史，查無資料時 entries 為空陣列。",
+      content: { "application/json": { schema: foreignShareholdingHistorySchema } },
+    },
+    400: errorResponse("limit 超出 1-1500 範圍。"),
     502: unauthorized502,
   },
 });

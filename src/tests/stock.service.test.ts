@@ -46,11 +46,16 @@ vi.mock("@/domainBff/stock/monthlyRevenueHistory.client.js", () => ({
   fetchMonthlyRevenueHistory: vi.fn(),
 }));
 
+vi.mock("@/domainBff/stock/foreignShareholdingHistory.client.js", () => ({
+  fetchForeignShareholdingHistory: vi.fn(),
+}));
+
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
 import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
 import { fetchDupontHistory } from "@/domainBff/stock/dupontHistory.client.js";
 import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.client.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
+import { fetchForeignShareholdingHistory } from "@/domainBff/stock/foreignShareholdingHistory.client.js";
 import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
 import { fetchMonthlyRevenueHistory } from "@/domainBff/stock/monthlyRevenueHistory.client.js";
 import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
@@ -64,6 +69,7 @@ import {
   getDupontHistory,
   getExDividendNotices,
   getFinancialStatement,
+  getForeignShareholdingHistory,
   getLatestClosePrices,
   getMetricHistory,
   getMonthlyRevenueHistory,
@@ -88,6 +94,7 @@ beforeEach(() => {
   vi.mocked(fetchRoaHistory).mockReset();
   vi.mocked(fetchDupontHistory).mockReset();
   vi.mocked(fetchMonthlyRevenueHistory).mockReset();
+  vi.mocked(fetchForeignShareholdingHistory).mockReset();
 });
 
 describe("getStockQuote", () => {
@@ -298,5 +305,23 @@ describe("getMonthlyRevenueHistory", () => {
     await getMonthlyRevenueHistory("2330");
 
     expect(fetchMonthlyRevenueHistory).toHaveBeenCalledWith("2330", undefined);
+  });
+});
+
+describe("getForeignShareholdingHistory", () => {
+  it("delegates to fetchForeignShareholdingHistory and returns its result as-is", async () => {
+    const result = { symbol: "2330", entries: [] } as never;
+    vi.mocked(fetchForeignShareholdingHistory).mockResolvedValue(result);
+
+    await expect(getForeignShareholdingHistory("2330", 90)).resolves.toEqual(result);
+    expect(fetchForeignShareholdingHistory).toHaveBeenCalledWith("2330", 90);
+  });
+
+  it("forwards undefined limit through when omitted (analysis-ts defaults to 250)", async () => {
+    vi.mocked(fetchForeignShareholdingHistory).mockResolvedValue({ symbol: "2330", entries: [] });
+
+    await getForeignShareholdingHistory("2330");
+
+    expect(fetchForeignShareholdingHistory).toHaveBeenCalledWith("2330", undefined);
   });
 });
