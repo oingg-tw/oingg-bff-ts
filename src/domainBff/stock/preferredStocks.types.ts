@@ -27,14 +27,6 @@ export interface PreferredStockEntry {
   currentYieldPct: number | null;
   latestClosePrice: number | null;
   latestPriceDate: string | null;
-  /**
-   * latestClosePrice - issuePrice, rounded to 2 decimals — not from analysis-ts, computed here at
-   * web-nuxt's deliberate request (2026-09-06) to keep this kind of derived arithmetic centralized on
-   * the backend rather than duplicated across frontend call sites. Null whenever latestClosePrice is
-   * null (no price data). This is the "vs. issue price" complement to a "vs. call price" premium figure
-   * web-nuxt also wants, which isn't computable yet since callPrice isn't available from analysis-ts.
-   */
-  priceMinusIssuePrice: number | null;
 
   cumulativeDividend: boolean;
   participatingExcessDividend: boolean;
@@ -56,13 +48,9 @@ export interface PreferredStockEntry {
   /**
    * analysis-ts's own "買回風險" figure, null when `redeemable` is false. Confirmed formula (2026-09-06,
    * after an initial wrong description was caught by comparing live numbers and corrected by
-   * analysis-ts): issuePrice - latestClosePrice — i.e. `callRiskAmount === -priceMinusIssuePrice`
-   * exactly, same magnitude, opposite sign. Negative means the current price already exceeds the issue
-   * price, so a call at/near issue price would force investors to realize that loss (the "risk" this
-   * field names); positive means no such risk. Deliberately kept alongside priceMinusIssuePrice rather
-   * than replacing it — different null-gating (this is null when not redeemable; priceMinusIssuePrice
-   * is always populated whenever there's price data) and web-nuxt hasn't decided which sign convention
-   * reads better for their card yet.
+   * analysis-ts): issuePrice - latestClosePrice. Negative means the current price already exceeds the
+   * issue price, so a call at/near issue price would force investors to realize that loss (the "risk"
+   * this field names); positive means no such risk.
    */
   callRiskAmount: number | null;
   /**
@@ -82,12 +70,14 @@ export interface PreferredStockEntry {
    */
   ytcAssumption: "scheduled_redemption_date" | "past_redemption_date_assumed_next_period" | null;
   /**
-   * True when a price rise would shrink potential upside faster than a price fall grows potential
-   * downside (the security's price is capped near its call price) — a genuinely three-valued field:
-   * null (not `false`) when `redeemable` is false, since the concept doesn't apply at all without a call
-   * option. Added by analysis-ts 2026-09-07 — do not coerce null to false, they mean different things.
+   * 溢價率 — (latestClosePrice - issuePrice) / issuePrice × 100, rounded to 2 decimals. Null unless
+   * `redeemable` is true AND both `issuePrice`/`latestClosePrice` are non-null (not 0 in the
+   * not-applicable case). analysis-ts's own field, added 2026-09-08 replacing the old
+   * `negativeConvexityWarning` boolean (which was `溢價率 > 2%`) — now gives the raw percentage instead
+   * of a fixed threshold, letting the caller pick its own cutoff. Confirmed with analysis-ts directly
+   * that `negativeConvexityWarning` was removed outright, not kept alongside this.
    */
-  negativeConvexityWarning: boolean | null;
+  premiumRatePct: number | null;
 }
 
 export interface PreferredStocksResult {
