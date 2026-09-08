@@ -68,8 +68,17 @@ describe("fetchColumnPresetTemplates", () => {
     await expect(fetchColumnPresetTemplates()).rejects.toMatchObject({ statusCode: 502 });
   });
 
-  it('throws a 502 AppError when the response body has no "columnPresets" array', async () => {
+  // Regression (2026-09-08): analysis-ts's pitMetrics rebuild of /filters dropped columnPresets from the
+  // response entirely (not even an empty array) — there's currently no curated column-preset concept
+  // upstream at all. Treated as zero templates, not a fetch failure, since that's the real current state.
+  it('treats a response with no "columnPresets" field at all as zero templates', async () => {
     mockFetchOnce({ ok: true, body: { categories: [] } });
+
+    await expect(fetchColumnPresetTemplates()).resolves.toEqual([]);
+  });
+
+  it('throws a 502 AppError when "columnPresets" is present but not a valid array', async () => {
+    mockFetchOnce({ ok: true, body: { categories: [], columnPresets: "not an array" } });
 
     await expect(fetchColumnPresetTemplates()).rejects.toMatchObject({ statusCode: 502 });
   });

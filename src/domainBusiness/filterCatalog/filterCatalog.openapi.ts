@@ -36,7 +36,7 @@ registry.registerPath({
   path: "/filters",
   summary: "列出目前可用來 filter/screener 的分類、指標、欄位目錄",
   description:
-    "從本服務自己的資料庫回傳，不會即時打 oingg-analysis-ts。每次啟動時向 oingg-analysis-ts 拉取一次最新目錄存進本地 DB——oingg-analysis-ts（數據中台）不知道這個服務存在，也不會主動通知任何變動，所以拉取的時機完全由這個服務自己決定，目前是每次啟動時。分類/指標/欄位的排序跟原始 /filters 回應一致。前端可以用這支 API 動態組出 screener 的篩選條件 UI 跟欄位選擇 UI（field 格式為 \"<metricKey>.<fieldKey>\"，直接對應 POST /screener 跟 POST/PATCH /screener/column-presets 需要的格式；\"stock.price\" 是唯一的例外——來自 twse/tpex，不在這份目錄裡，但一樣可以當 screener 的顯示欄位）。每個 metric／field 都帶 `description`（這個數字的定義）跟 `source`（資料來源）——給前端在欄位標題或篩選條件卡片上加 info icon + tooltip 用（oingg-analysis-ts 目前在 metric 層級提供，field 沒有自己的值時會 fallback 用 metric 的）。",
+    "從本服務自己的資料庫回傳，不會即時打 oingg-analysis-ts。每次啟動時向 oingg-analysis-ts 拉取一次最新目錄存進本地 DB——oingg-analysis-ts（數據中台）不知道這個服務存在，也不會主動通知任何變動，所以拉取的時機完全由這個服務自己決定，目前是每次啟動時。分類/指標/欄位的排序跟原始 /filters 回應一致。前端可以用這支 API 動態組出 screener 的篩選條件 UI 跟欄位選擇 UI（field 格式為 \"<metricCode>.<basis>\"，直接對應 POST /screener 跟 POST/PATCH /screener/column-presets 需要的格式；\"stock.price\" 是唯一的例外——來自 twse/tpex，不在這份目錄裡，但一樣可以當 screener 的顯示欄位）。2026-09-08 起 oingg-analysis-ts 把底層資料模型換成 pitMetrics：`fields` 陣列現在對應該指標允許的計算基期（Q/Q_ANN/TTM/DAILY 等），不是舊架構獨立命名的欄位；`description`/`source`/`unit` 目前一律是 null（analysis-ts 還沒補上這批文案），metric/field 的 `name` 暫時就是 metricCode/basis 本身，等文案補上後會自動變成可讀的中文，介面契約不會再變。",
   tags: ["Screener"],
   responses: {
     200: {

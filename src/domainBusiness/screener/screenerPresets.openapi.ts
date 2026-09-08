@@ -29,7 +29,7 @@ const unauthorized = errorResponse("缺少或無效的 Authorization header / to
 const notFound = errorResponse("不存在，或不屬於目前登入的使用者。");
 
 const createScreenerPresetDocSchema = createScreenerPresetSchema.openapi("CreateScreenerPresetRequest", {
-  example: { filters: [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }] },
+  example: { filters: [{ field: "roe.TTM", min: 30, max: null, exclude: false }] },
 });
 const updateScreenerPresetDocSchema = updateScreenerPresetSchema.openapi("UpdateScreenerPresetRequest");
 
@@ -53,7 +53,7 @@ registry.registerPath({
   path: "/screener/presets",
   summary: "儲存一組新的篩選組合",
   description:
-    "沒有 name 參數——新建立的組合一律取名「未命名」（撞名的話依序改成「未命名 2」「未命名 3」...，跟電腦新增檔案一樣不會報錯），前端請之後再用 PATCH /screener/presets/{id} 改名。格式跟 POST /screener 完全一樣，filters 可以是空陣列——此時會預設套用 ROE > 30（roe.roeTtmPct），之後可再用 PATCH 覆蓋條件。",
+    "沒有 name 參數——新建立的組合一律取名「未命名」（撞名的話依序改成「未命名 2」「未命名 3」...，跟電腦新增檔案一樣不會報錯），前端請之後再用 PATCH /screener/presets/{id} 改名。格式跟 POST /screener 完全一樣，filters 可以是空陣列——此時會預設套用 ROE > 30（roe.TTM），之後可再用 PATCH 覆蓋條件。",
   tags: ["Screener"],
   security: [{ bearerAuth: [] }],
   request: {

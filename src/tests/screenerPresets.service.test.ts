@@ -36,6 +36,16 @@ const ROE_FIELD: Lookup = {
   period: "ttm",
   unit: "percent",
 };
+// pitMetrics-era addressing (2026-09-08) for DEFAULT_PRESET_FILTERS — see screenerPresets.service.ts.
+const ROE_TTM_FIELD: Lookup = {
+  categoryKey: "profitability",
+  metricKey: "roe",
+  metricName: "roe",
+  fieldKey: "TTM",
+  fieldName: "TTM",
+  period: "TTM",
+  unit: null,
+};
 const MARGIN_FIELD: Lookup = {
   categoryKey: "profitability",
   metricKey: "grossMargin",
@@ -66,6 +76,7 @@ beforeEach(() => {
     refs
       .map((ref) => {
         if (ref.metricKey === "roe" && ref.fieldKey === "roeTtmPct") return ROE_FIELD;
+        if (ref.metricKey === "roe" && ref.fieldKey === "TTM") return ROE_TTM_FIELD;
         if (ref.metricKey === "grossMargin" && ref.fieldKey === "grossMarginTtm") return MARGIN_FIELD;
         return null;
       })
@@ -87,7 +98,7 @@ describe("addPreset", () => {
     await addPreset("uid1", []);
 
     expect(createPreset).toHaveBeenCalledWith("uid1", "未命名", [
-      { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
+      { metricKey: "roe", fieldKey: "TTM", min: 30, max: null, exclude: false },
     ]);
   });
 

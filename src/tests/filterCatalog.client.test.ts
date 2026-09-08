@@ -25,14 +25,42 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
+// Real shape given directly by analysis-ts after their 2026-09-08 pitMetrics rebuild — no display copy
+// (no name/description/source/unit anywhere), one "field" per allowedBases entry instead of a named
+// sub-array.
+const RAW_CATEGORIES = [
+  { categoryKey: "profitability", metrics: [{ metricCode: "roe", allowedBases: ["Q", "Q_ANN", "TTM"] }] },
+];
+
 describe("fetchFilterCatalog", () => {
-  it("requests /filters on the configured filters service and returns its categories", async () => {
-    const categories = [{ key: "guru", name: "Guru", metrics: [] }];
-    mockFetchOnce({ ok: true, body: { categories } });
+  it("requests /filters and converts the pitMetrics shape into FilterCategory[]", async () => {
+    mockFetchOnce({ ok: true, body: { categories: RAW_CATEGORIES } });
 
     const result = await fetchFilterCatalog();
 
-    expect(result).toEqual(categories);
+    expect(result).toEqual([
+      {
+        key: "profitability",
+        name: "profitability",
+        sort: 0,
+        metrics: [
+          {
+            key: "roe",
+            name: "roe",
+            path: "roe",
+            description: null,
+            source: null,
+            unit: null,
+            sort: 0,
+            fields: [
+              { key: "Q", name: "Q", period: "Q", description: null, source: null, unit: null, sort: 0 },
+              { key: "Q_ANN", name: "Q_ANN", period: "Q_ANN", description: null, source: null, unit: null, sort: 1 },
+              { key: "TTM", name: "TTM", period: "TTM", description: null, source: null, unit: null, sort: 2 },
+            ],
+          },
+        ],
+      },
+    ]);
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/filters");
   });
@@ -56,5 +84,28 @@ describe("fetchFilterCatalog", () => {
     mockFetchOnce({ ok: true, body: { oops: true } });
 
     await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when a category is missing categoryKey or metrics", async () => {
+    mockFetchOnce({ ok: true, body: { categories: [{ metrics: [] }] } });
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when a metric is missing metricCode or allowedBases", async () => {
+    mockFetchOnce({ ok: true, body: { categories: [{ categoryKey: "profitability", metrics: [{ metricCode: "roe" }] }] } });
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("handles an empty allowedBases array (zero queryable fields for that metric)", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { categories: [{ categoryKey: "profitability", metrics: [{ metricCode: "roe", allowedBases: [] }] }] },
+    });
+
+    const result = await fetchFilterCatalog();
+
+    expect(result[0]?.metrics[0]?.fields).toEqual([]);
   });
 });

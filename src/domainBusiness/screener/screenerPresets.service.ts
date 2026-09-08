@@ -86,10 +86,12 @@ export async function getPresetOrThrow(firebaseUid: string, id: string): Promise
   return toView(row);
 }
 
-/** Out-of-the-box condition for a preset created with no filters — ROE > 30. */
-const DEFAULT_PRESET_FILTERS: ScreenerFilter[] = [
-  { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
-];
+/**
+ * Out-of-the-box condition for a preset created with no filters — ROE (TTM) > 30. Field name updated
+ * 2026-09-08 for analysis-ts's pitMetrics rebuild — the old "roe.roeTtmPct" metricKey.fieldKey addressing
+ * no longer exists, replaced by "<metricCode>.<basis>" (confirmed live: "roe" allows Q/Q_ANN/TTM bases).
+ */
+const DEFAULT_PRESET_FILTERS: ScreenerFilter[] = [{ field: "roe.TTM", min: 30, max: null, exclude: false }];
 
 /** Base name for a newly created preset — the frontend creates first, then renames via PATCH. */
 const DEFAULT_PRESET_NAME = "未命名";

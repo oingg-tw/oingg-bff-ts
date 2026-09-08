@@ -21,7 +21,7 @@ const screenerResultRowSchema = z.object({
 
 const screenerRequestDocSchema = screenerRequestSchema.openapi("ScreenerRequest", {
   example: {
-    filters: [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
+    filters: [{ field: "grossMargin.TTM", min: 20, max: null, exclude: false }],
     page: 1,
     pageSize: 50,
   },
@@ -44,8 +44,8 @@ const screenerResultSchema = z
       pageSize: 50,
       totalPages: 1,
       columnPresetId: null,
-      columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER", unit: "times" }],
-      results: [{ symbol: "2330", values: { "per.peRatio": { value: "27.82", asOfDate: "2026-08-16" } } }],
+      columns: [{ field: "exchangePeRatio.DAILY", metricName: "exchangePeRatio", fieldName: "DAILY", unit: null }],
+      results: [{ symbol: "2330", values: { "exchangePeRatio.DAILY": { value: "27.82", asOfDate: "2026-08-16" } } }],
     },
   });
 
@@ -54,7 +54,7 @@ registry.registerPath({
   path: "/screener",
   summary: "依 filterCatalog 指標篩選個股",
   description:
-    "不需要登入即可使用（僅儲存為具名 preset 才需要，見 POST /screener/presets）。field 格式為 \"<metricKey>.<fieldKey>\"（例如 \"grossMargin.grossMarginTtm\"），對應 GET /filters 回傳的分類/指標/欄位目錄。每個指標會取該股票最新一筆合併報表（非子公司）的數值來比對，不同指標之間用 AND 合併。顯示欄位由 columnPresetId 決定：有給就用那組（見 GET /screener/column-presets，僅限已登入）；沒給、但帶有效 Authorization header，就用該帳號自己設的預設欄位組合，找不到就用系統內建的常用欄位；未登入一律套用系統內建欄位。回應的 columnPresetId 會標明實際套用的是哪一組（null 代表用的是系統內建）。每個 results[].values 底下的欄位都是 { value, asOfDate } 物件，不是純值。季報類指標的 asOfDate 是 \"{兩位數年}Q{季別}\"（例如 \"26Q2\"）；日頻／技術指標則是實際日期（\"YYYY-MM-DD\"）。",
+    "不需要登入即可使用（僅儲存為具名 preset 才需要，見 POST /screener/presets）。field 格式為 \"<metricCode>.<basis>\"（例如 \"grossMargin.TTM\"，basis 是 Q/Q_ANN/TTM/DAILY 等計算基期，不是舊架構的 fieldKey），對應 GET /filters 回傳的分類/指標/允許基期目錄——2026-09-08 analysis-ts 把底層資料模型換成 pitMetrics 後，目錄裡目前還沒有中文名稱/單位/公式說明，metricName/fieldName 暫時就是 metricCode/basis 本身，等 analysis-ts 補上文案後才會是可讀的中文（不用等前端改版，介面契約沒變）。每個指標會取該股票最新一筆合併報表（非子公司）的數值來比對，不同指標之間用 AND 合併。顯示欄位由 columnPresetId 決定：有給就用那組（見 GET /screener/column-presets，僅限已登入）；沒給、但帶有效 Authorization header，就用該帳號自己設的預設欄位組合，找不到就用系統內建的常用欄位；未登入一律套用系統內建欄位。回應的 columnPresetId 會標明實際套用的是哪一組（null 代表用的是系統內建）。每個 results[].values 底下的欄位都是 { value, asOfDate } 物件，不是純值。asOfDate 統一是實際日期字串（\"YYYY-MM-DD\"，knowledge date）——2026-09-08 之前的季報類指標曾經是 \"{兩位數年}Q{季別}\" 格式（例如 \"26Q2\"），pitMetrics 重建後已經統一成日期格式，不要假設還有季別字串出現。",
   tags: ["Screener"],
   security: [{ bearerAuth: [] }, {}],
   request: { body: { required: true, content: { "application/json": { schema: screenerRequestDocSchema } } } },
@@ -71,7 +71,7 @@ registry.registerPath({
 });
 
 const screenerValuesRequestDocSchema = screenerValuesRequestSchema.openapi("ScreenerValuesRequest", {
-  example: { symbols: ["2330", "2317"], columns: [{ field: "roe.roeTtmPct" }] },
+  example: { symbols: ["2330", "2317"], columns: [{ field: "roe.TTM" }] },
 });
 
 const screenerValuesResultSchema = z
@@ -83,10 +83,10 @@ const screenerValuesResultSchema = z
   .openapi("ScreenerValuesResult", {
     example: {
       count: 2,
-      columns: [{ field: "roe.roeTtmPct", metricName: "股東權益報酬率 ROE", fieldName: "ROE", unit: "percent" }],
+      columns: [{ field: "roe.TTM", metricName: "roe", fieldName: "TTM", unit: null }],
       results: [
-        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } },
-        { symbol: "2317", name: "鴻海", values: { "roe.roeTtmPct": { value: "12.34", asOfDate: "26Q2" } } },
+        { symbol: "2330", name: "台積電", values: { "roe.TTM": { value: "34.78", asOfDate: "2026-08-11" } } },
+        { symbol: "2317", name: "鴻海", values: { "roe.TTM": { value: "11.15", asOfDate: "2026-06-30" } } },
       ],
     },
   });
@@ -107,7 +107,7 @@ registry.registerPath({
 });
 
 const rankingQueryDocSchema = rankingQuerySchema.openapi("ScreenerRankingQuery", {
-  example: { field: "dividendYield.dividendYieldPct", direction: "desc", limit: 10 },
+  example: { field: "dividendYield.DAILY", direction: "desc", limit: 10 },
 });
 
 const rankingResultSchema = z
@@ -119,10 +119,10 @@ const rankingResultSchema = z
   })
   .openapi("ScreenerRankingResult", {
     example: {
-      field: "roe.roeTtmPct",
+      field: "roe.TTM",
       direction: "desc",
-      columns: [{ field: "roe.roeTtmPct", metricName: "股東權益報酬率 ROE", fieldName: "ROE", unit: "percent" }],
-      results: [{ symbol: "2330", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } }],
+      columns: [{ field: "roe.TTM", metricName: "roe", fieldName: "TTM", unit: null }],
+      results: [{ symbol: "2330", values: { "roe.TTM": { value: "34.78", asOfDate: "2026-08-11" } } }],
     },
   });
 

@@ -27,11 +27,19 @@ const STOCK_PRICE_FIELD = "stock.price";
  * oingg-analysis-ts's GET /valuation/ranking already does it (sort, limit, exclude non-positive P/E or
  * P/B), covering both TWSE and TPEx. These three fields go there (see valuationRanking.client.ts)
  * instead of the general screener path below — this override is ranking-only.
+ *
+ * Trigger keys updated 2026-09-08 for analysis-ts's pitMetrics rebuild (old filterCatalog metricKeys
+ * per/pbr/dividendYield no longer exist). The new catalog has two distinct metrics per concept — e.g.
+ * `exchangePeRatio` (DAILY basis, TWSE-computed) vs. `peRatio` (TTM basis, financial-statement-derived) —
+ * confirmed live which one actually matches GET /valuation/ranking's own daily TWSE/TPEx `daily_valuation`
+ * source (same trade date, e.g. both landing on 2026-09-07) rather than assuming the literal-looking
+ * "peRatio"/"pbRatio" names were the right match: `exchangePeRatio.DAILY`/`exchangePbRatio.DAILY`, not
+ * `peRatio.TTM`/`pbRatio.Q`. `dividendYield` only has one basis (DAILY) so there's no ambiguity there.
  */
 const VALUATION_RANKING_FIELDS: Record<string, ValuationRankingMetric> = {
-  "per.peRatio": "peRatio",
-  "pbr.pbRatio": "pbRatio",
-  "dividendYield.dividendYieldPct": "dividendYield",
+  "exchangePeRatio.DAILY": "peRatio",
+  "exchangePbRatio.DAILY": "pbRatio",
+  "dividendYield.DAILY": "dividendYield",
 };
 
 interface ResolvedRef {

@@ -57,6 +57,17 @@ const KNOWN_FIELDS: Record<string, Lookup> = {
     period: "daily",
     unit: "times",
   },
+  // pitMetrics-era addressing (2026-09-08) for the same "current TWSE daily market P/E" concept —
+  // see VALUATION_RANKING_FIELDS in screener.service.ts.
+  "exchangePeRatio.DAILY": {
+    categoryKey: "valuation",
+    metricKey: "exchangePeRatio",
+    metricName: "exchangePeRatio",
+    fieldKey: "DAILY",
+    fieldName: "DAILY",
+    period: "DAILY",
+    unit: null,
+  },
 };
 
 beforeEach(() => {
@@ -428,7 +439,8 @@ describe("runRanking", () => {
   // twse+tpex, exclude non-positive P/E or P/B, sort) that belongs to analysis-ts's dedicated endpoint,
   // not the general screener query. See VALUATION_RANKING_FIELDS and runValuationRanking.
   describe("valuation field override (per/pbr/dividendYield -> oingg-analysis-ts's ranking endpoint)", () => {
-    it("routes per.peRatio to fetchValuationRanking instead of the general screener ranking path", async () => {
+    // Trigger keys updated 2026-09-08 for analysis-ts's pitMetrics rebuild — see VALUATION_RANKING_FIELDS.
+    it("routes exchangePeRatio.DAILY to fetchValuationRanking instead of the general screener ranking path", async () => {
       vi.mocked(fetchValuationRanking).mockResolvedValue({
         tradeDate: "2026-08-28",
         rankings: [
@@ -437,17 +449,17 @@ describe("runRanking", () => {
         ],
       });
 
-      const result = await runRanking("per.peRatio", "asc", 10, []);
+      const result = await runRanking("exchangePeRatio.DAILY", "asc", 10, []);
 
       expect(fetchValuationRanking).toHaveBeenCalledWith("peRatio", "asc", 10);
       expect(fetchScreenerRanking).not.toHaveBeenCalled();
       expect(result).toEqual({
-        field: "per.peRatio",
+        field: "exchangePeRatio.DAILY",
         direction: "asc",
-        columns: [{ field: "per.peRatio", metricName: "本益比 PER", fieldName: "本益比 PER", unit: "times" }],
+        columns: [{ field: "exchangePeRatio.DAILY", metricName: "exchangePeRatio", fieldName: "DAILY", unit: null }],
         results: [
-          { symbol: "1240", name: "撼訊", values: { "per.peRatio": { value: "10.61", asOfDate: "2026-08-28" } } },
-          { symbol: "2330", name: "台積電", values: { "per.peRatio": { value: "27.82", asOfDate: "2026-08-28" } } },
+          { symbol: "1240", name: "撼訊", values: { "exchangePeRatio.DAILY": { value: "10.61", asOfDate: "2026-08-28" } } },
+          { symbol: "2330", name: "台積電", values: { "exchangePeRatio.DAILY": { value: "27.82", asOfDate: "2026-08-28" } } },
         ],
       });
     });
@@ -461,7 +473,7 @@ describe("runRanking", () => {
         new Map([["2330", { close: "2420.0000", tradeDate: "2026-08-28" }]]),
       );
 
-      const result = await runRanking("per.peRatio", "asc", 10, [{ field: "stock.price" }]);
+      const result = await runRanking("exchangePeRatio.DAILY", "asc", 10, [{ field: "stock.price" }]);
 
       expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
       expect(result.results[0]?.values).toMatchObject({
@@ -470,7 +482,7 @@ describe("runRanking", () => {
     });
 
     it("rejects combining a valuation ranking with any column other than stock.price", async () => {
-      await expect(runRanking("per.peRatio", "asc", 10, [{ field: "roe.roeTtmPct" }])).rejects.toMatchObject({
+      await expect(runRanking("exchangePeRatio.DAILY", "asc", 10, [{ field: "roe.roeTtmPct" }])).rejects.toMatchObject({
         statusCode: 400,
       });
       expect(fetchValuationRanking).not.toHaveBeenCalled();
