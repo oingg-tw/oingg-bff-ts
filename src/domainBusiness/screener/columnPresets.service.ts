@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client.js";
 import { AppError } from "@/shared/errorHandler.js";
+import { logger } from "@/shared/logger.js";
 import { findDefaultColumnPresetTemplate } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js";
 import { resolveColumnFields } from "@/domainBusiness/screener/columnField.js";
 import {
@@ -191,10 +192,34 @@ export interface ResolvedScreenerColumns {
  * user-owned preset's columns to show — the intended replacement for the old hardcoded
  * SYSTEM_DEFAULT_COLUMNS array, kept in sync from analysis-ts instead of frozen in this service's code.
  * Empty columns only if even that's missing (sync hasn't run yet / DB row was deleted).
+ *
+ * Filters the template's fieldKeys down to ones that actually resolve against the current filter
+ * catalog, dropping any that don't (logged as a warning) instead of passing them straight through.
+ * Found live (2026-09-08): analysis-ts's `/filters` response has `categories` (the queryable catalog)
+ * and `columnPresets` (curated field groupings, this template's source) maintained somewhat
+ * independently — the "overview" template kept referencing fields (`roe.roeTtmPct`,
+ * `debtRatio.debtRatioPct`) that had already been dropped from `categories`, which made every screener
+ * call without an explicit columnPresetId fail 100% of the time with an "unknown filter field" error
+ * unrelated to anything the caller actually asked for. Degrading to fewer default columns is far better
+ * than hard-failing the entire request over a stale field in an upstream curated list.
  */
 async function resolveDefaultColumns(): Promise<ScreenerColumnRef[]> {
   const template = await findDefaultColumnPresetTemplate();
-  return template ? template.fieldKeys.map((field) => ({ field })) : [];
+  if (!template) {
+    return [];
+  }
+
+  const resolved = await resolveColumnFields(template.fieldKeys);
+  const validFields = template.fieldKeys.filter((field) => resolved.get(field) !== null);
+  const droppedFields = template.fieldKeys.filter((field) => resolved.get(field) === null);
+  if (droppedFields.length > 0) {
+    logger.warn(
+      { template: template.key, droppedFields },
+      "Default column preset template references fields not in the current filter catalog — dropping them",
+    );
+  }
+
+  return validFields.map((field) => ({ field }));
 }
 
 /**

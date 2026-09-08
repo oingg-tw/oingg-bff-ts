@@ -277,7 +277,7 @@ describe("resolveScreenerColumns", () => {
 
     expect(result).toEqual({
       columnPresetId: null,
-      columns: [{ field: "per.peRatio" }, { field: "pbr.pbRatio" }, { field: "roe.roeTtmPct" }],
+      columns: [{ field: "per.peRatio" }, { field: "pbr.pbRatio" }],
     });
   });
 
@@ -290,7 +290,14 @@ describe("resolveScreenerColumns", () => {
     expect(result).toEqual({ columnPresetId: null, columns: [] });
   });
 
-  it("uses the curated overview template for anonymous callers, since they can't own a preset", async () => {
+  // Also covers the drop-invalid-fields regression (2026-09-08): OVERVIEW_TEMPLATE includes
+  // roe.roeTtmPct, which the findFilterFields mock above doesn't recognize — analysis-ts's own
+  // "overview" columnPreset kept referencing a field already dropped from their /filters `categories`
+  // catalog, which made every screener call without an explicit columnPresetId fail 100% of the time
+  // with an "unknown filter field" error unrelated to what the caller actually asked for. Must drop
+  // unresolvable fields instead of passing them through and letting resolveCatalogFieldRefs blow up the
+  // entire request downstream.
+  it("uses the curated overview template for anonymous callers, dropping fields that don't resolve against the current catalog", async () => {
     vi.mocked(findDefaultColumnPresetTemplate).mockResolvedValue(OVERVIEW_TEMPLATE);
 
     const result = await resolveScreenerColumns(undefined);
@@ -298,7 +305,7 @@ describe("resolveScreenerColumns", () => {
     expect(findColumnPreset).not.toHaveBeenCalled();
     expect(result).toEqual({
       columnPresetId: null,
-      columns: [{ field: "per.peRatio" }, { field: "pbr.pbRatio" }, { field: "roe.roeTtmPct" }],
+      columns: [{ field: "per.peRatio" }, { field: "pbr.pbRatio" }],
     });
   });
 
