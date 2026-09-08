@@ -3,7 +3,6 @@ import {
   fetchAttentionStocks,
   fetchDisposedStocks,
   fetchEtfRanking,
-  fetchForeignHoldingRanking,
   fetchMarginShortRatioRanking,
   fetchMaterialAnnouncements,
   fetchPriceChangeRanking,
@@ -35,99 +34,6 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
     json: () => Promise.resolve(response.body),
   }) as unknown as typeof fetch;
 }
-
-describe("fetchForeignHoldingRanking", () => {
-  it("requests /market/foreign-holding-ranking with limit and normalizes numeric fields to strings", async () => {
-    mockFetchOnce({
-      ok: true,
-      body: {
-        tradeDate: "2026-08-30",
-        previousTradeDate: "2026-08-28",
-        limit: 10,
-        eligibleCompanyCount: 1200,
-        increases: [
-          {
-            symbol: "2330",
-            companyName: "台積電",
-            sharesHeldPercent: 78.5,
-            previousSharesHeldPercent: 78.1,
-            changePercentagePoints: 0.4,
-            sharesHeld: "20500000000",
-          },
-        ],
-        decreases: [],
-        warnings: [],
-      },
-    });
-
-    const result = await fetchForeignHoldingRanking(10);
-
-    expect(result).toEqual({
-      tradeDate: "2026-08-30",
-      previousTradeDate: "2026-08-28",
-      limit: 10,
-      eligibleCompanyCount: 1200,
-      increases: [
-        {
-          symbol: "2330",
-          name: "台積電",
-          sharesHeldPercent: "78.5",
-          previousSharesHeldPercent: "78.1",
-          changePercentagePoints: "0.4",
-          sharesHeld: "20500000000",
-        },
-      ],
-      decreases: [],
-      warnings: [],
-    });
-    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(url.toString()).toBe("http://filters.test/market/foreign-holding-ranking?limit=10");
-  });
-
-  // Regression: verified live — when analysis-ts doesn't have two comparable trading days yet, tradeDate/
-  // previousTradeDate come back as empty strings, not null. Normalized to null, a clearer "no data" signal.
-  it("normalizes an empty-string tradeDate/previousTradeDate to null (data not ready yet)", async () => {
-    mockFetchOnce({
-      ok: true,
-      body: {
-        tradeDate: "",
-        previousTradeDate: "",
-        limit: 10,
-        eligibleCompanyCount: 0,
-        increases: [],
-        decreases: [],
-        warnings: ["foreign_holding 資料不足兩個交易日，無法比較變動。"],
-      },
-    });
-
-    const result = await fetchForeignHoldingRanking(10);
-
-    expect(result.tradeDate).toBeNull();
-    expect(result.previousTradeDate).toBeNull();
-    expect(result.warnings).toEqual(["foreign_holding 資料不足兩個交易日，無法比較變動。"]);
-  });
-
-  it("relays analysis-ts's 400 message for an out-of-range limit", async () => {
-    mockFetchOnce({ ok: false, status: 400, body: { message: "limit must be between 1 and 20" } });
-
-    await expect(fetchForeignHoldingRanking(0)).rejects.toMatchObject({
-      statusCode: 400,
-      message: "limit must be between 1 and 20",
-    });
-  });
-
-  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
-
-    await expect(fetchForeignHoldingRanking(10)).rejects.toMatchObject({ statusCode: 502 });
-  });
-
-  it("throws a 502 AppError when the response is missing expected fields", async () => {
-    mockFetchOnce({ ok: true, body: { limit: 10 } });
-
-    await expect(fetchForeignHoldingRanking(10)).rejects.toMatchObject({ statusCode: 502 });
-  });
-});
 
 describe("fetchMarginShortRatioRanking", () => {
   it("requests /market/margin-short-ratio-ranking with limit and normalizes numeric fields to strings", async () => {

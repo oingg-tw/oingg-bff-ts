@@ -4,7 +4,6 @@ import {
   DEFAULT_ATTENTION_STOCKS_LIMIT,
   DEFAULT_DISPOSED_STOCKS_LIMIT,
   DEFAULT_ETF_RANKING_LIMIT,
-  DEFAULT_FOREIGN_HOLDING_LIMIT,
   DEFAULT_MARGIN_SHORT_LIMIT,
   DEFAULT_MATERIAL_ANNOUNCEMENTS_LIMIT,
   DEFAULT_PRICE_CHANGE_RANKING_LIMIT,
@@ -12,7 +11,6 @@ import {
   getAttentionStocks,
   getDisposedStocks,
   getEtfRanking,
-  getForeignHoldingRanking,
   getMarginShortRatioRanking,
   getMaterialAnnouncements,
   getPriceChangeRanking,
@@ -41,12 +39,6 @@ function requireStringQueryParam(raw: unknown, name: string): string {
   }
   return raw;
 }
-
-marketRouter.get("/foreign-holding-ranking", async (req, res) => {
-  const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_FOREIGN_HOLDING_LIMIT);
-  const result = await getForeignHoldingRanking(limit);
-  res.json(result);
-});
 
 marketRouter.get("/margin-short-ratio-ranking", async (req, res) => {
   const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_MARGIN_SHORT_LIMIT);

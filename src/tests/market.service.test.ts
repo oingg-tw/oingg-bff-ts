@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/domainBff/market/marketRankings.client.js", () => ({
-  fetchForeignHoldingRanking: vi.fn(),
   fetchMarginShortRatioRanking: vi.fn(),
   fetchMaterialAnnouncements: vi.fn(),
   fetchRevenueRanking: vi.fn(),
@@ -17,7 +16,6 @@ import {
   fetchAttentionStocks,
   fetchDisposedStocks,
   fetchEtfRanking,
-  fetchForeignHoldingRanking,
   fetchMarginShortRatioRanking,
   fetchMaterialAnnouncements,
   fetchPriceChangeRanking,
@@ -29,7 +27,6 @@ import {
   getAttentionStocks,
   getDisposedStocks,
   getEtfRanking,
-  getForeignHoldingRanking,
   getMarginShortRatioRanking,
   getMaterialAnnouncements,
   getPriceChangeRanking,
@@ -39,7 +36,6 @@ import {
 } from "@/domainBff/market/market.service.js";
 
 beforeEach(() => {
-  vi.mocked(fetchForeignHoldingRanking).mockReset();
   vi.mocked(fetchMarginShortRatioRanking).mockReset();
   vi.mocked(fetchMaterialAnnouncements).mockReset();
   vi.mocked(fetchRevenueRanking).mockReset();
@@ -49,45 +45,6 @@ beforeEach(() => {
   vi.mocked(fetchDisposedStocks).mockReset();
   vi.mocked(fetchAttentionStocks).mockReset();
   vi.mocked(fetchPriceLimitRange).mockReset();
-});
-
-describe("getForeignHoldingRanking", () => {
-  it("delegates a valid limit straight through", async () => {
-    vi.mocked(fetchForeignHoldingRanking).mockResolvedValue({
-      tradeDate: null,
-      previousTradeDate: null,
-      limit: 10,
-      eligibleCompanyCount: 0,
-      increases: [],
-      decreases: [],
-      warnings: [],
-    });
-
-    await getForeignHoldingRanking(10);
-
-    expect(fetchForeignHoldingRanking).toHaveBeenCalledWith(10);
-  });
-
-  // Bounds match analysis-ts's own validation (verified live: 1-20). This replaced the endpoint's
-  // original 1-50 topPercent bounds as of 2026-09-01 — see marketRankings.client.ts.
-  it.each([0, -1, 21, 1.5])("rejects an out-of-range limit (%s) without calling analysis-ts", async (value) => {
-    await expect(getForeignHoldingRanking(value)).rejects.toMatchObject({ statusCode: 400 });
-    expect(fetchForeignHoldingRanking).not.toHaveBeenCalled();
-  });
-
-  it.each([1, 20])("accepts the boundary values (%s)", async (value) => {
-    vi.mocked(fetchForeignHoldingRanking).mockResolvedValue({
-      tradeDate: null,
-      previousTradeDate: null,
-      limit: value,
-      eligibleCompanyCount: 0,
-      increases: [],
-      decreases: [],
-      warnings: [],
-    });
-
-    await expect(getForeignHoldingRanking(value)).resolves.toBeDefined();
-  });
 });
 
 describe("getMarginShortRatioRanking", () => {

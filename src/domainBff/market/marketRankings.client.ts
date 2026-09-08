@@ -12,8 +12,6 @@ import type {
   EtfRankingEntry,
   EtfRankingMetric,
   EtfRankingResult,
-  ForeignHoldingRankingEntry,
-  ForeignHoldingRankingResult,
   Market,
   MarginShortRatioRankingEntry,
   MarginShortRatioRankingResult,
@@ -31,7 +29,7 @@ import type {
   VolumeTop20Result,
 } from "@/domainBff/market/market.types.js";
 
-/** "" means "no data yet" (see ForeignHoldingRankingResult) — normalized to null, a clearer signal than an empty string. */
+/** "" means "no data yet" — normalized to null, a clearer signal than an empty string. */
 function toDateOrNull(value: unknown): string | null {
   if (typeof value !== "string" || value === "") {
     return null;
@@ -61,18 +59,6 @@ function toStringOrNull(value: unknown): string | null {
 /** Only "TWSE"/"TPEx" are documented — anything else defaults to "TWSE" rather than throwing. */
 function normalizeMarket(value: unknown): Market {
   return value === "TPEx" ? "TPEx" : "TWSE";
-}
-
-function normalizeForeignHoldingEntry(raw: unknown): ForeignHoldingRankingEntry {
-  const r = raw as Record<string, unknown>;
-  return {
-    symbol: String(r.symbol),
-    name: typeof r.companyName === "string" ? r.companyName : null,
-    sharesHeldPercent: toStringOrEmpty(r.sharesHeldPercent),
-    previousSharesHeldPercent: toStringOrEmpty(r.previousSharesHeldPercent),
-    changePercentagePoints: toStringOrEmpty(r.changePercentagePoints),
-    sharesHeld: toStringOrEmpty(r.sharesHeld),
-  };
 }
 
 function normalizeMarginShortRatioEntry(raw: unknown): MarginShortRatioRankingEntry {
@@ -242,48 +228,6 @@ async function getJson(path: string, searchParams: Record<string, string>): Prom
   }
   assertAnalysisServiceOk(response, url, "Market ranking endpoint");
   return response.json();
-}
-
-/**
- * Foreign-holding increase/decrease ranking from analysis-ts's GET /market/foreign-holding-ranking —
- * compares the two most recent trading days' `sharesHeldPercent` (percentage of issued shares, not raw
- * share count, so capital increases/decreases don't distort the ranking), sorted by percentage-point
- * change. Both ETFs/derivatives and (currently) any symbol without two comparable days are excluded on
- * analysis-ts's side.
- *
- * `limit` (top N rows per direction) replaced the endpoint's original `topPercent` (top N% after sorting)
- * param as of 2026-09-01 — analysis-ts switched their own query semantics to a fixed row count, matching
- * margin-short-ratio-ranking's convention, so bff-ts's param/field naming follows suit here too.
- */
-export async function fetchForeignHoldingRanking(limit: number): Promise<ForeignHoldingRankingResult> {
-  const body = (await getJson("/market/foreign-holding-ranking", { limit: String(limit) })) as {
-    tradeDate?: unknown;
-    previousTradeDate?: unknown;
-    limit?: unknown;
-    eligibleCompanyCount?: unknown;
-    increases?: unknown;
-    decreases?: unknown;
-    warnings?: unknown;
-  };
-
-  if (
-    typeof body.limit !== "number" ||
-    typeof body.eligibleCompanyCount !== "number" ||
-    !Array.isArray(body.increases) ||
-    !Array.isArray(body.decreases)
-  ) {
-    throw new AppError("Foreign holding ranking response is missing expected fields", 502);
-  }
-
-  return {
-    tradeDate: toDateOrNull(body.tradeDate),
-    previousTradeDate: toDateOrNull(body.previousTradeDate),
-    limit: body.limit,
-    eligibleCompanyCount: body.eligibleCompanyCount,
-    increases: body.increases.map(normalizeForeignHoldingEntry),
-    decreases: body.decreases.map(normalizeForeignHoldingEntry),
-    warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
-  };
 }
 
 /**

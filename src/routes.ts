@@ -65,6 +65,6 @@ routes.use("/transactions", transactionsRouter); // GET/POST /transactions, GET/
 // GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply
 routes.use("/screener", screenerRoutes);
 routes.use("/filters", filterCatalogRouter); // GET /filters
-routes.use("/market", marketRouter); // GET /market/foreign-holding-ranking, GET /market/margin-short-ratio-ranking
+routes.use("/market", marketRouter); // GET /market/margin-short-ratio-ranking, ...
 routes.use("/etf-screener", etfScreenerRouter); // GET /etf-screener/filters, POST /etf-screener
 routes.use("/industries", industriesRouter); // GET /industries/tree

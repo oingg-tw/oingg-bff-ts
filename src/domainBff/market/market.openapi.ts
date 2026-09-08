@@ -16,61 +16,6 @@ function limitQuery(defaultValue: number, min: number, max: number) {
   });
 }
 
-// --- foreign-holding-ranking ---
-const foreignHoldingEntrySchema = z.object({
-  symbol: z.string(),
-  name: nameField,
-  sharesHeldPercent: z.string(),
-  previousSharesHeldPercent: z.string(),
-  changePercentagePoints: z.string(),
-  sharesHeld: z.string(),
-});
-const foreignHoldingResultSchema = z
-  .object({
-    tradeDate: z.string().nullable(),
-    previousTradeDate: z.string().nullable(),
-    limit: z.number(),
-    eligibleCompanyCount: z.number(),
-    increases: z.array(foreignHoldingEntrySchema),
-    decreases: z.array(foreignHoldingEntrySchema),
-    warnings: z.array(z.string()),
-  })
-  .openapi("ForeignHoldingRankingResult", {
-    example: {
-      tradeDate: "2026-08-30",
-      previousTradeDate: "2026-08-28",
-      limit: 10,
-      eligibleCompanyCount: 1200,
-      increases: [
-        {
-          symbol: "2330",
-          name: "台積電",
-          sharesHeldPercent: "78.5",
-          previousSharesHeldPercent: "78.1",
-          changePercentagePoints: "0.4",
-          sharesHeld: "20500000000",
-        },
-      ],
-      decreases: [],
-      warnings: [],
-    },
-  });
-
-registry.registerPath({
-  method: "get",
-  path: "/market/foreign-holding-ranking",
-  summary: "外資持股比例加碼/減碼排行——比較最近兩個交易日的持股百分比變動",
-  description:
-    "依「百分點變動」排序（不是張數變動，避免被增減資干擾），只涵蓋真正的上市公司（排除 ETF／衍生性商品）。limit 是「排序後取前幾筆」（各方向各自取，不是百分比）——2026-09-01 起 analysis-ts 把這個端點的參數從 topPercent（百分比）改成 limit（固定筆數），bff-ts 這邊同步跟進。twse-ts 的外資持股資料如果還沒累積到兩個交易日可比較，increases/decreases 會是空陣列，warnings 會說明原因——這是資料還沒備齊，不是錯誤。",
-  tags: ["Market"],
-  request: { query: limitQuery(10, 1, 20) },
-  responses: {
-    200: { description: "加碼/減碼排行清單，附上比較的兩個交易日與 warnings。", content: { "application/json": { schema: foreignHoldingResultSchema } } },
-    400: badRequest("limit 不是 1~20 之間的整數。"),
-    502: upstream502,
-  },
-});
-
 // --- margin-short-ratio-ranking ---
 const marginShortEntrySchema = z.object({
   rank: z.number(),
@@ -433,7 +378,7 @@ registry.registerPath({
   path: "/market/price-change-ranking",
   summary: "漲跌幅排行——上市＋上櫃合併，各自取自己最新兩個交易日",
   description:
-    "跟 foreign-holding-ranking 一樣是「兩個方向一起回」的形狀（gainers/losers）。上市跟上櫃各自用自己最新的兩個交易日算，不強迫用同一天，所以 tradeDate/previousTradeDate 是每一列自己帶，不是頂層共用欄位。已排除 ETF／衍生性商品。資料來自 daily_price（本來就有完整市場鏡像），不受 twse-ts/tpex-ts 專屬 export dataset 的部署進度影響。",
+    "是「兩個方向一起回」的形狀（gainers/losers）。上市跟上櫃各自用自己最新的兩個交易日算，不強迫用同一天，所以 tradeDate/previousTradeDate 是每一列自己帶，不是頂層共用欄位。已排除 ETF／衍生性商品。資料來自 daily_price（本來就有完整市場鏡像），不受 twse-ts/tpex-ts 專屬 export dataset 的部署進度影響。",
   tags: ["Market"],
   request: { query: limitQuery(20, 1, 50) },
   responses: {
