@@ -42,13 +42,17 @@ function isDupontHistoryResponse(body: unknown): body is { entries: unknown[] } 
  * quarter, not one `value`), so this doesn't share metricHistoryShared.ts's helper. Only allows basis
  * Q/TTM (no Q_ANN, unlike roe-history/roa-history — confirmed live, 2026-09-07). Same 400-relay and
  * empty-array-not-404 conventions as the other history endpoints in this domain.
+ *
+ * analysis-ts renamed this endpoint's query param from `basis` to `periodType` on 2026-09-08 — same
+ * `metric_values.basis` naming split as metric-history/roe-history/roa-history. Allowed values unchanged;
+ * kept this client's own parameter/type names as `basis`, only the wire-level param sent upstream changed.
  */
 export async function fetchDupontHistory(
   symbol: string,
   basis: DupontHistoryBasis,
   limit?: number,
 ): Promise<DupontHistoryResult> {
-  const searchParams: Record<string, string> = { symbol, basis };
+  const searchParams: Record<string, string> = { symbol, periodType: basis };
   if (limit !== undefined) {
     searchParams.limit = String(limit);
   }

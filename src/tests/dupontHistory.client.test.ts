@@ -87,7 +87,7 @@ describe("fetchDupontHistory", () => {
 
     expect(result).toEqual({ symbol: "2330", basis: "Q", total: 20, hasMore: true, entries: Q_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/dupont-history?symbol=2330&basis=Q");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/dupont-history?symbol=2330&periodType=Q");
   });
 
   it("includes limit when given", async () => {
@@ -96,7 +96,7 @@ describe("fetchDupontHistory", () => {
     await fetchDupontHistory("2330", "Q", 5);
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/dupont-history?symbol=2330&basis=Q&limit=5");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/dupont-history?symbol=2330&periodType=Q&limit=5");
   });
 
   // Observed live: equityMultiplier is null under basis=TTM for real 2330 data — must stay null, not

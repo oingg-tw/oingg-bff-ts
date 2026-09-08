@@ -46,7 +46,7 @@ describe("fetchMetricHistory", () => {
 
     expect(result).toEqual(RAW_BODY);
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/metric-history?symbol=2330&metricCode=peRatio&basis=TTM");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/metric-history?symbol=2330&metricCode=peRatio&token=TTM");
   });
 
   // bvps added by analysis-ts as a 4th metricCode (2026-09-07) — only allows basis=Q, confirmed live.
@@ -59,7 +59,7 @@ describe("fetchMetricHistory", () => {
     await fetchMetricHistory("2330", "bvps", "Q");
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/metric-history?symbol=2330&metricCode=bvps&basis=Q");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/metric-history?symbol=2330&metricCode=bvps&token=Q");
   });
 
   // stockPrice added by analysis-ts as a 5th metricCode (2026-09-07) — the knowledgeDate-aligned close
@@ -74,7 +74,7 @@ describe("fetchMetricHistory", () => {
     await fetchMetricHistory("2330", "stockPrice", "Q");
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/metric-history?symbol=2330&metricCode=stockPrice&basis=Q");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/metric-history?symbol=2330&metricCode=stockPrice&token=Q");
   });
 
   it("includes limit in the request when given", async () => {
@@ -84,7 +84,7 @@ describe("fetchMetricHistory", () => {
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe(
-      "http://filters.test/companies/metric-history?symbol=2330&metricCode=peRatio&basis=TTM&limit=5",
+      "http://filters.test/companies/metric-history?symbol=2330&metricCode=peRatio&token=TTM&limit=5",
     );
   });
 

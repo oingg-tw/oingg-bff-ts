@@ -44,8 +44,8 @@ const screenerResultSchema = z
       pageSize: 50,
       totalPages: 1,
       columnPresetId: null,
-      columns: [{ field: "exchangePeRatio.DAILY", metricName: "exchangePeRatio", fieldName: "DAILY", unit: null }],
-      results: [{ symbol: "2330", values: { "exchangePeRatio.DAILY": { value: "27.82", asOfDate: "2026-08-16" } } }],
+      columns: [{ field: "exchangePeRatio.EOD", metricName: "exchangePeRatio", fieldName: "EOD", unit: null }],
+      results: [{ symbol: "2330", values: { "exchangePeRatio.EOD": { value: "27.82", asOfDate: "2026-08-16" } } }],
     },
   });
 
@@ -54,7 +54,7 @@ registry.registerPath({
   path: "/screener",
   summary: "依 filterCatalog 指標篩選個股",
   description:
-    "不需要登入即可使用（僅儲存為具名 preset 才需要，見 POST /screener/presets）。field 格式為 \"<metricCode>.<basis>\"（例如 \"grossMargin.TTM\"，basis 是 Q/Q_ANN/TTM/DAILY 等計算基期，不是舊架構的 fieldKey），對應 GET /filters 回傳的分類/指標/允許基期目錄——2026-09-08 analysis-ts 把底層資料模型換成 pitMetrics 後，目錄裡目前還沒有中文名稱/單位/公式說明，metricName/fieldName 暫時就是 metricCode/basis 本身，等 analysis-ts 補上文案後才會是可讀的中文（不用等前端改版，介面契約沒變）。每個指標會取該股票最新一筆合併報表（非子公司）的數值來比對，不同指標之間用 AND 合併。顯示欄位由 columnPresetId 決定：有給就用那組（見 GET /screener/column-presets，僅限已登入）；沒給、但帶有效 Authorization header，就用該帳號自己設的預設欄位組合，找不到就用系統內建的常用欄位；未登入一律套用系統內建欄位。回應的 columnPresetId 會標明實際套用的是哪一組（null 代表用的是系統內建）。每個 results[].values 底下的欄位都是 { value, asOfDate } 物件，不是純值。asOfDate 統一是實際日期字串（\"YYYY-MM-DD\"，knowledge date）——2026-09-08 之前的季報類指標曾經是 \"{兩位數年}Q{季別}\" 格式（例如 \"26Q2\"），pitMetrics 重建後已經統一成日期格式，不要假設還有季別字串出現。",
+    "不需要登入即可使用（僅儲存為具名 preset 才需要，見 POST /screener/presets）。field 格式為 \"<metricCode>.<token>\"（例如 \"grossMargin.TTM\"、\"beta.2Y_1W\"），對應 GET /filters 每個 metricCode 底下的 validTokens 陣列——務必用 validTokens，不要自己拿 allowedPeriodTypes/allowedLookbackRanges/allowedSamplingIntervals/allowedSnapshotCadences 這四個陣列做交叉組合，部分指標（例如 beta）的 lookbackRange×samplingInterval 不是自由交叉，只有特定配對才有資料。2026-09-08 analysis-ts 把底層資料模型換成 pitMetrics 後，目錄裡目前還沒有中文名稱/單位/公式說明，metricName/fieldName 暫時就是 metricCode/token 本身，等 analysis-ts 補上文案後才會是可讀的中文（不用等前端改版，介面契約沒變）。每個指標會取該股票最新一筆合併報表（非子公司）的數值來比對，不同指標之間用 AND 合併。顯示欄位由 columnPresetId 決定：有給就用那組（見 GET /screener/column-presets，僅限已登入）；沒給、但帶有效 Authorization header，就用該帳號自己設的預設欄位組合，找不到就用系統內建的常用欄位；未登入一律套用系統內建欄位。回應的 columnPresetId 會標明實際套用的是哪一組（null 代表用的是系統內建）。每個 results[].values 底下的欄位都是 { value, asOfDate } 物件，不是純值。asOfDate 統一是實際日期字串（\"YYYY-MM-DD\"，knowledge date）——2026-09-08 之前的季報類指標曾經是 \"{兩位數年}Q{季別}\" 格式（例如 \"26Q2\"），pitMetrics 重建後已經統一成日期格式，不要假設還有季別字串出現。",
   tags: ["Screener"],
   security: [{ bearerAuth: [] }, {}],
   request: { body: { required: true, content: { "application/json": { schema: screenerRequestDocSchema } } } },
@@ -107,7 +107,7 @@ registry.registerPath({
 });
 
 const rankingQueryDocSchema = rankingQuerySchema.openapi("ScreenerRankingQuery", {
-  example: { field: "dividendYield.DAILY", direction: "desc", limit: 10 },
+  example: { field: "dividendYield.EOD", direction: "desc", limit: 10 },
 });
 
 const rankingResultSchema = z
@@ -136,7 +136,7 @@ registry.registerPath({
   request: { query: rankingQueryDocSchema },
   responses: {
     200: {
-      description: "排行結果（不分頁，就是前 limit 名）。asOfDate 對季報類指標是 \"{兩位數年}Q{季別}\" 格式，對日頻／技術指標則是實際日期。",
+      description: "排行結果（不分頁，就是前 limit 名）。asOfDate 統一是實際日期字串（\"YYYY-MM-DD\"，knowledge date）。",
       content: { "application/json": { schema: rankingResultSchema } },
     },
     400: errorResponse("缺少 field，field 不存在於 filterCatalog，或 direction/limit/columns 格式錯誤。"),

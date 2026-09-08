@@ -13,6 +13,12 @@ import type { MetricHistoryBasis, MetricHistoryCode, MetricHistoryResult } from 
  *
  * An unknown or not-yet-backfilled symbol comes back with an empty `entries` array, never a 404 — as of
  * 2026-09-07 only 2330 has any backfilled history at all for any metricCode.
+ *
+ * analysis-ts renamed this endpoint's query param from `basis` to `token` on 2026-09-08 (part of a wider
+ * rename splitting their internal `metric_values.basis` column into periodType/lookbackRange/
+ * samplingInterval/snapshotCadence — "basis" was overloading an accounting reserved word). Kept this
+ * client's own parameter/type names as `basis` deliberately — bff-ts's own public contract to web-nuxt is
+ * unaffected, only the wire-level param sent upstream changed.
  */
 export async function fetchMetricHistory(
   symbol: string,
@@ -20,7 +26,7 @@ export async function fetchMetricHistory(
   basis: MetricHistoryBasis,
   limit?: number,
 ): Promise<MetricHistoryResult> {
-  const searchParams: Record<string, string> = { symbol, metricCode, basis };
+  const searchParams: Record<string, string> = { symbol, metricCode, token: basis };
   if (limit !== undefined) {
     searchParams.limit = String(limit);
   }

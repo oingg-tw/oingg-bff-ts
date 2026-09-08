@@ -57,7 +57,7 @@ describe("fetchRoeHistory", () => {
 
     expect(result).toEqual({ symbol: "2330", basis: "TTM", total: 20, hasMore: true, entries: ROE_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&basis=TTM");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&periodType=TTM");
   });
 
   it("accepts Q_ANN as a basis (allowed for roe/roa unlike metric-history)", async () => {
@@ -66,7 +66,7 @@ describe("fetchRoeHistory", () => {
     await fetchRoeHistory("2330", "Q_ANN");
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&basis=Q_ANN");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&periodType=Q_ANN");
   });
 
   it("includes limit when given", async () => {
@@ -75,7 +75,7 @@ describe("fetchRoeHistory", () => {
     await fetchRoeHistory("2330", "TTM", 5);
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&basis=TTM&limit=5");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&periodType=TTM&limit=5");
   });
 
   it("returns an empty entries array for an unbackfilled or unknown symbol, without throwing", async () => {
@@ -114,7 +114,7 @@ describe("fetchRoaHistory", () => {
 
     expect(result).toEqual({ symbol: "2330", basis: "TTM", total: 20, hasMore: true, entries: ROA_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/roa-history?symbol=2330&basis=TTM");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/roa-history?symbol=2330&periodType=TTM");
   });
 
   it("throws a 502 AppError for a non-2xx, non-400 status", async () => {

@@ -30,16 +30,21 @@ const STOCK_PRICE_FIELD = "stock.price";
  *
  * Trigger keys updated 2026-09-08 for analysis-ts's pitMetrics rebuild (old filterCatalog metricKeys
  * per/pbr/dividendYield no longer exist). The new catalog has two distinct metrics per concept — e.g.
- * `exchangePeRatio` (DAILY basis, TWSE-computed) vs. `peRatio` (TTM basis, financial-statement-derived) —
- * confirmed live which one actually matches GET /valuation/ranking's own daily TWSE/TPEx `daily_valuation`
- * source (same trade date, e.g. both landing on 2026-09-07) rather than assuming the literal-looking
- * "peRatio"/"pbRatio" names were the right match: `exchangePeRatio.DAILY`/`exchangePbRatio.DAILY`, not
- * `peRatio.TTM`/`pbRatio.Q`. `dividendYield` only has one basis (DAILY) so there's no ambiguity there.
+ * `exchangePeRatio` (TWSE-computed daily snapshot) vs. `peRatio` (TTM basis, financial-statement-derived)
+ * — confirmed live which one actually matches GET /valuation/ranking's own daily TWSE/TPEx
+ * `daily_valuation` source (same trade date, e.g. both landing on 2026-09-07) rather than assuming the
+ * literal-looking "peRatio"/"pbRatio" names were the right match: `exchangePeRatio`/`exchangePbRatio`, not
+ * `peRatio.TTM`/`pbRatio.Q`.
+ *
+ * Token suffix updated again same day, same rebuild's second pass: analysis-ts split `metric_values.basis`
+ * into periodType/lookbackRange/samplingInterval/snapshotCadence (a plain `basis` column overloaded an
+ * accounting reserved word), and snapshot-cadence metrics' token changed from "DAILY" to "EOD" —
+ * `dividendYield` only has one token (EOD) so there's no ambiguity there.
  */
 const VALUATION_RANKING_FIELDS: Record<string, ValuationRankingMetric> = {
-  "exchangePeRatio.DAILY": "peRatio",
-  "exchangePbRatio.DAILY": "pbRatio",
-  "dividendYield.DAILY": "dividendYield",
+  "exchangePeRatio.EOD": "peRatio",
+  "exchangePbRatio.EOD": "pbRatio",
+  "dividendYield.EOD": "dividendYield",
 };
 
 interface ResolvedRef {
