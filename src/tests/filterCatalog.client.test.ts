@@ -25,18 +25,20 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// Real shape given directly by analysis-ts as of 2026-09-09: displayName/unit landed on every metric
-// (the four allowedXxx arrays that briefly accompanied validTokens on 2026-09-08 were removed once
-// analysis-ts confirmed this client never read them).
+// Real shape given directly by analysis-ts as of 2026-09-09: displayName/unit on every metric,
+// categoryDisplayName on every category (added shortly after, same day) — the four allowedXxx arrays
+// that briefly accompanied validTokens on 2026-09-08 were removed once analysis-ts confirmed this client
+// never read them.
 const RAW_CATEGORIES = [
   {
     categoryKey: "profitability",
+    categoryDisplayName: "獲利能力",
     metrics: [{ metricCode: "roe", displayName: "股東權益報酬率 (ROE)", unit: "%", validTokens: ["Q", "Q_ANN", "TTM"] }],
   },
 ];
 
 describe("fetchFilterCatalog", () => {
-  it("requests /filters and converts validTokens into FilterCategory[] fields, using displayName/unit for the metric", async () => {
+  it("requests /filters and converts validTokens into FilterCategory[] fields, using categoryDisplayName/displayName/unit", async () => {
     mockFetchOnce({ ok: true, body: { categories: RAW_CATEGORIES } });
 
     const result = await fetchFilterCatalog();
@@ -44,7 +46,7 @@ describe("fetchFilterCatalog", () => {
     expect(result).toEqual([
       {
         key: "profitability",
-        name: "profitability",
+        name: "獲利能力",
         sort: 0,
         metrics: [
           {
@@ -80,6 +82,7 @@ describe("fetchFilterCatalog", () => {
         categories: [
           {
             categoryKey: "valuation",
+            categoryDisplayName: "估值",
             metrics: [
               {
                 metricCode: "beta",
@@ -127,10 +130,23 @@ describe("fetchFilterCatalog", () => {
     await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
+  // Regression: caught live (2026-09-09) that a category could be missing categoryDisplayName right after
+  // analysis-ts added it — must fail loudly rather than silently falling back to a placeholder, so a
+  // partial rollout on their side surfaces immediately instead of quietly showing raw keys to users.
+  it("throws a 502 AppError when a category is missing categoryDisplayName", async () => {
+    mockFetchOnce({ ok: true, body: { categories: [{ categoryKey: "profitability", metrics: [] }] } });
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
   it("throws a 502 AppError when a metric is missing metricCode or validTokens", async () => {
     mockFetchOnce({
       ok: true,
-      body: { categories: [{ categoryKey: "profitability", metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%" }] }] },
+      body: {
+        categories: [
+          { categoryKey: "profitability", categoryDisplayName: "獲利能力", metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%" }] },
+        ],
+      },
     });
 
     await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
@@ -139,7 +155,9 @@ describe("fetchFilterCatalog", () => {
   it("throws a 502 AppError when a metric is missing displayName or unit", async () => {
     mockFetchOnce({
       ok: true,
-      body: { categories: [{ categoryKey: "profitability", metrics: [{ metricCode: "roe", validTokens: ["TTM"] }] }] },
+      body: {
+        categories: [{ categoryKey: "profitability", categoryDisplayName: "獲利能力", metrics: [{ metricCode: "roe", validTokens: ["TTM"] }] }],
+      },
     });
 
     await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
@@ -150,7 +168,11 @@ describe("fetchFilterCatalog", () => {
       ok: true,
       body: {
         categories: [
-          { categoryKey: "profitability", metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: [] }] },
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: [] }],
+          },
         ],
       },
     });

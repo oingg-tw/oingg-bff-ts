@@ -12,6 +12,7 @@ interface RawPitMetric {
 
 interface RawPitCategory {
   categoryKey: string;
+  categoryDisplayName: string;
   metrics: RawPitMetric[];
 }
 
@@ -23,6 +24,7 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
         typeof c === "object" &&
         c !== null &&
         typeof (c as RawPitCategory).categoryKey === "string" &&
+        typeof (c as RawPitCategory).categoryDisplayName === "string" &&
         Array.isArray((c as RawPitCategory).metrics) &&
         (c as RawPitCategory).metrics.every(
           (m) =>
@@ -53,14 +55,15 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
  *
  * `displayName`/`unit` (real Chinese labels, e.g. "殖利率（交易所公告）"/"%") landed on every one of the 64
  * metrics as of 2026-09-09 — used directly for the metric-level name/unit now instead of the metricCode
- * placeholder this client used from 2026-09-08 until copy shipped. Categories and individual tokens still
- * have no display name of their own (no category displayName field, no per-token label distinct from the
- * token string) — `key`/`name` for those stay placeholder-filled with the raw categoryKey/token.
+ * placeholder this client used from 2026-09-08 until copy shipped. `categoryDisplayName` (e.g. "股利" for
+ * categoryKey "dividend") landed on all 7 categories the same day, added here shortly after — used for the
+ * category-level name. Individual tokens still have no display name of their own (no per-token label
+ * distinct from the token string) — `key`/`name` for those stay placeholder-filled with the raw token.
  */
 function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
   return raw.map((category, categoryIndex) => ({
     key: category.categoryKey,
-    name: category.categoryKey,
+    name: category.categoryDisplayName,
     sort: categoryIndex,
     metrics: category.metrics.map((metric, metricIndex) => ({
       key: metric.metricCode,
