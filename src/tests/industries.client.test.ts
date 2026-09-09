@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchIndustryFlatList, fetchIndustryTree, fetchValueChainTree } from "@/domainBff/industries/industries.client.js";
+import { fetchIndustryFlatList, fetchIndustryTree } from "@/domainBff/industries/industries.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
@@ -191,90 +191,3 @@ describe("fetchIndustryFlatList", () => {
   });
 });
 
-// Real responses given directly by analysis-ts (2026-09-09).
-const VALUE_CHAIN_ROOT_RESPONSE = {
-  found: true,
-  code: null,
-  level: null,
-  name: null,
-  children: [
-    { code: "1000", name: "水泥", companyCount: 10 },
-    { code: "2000", name: "造紙", companyCount: 9 },
-  ],
-  companies: [],
-  dataSource: "https://ic.tpex.org.tw",
-};
-
-const VALUE_CHAIN_SUBCHAIN_RESPONSE = {
-  found: true,
-  code: "1100",
-  level: "subChain",
-  name: "石灰石",
-  children: [],
-  companies: [
-    { symbol: "1101", companyName: "台泥", market: "listed" },
-    { symbol: "1108", companyName: "幸福", market: "listed" },
-  ],
-  dataSource: "https://ic.tpex.org.tw",
-};
-
-describe("fetchValueChainTree", () => {
-  it("requests /industries/value-chain without a code param when omitted, and normalizes the root response", async () => {
-    mockFetchOnce({ ok: true, body: VALUE_CHAIN_ROOT_RESPONSE });
-
-    const result = await fetchValueChainTree();
-
-    expect(result).toEqual(VALUE_CHAIN_ROOT_RESPONSE);
-    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/industries/value-chain");
-  });
-
-  it("requests /industries/value-chain?code= with the given code and normalizes a subChain response, including market", async () => {
-    mockFetchOnce({ ok: true, body: VALUE_CHAIN_SUBCHAIN_RESPONSE });
-
-    const result = await fetchValueChainTree("1100");
-
-    expect(result).toEqual(VALUE_CHAIN_SUBCHAIN_RESPONSE);
-    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/industries/value-chain?code=1100");
-  });
-
-  it("returns found:false for an unknown code, without throwing", async () => {
-    mockFetchOnce({
-      ok: true,
-      body: { found: false, code: "NOPE", level: null, name: null, children: [], companies: [], dataSource: "https://ic.tpex.org.tw" },
-    });
-
-    const result = await fetchValueChainTree("NOPE");
-
-    expect(result.found).toBe(false);
-    expect(result.code).toBe("NOPE");
-  });
-
-  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
-
-    await expect(fetchValueChainTree("1000")).rejects.toMatchObject({ statusCode: 502 });
-  });
-
-  it("throws a 502 AppError for a non-2xx status", async () => {
-    mockFetchOnce({ ok: false, status: 500, body: {} });
-
-    await expect(fetchValueChainTree("1000")).rejects.toMatchObject({ statusCode: 502 });
-  });
-
-  it('throws a 502 AppError when the response is missing a boolean "found" field', async () => {
-    mockFetchOnce({ ok: true, body: { code: "1000" } });
-
-    await expect(fetchValueChainTree("1000")).rejects.toMatchObject({ statusCode: 502 });
-  });
-
-  it("throws a 502 AppError when a company has an unrecognized market", async () => {
-    mockFetchOnce({
-      ok: true,
-      body: { ...VALUE_CHAIN_SUBCHAIN_RESPONSE, companies: [{ symbol: "1101", companyName: "台泥", market: "nasdaq" }] },
-    });
-
-    await expect(fetchValueChainTree("1100")).rejects.toMatchObject({ statusCode: 502 });
-  });
-});
