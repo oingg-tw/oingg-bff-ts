@@ -106,6 +106,62 @@ describe("fetchMetricsHistory", () => {
     expect(result.entries[0]?.values.roe?.nullReason).toBe("缺少前四季損益表資料");
   });
 
+  // Regression: web-nuxt hit a 500 (theorized as bff-ts assuming every requested metricCode has an
+  // equal-length backfilled array and merging positionally) when one of 3 requested metricCodes
+  // (shareCountChangeRate) had only 1 backfilled period while the other 2 had 23 — resolved once
+  // analysis-ts backfilled the gap, but code review found no positional-array-merge logic here at all:
+  // each entry's `values` is read directly from analysis-ts's own per-period object, keyed by metricCode,
+  // with no length-equality assumption across periods. This test proves that directly: some periods carry
+  // only a subset of the requested metricCodes (simulating one metric backfilled less than the others),
+  // and normalization must not throw or drop the period, just return whatever keys are actually present.
+  it("does not throw when different periods have different subsets of the requested metricCodes present", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        symbol: "2330",
+        metricCodes: ["netIncomeGrowthRate", "epsGrowthRate", "shareCountChangeRate"],
+        token: "Q",
+        total: 3,
+        hasMore: false,
+        entries: [
+          {
+            fiscalYear: 2025,
+            fiscalQuarter: 4,
+            values: {
+              netIncomeGrowthRate: { value: 10, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false },
+              epsGrowthRate: { value: 10, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false },
+              // shareCountChangeRate not yet backfilled for this period — simply absent, not present as null.
+            },
+          },
+          {
+            fiscalYear: 2026,
+            fiscalQuarter: 1,
+            values: {
+              netIncomeGrowthRate: { value: 20, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false },
+              epsGrowthRate: { value: 20, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false },
+            },
+          },
+          {
+            fiscalYear: 2026,
+            fiscalQuarter: 2,
+            values: {
+              netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
+              epsGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
+              shareCountChangeRate: { value: 0, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
+            },
+          },
+        ],
+      },
+    });
+
+    const result = await fetchMetricsHistory("2330", ["netIncomeGrowthRate", "epsGrowthRate", "shareCountChangeRate"], "Q", 3);
+
+    expect(result.entries).toHaveLength(3);
+    expect(Object.keys(result.entries[0]!.values)).toEqual(["netIncomeGrowthRate", "epsGrowthRate"]);
+    expect(result.entries[0]?.values.shareCountChangeRate).toBeUndefined();
+    expect(result.entries[2]?.values.shareCountChangeRate?.value).toBe(0);
+  });
+
   // analysis-ts validates each metricCode supports the given token itself (e.g. growth-decomposition
   // codes only allow "Q", not "TTM") and returns a 400 with a clear message — must be relayed as-is.
   it("relays analysis-ts's 400 message for a metricCode that doesn't support the given token", async () => {
