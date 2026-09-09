@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchIndustryTree } from "@/domainBff/industries/industries.client.js";
+import { fetchIndustryFlatList, fetchIndustryTree } from "@/domainBff/industries/industries.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
@@ -128,5 +128,65 @@ describe("fetchIndustryTree", () => {
     });
 
     await expect(fetchIndustryTree()).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+// Real entry given directly by analysis-ts (2026-09-09).
+const FLAT_LIST_RESPONSE = {
+  companies: [
+    {
+      symbol: "2330",
+      companyName: "台積電",
+      path: [
+        { code: "C", level: "section", name: "製造業" },
+        { code: "26", level: "division", name: "電子零組件製造業" },
+        { code: "261", level: "group", name: "半導體製造業" },
+        { code: "2611", level: "class", name: "積體電路製造業" },
+        { code: "2611-99", level: "subclass", name: "其他積體電路製造" },
+      ],
+    },
+  ],
+};
+
+describe("fetchIndustryFlatList", () => {
+  it("requests /industries/flat with no query params and normalizes the response", async () => {
+    mockFetchOnce({ ok: true, body: FLAT_LIST_RESPONSE });
+
+    const result = await fetchIndustryFlatList();
+
+    expect(result).toEqual(FLAT_LIST_RESPONSE);
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(calledUrl.toString()).toBe("http://filters.test/industries/flat");
+  });
+
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchIndustryFlatList()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError for a non-2xx status", async () => {
+    mockFetchOnce({ ok: false, status: 500, body: {} });
+
+    await expect(fetchIndustryFlatList()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it('throws a 502 AppError when the response is missing a "companies" array', async () => {
+    mockFetchOnce({ ok: true, body: { oops: true } });
+
+    await expect(fetchIndustryFlatList()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when a company's path has an unrecognized level", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        companies: [
+          { symbol: "2330", companyName: "台積電", path: [{ code: "X", level: "not-a-real-level", name: "x" }] },
+        ],
+      },
+    });
+
+    await expect(fetchIndustryFlatList()).rejects.toMatchObject({ statusCode: 502 });
   });
 });

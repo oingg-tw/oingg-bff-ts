@@ -53,3 +53,44 @@ registry.registerPath({
     502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
   },
 });
+
+const industryPathNodeSchema = z.object({ code: z.string(), level: industryLevelSchema, name: z.string() });
+
+const industryFlatCompanySchema = z.object({
+  symbol: z.string(),
+  companyName: z.string(),
+  path: z.array(industryPathNodeSchema),
+});
+
+const industryFlatListSchema = z
+  .object({ companies: z.array(industryFlatCompanySchema) })
+  .openapi("IndustryFlatList", {
+    example: {
+      companies: [
+        {
+          symbol: "2330",
+          companyName: "台積電",
+          path: [
+            { code: "C", level: "section", name: "製造業" },
+            { code: "26", level: "division", name: "電子零組件製造業" },
+            { code: "261", level: "group", name: "半導體製造業" },
+            { code: "2611", level: "class", name: "積體電路製造業" },
+            { code: "2611-99", level: "subclass", name: "其他積體電路製造" },
+          ],
+        },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/industries/flat",
+  summary: "一次取得全部已分類公司的 symbol → 完整分類路徑，供前端自建搜尋索引",
+  description:
+    "GET /industries/tree 的攤平版——沒有查詢參數，一次回傳所有 999 家 gov-ts 已追蹤公司的完整路徑（由粗到細：section→division→group→class→subclass，每層都帶 code/level/name），不用為了做「股票代號搜尋」或「分類名稱關鍵字搜尋」而遞迴打 GET /industries/tree 建索引。範圍/涵蓋公司跟 GET /industries/tree 一致（目前只有上市公司有資料，上櫃/興櫃待 gov-ts 補齊，補齊後這支端點會自動反映，不用改介面）。analysis-ts 這支端點讀的是常駐記憶體快取，沒有額外 DB 查詢成本，bff-ts 這邊也不另外快取，每次都是即時轉發。",
+  tags: ["Industries"],
+  responses: {
+    200: { description: "全部已分類公司的 symbol → 完整路徑清單。", content: { "application/json": { schema: industryFlatListSchema } } },
+    502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
+  },
+});

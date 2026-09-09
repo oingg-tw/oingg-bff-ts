@@ -36,3 +36,26 @@ export interface IndustryTree {
   children: IndustryTreeChild[];
   companies: IndustryTreeCompany[];
 }
+
+export interface IndustryPathNode {
+  code: string;
+  level: IndustryLevel;
+  name: string;
+}
+
+export interface IndustryFlatCompany {
+  symbol: string;
+  companyName: string;
+  /** Coarsest to finest — section, division, group, class, subclass, always all 5 levels. */
+  path: IndustryPathNode[];
+}
+
+/**
+ * All 999 gov-ts-tracked companies' symbol -> full classification path, added 2026-09-09 so a caller
+ * doesn't have to recursively crawl GET /industries/tree to build a symbol/keyword search index. Only
+ * TWSE-listed companies have data so far (TPEx/興櫃 pending on gov-ts's side) — same scope as
+ * GET /industries/tree, this is just a flattened view of the same tree.
+ */
+export interface IndustryFlatList {
+  companies: IndustryFlatCompany[];
+}

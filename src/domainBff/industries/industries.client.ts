@@ -1,7 +1,15 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
-import type { IndustryLevel, IndustryTree, IndustryTreeChild, IndustryTreeCompany } from "@/domainBff/industries/industries.types.js";
+import type {
+  IndustryFlatCompany,
+  IndustryFlatList,
+  IndustryLevel,
+  IndustryPathNode,
+  IndustryTree,
+  IndustryTreeChild,
+  IndustryTreeCompany,
+} from "@/domainBff/industries/industries.types.js";
 
 const VALID_LEVELS: IndustryLevel[] = ["section", "division", "group", "class", "subclass"];
 
@@ -59,4 +67,42 @@ export async function fetchIndustryTree(code?: string): Promise<IndustryTree> {
     children: Array.isArray(r.children) ? r.children.map(normalizeChild) : [],
     companies: Array.isArray(r.companies) ? r.companies.map(normalizeCompany) : [],
   };
+}
+
+function normalizePathNode(raw: unknown): IndustryPathNode {
+  const r = raw as Record<string, unknown>;
+  if (!isIndustryLevel(r.level)) {
+    throw new AppError(`Industry flat list path node has an unrecognized level: ${String(r.level)}`, 502);
+  }
+  return { code: String(r.code), level: r.level, name: String(r.name) };
+}
+
+function normalizeFlatCompany(raw: unknown): IndustryFlatCompany {
+  const r = raw as Record<string, unknown>;
+  return {
+    symbol: String(r.symbol),
+    companyName: String(r.companyName),
+    path: Array.isArray(r.path) ? r.path.map(normalizePathNode) : [],
+  };
+}
+
+/**
+ * Fetches the full symbol -> classification-path listing for all gov-ts-tracked companies from
+ * analysis-ts's GET /industries/flat — added 2026-09-09 so a caller building a symbol/keyword search index
+ * doesn't have to recursively crawl GET /industries/tree. No query params; reads their in-memory cache, no
+ * extra DB query on their side.
+ */
+export async function fetchIndustryFlatList(): Promise<IndustryFlatList> {
+  const url = buildAnalysisServiceUrl("/industries/flat");
+  const response = await fetchAnalysisService(url);
+  assertAnalysisServiceOk(response, url, "Industry flat list endpoint");
+
+  const body: unknown = await response.json();
+  const companies = (body as { companies?: unknown } | null)?.companies;
+  if (!Array.isArray(companies)) {
+    logger.error({ url: url.toString() }, "Industry flat list endpoint response is missing a companies array");
+    throw new AppError("Industry flat list endpoint response is missing a companies array", 502);
+  }
+
+  return { companies: companies.map(normalizeFlatCompany) };
 }
