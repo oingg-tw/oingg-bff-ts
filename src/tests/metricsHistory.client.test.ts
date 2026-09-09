@@ -162,6 +162,53 @@ describe("fetchMetricsHistory", () => {
     expect(result.entries[2]?.values.shareCountChangeRate?.value).toBe(0);
   });
 
+  // Regression (2026-09-10): the ACTUAL bug behind a second, reproducible 500 report (superficially the
+  // same "one metricCode has fewer backfilled periods" symptom as the incident above, but a genuinely
+  // different cause). Confirmed live against analysis-ts directly: a metricCode with no data at all for a
+  // period is the literal JSON `null` (not an object, and not simply absent from `values`) — e.g.
+  // fixedAssetTurnover backfilled only from 2024Q3 while assetTurnover in the same request went back to
+  // 2024Q2, so 2024Q2's fixedAssetTurnover entry was `null`. The old normalizeValue did
+  // `(raw as Record<string, unknown>).value`, which type-checks against `unknown` but throws
+  // "Cannot read properties of null" at runtime when raw is actually `null` — reproduced with
+  // limit >= 9 (the exact point earlier periods entered the page). Must preserve `null` as-is, not throw
+  // and not coerce it into a fake object with a fabricated knowledgeDate.
+  it("preserves a literal null value (not an object) for a metricCode with zero data in a period, without throwing", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        symbol: "2330",
+        metricCodes: ["assetTurnover", "fixedAssetTurnover"],
+        token: "TTM",
+        total: 23,
+        hasMore: true,
+        entries: [
+          {
+            fiscalYear: 2024,
+            fiscalQuarter: 2,
+            values: {
+              assetTurnover: { value: 0.41, nullReason: null, knowledgeDate: "2024-08-13", knowledgeDateIsFallback: false },
+              fixedAssetTurnover: null,
+            },
+          },
+          {
+            fiscalYear: 2024,
+            fiscalQuarter: 3,
+            values: {
+              assetTurnover: { value: 0.43, nullReason: null, knowledgeDate: "2024-11-12", knowledgeDateIsFallback: false },
+              fixedAssetTurnover: { value: 0.86, nullReason: null, knowledgeDate: "2024-11-12", knowledgeDateIsFallback: false },
+            },
+          },
+        ],
+      },
+    });
+
+    const result = await fetchMetricsHistory("2330", ["assetTurnover", "fixedAssetTurnover"], "TTM", 9);
+
+    expect(result.entries[0]?.values.fixedAssetTurnover).toBeNull();
+    expect(result.entries[0]?.values.assetTurnover?.value).toBe(0.41);
+    expect(result.entries[1]?.values.fixedAssetTurnover?.value).toBe(0.86);
+  });
+
   // analysis-ts validates each metricCode supports the given token itself (e.g. growth-decomposition
   // codes only allow "Q", not "TTM") and returns a 400 with a clear message — must be relayed as-is.
   it("relays analysis-ts's 400 message for a metricCode that doesn't support the given token", async () => {

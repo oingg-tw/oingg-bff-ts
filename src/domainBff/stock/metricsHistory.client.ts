@@ -3,7 +3,18 @@ import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService 
 import { logger } from "@/shared/logger.js";
 import type { MetricsHistoryEntry, MetricsHistoryResult, MetricsHistoryValue } from "@/domainBff/stock/metricsHistory.types.js";
 
-function normalizeValue(raw: unknown): MetricsHistoryValue {
+/**
+ * A metricCode's value in a period can be the literal `null` (not an object at all) when that metric has
+ * no backfilled data whatsoever for the period — confirmed live, 2026-09-10 (caused a 500 here before this
+ * fix: `raw as Record<string, unknown>` on a `null` value still type-checks, but `r.value` at runtime
+ * throws `TypeError: Cannot read properties of null`, since `raw` was never an object to begin with).
+ * Genuinely different from an object with `value: null` (computed, with a real nullReason/knowledgeDate) —
+ * preserved as `null` here rather than coerced into a fake object, so callers can tell the two apart.
+ */
+function normalizeValue(raw: unknown): MetricsHistoryValue | null {
+  if (raw === null || typeof raw !== "object") {
+    return null;
+  }
   const r = raw as Record<string, unknown>;
   return {
     value: typeof r.value === "number" ? r.value : null,
@@ -16,7 +27,7 @@ function normalizeValue(raw: unknown): MetricsHistoryValue {
 function normalizeEntry(raw: unknown): MetricsHistoryEntry {
   const r = raw as Record<string, unknown>;
   const rawValues = (r.values ?? {}) as Record<string, unknown>;
-  const values: Record<string, MetricsHistoryValue> = {};
+  const values: Record<string, MetricsHistoryValue | null> = {};
   for (const [metricCode, value] of Object.entries(rawValues)) {
     values[metricCode] = normalizeValue(value);
   }

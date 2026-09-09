@@ -8,8 +8,15 @@ export interface MetricsHistoryValue {
 export interface MetricsHistoryEntry {
   fiscalYear: number;
   fiscalQuarter: number;
-  /** Keyed by the requested metricCode — one entry per fiscal period, all requested metrics together. */
-  values: Record<string, MetricsHistoryValue>;
+  /**
+   * Keyed by the requested metricCode — one entry per fiscal period, all requested metrics together.
+   * A metricCode's entry here is the literal JSON `null` (not an object) when that metric has no
+   * backfilled data at all for this period — confirmed live, 2026-09-10, e.g. a metricCode backfilled
+   * starting from a later fiscal quarter than a sibling metricCode requested in the same call. This is
+   * distinct from an object with `value: null` (computed but genuinely null, with a `nullReason` and a
+   * real `knowledgeDate`) — don't conflate the two.
+   */
+  values: Record<string, MetricsHistoryValue | null>;
 }
 
 export interface MetricsHistoryResult {
