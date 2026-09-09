@@ -25,15 +25,18 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// Real shape given directly by analysis-ts after their 2026-09-08 basis-split rebuild: each metric also
-// carries allowedPeriodTypes/allowedLookbackRanges/allowedSamplingIntervals/allowedSnapshotCadences, but
-// this client deliberately only reads validTokens — those four arrays don't form a free cross product for
-// every metric (see filterCatalog.client.ts's docstring), so they're omitted from these fixtures too, to
-// keep the test honest about what's actually consumed.
-const RAW_CATEGORIES = [{ categoryKey: "profitability", metrics: [{ metricCode: "roe", validTokens: ["Q", "Q_ANN", "TTM"] }] }];
+// Real shape given directly by analysis-ts as of 2026-09-09: displayName/unit landed on every metric
+// (the four allowedXxx arrays that briefly accompanied validTokens on 2026-09-08 were removed once
+// analysis-ts confirmed this client never read them).
+const RAW_CATEGORIES = [
+  {
+    categoryKey: "profitability",
+    metrics: [{ metricCode: "roe", displayName: "股東權益報酬率 (ROE)", unit: "%", validTokens: ["Q", "Q_ANN", "TTM"] }],
+  },
+];
 
 describe("fetchFilterCatalog", () => {
-  it("requests /filters and converts validTokens into FilterCategory[] fields", async () => {
+  it("requests /filters and converts validTokens into FilterCategory[] fields, using displayName/unit for the metric", async () => {
     mockFetchOnce({ ok: true, body: { categories: RAW_CATEGORIES } });
 
     const result = await fetchFilterCatalog();
@@ -46,11 +49,11 @@ describe("fetchFilterCatalog", () => {
         metrics: [
           {
             key: "roe",
-            name: "roe",
+            name: "股東權益報酬率 (ROE)",
             path: "roe",
             description: null,
             source: null,
-            unit: null,
+            unit: "%",
             sort: 0,
             fields: [
               { key: "Q", name: "Q", period: "Q", description: null, source: null, unit: null, sort: 0 },
@@ -65,12 +68,12 @@ describe("fetchFilterCatalog", () => {
     expect(calledUrl.toString()).toBe("http://filters.test/filters");
   });
 
-  // Regression: beta's allowedLookbackRanges (1Y/2Y/5Y) x allowedSamplingIntervals (1D/1W/1M) looks like a
-  // 3x3=9 cross product, but only 3 pairings actually have data (1Y_1D/2Y_1W/5Y_1M) — the other 6 return
-  // empty results, not a 400. Caught this live before analysis-ts added validTokens as the one
-  // authoritative list; this test guards against ever going back to deriving fields from the raw
-  // allowedXxx arrays instead.
-  it("does not attempt to derive fields from allowedLookbackRanges/allowedSamplingIntervals even if present", async () => {
+  // Regression: beta's lookbackRange (1Y/2Y/5Y) x samplingInterval (1D/1W/1M) looked like a 3x3 cross
+  // product when analysis-ts briefly exposed those raw arrays (2026-09-08), but only 3 pairings actually
+  // have data (1Y_1D/2Y_1W/5Y_1M) — the other 6 returned empty results, not a 400. Caught this live before
+  // analysis-ts added validTokens as the one authoritative list; this test guards against ever deriving
+  // fields from anything other than validTokens, even if a future response includes extra sibling fields.
+  it("ignores unrelated extra fields on a metric and only ever derives fields from validTokens", async () => {
     mockFetchOnce({
       ok: true,
       body: {
@@ -80,10 +83,10 @@ describe("fetchFilterCatalog", () => {
             metrics: [
               {
                 metricCode: "beta",
-                allowedPeriodTypes: ["N/A"],
+                displayName: "貝塔係數",
+                unit: "",
                 allowedLookbackRanges: ["1Y", "2Y", "5Y"],
                 allowedSamplingIntervals: ["1D", "1W", "1M"],
-                allowedSnapshotCadences: ["N/A"],
                 validTokens: ["1Y_1D", "2Y_1W", "5Y_1M"],
               },
             ],
@@ -125,7 +128,19 @@ describe("fetchFilterCatalog", () => {
   });
 
   it("throws a 502 AppError when a metric is missing metricCode or validTokens", async () => {
-    mockFetchOnce({ ok: true, body: { categories: [{ categoryKey: "profitability", metrics: [{ metricCode: "roe" }] }] } });
+    mockFetchOnce({
+      ok: true,
+      body: { categories: [{ categoryKey: "profitability", metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%" }] }] },
+    });
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when a metric is missing displayName or unit", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { categories: [{ categoryKey: "profitability", metrics: [{ metricCode: "roe", validTokens: ["TTM"] }] }] },
+    });
 
     await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
@@ -133,7 +148,11 @@ describe("fetchFilterCatalog", () => {
   it("handles an empty validTokens array (zero queryable fields for that metric)", async () => {
     mockFetchOnce({
       ok: true,
-      body: { categories: [{ categoryKey: "profitability", metrics: [{ metricCode: "roe", validTokens: [] }] }] },
+      body: {
+        categories: [
+          { categoryKey: "profitability", metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: [] }] },
+        ],
+      },
     });
 
     const result = await fetchFilterCatalog();
