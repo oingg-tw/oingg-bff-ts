@@ -9,6 +9,10 @@ import type {
   IndustryTree,
   IndustryTreeChild,
   IndustryTreeCompany,
+  ValueChainMarket,
+  ValueChainTree,
+  ValueChainTreeChild,
+  ValueChainTreeCompany,
 } from "@/domainBff/industries/industries.types.js";
 
 const VALID_LEVELS: IndustryLevel[] = ["section", "division", "group", "class", "subclass"];
@@ -105,4 +109,59 @@ export async function fetchIndustryFlatList(): Promise<IndustryFlatList> {
   }
 
   return { companies: companies.map(normalizeFlatCompany) };
+}
+
+const VALID_VALUE_CHAIN_LEVELS = ["industry", "subChain"];
+const VALID_MARKETS = ["listed", "otc", "rotc"];
+
+function isValueChainLevel(value: unknown): value is "industry" | "subChain" {
+  return typeof value === "string" && VALID_VALUE_CHAIN_LEVELS.includes(value);
+}
+
+function isValueChainMarket(value: unknown): value is ValueChainMarket {
+  return typeof value === "string" && VALID_MARKETS.includes(value);
+}
+
+function normalizeValueChainChild(raw: unknown): ValueChainTreeChild {
+  const r = raw as Record<string, unknown>;
+  return { code: String(r.code), name: String(r.name), companyCount: Number(r.companyCount) };
+}
+
+function normalizeValueChainCompany(raw: unknown): ValueChainTreeCompany {
+  const r = raw as Record<string, unknown>;
+  if (!isValueChainMarket(r.market)) {
+    throw new AppError(`Industry value-chain company has an unrecognized market: ${String(r.market)}`, 502);
+  }
+  return { symbol: String(r.symbol), companyName: String(r.companyName), market: r.market };
+}
+
+/**
+ * Fetches a node of TPEx's 產業價值鏈 (industry value-chain) classification from analysis-ts's
+ * GET /industries/value-chain?code= — a completely separate system from fetchIndustryTree's gov-ts
+ * tax-registration tree (see ValueChainTree's docstring for the differences: 2 levels not 5, many-to-many
+ * not single-classification, all 3 market tiers not TWSE-only). Omitting `code` returns the root (47
+ * top-level industries). `code` is globally unique across both levels, same as the tax-registration tree.
+ */
+export async function fetchValueChainTree(code?: string): Promise<ValueChainTree> {
+  const url = buildAnalysisServiceUrl("/industries/value-chain", code !== undefined ? { code } : undefined);
+  const response = await fetchAnalysisService(url);
+  assertAnalysisServiceOk(response, url, "Industry value-chain endpoint");
+
+  const body: unknown = await response.json();
+  if (typeof body !== "object" || body === null || typeof (body as { found?: unknown }).found !== "boolean") {
+    logger.error({ url: url.toString() }, "Industry value-chain endpoint response is missing a boolean found field");
+    throw new AppError("Industry value-chain endpoint response is missing a boolean found field", 502);
+  }
+
+  const r = body as Record<string, unknown>;
+  const level = isValueChainLevel(r.level) ? r.level : null;
+  return {
+    found: r.found as boolean,
+    code: r.code === null || r.code === undefined ? null : String(r.code),
+    level,
+    name: r.name === null || r.name === undefined ? null : String(r.name),
+    children: Array.isArray(r.children) ? r.children.map(normalizeValueChainChild) : [],
+    companies: Array.isArray(r.companies) ? r.companies.map(normalizeValueChainCompany) : [],
+    dataSource: String(r.dataSource ?? ""),
+  };
 }

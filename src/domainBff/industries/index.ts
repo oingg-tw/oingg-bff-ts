@@ -1,5 +1,5 @@
 export { industriesRouter } from "@/domainBff/industries/industries.routes.js";
-export { getIndustryFlatList, getIndustryTree } from "@/domainBff/industries/industries.service.js";
+export { getIndustryFlatList, getIndustryTree, getValueChainTree } from "@/domainBff/industries/industries.service.js";
 export type {
   IndustryFlatCompany,
   IndustryFlatList,
@@ -8,4 +8,9 @@ export type {
   IndustryTree,
   IndustryTreeChild,
   IndustryTreeCompany,
+  ValueChainLevel,
+  ValueChainMarket,
+  ValueChainTree,
+  ValueChainTreeChild,
+  ValueChainTreeCompany,
 } from "@/domainBff/industries/industries.types.js";

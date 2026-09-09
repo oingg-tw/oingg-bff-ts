@@ -59,3 +59,42 @@ export interface IndustryFlatCompany {
 export interface IndustryFlatList {
   companies: IndustryFlatCompany[];
 }
+
+export type ValueChainLevel = "industry" | "subChain";
+
+export interface ValueChainTreeChild {
+  code: string;
+  name: string;
+  companyCount: number;
+}
+
+export type ValueChainMarket = "listed" | "otc" | "rotc";
+
+export interface ValueChainTreeCompany {
+  symbol: string;
+  companyName: string;
+  market: ValueChainMarket;
+}
+
+/**
+ * TPEx's 產業價值鏈 (industry value-chain) classification, from GET /industries/value-chain, added
+ * 2026-09-09 — a completely separate system from IndustryTree's gov-ts tax-registration tree, do not
+ * conflate or merge them. Only 2 levels (industry -> subChain, 47 -> 422), and a company can belong to
+ * MULTIPLE subChains (confirmed live, e.g. 台達電 maps to 64 subChains) — unlike IndustryTree's
+ * single-classification-per-company model. `companies` is only ever populated when querying a subChain
+ * code directly; there is no reverse (company -> its subChains) lookup on analysis-ts's side — a `symbol`
+ * query param is silently ignored, confirmed live. Covers all three market tiers (上市/上櫃/興櫃, 6481 total
+ * company-subChain relationships) via the `market` field, unlike IndustryTree's TWSE-listed-only scope.
+ * No `companyCount` at the root/industry level itself (only inside each `children` entry) — unlike
+ * IndustryTree, which aggregates companyCount at every level.
+ */
+export interface ValueChainTree {
+  found: boolean;
+  code: string | null;
+  level: ValueChainLevel | null;
+  name: string | null;
+  children: ValueChainTreeChild[];
+  companies: ValueChainTreeCompany[];
+  /** Always "https://ic.tpex.org.tw" — the public TPEx source site, not an internal table name. */
+  dataSource: string;
+}
