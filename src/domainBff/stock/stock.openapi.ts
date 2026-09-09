@@ -2,6 +2,7 @@ import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
 import {
   dupontHistoryQuerySchema,
+  exDividendCalendarQuerySchema,
   financialStatementQuerySchema,
   foreignShareholdingHistoryQuerySchema,
   metricHistoryQuerySchema,
@@ -406,6 +407,35 @@ registry.registerPath({
       },
     },
     400: errorResponse("缺少 symbols 參數，或超過 100 檔。"),
+    502: unauthorized502,
+  },
+});
+
+const exDividendCalendarEntrySchema = exDividendNoticeEntrySchema.extend({
+  symbol: z.string(),
+  companyName: z.string().nullable(),
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/ex-dividend-calendar",
+  summary: "查詢整月全市場的除息/除權事件（股利行事曆用，不限單一代號）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /stocks/ex-dividend-calendar（2026-09-10 新增）。跟 ex-dividend-notices 的差別：這支是攤平的全市場清單（一次回傳整個月所有代號的事件，不用先知道代號），不是照代號分組，也沒有「只顯示未來事件」的過濾——查歷史月份或未來月份都會照實回傳當月真實發生（或已排定）的事件。month 格式必須是 \"YYYY-MM\"（例如 \"2026-09\"），格式錯誤或缺少會 400。每筆 entry 除了跟 ex-dividend-notices 一樣的欄位（exDate/exType/stockDividendRatio 等）外，多了 symbol 跟 companyName——companyName 可能是 null（ETF 不在 analysis-ts 的公司名稱對照表裡，例如 00939/00984D）。查無資料的月份（例如太久遠或太未來）回傳空陣列，不是錯誤。",
+  tags: ["Stock"],
+  request: {
+    query: exDividendCalendarQuerySchema.openapi("ExDividendCalendarQuery", { example: { month: "2026-09" } }),
+  },
+  responses: {
+    200: {
+      description: "整月全市場除權息事件清單，查無資料時 entries 為空陣列。",
+      content: {
+        "application/json": {
+          schema: z.object({ entries: z.array(exDividendCalendarEntrySchema) }).openapi("ExDividendCalendar"),
+        },
+      },
+    },
+    400: errorResponse('缺少 month 參數，或格式不是 "YYYY-MM"。'),
     502: unauthorized502,
   },
 });

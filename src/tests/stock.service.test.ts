@@ -17,6 +17,10 @@ vi.mock("@/domainBff/stock/exDividendNotices.client.js", () => ({
   fetchExDividendNotices: vi.fn(),
 }));
 
+vi.mock("@/domainBff/stock/exDividendCalendar.client.js", () => ({
+  fetchExDividendCalendar: vi.fn(),
+}));
+
 vi.mock("@/domainBff/stock/financialStatement.client.js", () => ({
   fetchFinancialStatement: vi.fn(),
 }));
@@ -57,6 +61,7 @@ vi.mock("@/domainBff/stock/foreignShareholdingHistory.client.js", () => ({
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
 import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
 import { fetchDupontHistory } from "@/domainBff/stock/dupontHistory.client.js";
+import { fetchExDividendCalendar } from "@/domainBff/stock/exDividendCalendar.client.js";
 import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.client.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
 import { fetchForeignShareholdingHistory } from "@/domainBff/stock/foreignShareholdingHistory.client.js";
@@ -72,6 +77,7 @@ import {
   getCapitalStockHistory,
   getCompanyProfile,
   getDupontHistory,
+  getExDividendCalendar,
   getExDividendNotices,
   getFinancialStatement,
   getForeignShareholdingHistory,
@@ -92,6 +98,7 @@ beforeEach(() => {
   vi.mocked(fetchCompanyProfile).mockReset();
   vi.mocked(fetchCapitalStockHistory).mockReset();
   vi.mocked(fetchExDividendNotices).mockReset();
+  vi.mocked(fetchExDividendCalendar).mockReset();
   vi.mocked(fetchFinancialStatement).mockReset();
   vi.mocked(fetchPreferredStocks).mockReset();
   vi.mocked(fetchPreferredStockFieldCatalog).mockReset();
@@ -180,6 +187,16 @@ describe("getExDividendNotices", () => {
 
     await expect(getExDividendNotices(["2330", "00939"])).resolves.toBe(notices);
     expect(fetchExDividendNotices).toHaveBeenCalledWith(["2330", "00939"]);
+  });
+});
+
+describe("getExDividendCalendar", () => {
+  it("delegates to fetchExDividendCalendar and returns its result as-is", async () => {
+    const result = { entries: [] };
+    vi.mocked(fetchExDividendCalendar).mockResolvedValue(result);
+
+    await expect(getExDividendCalendar("2026-09")).resolves.toBe(result);
+    expect(fetchExDividendCalendar).toHaveBeenCalledWith("2026-09");
   });
 });
 

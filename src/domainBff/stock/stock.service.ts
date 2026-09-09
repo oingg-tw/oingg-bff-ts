@@ -3,6 +3,8 @@ import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.
 import type { CapitalStockHistoryResult } from "@/domainBff/stock/capitalStockHistory.types.js";
 import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
 import type { CompanyProfile } from "@/domainBff/stock/companyProfile.types.js";
+import { fetchExDividendCalendar } from "@/domainBff/stock/exDividendCalendar.client.js";
+import type { ExDividendCalendarResult } from "@/domainBff/stock/exDividendCalendar.types.js";
 import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.client.js";
 import type { ExDividendNoticeEntry } from "@/domainBff/stock/exDividendNotices.types.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
@@ -71,6 +73,11 @@ export async function getCapitalStockHistory(symbol: string): Promise<CapitalSto
 /** Batched upcoming ex-dividend/ex-rights lookup — GET /stocks/ex-dividend-notices. */
 export async function getExDividendNotices(symbols: string[]): Promise<Map<string, ExDividendNoticeEntry[]>> {
   return fetchExDividendNotices(symbols);
+}
+
+/** Market-wide ex-dividend/ex-rights calendar for one month — GET /stocks/ex-dividend-calendar. */
+export async function getExDividendCalendar(month: string): Promise<ExDividendCalendarResult> {
+  return fetchExDividendCalendar(month);
 }
 
 /** One quarter's raw financial statement (for 會計模式) — GET /stocks/:symbol/financial-statement. */

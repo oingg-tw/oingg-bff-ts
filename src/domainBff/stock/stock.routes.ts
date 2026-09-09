@@ -6,6 +6,7 @@ import {
   getCapitalStockHistory,
   getCompanyProfile,
   getDupontHistory,
+  getExDividendCalendar,
   getExDividendNotices,
   getFinancialStatement,
   getForeignShareholdingHistory,
@@ -56,6 +57,21 @@ stockRouter.get("/ex-dividend-notices", async (req, res) => {
   }
   const notices = await getExDividendNotices(symbols);
   res.json({ notices: Object.fromEntries(notices) });
+});
+
+const YYYY_MM_PATTERN = /^\d{4}-\d{2}$/;
+
+export const exDividendCalendarQuerySchema = z.object({
+  month: z
+    .string({ error: '"month" is required' })
+    .regex(YYYY_MM_PATTERN, { error: '"month" must be in "YYYY-MM" format, e.g. "2026-09"' }),
+});
+
+// Mounted before the "/:symbol" catch-all below, or "ex-dividend-calendar" would be captured as a symbol.
+stockRouter.get("/ex-dividend-calendar", async (req, res) => {
+  const query = parseBody(exDividendCalendarQuerySchema, req.query);
+  const result = await getExDividendCalendar(query.month);
+  res.json(result);
 });
 
 export const preferredStocksQuerySchema = z.object({
