@@ -58,7 +58,12 @@ vi.mock("@/domainBff/stock/foreignShareholdingHistory.client.js", () => ({
   fetchForeignShareholdingHistory: vi.fn(),
 }));
 
+vi.mock("@/domainBff/stock/dailyPriceHistory.client.js", () => ({
+  fetchDailyPriceHistory: vi.fn(),
+}));
+
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
+import { fetchDailyPriceHistory } from "@/domainBff/stock/dailyPriceHistory.client.js";
 import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
 import { fetchDupontHistory } from "@/domainBff/stock/dupontHistory.client.js";
 import { fetchExDividendCalendar } from "@/domainBff/stock/exDividendCalendar.client.js";
@@ -80,6 +85,7 @@ import {
   getExDividendCalendar,
   getExDividendNotices,
   getFinancialStatement,
+  getDailyPriceHistory,
   getForeignShareholdingHistory,
   getLatestClosePrices,
   getMetricHistory,
@@ -109,6 +115,7 @@ beforeEach(() => {
   vi.mocked(fetchDupontHistory).mockReset();
   vi.mocked(fetchMonthlyRevenueHistory).mockReset();
   vi.mocked(fetchForeignShareholdingHistory).mockReset();
+  vi.mocked(fetchDailyPriceHistory).mockReset();
 });
 
 describe("getStockQuote", () => {
@@ -372,5 +379,23 @@ describe("getForeignShareholdingHistory", () => {
     await getForeignShareholdingHistory("2330");
 
     expect(fetchForeignShareholdingHistory).toHaveBeenCalledWith("2330", undefined);
+  });
+});
+
+describe("getDailyPriceHistory", () => {
+  it("delegates to fetchDailyPriceHistory and returns its result as-is", async () => {
+    const result = { symbol: "2330", entries: [] } as never;
+    vi.mocked(fetchDailyPriceHistory).mockResolvedValue(result);
+
+    await expect(getDailyPriceHistory("2330", 500)).resolves.toEqual(result);
+    expect(fetchDailyPriceHistory).toHaveBeenCalledWith("2330", 500);
+  });
+
+  it("forwards undefined limit through when omitted (analysis-ts defaults to 250)", async () => {
+    vi.mocked(fetchDailyPriceHistory).mockResolvedValue({ symbol: "2330", entries: [] });
+
+    await getDailyPriceHistory("2330");
+
+    expect(fetchDailyPriceHistory).toHaveBeenCalledWith("2330", undefined);
   });
 });

@@ -9,6 +9,8 @@ import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.clie
 import type { ExDividendNoticeEntry } from "@/domainBff/stock/exDividendNotices.types.js";
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
 import type { FinancialStatementResult, FinancialStatementType } from "@/domainBff/stock/financialStatement.types.js";
+import { fetchDailyPriceHistory } from "@/domainBff/stock/dailyPriceHistory.client.js";
+import type { DailyPriceHistoryResult } from "@/domainBff/stock/dailyPriceHistory.types.js";
 import { fetchForeignShareholdingHistory } from "@/domainBff/stock/foreignShareholdingHistory.client.js";
 import type { ForeignShareholdingHistoryResult } from "@/domainBff/stock/foreignShareholdingHistory.types.js";
 import { fetchDupontHistory } from "@/domainBff/stock/dupontHistory.client.js";
@@ -155,4 +157,9 @@ export async function getMonthlyRevenueHistory(symbol: string, limit?: number): 
 /** Daily foreign-shareholding-percentage history — GET /stocks/:symbol/foreign-shareholding-history. */
 export async function getForeignShareholdingHistory(symbol: string, limit?: number): Promise<ForeignShareholdingHistoryResult> {
   return fetchForeignShareholdingHistory(symbol, limit);
+}
+
+/** Daily OHLCV price history — GET /stocks/:symbol/daily-price-history. */
+export async function getDailyPriceHistory(symbol: string, limit?: number): Promise<DailyPriceHistoryResult> {
+  return fetchDailyPriceHistory(symbol, limit);
 }

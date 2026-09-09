@@ -4,6 +4,7 @@ import {
   dupontHistoryQuerySchema,
   exDividendCalendarQuerySchema,
   financialStatementQuerySchema,
+  dailyPriceHistoryQuerySchema,
   foreignShareholdingHistoryQuerySchema,
   metricHistoryQuerySchema,
   metricsHistoryQuerySchema,
@@ -819,6 +820,51 @@ registry.registerPath({
       content: { "application/json": { schema: foreignShareholdingHistorySchema } },
     },
     400: errorResponse("limit 超出 1-1500 範圍。"),
+    502: unauthorized502,
+  },
+});
+
+const dailyPriceHistoryEntrySchema = z.object({
+  tradeDate: z.string(),
+  open: z.number(),
+  high: z.number(),
+  low: z.number(),
+  close: z.number(),
+  volume: z.number(),
+});
+
+const dailyPriceHistorySchema = z
+  .object({
+    symbol: z.string(),
+    entries: z.array(dailyPriceHistoryEntrySchema),
+  })
+  .openapi("DailyPriceHistory", {
+    example: {
+      symbol: "2330",
+      entries: [
+        { tradeDate: "2026-09-07", open: 2435, high: 2460, low: 2430, close: 2460, volume: 26898329 },
+        { tradeDate: "2026-09-08", open: 2465, high: 2505, low: 2460, close: 2470, volume: 28931697 },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/daily-price-history",
+  summary: "查詢每日 OHLCV 股價歷史（股價走勢圖用）",
+  description:
+    "資料來自 oingg-analysis-ts 自己的 GET /stocks/:symbol/daily-price-history（2026-09-10 新增，跟 foreign-shareholding-history 同樣是 /stocks/:symbol/... 路徑形狀，不是 /companies/xxx-history?symbol=）。entries 是「舊到新」排序——注意跟 foreign-shareholding-history 的「新到舊」相反，不要因為路徑慣例相同就假設排序也相同。limit 是 1-2000，不給 limit 預設只回 250 筆，不是全部（實測 2330 不給 limit 回溯到 2025-08-28，共 250 筆）。這支端點沒有 total/hasMore 欄位，跟 foreign-shareholding-history 一樣。查無資料（代號不存在）回傳空陣列，不是 404。",
+  tags: ["Stock"],
+  request: {
+    params: symbolParam,
+    query: dailyPriceHistoryQuerySchema.openapi("DailyPriceHistoryQuery", { example: { limit: 250 } }),
+  },
+  responses: {
+    200: {
+      description: "每日 OHLCV 股價歷史，查無資料時 entries 為空陣列。",
+      content: { "application/json": { schema: dailyPriceHistorySchema } },
+    },
+    400: errorResponse("limit 超出 1-2000 範圍。"),
     502: unauthorized502,
   },
 });

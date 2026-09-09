@@ -3,6 +3,7 @@ export {
   assertSymbolExists,
   getCapitalStockHistory,
   getCompanyProfile,
+  getDailyPriceHistory,
   getDupontHistory,
   getExDividendCalendar,
   getExDividendNotices,
@@ -33,6 +34,7 @@ export type {
   ForeignShareholdingHistoryEntry,
   ForeignShareholdingHistoryResult,
 } from "@/domainBff/stock/foreignShareholdingHistory.types.js";
+export type { DailyPriceHistoryEntry, DailyPriceHistoryResult } from "@/domainBff/stock/dailyPriceHistory.types.js";
 export type { PreferredStockEntry, PreferredStocksResult } from "@/domainBff/stock/preferredStocks.types.js";
 export type {
   PreferredStockFieldCatalogEntry,

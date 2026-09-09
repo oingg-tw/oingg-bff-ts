@@ -5,6 +5,7 @@ import { parseBody } from "@/shared/validation.js";
 import {
   getCapitalStockHistory,
   getCompanyProfile,
+  getDailyPriceHistory,
   getDupontHistory,
   getExDividendCalendar,
   getExDividendNotices,
@@ -231,5 +232,17 @@ stockRouter.get("/:symbol/foreign-shareholding-history", async (req, res) => {
   const { symbol } = req.params;
   const query = parseBody(foreignShareholdingHistoryQuerySchema, req.query);
   const history = await getForeignShareholdingHistory(symbol, query.limit);
+  res.json(history);
+});
+
+// analysis-ts's own bound for this endpoint is 1-2000 (confirmed live, 2026-09-10).
+export const dailyPriceHistoryQuerySchema = z.object({
+  limit: limitSchema(1, 2000),
+});
+
+stockRouter.get("/:symbol/daily-price-history", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(dailyPriceHistoryQuerySchema, req.query);
+  const history = await getDailyPriceHistory(symbol, query.limit);
   res.json(history);
 });
