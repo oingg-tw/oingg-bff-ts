@@ -71,6 +71,11 @@ model FilterMetric {
   /// Display unit for this metric's values (e.g. "percent", "currency", "times", "ratio") — a field's own
   /// unit (below) overrides this when set, same fallback convention as description/source.
   unit        String?
+  /// LaTeX source for this metric's formula, read-only display only (e.g. KaTeX/mathlive) — never for
+  /// actual computation (analysis-ts's real figures are bigint-precise, LaTeX compute engines are float-
+  /// based). Nullable — analysis-ts only documents a formula for a handful of metrics as of 2026-09-10
+  /// (pilot rollout), absent entirely from their /filters response for the rest, not an empty string.
+  formulaLatex String?             @map("formula_latex")
   position    Int
   category    FilterCategory      @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
   fields      FilterMetricField[]

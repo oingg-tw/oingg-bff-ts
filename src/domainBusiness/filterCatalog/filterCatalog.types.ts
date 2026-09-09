@@ -26,6 +26,16 @@ export interface FilterMetric {
   source?: string | null;
   /** Metric-level display unit — the default for every field under it, unless a field overrides it (see FilterField.unit). */
   unit?: string | null;
+  /**
+   * LaTeX source for this metric's formula, meant for read-only rendering (e.g. KaTeX/mathlive
+   * `<math-field readonly>`) so the frontend never re-derives or hand-copies a formula that could drift
+   * from analysis-ts's own definition. Null when analysis-ts hasn't documented a formula for this metric
+   * yet — as of 2026-09-10 (pilot rollout) this is true for all but 4 metrics (roe/peRatio/sue/
+   * chowderNumber), and the field is entirely absent from analysis-ts's response for those, not sent as
+   * an empty string. NOT meant to be evaluated for actual computation (analysis-ts's own note: their real
+   * figures are bigint-precise, a LaTeX compute-engine would be float-based) — display only.
+   */
+  formulaLatex?: string | null;
   /** Display order among sibling metrics under the same category (0-based) — see FilterField.sort. */
   sort: number;
   fields: FilterField[];

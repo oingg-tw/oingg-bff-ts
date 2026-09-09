@@ -8,6 +8,8 @@ interface RawPitMetric {
   displayName: string;
   unit: string;
   validTokens: string[];
+  /** Absent entirely (not an empty string) for metrics without a documented formula yet — pilot rollout, 2026-09-10. */
+  formulaLatex?: string;
 }
 
 interface RawPitCategory {
@@ -34,7 +36,8 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
             typeof (m as RawPitMetric).displayName === "string" &&
             typeof (m as RawPitMetric).unit === "string" &&
             Array.isArray((m as RawPitMetric).validTokens) &&
-            (m as RawPitMetric).validTokens.every((t) => typeof t === "string"),
+            (m as RawPitMetric).validTokens.every((t) => typeof t === "string") &&
+            ((m as RawPitMetric).formulaLatex === undefined || typeof (m as RawPitMetric).formulaLatex === "string"),
         ),
     )
   );
@@ -59,6 +62,12 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
  * categoryKey "dividend") landed on all 7 categories the same day, added here shortly after — used for the
  * category-level name. Individual tokens still have no display name of their own (no per-token label
  * distinct from the token string) — `key`/`name` for those stay placeholder-filled with the raw token.
+ *
+ * `formulaLatex` (LaTeX source, meant for read-only rendering — analysis-ts's own note: NOT for actual
+ * recomputation, their real figures are bigint-precise and a LaTeX compute engine would be float-based)
+ * started rolling out 2026-09-10, pilot on 4 metrics (roe/peRatio/sue/chowderNumber) — absent entirely
+ * (not an empty string) on every other metric until analysis-ts documents more. Passed through as `null`
+ * when absent, same "not yet provided" convention as description/source elsewhere in this type.
  */
 function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
   return raw.map((category, categoryIndex) => ({
@@ -72,6 +81,7 @@ function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
       description: null,
       source: null,
       unit: metric.unit,
+      formulaLatex: metric.formulaLatex ?? null,
       sort: metricIndex,
       fields: metric.validTokens.map((token, tokenIndex) => ({
         key: token,

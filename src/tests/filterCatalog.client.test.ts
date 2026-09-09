@@ -56,6 +56,7 @@ describe("fetchFilterCatalog", () => {
             description: null,
             source: null,
             unit: "%",
+            formulaLatex: null,
             sort: 0,
             fields: [
               { key: "Q", name: "Q", period: "Q", description: null, source: null, unit: null, sort: 0 },
@@ -157,6 +158,54 @@ describe("fetchFilterCatalog", () => {
       ok: true,
       body: {
         categories: [{ categoryKey: "profitability", categoryDisplayName: "獲利能力", metrics: [{ metricCode: "roe", validTokens: ["TTM"] }] }],
+      },
+    });
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  // formulaLatex pilot (2026-09-10): absent entirely (not an empty string) on metrics analysis-ts hasn't
+  // documented yet — must resolve to null, not throw and not be required.
+  it("passes through formulaLatex when present, and defaults to null when absent", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              {
+                metricCode: "roe",
+                displayName: "股東權益報酬率 (ROE)",
+                unit: "%",
+                validTokens: ["TTM"],
+                formulaLatex: "\\mathrm{ROE} = \\frac{\\mathrm{NetIncome}}{\\mathrm{Equity}} \\times 100",
+              },
+              { metricCode: "roa", displayName: "資產報酬率 (ROA)", unit: "%", validTokens: ["TTM"] },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchFilterCatalog();
+
+    expect(result[0]?.metrics[0]?.formulaLatex).toBe("\\mathrm{ROE} = \\frac{\\mathrm{NetIncome}}{\\mathrm{Equity}} \\times 100");
+    expect(result[0]?.metrics[1]?.formulaLatex).toBeNull();
+  });
+
+  it("throws a 502 AppError when formulaLatex is present but not a string", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: ["TTM"], formulaLatex: 123 }],
+          },
+        ],
       },
     });
 
