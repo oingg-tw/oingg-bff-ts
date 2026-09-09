@@ -9,6 +9,7 @@ export {
   getForeignShareholdingHistory,
   getLatestClosePrices,
   getMetricHistory,
+  getMetricsHistory,
   getMonthlyRevenueHistory,
   getPreferredStockFieldCatalog,
   getPreferredStocks,
@@ -42,6 +43,11 @@ export type {
   MetricHistoryResult,
 } from "@/domainBff/stock/metricHistory.types.js";
 export type { FlatHistoryEntry } from "@/domainBff/stock/metricHistoryShared.js";
+export type {
+  MetricsHistoryEntry,
+  MetricsHistoryResult,
+  MetricsHistoryValue,
+} from "@/domainBff/stock/metricsHistory.types.js";
 export type { RoaHistoryResult, RoeHistoryResult, RoeRoaHistoryBasis } from "@/domainBff/stock/roeRoaHistory.types.js";
 export type {
   DupontHistoryBasis,

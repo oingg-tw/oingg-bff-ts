@@ -33,6 +33,10 @@ vi.mock("@/domainBff/stock/metricHistory.client.js", () => ({
   fetchMetricHistory: vi.fn(),
 }));
 
+vi.mock("@/domainBff/stock/metricsHistory.client.js", () => ({
+  fetchMetricsHistory: vi.fn(),
+}));
+
 vi.mock("@/domainBff/stock/roeRoaHistory.client.js", () => ({
   fetchRoeHistory: vi.fn(),
   fetchRoaHistory: vi.fn(),
@@ -57,6 +61,7 @@ import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.clie
 import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
 import { fetchForeignShareholdingHistory } from "@/domainBff/stock/foreignShareholdingHistory.client.js";
 import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
+import { fetchMetricsHistory } from "@/domainBff/stock/metricsHistory.client.js";
 import { fetchMonthlyRevenueHistory } from "@/domainBff/stock/monthlyRevenueHistory.client.js";
 import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
 import { fetchPreferredStockFieldCatalog } from "@/domainBff/stock/preferredStocksFieldCatalog.client.js";
@@ -72,6 +77,7 @@ import {
   getForeignShareholdingHistory,
   getLatestClosePrices,
   getMetricHistory,
+  getMetricsHistory,
   getMonthlyRevenueHistory,
   getPreferredStockFieldCatalog,
   getPreferredStocks,
@@ -90,6 +96,7 @@ beforeEach(() => {
   vi.mocked(fetchPreferredStocks).mockReset();
   vi.mocked(fetchPreferredStockFieldCatalog).mockReset();
   vi.mocked(fetchMetricHistory).mockReset();
+  vi.mocked(fetchMetricsHistory).mockReset();
   vi.mocked(fetchRoeHistory).mockReset();
   vi.mocked(fetchRoaHistory).mockReset();
   vi.mocked(fetchDupontHistory).mockReset();
@@ -257,6 +264,31 @@ describe("getMetricHistory", () => {
     await getMetricHistory("2330", "eps", "Q");
 
     expect(fetchMetricHistory).toHaveBeenCalledWith("2330", "eps", "Q", undefined);
+  });
+});
+
+describe("getMetricsHistory", () => {
+  it("delegates to fetchMetricsHistory and returns its result as-is", async () => {
+    const result = { symbol: "2330", metricCodes: ["roe"], token: "TTM", total: 0, hasMore: false, entries: [] } as never;
+    vi.mocked(fetchMetricsHistory).mockResolvedValue(result);
+
+    await expect(getMetricsHistory("2330", ["roe"], "TTM", 5)).resolves.toEqual(result);
+    expect(fetchMetricsHistory).toHaveBeenCalledWith("2330", ["roe"], "TTM", 5);
+  });
+
+  it("forwards undefined limit through when omitted (analysis-ts applies its own default)", async () => {
+    vi.mocked(fetchMetricsHistory).mockResolvedValue({
+      symbol: "2330",
+      metricCodes: ["netIncomeGrowthRate", "epsGrowthRate"],
+      token: "Q",
+      total: 0,
+      hasMore: false,
+      entries: [],
+    });
+
+    await getMetricsHistory("2330", ["netIncomeGrowthRate", "epsGrowthRate"], "Q");
+
+    expect(fetchMetricsHistory).toHaveBeenCalledWith("2330", ["netIncomeGrowthRate", "epsGrowthRate"], "Q", undefined);
   });
 });
 

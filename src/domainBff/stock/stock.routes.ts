@@ -10,6 +10,7 @@ import {
   getFinancialStatement,
   getForeignShareholdingHistory,
   getMetricHistory,
+  getMetricsHistory,
   getMonthlyRevenueHistory,
   getPreferredStockFieldCatalog,
   getPreferredStocks,
@@ -130,6 +131,33 @@ stockRouter.get("/:symbol/metric-history", async (req, res) => {
   const { symbol } = req.params;
   const query = parseBody(metricHistoryQuerySchema, req.query);
   const history = await getMetricHistory(symbol, query.metricCode, query.basis, query.limit);
+  res.json(history);
+});
+
+// `basis` isn't a fixed enum here (unlike metricHistoryQuerySchema) — analysis-ts's own valid values for
+// this token differ per metricCode combination (e.g. growth-decomposition codes only allow "Q", not
+// "TTM") and are re-validated against GET /filters' per-metricCode validTokens; a local enum here would
+// either be too narrow (rejecting valid combinations) or too permissive to be useful.
+export const metricsHistoryQuerySchema = z.object({
+  metricCodes: z
+    .string({ error: '"metricCodes" must be a comma-separated list of metric codes' })
+    .trim()
+    .min(1, '"metricCodes" must be a non-empty comma-separated list')
+    .transform((value) =>
+      value
+        .split(",")
+        .map((code) => code.trim())
+        .filter(Boolean),
+    )
+    .refine((codes) => codes.length > 0, { error: '"metricCodes" must be a non-empty comma-separated list' }),
+  basis: z.string({ error: '"basis" must be a non-empty string' }).trim().min(1, '"basis" must be a non-empty string'),
+  limit: historyLimitSchema,
+});
+
+stockRouter.get("/:symbol/metrics-history", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(metricsHistoryQuerySchema, req.query);
+  const history = await getMetricsHistory(symbol, query.metricCodes, query.basis, query.limit);
   res.json(history);
 });
 

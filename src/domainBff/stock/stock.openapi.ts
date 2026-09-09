@@ -5,6 +5,7 @@ import {
   financialStatementQuerySchema,
   foreignShareholdingHistoryQuerySchema,
   metricHistoryQuerySchema,
+  metricsHistoryQuerySchema,
   monthlyRevenueHistoryQuerySchema,
   preferredStocksQuerySchema,
   roeRoaHistoryQuerySchema,
@@ -458,6 +459,72 @@ registry.registerPath({
       content: { "application/json": { schema: metricHistorySchema } },
     },
     400: errorResponse("metricCode/basis 組合不合法、limit 超出 1-40 範圍，或缺少必填參數。"),
+    502: unauthorized502,
+  },
+});
+
+const metricsHistoryValueSchema = z.object({
+  value: z.number().nullable(),
+  nullReason: z.string().nullable(),
+  knowledgeDate: z.string(),
+  knowledgeDateIsFallback: z.boolean(),
+});
+
+const metricsHistoryEntrySchema = z.object({
+  fiscalYear: z.number(),
+  fiscalQuarter: z.number(),
+  values: z.record(z.string(), metricsHistoryValueSchema),
+});
+
+const metricsHistorySchema = z
+  .object({
+    symbol: z.string(),
+    metricCodes: z.array(z.string()),
+    basis: z.string(),
+    total: z.number(),
+    hasMore: z.boolean(),
+    entries: z.array(metricsHistoryEntrySchema),
+  })
+  .openapi("MetricsHistory", {
+    example: {
+      symbol: "2330",
+      metricCodes: ["netIncomeGrowthRate", "epsGrowthRate", "shareCountChangeRate"],
+      basis: "Q",
+      total: 1,
+      hasMore: false,
+      entries: [
+        {
+          fiscalYear: 2026,
+          fiscalQuarter: 2,
+          values: {
+            netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
+            epsGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
+            shareCountChangeRate: { value: 0, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
+          },
+        },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/metrics-history",
+  summary: "一次查詢多個指標的季度歷史數列（成長分解卡片用，例如 EPS 成長分解、淨值成長分解）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/metrics-history——跟 metric-history 的差別是一次可以帶多個 metricCode（逗號分隔），一次拿到同一個 basis 底下每一期的所有指標值，不用每個指標各打一次。回應形狀也跟 metric-history 不同：entries 每一筆是 { fiscalYear, fiscalQuarter, values }，values 用 metricCode 當 key，不是單一 value 欄位。basis 不是固定列舉（不像 metric-history 的 metricCode 有寫死允許值）——不同 metricCode 組合允許的 basis 不一樣（實測：netIncomeGrowthRate/epsGrowthRate/shareCountChangeRate 系列的成長分解指標只允許 \"Q\"，不允許 \"TTM\"），實際允許值請查 GET /filters 各 metricCode 底下的 validTokens，這裡只驗證非空字串，實際合法性由 analysis-ts 驗證並回 400（原樣轉發那個錯誤訊息，例如帶了某個 metricCode 不支援的 basis）。EPS 成長分解卡片打法：metricCodes=netIncomeGrowthRate,epsGrowthRate,shareCountChangeRate&basis=Q；淨值成長分解卡片：metricCodes=equityGrowthRate,bvpsGrowthRate,shareCountChangeRate&basis=Q（兩張卡共用同一個 shareCountChangeRate，不用分別各打一次）。三者的近似恆等式：淨利/淨值成長率 ≈ EPS/BVPS成長率 + 股本變化率——shareCountChangeRate 為 0 代表股本沒變動；EPS/BVPS 成長率低於淨利/淨值成長率代表股本增加（現金增資/可轉債轉換，稀釋每股數字）；反之代表股本減少（減資/買回註銷，墊高每股數字）。limit 預設 20、最大 40，跟 metric-history 一致。查無資料回傳空陣列，不是 404——截至 2026-09-09 這批成長分解指標只有 2330 有資料（僅 1 期）。entries 由舊到新排序。",
+  tags: ["Stock"],
+  request: {
+    params: symbolParam,
+    query: metricsHistoryQuerySchema.openapi("MetricsHistoryQuery", {
+      example: { metricCodes: "netIncomeGrowthRate,epsGrowthRate,shareCountChangeRate", basis: "Q", limit: 20 },
+    }),
+  },
+  responses: {
+    200: {
+      description: "多指標季度數列，查無資料時 entries 為空陣列。",
+      content: { "application/json": { schema: metricsHistorySchema } },
+    },
+    400: errorResponse("某個 metricCode 不支援指定的 basis、limit 超出 1-40 範圍，或缺少必填參數。"),
     502: unauthorized502,
   },
 });

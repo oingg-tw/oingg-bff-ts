@@ -13,6 +13,8 @@ import { fetchDupontHistory } from "@/domainBff/stock/dupontHistory.client.js";
 import type { DupontHistoryBasis, DupontHistoryResult } from "@/domainBff/stock/dupontHistory.types.js";
 import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
 import type { MetricHistoryBasis, MetricHistoryCode, MetricHistoryResult } from "@/domainBff/stock/metricHistory.types.js";
+import { fetchMetricsHistory } from "@/domainBff/stock/metricsHistory.client.js";
+import type { MetricsHistoryResult } from "@/domainBff/stock/metricsHistory.types.js";
 import { fetchMonthlyRevenueHistory } from "@/domainBff/stock/monthlyRevenueHistory.client.js";
 import type { MonthlyRevenueHistoryResult } from "@/domainBff/stock/monthlyRevenueHistory.types.js";
 import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
@@ -99,6 +101,16 @@ export async function getMetricHistory(
   limit?: number,
 ): Promise<MetricHistoryResult> {
   return fetchMetricHistory(symbol, metricCode, basis, limit);
+}
+
+/** Multiple metrics' history for one symbol at once (for growth-decomposition cards) — GET /stocks/:symbol/metrics-history. */
+export async function getMetricsHistory(
+  symbol: string,
+  metricCodes: string[],
+  basis: string,
+  limit?: number,
+): Promise<MetricsHistoryResult> {
+  return fetchMetricsHistory(symbol, metricCodes, basis, limit);
 }
 
 /** Quarterly ROE (股東權益報酬率) time series — GET /stocks/:symbol/roe-history. */
