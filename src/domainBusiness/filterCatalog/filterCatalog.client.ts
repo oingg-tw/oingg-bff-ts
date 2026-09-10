@@ -3,7 +3,7 @@ import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService 
 import { logger } from "@/shared/logger.js";
 import type { FilterCategory, FilterMetricBadge, FilterMetricBadgeThreshold } from "@/domainBusiness/filterCatalog/filterCatalog.types.js";
 
-const BADGE_COMPARATORS = ["gt", "lt", "gte", "abs_lt"] as const;
+const BADGE_COMPARATORS = ["gt", "lt", "gte", "abs_lt", "in_range"] as const;
 
 function isRawBadgeThreshold(value: unknown): value is FilterMetricBadgeThreshold {
   if (typeof value !== "object" || value === null) {
@@ -15,6 +15,8 @@ function isRawBadgeThreshold(value: unknown): value is FilterMetricBadgeThreshol
     typeof t.denominator === "number" &&
     (t.comparator === undefined || (BADGE_COMPARATORS as readonly string[]).includes(t.comparator)) &&
     (t.value === undefined || typeof t.value === "number") &&
+    (t.valueMin === undefined || typeof t.valueMin === "number") &&
+    (t.valueMax === undefined || typeof t.valueMax === "number") &&
     (t.compareAgainstFieldId === undefined || typeof t.compareAgainstFieldId === "string") &&
     (t.allPositiveFieldIds === undefined ||
       (Array.isArray(t.allPositiveFieldIds) && t.allPositiveFieldIds.every((f) => typeof f === "string")))

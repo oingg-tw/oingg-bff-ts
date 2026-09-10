@@ -375,6 +375,40 @@ describe("fetchFilterCatalog", () => {
     await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
+  // in_range (2026-09-10, dividendPayoutRatio's Fidelity-range correction): pairs with valueMin/valueMax
+  // instead of a single value — the original "< 60%" threshold was a mistake, the real Fidelity conclusion
+  // is a 40-60% two-sided range.
+  it("passes through a badge threshold using comparator: in_range with valueMin/valueMax", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              {
+                metricCode: "dividendPayoutRatio",
+                displayName: "盈餘發放率",
+                unit: "%",
+                validTokens: ["TTM"],
+                badge: {
+                  ...SAMPLE_BADGE,
+                  id: "dividend-payout-ratio-safety",
+                  threshold: { description: "40%-60%", denominator: 1, comparator: "in_range" as const, valueMin: 40, valueMax: 60 },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchFilterCatalog();
+
+    expect(result[0]?.metrics[0]?.badge?.threshold).toMatchObject({ comparator: "in_range", valueMin: 40, valueMax: 60 });
+  });
+
   it("handles an empty validTokens array (zero queryable fields for that metric)", async () => {
     mockFetchOnce({
       ok: true,

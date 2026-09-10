@@ -19,8 +19,13 @@ export interface FilterField {
 export interface FilterMetricBadgeThreshold {
   description: string;
   denominator: number;
-  comparator?: "gt" | "lt" | "gte" | "abs_lt";
+  /** "in_range" (2026-09-10, dividendPayoutRatio's Fidelity-range correction) pairs with valueMin/valueMax
+   * instead of value — met when the metric's value falls between the two, inclusive on both ends. */
+  comparator?: "gt" | "lt" | "gte" | "abs_lt" | "in_range";
   value?: number;
+  /** Only set (and only meaningful) when comparator is "in_range" — the inclusive lower/upper bounds. */
+  valueMin?: number;
+  valueMax?: number;
   /** e.g. "stockPrice.Q" for grahamNumber/ncav — compare this metric's value against another field's. */
   compareAgainstFieldId?: string;
   /** eps's own case: ["eps.TTM", "eps.Q"] — met only when every listed field is positive. */
