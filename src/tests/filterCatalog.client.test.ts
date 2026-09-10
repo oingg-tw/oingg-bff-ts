@@ -58,6 +58,7 @@ describe("fetchFilterCatalog", () => {
             unit: "%",
             formulaLatex: null,
             referenceUrl: null,
+            badge: null,
             sort: 0,
             fields: [
               { key: "Q", name: "Q", period: "Q", description: null, source: null, unit: null, sort: 0 },
@@ -253,6 +254,119 @@ describe("fetchFilterCatalog", () => {
             categoryKey: "profitability",
             categoryDisplayName: "獲利能力",
             metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: ["TTM"], referenceUrl: 123 }],
+          },
+        ],
+      },
+    });
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  // badge (2026-09-10, same rollout wave): the "guru badge" methodology object, moved from web-nuxt's own
+  // hardcoded GURU_BADGES table into analysis-ts's MetricDefinitionSpec. Present only on the ~11 metrics
+  // that table covered (Piotroski excluded by mutual agreement) — absent entirely elsewhere, resolves to null.
+  const SAMPLE_BADGE = {
+    id: "graham-number",
+    name: "Graham Number",
+    nameEn: "Graham Number",
+    author: "Benjamin Graham",
+    summary: "summary",
+    detail: "detail",
+    token: "TTM",
+    threshold: { description: "股價 < Graham Number", denominator: 1, comparator: "lt" as const, compareAgainstFieldId: "stockPrice.Q" },
+  };
+
+  it("passes through badge when present, and defaults to null when absent", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              { metricCode: "grahamNumber", displayName: "Graham Number", unit: "元", validTokens: ["TTM"], badge: SAMPLE_BADGE },
+              { metricCode: "roa", displayName: "資產報酬率 (ROA)", unit: "%", validTokens: ["TTM"] },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchFilterCatalog();
+
+    expect(result[0]?.metrics[0]?.badge).toEqual(SAMPLE_BADGE);
+    expect(result[0]?.metrics[1]?.badge).toBeNull();
+  });
+
+  it("passes through a badge threshold using allPositiveFieldIds instead of comparator/value, with token entirely absent (eps's real shape)", async () => {
+    const { token: _token, ...badgeWithoutToken } = SAMPLE_BADGE;
+    const epsBadge = {
+      ...badgeWithoutToken,
+      id: "sp500-earnings-eligibility",
+      threshold: { description: "近四季 EPS 合計為正", denominator: 1, allPositiveFieldIds: ["eps.TTM", "eps.Q"] },
+    };
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [{ metricCode: "eps", displayName: "EPS", unit: "元", validTokens: ["TTM", "Q"], badge: epsBadge }],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchFilterCatalog();
+
+    expect(result[0]?.metrics[0]?.badge?.threshold.allPositiveFieldIds).toEqual(["eps.TTM", "eps.Q"]);
+    expect(result[0]?.metrics[0]?.badge?.token).toBeUndefined();
+  });
+
+  it("throws a 502 AppError when badge is present but missing required fields", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              {
+                metricCode: "grahamNumber",
+                displayName: "Graham Number",
+                unit: "元",
+                validTokens: ["TTM"],
+                badge: { ...SAMPLE_BADGE, threshold: { description: "missing denominator" } },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when badge.threshold.comparator is not one of the allowed enum values", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              {
+                metricCode: "grahamNumber",
+                displayName: "Graham Number",
+                unit: "元",
+                validTokens: ["TTM"],
+                badge: { ...SAMPLE_BADGE, threshold: { ...SAMPLE_BADGE.threshold, comparator: "eq" } },
+              },
+            ],
           },
         ],
       },

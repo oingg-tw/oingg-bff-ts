@@ -1,6 +1,6 @@
 import { getPrismaClient } from "@/adapters/neon/index.js";
 import { Prisma } from "@/generated/prisma/client.js";
-import type { FilterCategory } from "@/domainBusiness/filterCatalog/filterCatalog.types.js";
+import type { FilterCategory, FilterMetricBadge } from "@/domainBusiness/filterCatalog/filterCatalog.types.js";
 
 export interface FilterFieldLookup {
   categoryKey: string;
@@ -79,6 +79,7 @@ export async function listFilterCatalog(): Promise<FilterCategory[]> {
       unit: metric.unit,
       formulaLatex: metric.formulaLatex,
       referenceUrl: metric.referenceUrl,
+      badge: metric.badge as unknown as FilterMetricBadge | null,
       sort: metric.position,
       // oingg-analysis-ts fills description/source/unit at the metric level only (the different period
       // variants of one metric — quarterly/TTM/etc — share the same definition/source/unit, so it
@@ -135,6 +136,7 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
       unit: metric.unit ?? null,
       formulaLatex: metric.formulaLatex ?? null,
       referenceUrl: metric.referenceUrl ?? null,
+      badge: metric.badge ? JSON.stringify(metric.badge) : null,
       position,
     })),
   );
@@ -165,17 +167,18 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
 
     if (metricRows.length > 0) {
       await tx.$executeRaw`
-        INSERT INTO filter_metric (key, category_key, name, path, description, source, unit, formula_latex, reference_url, position)
+        INSERT INTO filter_metric (key, category_key, name, path, description, source, unit, formula_latex, reference_url, badge, position)
         VALUES ${Prisma.join(
           metricRows.map(
             (m) =>
-              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.position})`,
+              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.badge}::jsonb, ${m.position})`,
           ),
         )}
         ON CONFLICT (key) DO UPDATE SET
           category_key = EXCLUDED.category_key, name = EXCLUDED.name, path = EXCLUDED.path,
           description = EXCLUDED.description, source = EXCLUDED.source, unit = EXCLUDED.unit,
-          formula_latex = EXCLUDED.formula_latex, reference_url = EXCLUDED.reference_url, position = EXCLUDED.position
+          formula_latex = EXCLUDED.formula_latex, reference_url = EXCLUDED.reference_url, badge = EXCLUDED.badge,
+          position = EXCLUDED.position
       `;
     }
 

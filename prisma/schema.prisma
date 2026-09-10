@@ -83,6 +83,11 @@ model FilterMetric {
   /// source-link table (guru-badges.ts) and just render whatever analysis-ts's MetricDefinitionSpec
   /// already declares, added 2026-09-10.
   referenceUrl String?             @map("reference_url")
+  /// Curated "guru badge" methodology threshold (whole object: id/name/author/summary/detail/token/
+  /// threshold), moved from web-nuxt's own hardcoded GURU_BADGES table into analysis-ts's
+  /// MetricDefinitionSpec 2026-09-10 and echoed back here. Nullable — present on only the ~11 metrics that
+  /// table covered; Piotroski F-Score deliberately excluded by mutual agreement, stays frontend-hardcoded.
+  badge       Json?
   position    Int
   category    FilterCategory      @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
   fields      FilterMetricField[]

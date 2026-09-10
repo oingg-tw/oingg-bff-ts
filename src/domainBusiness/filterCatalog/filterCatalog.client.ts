@@ -1,7 +1,42 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
-import type { FilterCategory } from "@/domainBusiness/filterCatalog/filterCatalog.types.js";
+import type { FilterCategory, FilterMetricBadge, FilterMetricBadgeThreshold } from "@/domainBusiness/filterCatalog/filterCatalog.types.js";
+
+const BADGE_COMPARATORS = ["gt", "lt", "gte", "abs_lt"] as const;
+
+function isRawBadgeThreshold(value: unknown): value is FilterMetricBadgeThreshold {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const t = value as FilterMetricBadgeThreshold;
+  return (
+    typeof t.description === "string" &&
+    typeof t.denominator === "number" &&
+    (t.comparator === undefined || (BADGE_COMPARATORS as readonly string[]).includes(t.comparator)) &&
+    (t.value === undefined || typeof t.value === "number") &&
+    (t.compareAgainstFieldId === undefined || typeof t.compareAgainstFieldId === "string") &&
+    (t.allPositiveFieldIds === undefined ||
+      (Array.isArray(t.allPositiveFieldIds) && t.allPositiveFieldIds.every((f) => typeof f === "string")))
+  );
+}
+
+function isRawBadge(value: unknown): value is FilterMetricBadge {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const b = value as FilterMetricBadge;
+  return (
+    typeof b.id === "string" &&
+    typeof b.name === "string" &&
+    typeof b.nameEn === "string" &&
+    typeof b.author === "string" &&
+    typeof b.summary === "string" &&
+    typeof b.detail === "string" &&
+    (b.token === undefined || typeof b.token === "string") &&
+    isRawBadgeThreshold(b.threshold)
+  );
+}
 
 interface RawPitMetric {
   metricCode: string;
@@ -12,6 +47,8 @@ interface RawPitMetric {
   formulaLatex?: string;
   /** Absent entirely (not an empty string) for metrics without a documented reference link yet, 2026-09-10. */
   referenceUrl?: string;
+  /** Present only on the ~11 metrics with a curated "guru badge" methodology threshold, 2026-09-10. */
+  badge?: FilterMetricBadge;
 }
 
 interface RawPitCategory {
@@ -40,7 +77,8 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
             Array.isArray((m as RawPitMetric).validTokens) &&
             (m as RawPitMetric).validTokens.every((t) => typeof t === "string") &&
             ((m as RawPitMetric).formulaLatex === undefined || typeof (m as RawPitMetric).formulaLatex === "string") &&
-            ((m as RawPitMetric).referenceUrl === undefined || typeof (m as RawPitMetric).referenceUrl === "string"),
+            ((m as RawPitMetric).referenceUrl === undefined || typeof (m as RawPitMetric).referenceUrl === "string") &&
+            ((m as RawPitMetric).badge === undefined || isRawBadge((m as RawPitMetric).badge)),
         ),
     )
   );
@@ -77,6 +115,18 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
  * exists so web-nuxt can drop its own hardcoded per-metric source-link table (guru-badges.ts) and just
  * render whatever analysis-ts's MetricDefinitionSpec declares, avoiding maintaining the same links twice.
  * Same absent-not-empty-string and null-when-absent convention as formulaLatex.
+ *
+ * `badge` (2026-09-10, same rollout wave) carries a curated "guru badge" methodology threshold — web-nuxt's
+ * own hardcoded GURU_BADGES payload (11 entries), sent to analysis-ts and now echoed back attached to the
+ * metric it belongs to, so web-nuxt can read it off this catalog instead of maintaining its own copy.
+ * Present on exactly the 11 metrics that payload covered (altmanZScore, beneishMScore, ohlsonOScore,
+ * zmijewskiScore, grahamNumber, ncav, accrualsRatio, dividendPayoutRatio, sue, chowderNumber, eps) —
+ * Piotroski F-Score was deliberately excluded by mutual agreement (its clamp/round + custom isMet logic
+ * doesn't fit analysis-ts's threshold/comparator vocabulary) and stays frontend-hardcoded. Passed through
+ * as-is (whole object), null when absent, same convention as formulaLatex/referenceUrl. `badge.token` is
+ * itself optional within the object — absent when the threshold spans multiple periods instead of one
+ * (confirmed live: eps's threshold checks both "eps.TTM" and "eps.Q" via allPositiveFieldIds, so there's
+ * no single token to name).
  */
 function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
   return raw.map((category, categoryIndex) => ({
@@ -92,6 +142,7 @@ function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
       unit: metric.unit,
       formulaLatex: metric.formulaLatex ?? null,
       referenceUrl: metric.referenceUrl ?? null,
+      badge: metric.badge ?? null,
       sort: metricIndex,
       fields: metric.validTokens.map((token, tokenIndex) => ({
         key: token,

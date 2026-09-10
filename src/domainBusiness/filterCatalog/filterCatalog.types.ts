@@ -16,6 +16,39 @@ export interface FilterField {
   sort: number;
 }
 
+export interface FilterMetricBadgeThreshold {
+  description: string;
+  denominator: number;
+  comparator?: "gt" | "lt" | "gte" | "abs_lt";
+  value?: number;
+  /** e.g. "stockPrice.Q" for grahamNumber/ncav — compare this metric's value against another field's. */
+  compareAgainstFieldId?: string;
+  /** eps's own case: ["eps.TTM", "eps.Q"] — met only when every listed field is positive. */
+  allPositiveFieldIds?: string[];
+}
+
+/**
+ * A curated "guru badge" methodology threshold (e.g. Graham Number, Piotroski F-Score-style methodologies)
+ * — moved from web-nuxt's own hardcoded GURU_BADGES table into analysis-ts's MetricDefinitionSpec 2026-09-10,
+ * echoed back here so bff-ts's consumers don't need their own copy. Present on only the ~11 metrics that
+ * table covered (see FilterMetric.badge).
+ */
+export interface FilterMetricBadge {
+  id: string;
+  name: string;
+  nameEn: string;
+  author: string;
+  summary: string;
+  detail: string;
+  /**
+   * The basis/period this badge's threshold applies to (e.g. "TTM"/"Q"/"FY"). Absent when the threshold
+   * itself spans multiple periods instead of applying to one (e.g. eps's allPositiveFieldIds threshold
+   * checks both "eps.TTM" and "eps.Q" — there's no single token to name).
+   */
+  token?: string;
+  threshold: FilterMetricBadgeThreshold;
+}
+
 export interface FilterMetric {
   key: string;
   name: string;
@@ -43,6 +76,13 @@ export interface FilterMetric {
    * yet — same "not every metric has one yet" convention as formulaLatex, added 2026-09-10.
    */
   referenceUrl?: string | null;
+  /**
+   * Curated "guru badge" methodology threshold (e.g. Graham Number, Altman Z-Score) — see
+   * FilterMetricBadge. Present only on the ~11 metrics analysis-ts has one for as of 2026-09-10; null
+   * everywhere else, including Piotroski F-Score (deliberately excluded, stays frontend-hardcoded — its
+   * clamp/round + custom isMet logic doesn't fit analysis-ts's threshold/comparator vocabulary).
+   */
+  badge?: FilterMetricBadge | null;
   /** Display order among sibling metrics under the same category (0-based) — see FilterField.sort. */
   sort: number;
   fields: FilterField[];
