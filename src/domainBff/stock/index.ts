@@ -70,6 +70,8 @@ export type {
   PiotroskiBreakdownOperatingEfficiencyGroup,
   PiotroskiBreakdownProfitabilityGroup,
   PiotroskiBreakdownResult,
+  PiotroskiGroupMetadata,
+  PiotroskiSignalLabels,
 } from "@/domainBff/stock/piotroskiBreakdown.types.js";
 export type {
   MetricProvenanceEntry,

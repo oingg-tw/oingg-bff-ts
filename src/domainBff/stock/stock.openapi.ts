@@ -266,6 +266,15 @@ const piotroskiBreakdownGroupsSchema = z
   })
   .nullable();
 
+const piotroskiGroupMetadataSchema = z.object({
+  key: z.enum(["profitability", "leverageLiquidity", "operatingEfficiency"]),
+  name: z.string(),
+  nameEn: z.string(),
+  summary: z.string(),
+  detail: z.string(),
+  denominator: z.number(),
+});
+
 const piotroskiBreakdownSchema = z
   .object({
     symbol: z.string(),
@@ -276,6 +285,8 @@ const piotroskiBreakdownSchema = z
     knowledgeDateIsFallback: z.boolean().nullable(),
     totalScore: z.number().nullable(),
     groups: piotroskiBreakdownGroupsSchema,
+    groupMetadata: z.array(piotroskiGroupMetadataSchema),
+    signalLabels: z.record(z.string(), z.string()),
   })
   .openapi("PiotroskiBreakdown", {
     example: {
@@ -291,6 +302,17 @@ const piotroskiBreakdownSchema = z
         leverageLiquidity: { leverageDecreased: false, liquidityImproved: true, noDilution: true },
         operatingEfficiency: { grossMarginImproved: true, assetTurnoverImproved: true },
       },
+      groupMetadata: [
+        {
+          key: "profitability",
+          name: "獲利能力",
+          nameEn: "Profitability",
+          summary: "公司本業有沒有在賺錢、賺得比去年好。",
+          detail: "對應 Piotroski (2000) 原始論文的 4 個獲利能力訊號。",
+          denominator: 4,
+        },
+      ],
+      signalLabels: { positiveRoa: "資產報酬率（ROA）為正" },
     },
   });
 
@@ -299,7 +321,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/piotroski-breakdown",
   summary: "查詢 Piotroski F-Score 底下 9 個布林訊號的分類拆解（獲利能力/財務韌性/營運周轉）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/piotroski-breakdown。原本既有的 piotroskiFScore.Q 是單一 9 分的總分，這支端點回傳算出這 9 分底下的個別布林訊號，依 3 個分類分組（profitability 4 項、leverageLiquidity 3 項、operatingEfficiency 2 項），用途是把原本一顆 9 分的 Piotroski 徽章拆成 3 顆分別掛在對應分類（獲利能力/財務韌性/營運周轉）底下的子徽章。單純原樣轉發，bff-ts 不做任何計算——`totalScore` 沿用跟已持久化的 piotroskiFScore.Q 一樣的「一項訊號缺值，整個總分就是 null」規則，不是這支端點自己算的；每個分類底下要不要算出一個 4/3/2 分母的子分數、以及同樣的 null 傳播規則怎麼套用到子分數，由呼叫端（web-nuxt）自己決定，不在這支端點的職責內。不給 year/season 會查最新一季，跟 financial-statement 相同慣例；查無資料（代號不存在，或指定的 year/season 沒有申報資料）回應 found:false，其餘欄位（包含 groups）一律是 null，仍是 200，不是 404。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/piotroski-breakdown。原本既有的 piotroskiFScore.Q 是單一 9 分的總分，這支端點回傳算出這 9 分底下的個別布林訊號，依 3 個分類分組（profitability 4 項、leverageLiquidity 3 項、operatingEfficiency 2 項），用途是把原本一顆 9 分的 Piotroski 徽章拆成 3 顆分別掛在對應分類（獲利能力/財務韌性/營運周轉）底下的子徽章。單純原樣轉發，bff-ts 不做任何計算——`totalScore` 沿用跟已持久化的 piotroskiFScore.Q 一樣的「一項訊號缺值，整個總分就是 null」規則，不是這支端點自己算的；每個分類底下要不要算出一個 4/3/2 分母的子分數、以及同樣的 null 傳播規則怎麼套用到子分數，由呼叫端（web-nuxt）自己決定，不在這支端點的職責內。不給 year/season 會查最新一季，跟 financial-statement 相同慣例；查無資料（代號不存在，或指定的 year/season 沒有申報資料）回應 found:false，其餘欄位（包含 groups）一律是 null，仍是 200，不是 404。`groupMetadata`（3 個分類各自的顯示名稱/summary/detail/denominator）跟 `signalLabels`（9 個布林訊號各自的中文標籤，例如 positiveRoa -> 「資產報酬率（ROA）為正」）是 2026-09-11 新增的靜態說明資料——描述的是方法論本身，不是這個股票代號的實際數據，所以就算 found 是 false（代號不存在）這兩個欄位一樣會有值，不會是空陣列/空物件。",
   tags: ["Stock"],
   request: {
     params: symbolParam,

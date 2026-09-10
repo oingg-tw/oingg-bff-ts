@@ -25,6 +25,47 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
+// Real group metadata/signal labels, given directly by analysis-ts (2026-09-11) — static reference data,
+// stays populated even when found is false (confirmed live against an unknown symbol).
+const GROUP_METADATA = [
+  {
+    key: "profitability",
+    name: "獲利能力",
+    nameEn: "Profitability",
+    summary: "公司本業有沒有在賺錢、賺得比去年好。",
+    detail: "對應 Piotroski (2000) 原始論文的 4 個獲利能力訊號。",
+    denominator: 4,
+  },
+  {
+    key: "leverageLiquidity",
+    name: "財務槓桿與流動性",
+    nameEn: "Leverage, Liquidity & Source of Funds",
+    summary: "公司償債能力有沒有變好、有沒有靠稀釋股權籌資。",
+    detail: "對應原始論文的 3 個財務結構訊號。",
+    denominator: 3,
+  },
+  {
+    key: "operatingEfficiency",
+    name: "營運效率",
+    nameEn: "Operating Efficiency",
+    summary: "公司賺錢的效率跟資產運用的效率有沒有比去年好。",
+    detail: "對應原始論文的 2 個營運效率訊號。",
+    denominator: 2,
+  },
+];
+
+const SIGNAL_LABELS = {
+  positiveRoa: "資產報酬率（ROA）為正",
+  positiveCfo: "營業現金流為正",
+  roaImproved: "ROA 較去年同季提升",
+  accrualQuality: "營業現金流大於淨利（應計項目品質良好）",
+  leverageDecreased: "長期負債比率較去年同季下降",
+  liquidityImproved: "流動比率較去年同季提升",
+  noDilution: "流通股數未增加（無股權稀釋）",
+  grossMarginImproved: "毛利率較去年同季提升",
+  assetTurnoverImproved: "總資產週轉率較去年同季提升",
+};
+
 // Real 2330 example, given directly by analysis-ts (2026-09-10).
 const FOUND_BODY = {
   symbol: "2330",
@@ -39,6 +80,8 @@ const FOUND_BODY = {
     leverageLiquidity: { leverageDecreased: false, liquidityImproved: true, noDilution: true },
     operatingEfficiency: { grossMarginImproved: true, assetTurnoverImproved: true },
   },
+  groupMetadata: GROUP_METADATA,
+  signalLabels: SIGNAL_LABELS,
 };
 
 const NOT_FOUND_BODY = {
@@ -50,6 +93,8 @@ const NOT_FOUND_BODY = {
   knowledgeDateIsFallback: null,
   totalScore: null,
   groups: null,
+  groupMetadata: GROUP_METADATA,
+  signalLabels: SIGNAL_LABELS,
 };
 
 describe("fetchPiotroskiBreakdown", () => {
@@ -76,6 +121,38 @@ describe("fetchPiotroskiBreakdown", () => {
     mockFetchOnce({ ok: true, body: NOT_FOUND_BODY });
 
     await expect(fetchPiotroskiBreakdown("9999999")).resolves.toEqual(NOT_FOUND_BODY);
+  });
+
+  // groupMetadata/signalLabels (2026-09-11): static reference metadata describing the methodology itself,
+  // not this symbol's data — must stay populated even when found is false, unlike groups.
+  it("keeps groupMetadata and signalLabels populated even when found is false", async () => {
+    mockFetchOnce({ ok: true, body: NOT_FOUND_BODY });
+
+    const result = await fetchPiotroskiBreakdown("9999999");
+
+    expect(result.groupMetadata).toEqual(GROUP_METADATA);
+    expect(result.signalLabels).toEqual(SIGNAL_LABELS);
+  });
+
+  it("drops a groupMetadata entry with an unrecognized key instead of passing it through", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { ...FOUND_BODY, groupMetadata: [...GROUP_METADATA, { key: "bogus", name: "x", nameEn: "x", summary: "x", detail: "x", denominator: 1 }] },
+    });
+
+    const result = await fetchPiotroskiBreakdown("2330");
+
+    expect(result.groupMetadata).toEqual(GROUP_METADATA);
+  });
+
+  it("defaults groupMetadata to [] and signalLabels to {} when either is absent from the response", async () => {
+    const { groupMetadata: _groupMetadata, signalLabels: _signalLabels, ...bodyWithoutMetadata } = FOUND_BODY;
+    mockFetchOnce({ ok: true, body: bodyWithoutMetadata });
+
+    const result = await fetchPiotroskiBreakdown("2330");
+
+    expect(result.groupMetadata).toEqual([]);
+    expect(result.signalLabels).toEqual({});
   });
 
   // A group's own boolean signal can be null (the same all-or-null propagation analysis-ts already

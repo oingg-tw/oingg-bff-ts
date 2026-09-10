@@ -1,7 +1,12 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
-import type { PiotroskiBreakdownGroups, PiotroskiBreakdownResult } from "@/domainBff/stock/piotroskiBreakdown.types.js";
+import type {
+  PiotroskiBreakdownGroups,
+  PiotroskiBreakdownResult,
+  PiotroskiGroupMetadata,
+  PiotroskiSignalLabels,
+} from "@/domainBff/stock/piotroskiBreakdown.types.js";
 
 function toBooleanOrNull(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
@@ -43,6 +48,43 @@ function normalizeGroups(raw: unknown): PiotroskiBreakdownGroups | null {
   };
 }
 
+const GROUP_KEYS = ["profitability", "leverageLiquidity", "operatingEfficiency"] as const;
+
+function normalizeGroupMetadata(raw: unknown): PiotroskiGroupMetadata[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw
+    .map((item) => {
+      const g = (typeof item === "object" && item !== null ? item : {}) as Record<string, unknown>;
+      if (!(GROUP_KEYS as readonly string[]).includes(g.key as string)) {
+        return null;
+      }
+      return {
+        key: g.key as PiotroskiGroupMetadata["key"],
+        name: typeof g.name === "string" ? g.name : "",
+        nameEn: typeof g.nameEn === "string" ? g.nameEn : "",
+        summary: typeof g.summary === "string" ? g.summary : "",
+        detail: typeof g.detail === "string" ? g.detail : "",
+        denominator: typeof g.denominator === "number" ? g.denominator : 0,
+      };
+    })
+    .filter((g): g is PiotroskiGroupMetadata => g !== null);
+}
+
+function normalizeSignalLabels(raw: unknown): PiotroskiSignalLabels {
+  if (typeof raw !== "object" || raw === null) {
+    return {};
+  }
+  const labels: PiotroskiSignalLabels = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "string") {
+      labels[key] = value;
+    }
+  }
+  return labels;
+}
+
 function isPiotroskiBreakdownResponse(body: unknown): body is Record<string, unknown> {
   return typeof body === "object" && body !== null;
 }
@@ -59,6 +101,13 @@ function isPiotroskiBreakdownResponse(body: unknown): body is Record<string, unk
  * the latest quarter on file, same convention as fetchFinancialStatement. Always 200 — an unknown symbol
  * or a quarter with no data comes back with `found: false` and every other field null, never a 404
  * (confirmed live with analysis-ts directly, 2026-09-10).
+ *
+ * `groupMetadata`/`signalLabels` (added 2026-09-11) are static reference metadata describing the
+ * methodology itself (display name/summary/detail/denominator per group, and a Chinese label per boolean
+ * signal) — confirmed live that both stay populated even when `found` is false (an unknown symbol), since
+ * they don't depend on this symbol's actual data at all. Normalized field-by-field like the rest of this
+ * client (not forwarded as a raw object the way filterCatalog's `badge` is), so an unrecognized
+ * groupMetadata entry (unknown `key`) is dropped rather than passed through with a bad type.
  */
 export async function fetchPiotroskiBreakdown(symbol: string, year?: string, season?: string): Promise<PiotroskiBreakdownResult> {
   const searchParams: Record<string, string> = { symbol };
@@ -88,5 +137,7 @@ export async function fetchPiotroskiBreakdown(symbol: string, year?: string, sea
     knowledgeDateIsFallback: toBooleanOrNull(body.knowledgeDateIsFallback),
     totalScore: toNumberOrNull(body.totalScore),
     groups: normalizeGroups(body.groups),
+    groupMetadata: normalizeGroupMetadata(body.groupMetadata),
+    signalLabels: normalizeSignalLabels(body.signalLabels),
   };
 }

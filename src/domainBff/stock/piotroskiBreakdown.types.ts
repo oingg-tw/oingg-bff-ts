@@ -22,6 +22,19 @@ export interface PiotroskiBreakdownGroups {
   operatingEfficiency: PiotroskiBreakdownOperatingEfficiencyGroup;
 }
 
+export interface PiotroskiGroupMetadata {
+  key: "profitability" | "leverageLiquidity" | "operatingEfficiency";
+  name: string;
+  nameEn: string;
+  summary: string;
+  detail: string;
+  /** How many signals in this group (4/3/2) — matches the boolean count in the corresponding PiotroskiBreakdownGroups sub-object. */
+  denominator: number;
+}
+
+/** Chinese label per boolean signal key (e.g. "positiveRoa" -> "資產報酬率（ROA）為正"), across all 9 signals in every group. */
+export type PiotroskiSignalLabels = Record<string, string>;
+
 /**
  * The 9 underlying boolean signals behind the persisted Piotroski F-Score (piotroskiFScore.Q), grouped
  * into the 3 categories web-nuxt's stock-detail page shows them under (獲利能力/財務韌性/營運周轉) — backs
@@ -46,4 +59,12 @@ export interface PiotroskiBreakdownResult {
   totalScore: number | null;
   /** null (not an object of nulls) when found is false — same convention as financial-statement's statement field. */
   groups: PiotroskiBreakdownGroups | null;
+  /**
+   * Static reference metadata about the 3 groups (display name/summary/detail/denominator) — present
+   * regardless of `found`, since it describes the methodology itself, not this symbol's data (confirmed
+   * live, 2026-09-11: still populated on an unknown symbol). Added by analysis-ts alongside signalLabels.
+   */
+  groupMetadata: PiotroskiGroupMetadata[];
+  /** Static Chinese label per boolean signal key, same "present regardless of found" behavior as groupMetadata. */
+  signalLabels: PiotroskiSignalLabels;
 }
