@@ -12,6 +12,7 @@ import {
   getFinancialStatement,
   getForeignShareholdingHistory,
   getMetricHistory,
+  getMetricProvenance,
   getMetricsHistory,
   getMonthlyRevenueHistory,
   getPiotroskiBreakdown,
@@ -263,4 +264,24 @@ stockRouter.get("/:symbol/piotroski-breakdown", async (req, res) => {
   const query = parseBody(piotroskiBreakdownQuerySchema, req.query);
   const breakdown = await getPiotroskiBreakdown(symbol, query.year, query.season);
   res.json(breakdown);
+});
+
+// Pilot scope is exactly these 3 metricCodes, zod-validated on analysis-ts's own side too — see
+// metricProvenance.client.ts.
+export const metricProvenanceQuerySchema = z
+  .object({
+    metricCode: z.enum(["sue", "chowderNumber", "roe"], { error: '"metricCode" must be "sue", "chowderNumber", or "roe"' }),
+    year: z.string().trim().min(1, '"year" must be a non-empty string').optional(),
+    season: z.string().trim().min(1, '"season" must be a non-empty string').optional(),
+  })
+  .refine((data) => (data.year === undefined) === (data.season === undefined), {
+    message: '"year" and "season" must be given together, or not at all',
+    path: ["year"],
+  });
+
+stockRouter.get("/:symbol/metric-provenance", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(metricProvenanceQuerySchema, req.query);
+  const provenance = await getMetricProvenance(symbol, query.metricCode, query.year, query.season);
+  res.json(provenance);
 });

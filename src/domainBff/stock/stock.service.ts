@@ -27,6 +27,8 @@ import { fetchPreferredStockFieldCatalog } from "@/domainBff/stock/preferredStoc
 import type { PreferredStockFieldCatalogResult } from "@/domainBff/stock/preferredStocksFieldCatalog.types.js";
 import { fetchPiotroskiBreakdown } from "@/domainBff/stock/piotroskiBreakdown.client.js";
 import type { PiotroskiBreakdownResult } from "@/domainBff/stock/piotroskiBreakdown.types.js";
+import { fetchMetricProvenance } from "@/domainBff/stock/metricProvenance.client.js";
+import type { MetricProvenanceMetricCode, MetricProvenanceResult } from "@/domainBff/stock/metricProvenance.types.js";
 import { fetchRoaHistory, fetchRoeHistory } from "@/domainBff/stock/roeRoaHistory.client.js";
 import type { RoaHistoryResult, RoeHistoryResult, RoeRoaHistoryBasis } from "@/domainBff/stock/roeRoaHistory.types.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
@@ -169,4 +171,14 @@ export async function getDailyPriceHistory(symbol: string, limit?: number): Prom
 /** Piotroski F-Score's 9 underlying boolean signals, grouped into 3 categories — GET /stocks/:symbol/piotroski-breakdown. */
 export async function getPiotroskiBreakdown(symbol: string, year?: string, season?: string): Promise<PiotroskiBreakdownResult> {
   return fetchPiotroskiBreakdown(symbol, year, season);
+}
+
+/** Raw-filing provenance trail behind one metric's computed value (trace-to-source) — GET /stocks/:symbol/metric-provenance. */
+export async function getMetricProvenance(
+  symbol: string,
+  metricCode: MetricProvenanceMetricCode,
+  year?: string,
+  season?: string,
+): Promise<MetricProvenanceResult> {
+  return fetchMetricProvenance(symbol, metricCode, year, season);
 }

@@ -12,6 +12,7 @@ export {
   getLatestClosePrices,
   getMetricHistory,
   getMetricsHistory,
+  getMetricProvenance,
   getMonthlyRevenueHistory,
   getPiotroskiBreakdown,
   getPreferredStockFieldCatalog,
@@ -70,3 +71,8 @@ export type {
   PiotroskiBreakdownProfitabilityGroup,
   PiotroskiBreakdownResult,
 } from "@/domainBff/stock/piotroskiBreakdown.types.js";
+export type {
+  MetricProvenanceEntry,
+  MetricProvenanceMetricCode,
+  MetricProvenanceResult,
+} from "@/domainBff/stock/metricProvenance.types.js";
