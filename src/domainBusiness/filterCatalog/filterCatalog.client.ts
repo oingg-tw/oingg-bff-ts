@@ -51,6 +51,8 @@ interface RawPitMetric {
   referenceUrl?: string;
   /** Present only on the ~11 metrics with a curated "guru badge" methodology threshold, 2026-09-10. */
   badge?: FilterMetricBadge;
+  /** Data-provenance category labels — a fixed 9-label vocabulary, required and non-empty on every metric (2026-09-10). */
+  sources: string[];
 }
 
 interface RawPitCategory {
@@ -80,7 +82,9 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
             (m as RawPitMetric).validTokens.every((t) => typeof t === "string") &&
             ((m as RawPitMetric).formulaLatex === undefined || typeof (m as RawPitMetric).formulaLatex === "string") &&
             ((m as RawPitMetric).referenceUrl === undefined || typeof (m as RawPitMetric).referenceUrl === "string") &&
-            ((m as RawPitMetric).badge === undefined || isRawBadge((m as RawPitMetric).badge)),
+            ((m as RawPitMetric).badge === undefined || isRawBadge((m as RawPitMetric).badge)) &&
+            Array.isArray((m as RawPitMetric).sources) &&
+            (m as RawPitMetric).sources.every((s) => typeof s === "string"),
         ),
     )
   );
@@ -129,6 +133,12 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
  * itself optional within the object — absent when the threshold spans multiple periods instead of one
  * (confirmed live: eps's threshold checks both "eps.TTM" and "eps.Q" via allPositiveFieldIds, so there's
  * no single token to name).
+ *
+ * `sources` (data-provenance category labels, e.g. "公開發行公司資產負債表（XBRL）") is different in kind from
+ * formulaLatex/referenceUrl/badge: analysis-ts guarantees it's always present and non-empty for every
+ * metric (added 2026-09-10, a fixed 9-label vocabulary), not a "not every metric has one yet" field, so
+ * it's validated as required here (missing/wrong-shape fails the whole sync, same as displayName/unit/
+ * validTokens) rather than defaulted to null/undefined.
  */
 function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
   return raw.map((category, categoryIndex) => ({
@@ -145,6 +155,7 @@ function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
       formulaLatex: metric.formulaLatex ?? null,
       referenceUrl: metric.referenceUrl ?? null,
       badge: metric.badge ?? null,
+      sources: metric.sources,
       sort: metricIndex,
       fields: metric.validTokens.map((token, tokenIndex) => ({
         key: token,

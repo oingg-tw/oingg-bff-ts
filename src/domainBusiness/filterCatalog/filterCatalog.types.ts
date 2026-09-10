@@ -88,6 +88,14 @@ export interface FilterMetric {
    * clamp/round + custom isMet logic doesn't fit analysis-ts's threshold/comparator vocabulary).
    */
   badge?: FilterMetricBadge | null;
+  /**
+   * Data-provenance category labels (e.g. "公開發行公司資產負債表（XBRL）"), a fixed 9-label vocabulary on
+   * analysis-ts's side — distinct from the free-text `source` tooltip field above (which analysis-ts has
+   * never populated). Unlike formulaLatex/referenceUrl/badge, analysis-ts guarantees this is always
+   * present and non-empty for every metric (added 2026-09-10) — required here too, not a "not every
+   * metric has one yet" field.
+   */
+  sources: string[];
   /** Display order among sibling metrics under the same category (0-based) — see FilterField.sort. */
   sort: number;
   fields: FilterField[];

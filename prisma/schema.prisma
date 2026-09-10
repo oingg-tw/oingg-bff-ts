@@ -88,6 +88,13 @@ model FilterMetric {
   /// MetricDefinitionSpec 2026-09-10 and echoed back here. Nullable — present on only the ~11 metrics that
   /// table covered; Piotroski F-Score deliberately excluded by mutual agreement, stays frontend-hardcoded.
   badge       Json?
+  /// Data-provenance category labels (e.g. "公開發行公司資產負債表（XBRL）") — a fixed 9-label vocabulary on
+  /// analysis-ts's side, distinct from the free-text `source` tooltip field above (which analysis-ts has
+  /// never populated). Unlike formulaLatex/referenceUrl/badge, analysis-ts guarantees this is always
+  /// present and non-empty for every metric (added 2026-09-10) — not a "not every metric has one yet"
+  /// field. Defaults to an empty array only defensively (a metric genuinely missing this from
+  /// analysis-ts's response is a validation error at the client layer, not silently tolerated here).
+  sources     String[]            @default([])
   position    Int
   category    FilterCategory      @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
   fields      FilterMetricField[]

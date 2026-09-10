@@ -29,6 +29,7 @@ const SAMPLE_CATALOG: FilterCategory[] = [
         key: "eps",
         name: "EPS",
         path: "/profitability/eps",
+        sources: ["公開發行公司損益表（XBRL）"],
         sort: 0,
         fields: [
           { key: "epsQuarterly", name: "EPS (quarterly)", period: "quarterly", sort: 0 },
@@ -46,6 +47,7 @@ const SAMPLE_CATALOG: FilterCategory[] = [
         key: "grahamNumber",
         name: "Graham Number",
         path: "/guru/graham-number",
+        sources: ["公開發行公司資產負債表（XBRL）", "公開發行公司損益表（XBRL）"],
         sort: 0,
         fields: [{ key: "grahamNumber", name: "Graham Number", period: "ttm", sort: 0 }],
       },
@@ -311,6 +313,7 @@ describe("replaceFilterCatalog", () => {
         key: `category${categoryIndex}-metric${metricIndex}`,
         name: `Metric ${metricIndex}`,
         path: `/category${categoryIndex}/metric${metricIndex}`,
+        sources: [],
         sort: metricIndex,
         fields: Array.from({ length: 3 }, (_, fieldIndex) => ({
           key: `field${fieldIndex}`,

@@ -33,7 +33,9 @@ const RAW_CATEGORIES = [
   {
     categoryKey: "profitability",
     categoryDisplayName: "獲利能力",
-    metrics: [{ metricCode: "roe", displayName: "股東權益報酬率 (ROE)", unit: "%", validTokens: ["Q", "Q_ANN", "TTM"] }],
+    metrics: [
+      { metricCode: "roe", displayName: "股東權益報酬率 (ROE)", unit: "%", validTokens: ["Q", "Q_ANN", "TTM"], sources: ["公開發行公司資產負債表（XBRL）"] },
+    ],
   },
 ];
 
@@ -59,6 +61,7 @@ describe("fetchFilterCatalog", () => {
             formulaLatex: null,
             referenceUrl: null,
             badge: null,
+            sources: ["公開發行公司資產負債表（XBRL）"],
             sort: 0,
             fields: [
               { key: "Q", name: "Q", period: "Q", description: null, source: null, unit: null, sort: 0 },
@@ -94,6 +97,7 @@ describe("fetchFilterCatalog", () => {
                 allowedLookbackRanges: ["1Y", "2Y", "5Y"],
                 allowedSamplingIntervals: ["1D", "1W", "1M"],
                 validTokens: ["1Y_1D", "2Y_1W", "5Y_1M"],
+                sources: ["證交所／櫃買中心每日收盤價", "加權股價指數（TAIEX）每日收盤價"],
               },
             ],
           },
@@ -183,8 +187,9 @@ describe("fetchFilterCatalog", () => {
                 unit: "%",
                 validTokens: ["TTM"],
                 formulaLatex: "\\mathrm{ROE} = \\frac{\\mathrm{NetIncome}}{\\mathrm{Equity}} \\times 100",
+                sources: ["公開發行公司資產負債表（XBRL）"],
               },
-              { metricCode: "roa", displayName: "資產報酬率 (ROA)", unit: "%", validTokens: ["TTM"] },
+              { metricCode: "roa", displayName: "資產報酬率 (ROA)", unit: "%", validTokens: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"] },
             ],
           },
         ],
@@ -231,8 +236,9 @@ describe("fetchFilterCatalog", () => {
                 unit: "%",
                 validTokens: ["TTM"],
                 referenceUrl: "https://en.wikipedia.org/wiki/Dividend_payout_ratio",
+                sources: ["公開發行公司現金流量表（XBRL）"],
               },
-              { metricCode: "roa", displayName: "資產報酬率 (ROA)", unit: "%", validTokens: ["TTM"] },
+              { metricCode: "roa", displayName: "資產報酬率 (ROA)", unit: "%", validTokens: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"] },
             ],
           },
         ],
@@ -285,8 +291,15 @@ describe("fetchFilterCatalog", () => {
             categoryKey: "profitability",
             categoryDisplayName: "獲利能力",
             metrics: [
-              { metricCode: "grahamNumber", displayName: "Graham Number", unit: "元", validTokens: ["TTM"], badge: SAMPLE_BADGE },
-              { metricCode: "roa", displayName: "資產報酬率 (ROA)", unit: "%", validTokens: ["TTM"] },
+              {
+                metricCode: "grahamNumber",
+                displayName: "Graham Number",
+                unit: "元",
+                validTokens: ["TTM"],
+                badge: SAMPLE_BADGE,
+                sources: ["公開發行公司資產負債表（XBRL）", "公開發行公司損益表（XBRL）"],
+              },
+              { metricCode: "roa", displayName: "資產報酬率 (ROA)", unit: "%", validTokens: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"] },
             ],
           },
         ],
@@ -313,7 +326,16 @@ describe("fetchFilterCatalog", () => {
           {
             categoryKey: "profitability",
             categoryDisplayName: "獲利能力",
-            metrics: [{ metricCode: "eps", displayName: "EPS", unit: "元", validTokens: ["TTM", "Q"], badge: epsBadge }],
+            metrics: [
+              {
+                metricCode: "eps",
+                displayName: "EPS",
+                unit: "元",
+                validTokens: ["TTM", "Q"],
+                badge: epsBadge,
+                sources: ["公開發行公司損益表（XBRL）"],
+              },
+            ],
           },
         ],
       },
@@ -392,6 +414,7 @@ describe("fetchFilterCatalog", () => {
                 displayName: "盈餘發放率",
                 unit: "%",
                 validTokens: ["TTM"],
+                sources: ["公開發行公司現金流量表（XBRL）"],
                 badge: {
                   ...SAMPLE_BADGE,
                   id: "dividend-payout-ratio-safety",
@@ -409,6 +432,69 @@ describe("fetchFilterCatalog", () => {
     expect(result[0]?.metrics[0]?.badge?.threshold).toMatchObject({ comparator: "in_range", valueMin: 40, valueMax: 60 });
   });
 
+  // sources (2026-09-10): unlike formulaLatex/referenceUrl/badge, analysis-ts guarantees this is always
+  // present and non-empty — required here, not defaulted to null/undefined when absent.
+  it("passes through sources", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              {
+                metricCode: "roe",
+                displayName: "ROE",
+                unit: "%",
+                validTokens: ["TTM"],
+                sources: ["公開發行公司資產負債表（XBRL）", "公開發行公司損益表（XBRL）"],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchFilterCatalog();
+
+    expect(result[0]?.metrics[0]?.sources).toEqual(["公開發行公司資產負債表（XBRL）", "公開發行公司損益表（XBRL）"]);
+  });
+
+  it("throws a 502 AppError when sources is missing entirely", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: ["TTM"] }],
+          },
+        ],
+      },
+    });
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when sources is present but not an array of strings", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: ["TTM"], sources: [123] }],
+          },
+        ],
+      },
+    });
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
   it("handles an empty validTokens array (zero queryable fields for that metric)", async () => {
     mockFetchOnce({
       ok: true,
@@ -417,7 +503,7 @@ describe("fetchFilterCatalog", () => {
           {
             categoryKey: "profitability",
             categoryDisplayName: "獲利能力",
-            metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: [] }],
+            metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: [], sources: ["公開發行公司資產負債表（XBRL）"] }],
           },
         ],
       },

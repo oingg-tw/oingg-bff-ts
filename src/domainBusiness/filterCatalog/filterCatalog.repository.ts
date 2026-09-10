@@ -80,6 +80,7 @@ export async function listFilterCatalog(): Promise<FilterCategory[]> {
       formulaLatex: metric.formulaLatex,
       referenceUrl: metric.referenceUrl,
       badge: metric.badge as unknown as FilterMetricBadge | null,
+      sources: metric.sources,
       sort: metric.position,
       // oingg-analysis-ts fills description/source/unit at the metric level only (the different period
       // variants of one metric — quarterly/TTM/etc — share the same definition/source/unit, so it
@@ -137,6 +138,7 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
       formulaLatex: metric.formulaLatex ?? null,
       referenceUrl: metric.referenceUrl ?? null,
       badge: metric.badge ? JSON.stringify(metric.badge) : null,
+      sources: metric.sources,
       position,
     })),
   );
@@ -167,18 +169,18 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
 
     if (metricRows.length > 0) {
       await tx.$executeRaw`
-        INSERT INTO filter_metric (key, category_key, name, path, description, source, unit, formula_latex, reference_url, badge, position)
+        INSERT INTO filter_metric (key, category_key, name, path, description, source, unit, formula_latex, reference_url, badge, sources, position)
         VALUES ${Prisma.join(
           metricRows.map(
             (m) =>
-              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.badge}::jsonb, ${m.position})`,
+              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.badge}::jsonb, ${m.sources}, ${m.position})`,
           ),
         )}
         ON CONFLICT (key) DO UPDATE SET
           category_key = EXCLUDED.category_key, name = EXCLUDED.name, path = EXCLUDED.path,
           description = EXCLUDED.description, source = EXCLUDED.source, unit = EXCLUDED.unit,
           formula_latex = EXCLUDED.formula_latex, reference_url = EXCLUDED.reference_url, badge = EXCLUDED.badge,
-          position = EXCLUDED.position
+          sources = EXCLUDED.sources, position = EXCLUDED.position
       `;
     }
 
