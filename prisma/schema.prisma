@@ -78,6 +78,11 @@ model FilterMetric {
   /// based). Nullable — analysis-ts only documents a formula for a handful of metrics as of 2026-09-10
   /// (pilot rollout), absent entirely from their /metrics response for the rest, not an empty string.
   formulaLatex String?             @map("formula_latex")
+  /// URL to an external reference explaining this metric (e.g. a Wikipedia article) — same "not every
+  /// metric has one yet" convention as formulaLatex. Lets web-nuxt drop its own hardcoded per-metric
+  /// source-link table (guru-badges.ts) and just render whatever analysis-ts's MetricDefinitionSpec
+  /// already declares, added 2026-09-10.
+  referenceUrl String?             @map("reference_url")
   position    Int
   category    FilterCategory      @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
   fields      FilterMetricField[]

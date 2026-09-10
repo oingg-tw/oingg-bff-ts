@@ -10,6 +10,8 @@ interface RawPitMetric {
   validTokens: string[];
   /** Absent entirely (not an empty string) for metrics without a documented formula yet — pilot rollout, 2026-09-10. */
   formulaLatex?: string;
+  /** Absent entirely (not an empty string) for metrics without a documented reference link yet, 2026-09-10. */
+  referenceUrl?: string;
 }
 
 interface RawPitCategory {
@@ -37,7 +39,8 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
             typeof (m as RawPitMetric).unit === "string" &&
             Array.isArray((m as RawPitMetric).validTokens) &&
             (m as RawPitMetric).validTokens.every((t) => typeof t === "string") &&
-            ((m as RawPitMetric).formulaLatex === undefined || typeof (m as RawPitMetric).formulaLatex === "string"),
+            ((m as RawPitMetric).formulaLatex === undefined || typeof (m as RawPitMetric).formulaLatex === "string") &&
+            ((m as RawPitMetric).referenceUrl === undefined || typeof (m as RawPitMetric).referenceUrl === "string"),
         ),
     )
   );
@@ -68,6 +71,12 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
  * started rolling out 2026-09-10, pilot on 4 metrics (roe/peRatio/sue/chowderNumber) — absent entirely
  * (not an empty string) on every other metric until analysis-ts documents more. Passed through as `null`
  * when absent, same "not yet provided" convention as description/source elsewhere in this type.
+ *
+ * `referenceUrl` (external reference link, e.g. a Wikipedia article) also landed 2026-09-10, already
+ * populated for several metrics (dividendPayoutRatio, dividendCoverageRatio, dividendYield, ...) — this
+ * exists so web-nuxt can drop its own hardcoded per-metric source-link table (guru-badges.ts) and just
+ * render whatever analysis-ts's MetricDefinitionSpec declares, avoiding maintaining the same links twice.
+ * Same absent-not-empty-string and null-when-absent convention as formulaLatex.
  */
 function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
   return raw.map((category, categoryIndex) => ({
@@ -82,6 +91,7 @@ function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
       source: null,
       unit: metric.unit,
       formulaLatex: metric.formulaLatex ?? null,
+      referenceUrl: metric.referenceUrl ?? null,
       sort: metricIndex,
       fields: metric.validTokens.map((token, tokenIndex) => ({
         key: token,

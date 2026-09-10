@@ -36,6 +36,13 @@ export interface FilterMetric {
    * figures are bigint-precise, a LaTeX compute-engine would be float-based) — display only.
    */
   formulaLatex?: string | null;
+  /**
+   * URL to an external reference explaining this metric (e.g. a Wikipedia article), meant to replace
+   * per-consumer hardcoded source links (e.g. web-nuxt's guru-badges.ts) with whatever analysis-ts's own
+   * MetricDefinitionSpec declares. Null when analysis-ts hasn't documented a reference for this metric
+   * yet — same "not every metric has one yet" convention as formulaLatex, added 2026-09-10.
+   */
+  referenceUrl?: string | null;
   /** Display order among sibling metrics under the same category (0-based) — see FilterField.sort. */
   sort: number;
   fields: FilterField[];

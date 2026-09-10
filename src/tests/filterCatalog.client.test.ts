@@ -57,6 +57,7 @@ describe("fetchFilterCatalog", () => {
             source: null,
             unit: "%",
             formulaLatex: null,
+            referenceUrl: null,
             sort: 0,
             fields: [
               { key: "Q", name: "Q", period: "Q", description: null, source: null, unit: null, sort: 0 },
@@ -204,6 +205,54 @@ describe("fetchFilterCatalog", () => {
             categoryKey: "profitability",
             categoryDisplayName: "獲利能力",
             metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: ["TTM"], formulaLatex: 123 }],
+          },
+        ],
+      },
+    });
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  // referenceUrl (2026-09-10, same rollout as formulaLatex): absent entirely (not an empty string) on
+  // metrics analysis-ts hasn't documented a reference link for yet — must resolve to null, not throw.
+  it("passes through referenceUrl when present, and defaults to null when absent", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              {
+                metricCode: "dividendPayoutRatio",
+                displayName: "盈餘發放率",
+                unit: "%",
+                validTokens: ["TTM"],
+                referenceUrl: "https://en.wikipedia.org/wiki/Dividend_payout_ratio",
+              },
+              { metricCode: "roa", displayName: "資產報酬率 (ROA)", unit: "%", validTokens: ["TTM"] },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchFilterCatalog();
+
+    expect(result[0]?.metrics[0]?.referenceUrl).toBe("https://en.wikipedia.org/wiki/Dividend_payout_ratio");
+    expect(result[0]?.metrics[1]?.referenceUrl).toBeNull();
+  });
+
+  it("throws a 502 AppError when referenceUrl is present but not a string", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: ["TTM"], referenceUrl: 123 }],
           },
         ],
       },
