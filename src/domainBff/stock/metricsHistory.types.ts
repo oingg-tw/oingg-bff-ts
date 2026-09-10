@@ -26,7 +26,7 @@ export interface MetricsHistoryResult {
    * A single token shared by every metricCode in this request — analysis-ts validates each metricCode
    * supports it (e.g. growth-decomposition codes like netIncomeGrowthRate only support "Q", not "TTM").
    * Not narrowed to a fixed union here (unlike MetricHistoryBasis) since different metricCode combinations
-   * need different valid tokens — see GET /filters' validTokens per metricCode.
+   * need different valid tokens — see GET /metrics' validTokens per metricCode.
    */
   token: string;
   /** Full count available (not just this page). */

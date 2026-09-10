@@ -46,10 +46,12 @@ model PresetTemplate {
   @@map("preset_template")
 }
 
-/// Filter catalog, synced from oingg-analysis-ts's /filters endpoint at startup (see src/domainBusiness/filterCatalog).
-/// `position` mirrors this row's index in the source /filters array, so GET /filters on this service
-/// can reproduce the same category/metric/field ordering the frontend would get from oingg-analysis-ts
-/// directly — the source order matters for UX (e.g. "profitability" before more niche categories).
+/// Filter catalog, synced from oingg-analysis-ts's /metrics endpoint at startup (see
+/// src/domainBusiness/filterCatalog — renamed from /filters 2026-09-10, same rename on both sides for
+/// ubiquitous language: the response is metric definitions, not filters themselves).
+/// `position` mirrors this row's index in the source array, so GET /metrics on this service can reproduce
+/// the same category/metric/field ordering the frontend would get from oingg-analysis-ts directly — the
+/// source order matters for UX (e.g. "profitability" before more niche categories).
 model FilterCategory {
   key      String         @id
   name     String
@@ -64,9 +66,9 @@ model FilterMetric {
   categoryKey String              @map("category_key")
   name        String
   path        String
-  /// Definition tooltip text for this metric — nullable until oingg-analysis-ts's /filters starts sending it.
+  /// Definition tooltip text for this metric — nullable until oingg-analysis-ts's /metrics starts sending it.
   description String?
-  /// Data-source tooltip text for this metric — nullable until oingg-analysis-ts's /filters starts sending it.
+  /// Data-source tooltip text for this metric — nullable until oingg-analysis-ts's /metrics starts sending it.
   source      String?
   /// Display unit for this metric's values (e.g. "percent", "currency", "times", "ratio") — a field's own
   /// unit (below) overrides this when set, same fallback convention as description/source.
@@ -74,7 +76,7 @@ model FilterMetric {
   /// LaTeX source for this metric's formula, read-only display only (e.g. KaTeX/mathlive) — never for
   /// actual computation (analysis-ts's real figures are bigint-precise, LaTeX compute engines are float-
   /// based). Nullable — analysis-ts only documents a formula for a handful of metrics as of 2026-09-10
-  /// (pilot rollout), absent entirely from their /filters response for the rest, not an empty string.
+  /// (pilot rollout), absent entirely from their /metrics response for the rest, not an empty string.
   formulaLatex String?             @map("formula_latex")
   position    Int
   category    FilterCategory      @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
@@ -89,9 +91,9 @@ model FilterMetricField {
   key       String
   name      String
   period    String
-  /// Definition tooltip text for this field — nullable until oingg-analysis-ts's /filters starts sending it.
+  /// Definition tooltip text for this field — nullable until oingg-analysis-ts's /metrics starts sending it.
   description String?
-  /// Data-source tooltip text for this field — nullable until oingg-analysis-ts's /filters starts sending it.
+  /// Data-source tooltip text for this field — nullable until oingg-analysis-ts's /metrics starts sending it.
   source      String?
   /// Display unit for this specific field (e.g. dupont.assetTurnoverQuarterly is "times" even though the
   /// dupont metric's own default unit is "percent") — falls back to the metric's unit when not set.
@@ -106,7 +108,7 @@ model FilterMetricField {
 }
 
 /// Curated, product-defined column-preset templates (e.g. "存股領息", "獲利品質拆解"), synced from
-/// oingg-analysis-ts's /filters endpoint at startup — same mechanism/rationale as FilterCategory above,
+/// oingg-analysis-ts's /metrics endpoint at startup — same mechanism/rationale as FilterCategory above,
 /// just a separate table since these aren't part of the category/metric/field catalog tree (see
 /// src/domainBusiness/columnPresetTemplates). `fieldKeys` is a plain JSON string array of "<metricKey>.<fieldKey>"
 /// refs, the same format ColumnPresetField.field uses — applying a template is just handing its fieldKeys

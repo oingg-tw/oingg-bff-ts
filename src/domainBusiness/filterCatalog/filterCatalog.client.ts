@@ -99,9 +99,11 @@ function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
 /**
  * Fetches the filter category/metric/field catalog from oingg-analysis-ts's `/metrics` endpoint —
  * renamed from `/filters` 2026-09-10 (their reasoning: the response is metric definitions, not filters
- * themselves; response shape unchanged). bff-ts's own public `GET /filters` path is deliberately left
- * unchanged — this is purely an internal upstream rename, shielded from web-nuxt same as the
- * basis->token/periodType rename earlier (see [[project_basis_field_split_migration]]).
+ * themselves; response shape unchanged). Unlike the basis->token/periodType rename (a pure internal
+ * wire-format change, shielded from web-nuxt — see [[project_basis_field_split_migration]]), this one
+ * carries domain-language significance, so bff-ts's own public path was renamed too (`GET /filters` ->
+ * `GET /metrics`, same day) — for ubiquitous language, so cross-team communication doesn't end up with
+ * two names for the same thing.
  */
 export async function fetchFilterCatalog(): Promise<FilterCategory[]> {
   const url = buildAnalysisServiceUrl("/metrics");

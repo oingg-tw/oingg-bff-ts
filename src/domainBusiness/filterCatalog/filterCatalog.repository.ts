@@ -53,7 +53,7 @@ export async function findFilterFields(refs: FieldRefInput[]): Promise<FilterFie
   }));
 }
 
-/** Full catalog for the frontend (GET /filters), in the same category→metric→field shape and order as the source /filters response. */
+/** Full catalog for the frontend (GET /metrics), in the same category→metric→field shape and order as analysis-ts's source /metrics response. */
 export async function listFilterCatalog(): Promise<FilterCategory[]> {
   const prisma = getPrismaClient();
   const categories = await prisma.filterCategory.findMany({

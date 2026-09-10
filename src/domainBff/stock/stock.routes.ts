@@ -153,7 +153,7 @@ stockRouter.get("/:symbol/metric-history", async (req, res) => {
 
 // `basis` isn't a fixed enum here (unlike metricHistoryQuerySchema) — analysis-ts's own valid values for
 // this token differ per metricCode combination (e.g. growth-decomposition codes only allow "Q", not
-// "TTM") and are re-validated against GET /filters' per-metricCode validTokens; a local enum here would
+// "TTM") and are re-validated against GET /metrics' per-metricCode validTokens; a local enum here would
 // either be too narrow (rejecting valid combinations) or too permissive to be useful.
 export const metricsHistoryQuerySchema = z.object({
   metricCodes: z
