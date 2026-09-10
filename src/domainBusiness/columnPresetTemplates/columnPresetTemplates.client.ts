@@ -31,19 +31,20 @@ function isRawColumnPresetTemplateArray(value: unknown): value is RawColumnPrese
 }
 
 /**
- * Fetches the curated columnPresets from oingg-analysis-ts's `/filters` endpoint — same endpoint
- * filterCatalog.client.ts reads `categories` from, just a different top-level field. A separate request
- * (rather than sharing filterCatalog's single fetch) keeps the two sync flows independent, at the cost of
- * one extra GET at startup — negligible since this only runs once per process start.
+ * Fetches the curated columnPresets from oingg-analysis-ts's `/metrics` endpoint (renamed from `/filters`
+ * 2026-09-10, response shape unchanged — see filterCatalog.client.ts's fetchFilterCatalog) — same endpoint
+ * that reads `categories` from, just a different top-level field. A separate request (rather than sharing
+ * filterCatalog's single fetch) keeps the two sync flows independent, at the cost of one extra GET at
+ * startup — negligible since this only runs once per process start.
  *
- * analysis-ts's 2026-09-08 pitMetrics rebuild dropped this field from `/filters` entirely (not even
- * present as an empty array — confirmed live) rather than migrating it; there is currently no curated
- * column-preset concept upstream at all. Treated as "zero templates" rather than a fetch failure, since
- * that's the actual current (if regrettable) state of the world, not an error to retry — if analysis-ts
- * reintroduces this field later, it picks back up automatically with no bff-ts change needed.
+ * analysis-ts's 2026-09-08 pitMetrics rebuild dropped this field entirely (not even present as an empty
+ * array — confirmed live) rather than migrating it; there is currently no curated column-preset concept
+ * upstream at all. Treated as "zero templates" rather than a fetch failure, since that's the actual current
+ * (if regrettable) state of the world, not an error to retry — if analysis-ts reintroduces this field
+ * later, it picks back up automatically with no bff-ts change needed.
  */
 export async function fetchColumnPresetTemplates(): Promise<ColumnPresetTemplate[]> {
-  const url = buildAnalysisServiceUrl("/filters");
+  const url = buildAnalysisServiceUrl("/metrics");
   const response = await fetchAnalysisService(url);
   assertAnalysisServiceOk(response, url, "Filters service");
 

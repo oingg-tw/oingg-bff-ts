@@ -68,7 +68,7 @@ describe("fetchFilterCatalog", () => {
       },
     ]);
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/filters");
+    expect(calledUrl.toString()).toBe("http://filters.test/metrics");
   });
 
   // Regression: beta's lookbackRange (1Y/2Y/5Y) x samplingInterval (1D/1W/1M) looked like a 3x3 cross

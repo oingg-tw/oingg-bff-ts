@@ -42,7 +42,7 @@ describe("fetchColumnPresetTemplates", () => {
 
     expect(result).toEqual([{ ...SAMPLE_TEMPLATE, isDefault: false }]);
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/filters");
+    expect(calledUrl.toString()).toBe("http://filters.test/metrics");
   });
 
   it("passes through isDefault: true for the one template that has it", async () => {
