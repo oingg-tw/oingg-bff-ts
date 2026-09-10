@@ -14,6 +14,7 @@ import {
   getMetricHistory,
   getMetricsHistory,
   getMonthlyRevenueHistory,
+  getPiotroskiBreakdown,
   getPreferredStockFieldCatalog,
   getPreferredStocks,
   getRoaHistory,
@@ -245,4 +246,21 @@ stockRouter.get("/:symbol/daily-price-history", async (req, res) => {
   const query = parseBody(dailyPriceHistoryQuerySchema, req.query);
   const history = await getDailyPriceHistory(symbol, query.limit);
   res.json(history);
+});
+
+export const piotroskiBreakdownQuerySchema = z
+  .object({
+    year: z.string().trim().min(1, '"year" must be a non-empty string').optional(),
+    season: z.string().trim().min(1, '"season" must be a non-empty string').optional(),
+  })
+  .refine((data) => (data.year === undefined) === (data.season === undefined), {
+    message: '"year" and "season" must be given together, or not at all',
+    path: ["year"],
+  });
+
+stockRouter.get("/:symbol/piotroski-breakdown", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(piotroskiBreakdownQuerySchema, req.query);
+  const breakdown = await getPiotroskiBreakdown(symbol, query.year, query.season);
+  res.json(breakdown);
 });

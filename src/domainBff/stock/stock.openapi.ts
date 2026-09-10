@@ -9,6 +9,7 @@ import {
   metricHistoryQuerySchema,
   metricsHistoryQuerySchema,
   monthlyRevenueHistoryQuerySchema,
+  piotroskiBreakdownQuerySchema,
   preferredStocksQuerySchema,
   roeRoaHistoryQuerySchema,
 } from "@/domainBff/stock/stock.routes.js";
@@ -240,6 +241,77 @@ registry.registerPath({
       content: { "application/json": { schema: financialStatementSchema } },
     },
     400: errorResponse('"statementType" 缺少或無效，或 year/season 只給了其中一個。'),
+    502: unauthorized502,
+  },
+});
+
+const piotroskiBreakdownGroupsSchema = z
+  .object({
+    profitability: z.object({
+      positiveRoa: z.boolean().nullable(),
+      positiveCfo: z.boolean().nullable(),
+      roaImproved: z.boolean().nullable(),
+      accrualQuality: z.boolean().nullable(),
+    }),
+    leverageLiquidity: z.object({
+      leverageDecreased: z.boolean().nullable(),
+      liquidityImproved: z.boolean().nullable(),
+      noDilution: z.boolean().nullable(),
+    }),
+    operatingEfficiency: z.object({
+      grossMarginImproved: z.boolean().nullable(),
+      assetTurnoverImproved: z.boolean().nullable(),
+    }),
+  })
+  .nullable();
+
+const piotroskiBreakdownSchema = z
+  .object({
+    symbol: z.string(),
+    found: z.boolean(),
+    fiscalYear: z.number().nullable(),
+    fiscalQuarter: z.number().nullable(),
+    knowledgeDate: z.string().nullable(),
+    knowledgeDateIsFallback: z.boolean().nullable(),
+    totalScore: z.number().nullable(),
+    groups: piotroskiBreakdownGroupsSchema,
+  })
+  .openapi("PiotroskiBreakdown", {
+    example: {
+      symbol: "2330",
+      found: true,
+      fiscalYear: 2026,
+      fiscalQuarter: 2,
+      knowledgeDate: "2026-08-11",
+      knowledgeDateIsFallback: false,
+      totalScore: 8,
+      groups: {
+        profitability: { positiveRoa: true, positiveCfo: true, roaImproved: true, accrualQuality: true },
+        leverageLiquidity: { leverageDecreased: false, liquidityImproved: true, noDilution: true },
+        operatingEfficiency: { grossMarginImproved: true, assetTurnoverImproved: true },
+      },
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/piotroski-breakdown",
+  summary: "查詢 Piotroski F-Score 底下 9 個布林訊號的分類拆解（獲利能力/財務韌性/營運周轉）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/piotroski-breakdown。原本既有的 piotroskiFScore.Q 是單一 9 分的總分，這支端點回傳算出這 9 分底下的個別布林訊號，依 3 個分類分組（profitability 4 項、leverageLiquidity 3 項、operatingEfficiency 2 項），用途是把原本一顆 9 分的 Piotroski 徽章拆成 3 顆分別掛在對應分類（獲利能力/財務韌性/營運周轉）底下的子徽章。單純原樣轉發，bff-ts 不做任何計算——`totalScore` 沿用跟已持久化的 piotroskiFScore.Q 一樣的「一項訊號缺值，整個總分就是 null」規則，不是這支端點自己算的；每個分類底下要不要算出一個 4/3/2 分母的子分數、以及同樣的 null 傳播規則怎麼套用到子分數，由呼叫端（web-nuxt）自己決定，不在這支端點的職責內。不給 year/season 會查最新一季，跟 financial-statement 相同慣例；查無資料（代號不存在，或指定的 year/season 沒有申報資料）回應 found:false，其餘欄位（包含 groups）一律是 null，仍是 200，不是 404。",
+  tags: ["Stock"],
+  request: {
+    params: symbolParam,
+    query: piotroskiBreakdownQuerySchema.openapi("PiotroskiBreakdownQuery", {
+      example: { year: "115", season: "2" },
+    }),
+  },
+  responses: {
+    200: {
+      description: "Piotroski F-Score 的分類拆解，查無資料時 found 為 false、其餘欄位（含 groups）皆為 null。",
+      content: { "application/json": { schema: piotroskiBreakdownSchema } },
+    },
+    400: errorResponse('year/season 只給了其中一個。'),
     502: unauthorized502,
   },
 });

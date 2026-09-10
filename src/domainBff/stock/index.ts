@@ -13,6 +13,7 @@ export {
   getMetricHistory,
   getMetricsHistory,
   getMonthlyRevenueHistory,
+  getPiotroskiBreakdown,
   getPreferredStockFieldCatalog,
   getPreferredStocks,
   getRoaHistory,
@@ -62,3 +63,10 @@ export type {
   MonthlyRevenueHistoryEntry,
   MonthlyRevenueHistoryResult,
 } from "@/domainBff/stock/monthlyRevenueHistory.types.js";
+export type {
+  PiotroskiBreakdownGroups,
+  PiotroskiBreakdownLeverageLiquidityGroup,
+  PiotroskiBreakdownOperatingEfficiencyGroup,
+  PiotroskiBreakdownProfitabilityGroup,
+  PiotroskiBreakdownResult,
+} from "@/domainBff/stock/piotroskiBreakdown.types.js";

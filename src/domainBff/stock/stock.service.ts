@@ -25,6 +25,8 @@ import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.j
 import type { PreferredStocksResult } from "@/domainBff/stock/preferredStocks.types.js";
 import { fetchPreferredStockFieldCatalog } from "@/domainBff/stock/preferredStocksFieldCatalog.client.js";
 import type { PreferredStockFieldCatalogResult } from "@/domainBff/stock/preferredStocksFieldCatalog.types.js";
+import { fetchPiotroskiBreakdown } from "@/domainBff/stock/piotroskiBreakdown.client.js";
+import type { PiotroskiBreakdownResult } from "@/domainBff/stock/piotroskiBreakdown.types.js";
 import { fetchRoaHistory, fetchRoeHistory } from "@/domainBff/stock/roeRoaHistory.client.js";
 import type { RoaHistoryResult, RoeHistoryResult, RoeRoaHistoryBasis } from "@/domainBff/stock/roeRoaHistory.types.js";
 import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
@@ -162,4 +164,9 @@ export async function getForeignShareholdingHistory(symbol: string, limit?: numb
 /** Daily OHLCV price history — GET /stocks/:symbol/daily-price-history. */
 export async function getDailyPriceHistory(symbol: string, limit?: number): Promise<DailyPriceHistoryResult> {
   return fetchDailyPriceHistory(symbol, limit);
+}
+
+/** Piotroski F-Score's 9 underlying boolean signals, grouped into 3 categories — GET /stocks/:symbol/piotroski-breakdown. */
+export async function getPiotroskiBreakdown(symbol: string, year?: string, season?: string): Promise<PiotroskiBreakdownResult> {
+  return fetchPiotroskiBreakdown(symbol, year, season);
 }
