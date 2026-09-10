@@ -49,6 +49,8 @@ interface RawPitMetric {
   formulaLatex?: string;
   /** Absent entirely (not an empty string) for metrics without a documented reference link yet, 2026-09-10. */
   referenceUrl?: string;
+  /** Present only on the ~13 metrics with a documented academic paper source, 2026-09-10. */
+  academicSourceUrl?: string;
   /** Present only on the ~11 metrics with a curated "guru badge" methodology threshold, 2026-09-10. */
   badge?: FilterMetricBadge;
   /** Data-provenance category labels — a fixed 9-label vocabulary, required and non-empty on every metric (2026-09-10). */
@@ -82,6 +84,7 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
             (m as RawPitMetric).validTokens.every((t) => typeof t === "string") &&
             ((m as RawPitMetric).formulaLatex === undefined || typeof (m as RawPitMetric).formulaLatex === "string") &&
             ((m as RawPitMetric).referenceUrl === undefined || typeof (m as RawPitMetric).referenceUrl === "string") &&
+            ((m as RawPitMetric).academicSourceUrl === undefined || typeof (m as RawPitMetric).academicSourceUrl === "string") &&
             ((m as RawPitMetric).badge === undefined || isRawBadge((m as RawPitMetric).badge)) &&
             Array.isArray((m as RawPitMetric).sources) &&
             (m as RawPitMetric).sources.every((s) => typeof s === "string"),
@@ -122,6 +125,13 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
  * render whatever analysis-ts's MetricDefinitionSpec declares, avoiding maintaining the same links twice.
  * Same absent-not-empty-string and null-when-absent convention as formulaLatex.
  *
+ * `academicSourceUrl` (2026-09-10, added alongside referenceUrl but on a narrower set of ~13 metrics) is
+ * a DIFFERENT link, not a duplicate of referenceUrl — analysis-ts's own distinction: referenceUrl is a
+ * general-reader explanation (often Wikipedia), academicSourceUrl points at the original academic paper
+ * behind the methodology (e.g. sue's Foster/Olsen/Shevlin 1984 paper via a DOI link, or the Basel
+ * III/IMF FSI banking-ratio source documents). web-nuxt prefers this over referenceUrl when both exist.
+ * Same absent-not-empty-string and null-when-absent convention as the other two.
+ *
  * `badge` (2026-09-10, same rollout wave) carries a curated "guru badge" methodology threshold — web-nuxt's
  * own hardcoded GURU_BADGES payload (11 entries), sent to analysis-ts and now echoed back attached to the
  * metric it belongs to, so web-nuxt can read it off this catalog instead of maintaining its own copy.
@@ -154,6 +164,7 @@ function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
       unit: metric.unit,
       formulaLatex: metric.formulaLatex ?? null,
       referenceUrl: metric.referenceUrl ?? null,
+      academicSourceUrl: metric.academicSourceUrl ?? null,
       badge: metric.badge ?? null,
       sources: metric.sources,
       sort: metricIndex,

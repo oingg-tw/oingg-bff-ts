@@ -60,6 +60,7 @@ describe("fetchFilterCatalog", () => {
             unit: "%",
             formulaLatex: null,
             referenceUrl: null,
+            academicSourceUrl: null,
             badge: null,
             sources: ["公開發行公司資產負債表（XBRL）"],
             sort: 0,
@@ -260,6 +261,56 @@ describe("fetchFilterCatalog", () => {
             categoryKey: "profitability",
             categoryDisplayName: "獲利能力",
             metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: ["TTM"], referenceUrl: 123 }],
+          },
+        ],
+      },
+    });
+
+    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  // academicSourceUrl (2026-09-10, added alongside referenceUrl but on a narrower ~13-metric set): a
+  // DIFFERENT link from referenceUrl, not a duplicate — analysis-ts's own distinction: referenceUrl is a
+  // general-reader explanation, academicSourceUrl points at the original academic paper.
+  it("passes through academicSourceUrl when present, and defaults to null when absent", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              {
+                metricCode: "sue",
+                displayName: "標準化未預期盈餘 (SUE)",
+                unit: "",
+                validTokens: ["Q"],
+                academicSourceUrl: "https://doi.org/10.2307/2491062",
+                sources: ["公開發行公司損益表（XBRL）"],
+              },
+              { metricCode: "roa", displayName: "資產報酬率 (ROA)", unit: "%", validTokens: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"] },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchFilterCatalog();
+
+    expect(result[0]?.metrics[0]?.academicSourceUrl).toBe("https://doi.org/10.2307/2491062");
+    expect(result[0]?.metrics[1]?.academicSourceUrl).toBeNull();
+  });
+
+  it("throws a 502 AppError when academicSourceUrl is present but not a string", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [{ metricCode: "roe", displayName: "ROE", unit: "%", validTokens: ["TTM"], academicSourceUrl: 123 }],
           },
         ],
       },

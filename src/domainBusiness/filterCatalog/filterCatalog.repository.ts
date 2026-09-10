@@ -79,6 +79,7 @@ export async function listFilterCatalog(): Promise<FilterCategory[]> {
       unit: metric.unit,
       formulaLatex: metric.formulaLatex,
       referenceUrl: metric.referenceUrl,
+      academicSourceUrl: metric.academicSourceUrl,
       badge: metric.badge as unknown as FilterMetricBadge | null,
       sources: metric.sources,
       sort: metric.position,
@@ -137,6 +138,7 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
       unit: metric.unit ?? null,
       formulaLatex: metric.formulaLatex ?? null,
       referenceUrl: metric.referenceUrl ?? null,
+      academicSourceUrl: metric.academicSourceUrl ?? null,
       badge: metric.badge ? JSON.stringify(metric.badge) : null,
       sources: metric.sources,
       position,
@@ -169,17 +171,18 @@ export async function replaceFilterCatalog(categories: FilterCategory[]): Promis
 
     if (metricRows.length > 0) {
       await tx.$executeRaw`
-        INSERT INTO filter_metric (key, category_key, name, path, description, source, unit, formula_latex, reference_url, badge, sources, position)
+        INSERT INTO filter_metric (key, category_key, name, path, description, source, unit, formula_latex, reference_url, academic_source_url, badge, sources, position)
         VALUES ${Prisma.join(
           metricRows.map(
             (m) =>
-              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.badge}::jsonb, ${m.sources}, ${m.position})`,
+              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.academicSourceUrl}, ${m.badge}::jsonb, ${m.sources}, ${m.position})`,
           ),
         )}
         ON CONFLICT (key) DO UPDATE SET
           category_key = EXCLUDED.category_key, name = EXCLUDED.name, path = EXCLUDED.path,
           description = EXCLUDED.description, source = EXCLUDED.source, unit = EXCLUDED.unit,
-          formula_latex = EXCLUDED.formula_latex, reference_url = EXCLUDED.reference_url, badge = EXCLUDED.badge,
+          formula_latex = EXCLUDED.formula_latex, reference_url = EXCLUDED.reference_url,
+          academic_source_url = EXCLUDED.academic_source_url, badge = EXCLUDED.badge,
           sources = EXCLUDED.sources, position = EXCLUDED.position
       `;
     }

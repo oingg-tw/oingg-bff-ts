@@ -83,6 +83,12 @@ model FilterMetric {
   /// source-link table (guru-badges.ts) and just render whatever analysis-ts's MetricDefinitionSpec
   /// already declares, added 2026-09-10.
   referenceUrl String?             @map("reference_url")
+  /// URL to the original academic paper (author/year/journal) behind this metric's methodology — distinct
+  /// from `referenceUrl` above, which is a general-reader explanation (often Wikipedia). analysis-ts's own
+  /// words: "referenceUrl 給一般讀者看的白話解釋，academicSourceUrl 給想找原始論文的人". Nullable — set on only
+  /// ~13 curated "guru badge" methodologies (sue, the Basel III/IMF FSI banking ratios, etc.) as of
+  /// 2026-09-10, same sparse-coverage pattern referenceUrl started with.
+  academicSourceUrl String?        @map("academic_source_url")
   /// Curated "guru badge" methodology threshold (whole object: id/name/author/summary/detail/token/
   /// threshold), moved from web-nuxt's own hardcoded GURU_BADGES table into analysis-ts's
   /// MetricDefinitionSpec 2026-09-10 and echoed back here. Nullable — present on only the ~11 metrics that

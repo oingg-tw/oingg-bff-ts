@@ -82,6 +82,15 @@ export interface FilterMetric {
    */
   referenceUrl?: string | null;
   /**
+   * URL to the original academic paper (author/year/journal) behind this metric's methodology — distinct
+   * from `referenceUrl` above, which is a general-reader explanation (often Wikipedia). analysis-ts's own
+   * words: "referenceUrl 給一般讀者看的白話解釋，academicSourceUrl 給想找原始論文的人". Null when analysis-ts
+   * hasn't documented one for this metric yet — present on only ~13 curated "guru badge" methodologies
+   * (sue, the Basel III/IMF FSI banking ratios, etc.) as of 2026-09-10, same sparse-coverage pattern
+   * referenceUrl started with.
+   */
+  academicSourceUrl?: string | null;
+  /**
    * Curated "guru badge" methodology threshold (e.g. Graham Number, Altman Z-Score) — see
    * FilterMetricBadge. Present only on the ~11 metrics analysis-ts has one for as of 2026-09-10; null
    * everywhere else, including Piotroski F-Score (deliberately excluded, stays frontend-hardcoded — its
