@@ -4,6 +4,7 @@ import { AppError } from "@/shared/errorHandler.js";
 import { parseBody } from "@/shared/validation.js";
 import {
   getCapitalStockHistory,
+  getCompanyList,
   getCompanyProfile,
   getDailyPriceHistory,
   getDupontHistory,
@@ -42,6 +43,27 @@ function limitSchema(min: number, max: number) {
 const historyLimitSchema = limitSchema(1, 40);
 
 export const stockRouter = Router();
+
+/** Matches analysis-ts's own GET /companies bound (confirmed live, 2026-09-11). */
+export const companyListQuerySchema = z.object({
+  limit: limitSchema(1, 1000),
+  offset: z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : v),
+    z
+      .coerce.number({ error: '"offset" must be a non-negative integer' })
+      .refine((n) => Number.isInteger(n) && n >= 0, { message: '"offset" must be a non-negative integer' })
+      .optional(),
+  ),
+});
+
+// Bare "/stocks" — the full-market company directory backing site-wide search. Distinct from every
+// "/stocks/<segment>" route below regardless of registration order, since it has no path segment beyond
+// the mount point.
+stockRouter.get("/", async (req, res) => {
+  const query = parseBody(companyListQuerySchema, req.query);
+  const result = await getCompanyList(query.limit, query.offset);
+  res.json(result);
+});
 
 stockRouter.get("/ex-dividend-notices", async (req, res) => {
   const symbolsParam = req.query.symbols;

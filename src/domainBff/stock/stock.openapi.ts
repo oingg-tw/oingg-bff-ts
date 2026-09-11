@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
 import {
+  companyListQuerySchema,
   dupontHistoryQuerySchema,
   exDividendCalendarQuerySchema,
   financialStatementQuerySchema,
@@ -32,6 +33,33 @@ const stockQuoteSchema = z
       .nullable(),
   })
   .openapi("StockQuote");
+
+const companyListSchema = z
+  .object({
+    count: z.number(),
+    limit: z.number(),
+    offset: z.number(),
+    entries: z.array(z.object({ symbol: z.string(), name: z.string() })),
+  })
+  .openapi("CompanyList");
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks",
+  summary: "全市場上市／上櫃公司代號與名稱清單（全站搜尋股票用的資料來源）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies，來源是 twse-ts/tpex-ts 各自的 company_profile 表（代號衝突時以上市優先去重）。目前約 2650 檔，需要分頁：limit 1-1000（預設 200），offset 預設 0，offset 超過 count 時回傳空的 entries 陣列（不是錯誤）。前端要拿到全市場清單需要自己依 count 迴圈呼叫多次，這支端點單純原樣轉發 analysis-ts 的分頁參數，不會在 bff-ts 這邊多次呼叫組成單一大回應。沒有市場別（上市/上櫃）欄位——analysis-ts 這支端點目前沒有提供，如果之後有實際需求再加。",
+  tags: ["Stock"],
+  request: { query: companyListQuerySchema.openapi("CompanyListQuery", { example: { limit: 200, offset: 0 } }) },
+  responses: {
+    200: {
+      description: "公司清單，count 是全市場總數（不受這次 limit 影響），可用來判斷還要不要繼續分頁。",
+      content: { "application/json": { schema: companyListSchema } },
+    },
+    400: errorResponse('limit 不是 1-1000 之間的整數，或 offset 不是非負整數。'),
+    502: unauthorized502,
+  },
+});
 
 registry.registerPath({
   method: "get",

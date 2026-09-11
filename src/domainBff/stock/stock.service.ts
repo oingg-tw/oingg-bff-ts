@@ -1,4 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
+import { fetchCompanyList } from "@/domainBff/stock/companyList.client.js";
+import type { CompanyListResult } from "@/domainBff/stock/companyList.types.js";
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
 import type { CapitalStockHistoryResult } from "@/domainBff/stock/capitalStockHistory.types.js";
 import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
@@ -37,6 +39,11 @@ import type { StockQuote } from "@/domainBff/stock/stock.types.js";
 export interface ClosePrice {
   close: string | null;
   tradeDate: string | null;
+}
+
+/** Full-market company directory (symbol/name, paginated) — GET /stocks. */
+export async function getCompanyList(limit?: number, offset?: number): Promise<CompanyListResult> {
+  return fetchCompanyList(limit, offset);
 }
 
 /** Single-symbol quote — GET /stocks/:symbol. */

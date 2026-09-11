@@ -2,6 +2,7 @@ export { stockRouter } from "@/domainBff/stock/stock.routes.js";
 export {
   assertSymbolExists,
   getCapitalStockHistory,
+  getCompanyList,
   getCompanyProfile,
   getDailyPriceHistory,
   getDupontHistory,
@@ -23,6 +24,7 @@ export {
 } from "@/domainBff/stock/stock.service.js";
 export type { ClosePrice } from "@/domainBff/stock/stock.service.js";
 export type { StockPrice, StockQuote, StockValuation } from "@/domainBff/stock/stock.types.js";
+export type { CompanyListEntry, CompanyListResult } from "@/domainBff/stock/companyList.types.js";
 export type { CompanyProfile, CompanyProfileMarket } from "@/domainBff/stock/companyProfile.types.js";
 export type {
   CapitalStockChangeSource,
