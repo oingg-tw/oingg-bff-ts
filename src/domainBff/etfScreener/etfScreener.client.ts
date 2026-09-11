@@ -3,9 +3,9 @@ import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService 
 import { logger } from "@/shared/logger.js";
 import type {
   EtfColumnRef,
-  EtfFilterCatalog,
-  EtfFilterCategory,
-  EtfFilterField,
+  EtfField,
+  EtfFieldCatalog,
+  EtfFieldCategory,
   EtfScreenerFilter,
   EtfScreenerResult,
   EtfScreenerResultRow,
@@ -17,9 +17,9 @@ export interface EtfScreenerSort {
   order: "asc" | "desc";
 }
 
-function normalizeEtfFilterField(raw: unknown): EtfFilterField {
+function normalizeEtfField(raw: unknown): EtfField {
   const r = raw as Record<string, unknown>;
-  const field: EtfFilterField = {
+  const field: EtfField = {
     field: String(r.field),
     label: String(r.label),
     kind: r.kind === "categorical" ? "categorical" : "numeric",
@@ -33,13 +33,13 @@ function normalizeEtfFilterField(raw: unknown): EtfFilterField {
   return field;
 }
 
-function normalizeEtfFilterCategory(raw: unknown): EtfFilterCategory {
+function normalizeEtfFieldCategory(raw: unknown): EtfFieldCategory {
   const r = raw as Record<string, unknown>;
   const fields = Array.isArray(r.fields) ? r.fields : [];
   return {
     categoryKey: String(r.categoryKey),
     categoryDisplayName: String(r.categoryDisplayName),
-    fields: fields.map(normalizeEtfFilterField),
+    fields: fields.map(normalizeEtfField),
   };
 }
 
@@ -105,7 +105,9 @@ async function postJson(path: string, body: unknown): Promise<unknown> {
 }
 
 /**
- * ETF filter/column catalog from analysis-ts's GET /etf-screener/filters. Not cached locally (unlike the
+ * ETF field/column catalog from analysis-ts's GET /etf-screener/filters (route path unchanged — see
+ * EtfField's naming note in etfScreener.types.ts for why this function and its return type dropped
+ * "Filter" from their names even though the route itself still says it). Not cached locally (unlike the
  * stock screener's filter catalog, synced to bff-ts's own DB at startup): categorical fields' `values`
  * are live DB-distinct values that can grow over time, and there's no separate metricName/fieldName
  * decoration step needed here since `label` already covers that per field. This is the first version of
@@ -117,12 +119,12 @@ async function postJson(path: string, body: unknown): Promise<unknown> {
  * `unit` to numeric fields. Passed through nested, not flattened — web-nuxt's own flatMap over
  * categories[].fields covers any consumer that still wants a flat list.
  */
-export async function fetchEtfFilterCatalog(): Promise<EtfFilterCatalog> {
+export async function fetchEtfFieldCatalog(): Promise<EtfFieldCatalog> {
   const body = (await getJson("/etf-screener/filters")) as { categories?: unknown };
   if (!Array.isArray(body.categories)) {
     throw new AppError("ETF filter catalog response is missing a categories array", 502);
   }
-  return { categories: body.categories.map(normalizeEtfFilterCategory) };
+  return { categories: body.categories.map(normalizeEtfFieldCategory) };
 }
 
 /**

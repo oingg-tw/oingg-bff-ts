@@ -1,25 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/domainBff/etfScreener/etfScreener.client.js", () => ({
-  fetchEtfFilterCatalog: vi.fn(),
+  fetchEtfFieldCatalog: vi.fn(),
   fetchEtfScreenerResults: vi.fn(),
 }));
 
-import { fetchEtfFilterCatalog, fetchEtfScreenerResults } from "@/domainBff/etfScreener/etfScreener.client.js";
-import { getEtfFilterCatalog, runEtfScreener } from "@/domainBff/etfScreener/etfScreener.service.js";
+import { fetchEtfFieldCatalog, fetchEtfScreenerResults } from "@/domainBff/etfScreener/etfScreener.client.js";
+import { getEtfFieldCatalog, runEtfScreener } from "@/domainBff/etfScreener/etfScreener.service.js";
 
 beforeEach(() => {
-  vi.mocked(fetchEtfFilterCatalog).mockReset();
+  vi.mocked(fetchEtfFieldCatalog).mockReset();
   vi.mocked(fetchEtfScreenerResults).mockReset();
 });
 
-describe("getEtfFilterCatalog", () => {
+describe("getEtfFieldCatalog", () => {
   it("delegates straight through", async () => {
-    vi.mocked(fetchEtfFilterCatalog).mockResolvedValue({ categories: [] });
+    vi.mocked(fetchEtfFieldCatalog).mockResolvedValue({ categories: [] });
 
-    await getEtfFilterCatalog();
+    await getEtfFieldCatalog();
 
-    expect(fetchEtfFilterCatalog).toHaveBeenCalledWith();
+    expect(fetchEtfFieldCatalog).toHaveBeenCalledWith();
   });
 });
 

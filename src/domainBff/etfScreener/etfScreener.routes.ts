@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { parseBody } from "@/shared/validation.js";
-import { getEtfFilterCatalog, runEtfScreener } from "@/domainBff/etfScreener/etfScreener.service.js";
+import { getEtfFieldCatalog, runEtfScreener } from "@/domainBff/etfScreener/etfScreener.service.js";
 import {
   DEFAULT_ETF_SCREENER_PAGE_SIZE,
   etfColumnsArraySchema,
@@ -13,7 +13,7 @@ import {
 export const etfScreenerRouter = Router();
 
 etfScreenerRouter.get("/filters", async (_req, res) => {
-  const catalog = await getEtfFilterCatalog();
+  const catalog = await getEtfFieldCatalog();
   res.json(catalog);
 });
 

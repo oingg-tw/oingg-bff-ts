@@ -4,7 +4,7 @@ import { etfScreenerRequestSchema } from "@/domainBff/etfScreener/etfScreener.ro
 
 const upstream502 = errorResponse("analysis-ts 服務無法連線或回應格式異常。");
 
-const etfFilterFieldSchema = z.object({
+const etfFieldSchema = z.object({
   field: z.string(),
   label: z.string(),
   kind: z.enum(["numeric", "categorical"]),
@@ -13,10 +13,10 @@ const etfFilterFieldSchema = z.object({
   values: z.array(z.string()).optional(),
 });
 
-const etfFilterCategorySchema = z.object({
+const etfFieldCategorySchema = z.object({
   categoryKey: z.string(),
   categoryDisplayName: z.string(),
-  fields: z.array(etfFilterFieldSchema),
+  fields: z.array(etfFieldSchema),
 });
 
 registry.registerPath({
@@ -31,7 +31,7 @@ registry.registerPath({
       description: "分類/欄位目錄。",
       content: {
         "application/json": {
-          schema: z.object({ categories: z.array(etfFilterCategorySchema) }).openapi("EtfFilterCatalog", {
+          schema: z.object({ categories: z.array(etfFieldCategorySchema) }).openapi("EtfFieldCatalog", {
             example: {
               categories: [
                 {

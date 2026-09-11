@@ -1,19 +1,28 @@
-export type EtfFilterFieldKind = "numeric" | "categorical";
+/**
+ * Naming note (2026-09-11 ubiquitous-language audit): this file used to call every one of these types
+ * "EtfFilter*", which conflated two different senses of "filter" in the same file — these three
+ * (EtfFieldKind/EtfField/EtfFieldCategory/EtfFieldCatalog) are catalog/definition shapes (what fields
+ * EXIST and what they mean), not screening criteria. EtfNumericFilter/EtfCategoricalFilter/
+ * EtfScreenerFilter further below are the actual filters (screening/narrowing conditions) — renamed
+ * the former group to "Field"/"Category"/"Catalog" so the two senses read as clearly distinct, matching
+ * the stock side's already-established Metric* vs Filter* split.
+ */
+export type EtfFieldKind = "numeric" | "categorical";
 
-export interface EtfFilterField {
+export interface EtfField {
   field: string;
   label: string;
-  kind: EtfFilterFieldKind;
+  kind: EtfFieldKind;
   /** Only present for kind: "numeric" — display unit (e.g. "元", "%", "人"), added 2026-09-11 alongside the categories restructure. */
   unit?: string;
   /** Only present for kind: "categorical" — live DB-distinct values, not a hardcoded enum (confirmed with analysis-ts directly: assetClass's list can grow over time). */
   values?: string[];
 }
 
-export interface EtfFilterCategory {
+export interface EtfFieldCategory {
   categoryKey: string;
   categoryDisplayName: string;
-  fields: EtfFilterField[];
+  fields: EtfField[];
 }
 
 /**
@@ -22,8 +31,8 @@ export interface EtfFilterCategory {
  * analysis-ts's own migration, not a bff-ts design choice. Passed through as-is, not flattened here;
  * a flat field list (if a consumer needs one) is the consumer's own flatMap over categories[].fields.
  */
-export interface EtfFilterCatalog {
-  categories: EtfFilterCategory[];
+export interface EtfFieldCatalog {
+  categories: EtfFieldCategory[];
 }
 
 export interface EtfNumericFilter {

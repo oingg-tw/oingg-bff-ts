@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchEtfFilterCatalog, fetchEtfScreenerResults } from "@/domainBff/etfScreener/etfScreener.client.js";
+import { fetchEtfFieldCatalog, fetchEtfScreenerResults } from "@/domainBff/etfScreener/etfScreener.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
@@ -25,7 +25,7 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-describe("fetchEtfFilterCatalog", () => {
+describe("fetchEtfFieldCatalog", () => {
   // Restructured 2026-09-11: analysis-ts changed this from a flat `{ fields: [...] }` array to nested
   // `{ categories: [{ categoryKey, categoryDisplayName, fields }] }`, matching GET /metrics' shape.
   it("GETs /etf-screener/filters and normalizes nested categories with numeric and categorical fields", async () => {
@@ -47,7 +47,7 @@ describe("fetchEtfFilterCatalog", () => {
       },
     });
 
-    const catalog = await fetchEtfFilterCatalog();
+    const catalog = await fetchEtfFieldCatalog();
 
     expect(catalog).toEqual({
       categories: [
@@ -73,7 +73,7 @@ describe("fetchEtfFilterCatalog", () => {
       body: { categories: [{ categoryKey: "sizeAndFlow", categoryDisplayName: "規模與資金", fields: [{ field: "aum", label: "規模", kind: "numeric" }] }] },
     });
 
-    const catalog = await fetchEtfFilterCatalog();
+    const catalog = await fetchEtfFieldCatalog();
 
     expect(catalog.categories[0]?.fields[0]).not.toHaveProperty("values");
   });
@@ -95,7 +95,7 @@ describe("fetchEtfFilterCatalog", () => {
       },
     });
 
-    const catalog = await fetchEtfFilterCatalog();
+    const catalog = await fetchEtfFieldCatalog();
 
     expect(catalog.categories[0]?.fields[0]).not.toHaveProperty("unit");
     expect(catalog.categories[0]?.fields[1]).not.toHaveProperty("unit");
@@ -104,13 +104,13 @@ describe("fetchEtfFilterCatalog", () => {
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
 
-    await expect(fetchEtfFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchEtfFieldCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("throws a 502 AppError when the response is missing a categories array", async () => {
     mockFetchOnce({ ok: true, body: {} });
 
-    await expect(fetchEtfFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchEtfFieldCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 });
 

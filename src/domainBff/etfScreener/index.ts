@@ -1,11 +1,12 @@
 export { etfScreenerRouter } from "@/domainBff/etfScreener/etfScreener.routes.js";
-export { getEtfFilterCatalog, runEtfScreener } from "@/domainBff/etfScreener/etfScreener.service.js";
+export { getEtfFieldCatalog, runEtfScreener } from "@/domainBff/etfScreener/etfScreener.service.js";
 export type {
   EtfCategoricalFilter,
   EtfColumnRef,
-  EtfFilterCatalog,
-  EtfFilterField,
-  EtfFilterFieldKind,
+  EtfField,
+  EtfFieldCatalog,
+  EtfFieldCategory,
+  EtfFieldKind,
   EtfNumericFilter,
   EtfScreenerFilter,
   EtfScreenerResult,

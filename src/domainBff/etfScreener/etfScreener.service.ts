@@ -1,18 +1,18 @@
 import { AppError } from "@/shared/errorHandler.js";
 import {
-  fetchEtfFilterCatalog,
+  fetchEtfFieldCatalog,
   fetchEtfScreenerResults,
   type EtfScreenerSort,
 } from "@/domainBff/etfScreener/etfScreener.client.js";
 import type {
   EtfColumnRef,
-  EtfFilterCatalog,
+  EtfFieldCatalog,
   EtfScreenerFilter,
   EtfScreenerResult,
 } from "@/domainBff/etfScreener/etfScreener.types.js";
 
-export async function getEtfFilterCatalog(): Promise<EtfFilterCatalog> {
-  return fetchEtfFilterCatalog();
+export async function getEtfFieldCatalog(): Promise<EtfFieldCatalog> {
+  return fetchEtfFieldCatalog();
 }
 
 /**
