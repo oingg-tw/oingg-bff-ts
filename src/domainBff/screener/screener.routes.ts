@@ -28,6 +28,13 @@ export const screenerRequestSchema = z
       .string({ error: '"columnPresetId" must be a UUID string' })
       .regex(UUID_PATTERN, { error: '"columnPresetId" must be a valid UUID' })
       .nullish(),
+    // Raw display-field keys (e.g. a ColumnPresetTemplate's own fieldKeys) — for callers who don't have
+    // (or don't want to use) a personal ColumnPreset to reference by id. Added 2026-09-11 for the guest
+    // "try before you sign up" screener flow: an anonymous caller has no account to own a ColumnPreset,
+    // and columnPresetId is silently ignored for anonymous requests anyway (resolveScreenerColumns always
+    // falls through to the system default for them) — this is the only way a guest can request a specific
+    // set of display columns at all. Mutually exclusive with columnPresetId (see the refine below).
+    columns: z.array(z.string().trim().min(1)).optional(),
     page: paginationSchema.shape.page,
     pageSize: paginationSchema.shape.pageSize,
     sortField: z
@@ -41,17 +48,28 @@ export const screenerRequestSchema = z
   .refine((data) => (data.sortField === undefined) === (data.sortOrder === undefined), {
     message: '"sortField" and "sortOrder" must be given together, or not at all',
     path: ["sortField"],
+  })
+  .refine((data) => data.columnPresetId === undefined || data.columnPresetId === null || data.columns === undefined, {
+    message: '"columnPresetId" and "columns" can\'t both be given — pick one way to choose display columns',
+    path: ["columns"],
   });
 
 screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = req.user?.uid;
   const body = parseBody(screenerRequestSchema, req.body);
   const filters = normalizeScreenerFilters(body.filters);
-  const requestedColumnPresetId = body.columnPresetId ?? undefined;
   const pagination = { page: body.page ?? 1, pageSize: body.pageSize ?? DEFAULT_PAGE_SIZE };
   const sort = body.sortField !== undefined ? { field: body.sortField, order: body.sortOrder! } : undefined;
 
-  const { columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, requestedColumnPresetId);
+  let columnPresetId: string | null;
+  let columns: ScreenerColumnRef[];
+  if (body.columns !== undefined) {
+    columnPresetId = null;
+    columns = body.columns.map((field) => ({ field }));
+  } else {
+    ({ columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, body.columnPresetId ?? undefined));
+  }
+
   const result = await runScreener(filters, columns, pagination, sort, body.sectorCodes);
   res.json({ ...result, columnPresetId });
 });

@@ -54,7 +54,7 @@ registry.registerPath({
   path: "/screener",
   summary: "依 filterCatalog 指標篩選個股",
   description:
-    "不需要登入即可使用（僅儲存為具名 preset 才需要，見 POST /screener/presets）。field 格式為 \"<metricCode>.<token>\"（例如 \"grossMargin.TTM\"、\"beta.2Y_1W\"），對應 GET /metrics 每個 metricCode 底下的 validTokens 陣列——務必用 validTokens，部分指標（例如 beta）的可用 token 不是任意組合，只有特定值才有資料。metricName 從 2026-09-09 起是 analysis-ts 提供的真實中文名稱（例如「殖利率（交易所公告）」），fieldName 目前仍是 token 本身（analysis-ts 還沒有針對個別 token 的文案）。每個指標會取該股票最新一筆合併報表（非子公司）的數值來比對，不同指標之間用 AND 合併。sectorCodes 是選填的證交所類股代碼陣列（見 GET /industries/securities-sectors），多個代碼是聯集（OR），再跟 filters 的結果 AND；這裡的 sectorCodes 只影響這次查詢本身，若要讓某組已儲存的篩選組合記住類股條件，請用 POST/PATCH /screener/presets 上同名的欄位。顯示欄位由 columnPresetId 決定：有給就用那組（見 GET /screener/column-presets，僅限已登入）；沒給、但帶有效 Authorization header，就用該帳號自己設的預設欄位組合，找不到就用系統內建的常用欄位；未登入一律套用系統內建欄位。回應的 columnPresetId 會標明實際套用的是哪一組（null 代表用的是系統內建）。每個 results[].values 底下的欄位都是 { value, asOfDate } 物件，不是純值。asOfDate 統一是實際日期字串（\"YYYY-MM-DD\"，knowledge date）。",
+    "不需要登入即可使用（僅儲存為具名 preset 才需要，見 POST /screener/presets）。field 格式為 \"<metricCode>.<token>\"（例如 \"grossMargin.TTM\"、\"beta.2Y_1W\"），對應 GET /metrics 每個 metricCode 底下的 validTokens 陣列——務必用 validTokens，部分指標（例如 beta）的可用 token 不是任意組合，只有特定值才有資料。metricName 從 2026-09-09 起是 analysis-ts 提供的真實中文名稱（例如「殖利率（交易所公告）」），fieldName 目前仍是 token 本身（analysis-ts 還沒有針對個別 token 的文案）。每個指標會取該股票最新一筆合併報表（非子公司）的數值來比對，不同指標之間用 AND 合併。sectorCodes 是選填的證交所類股代碼陣列（見 GET /industries/securities-sectors），多個代碼是聯集（OR），再跟 filters 的結果 AND；這裡的 sectorCodes 只影響這次查詢本身，若要讓某組已儲存的篩選組合記住類股條件，請用 POST/PATCH /screener/presets 上同名的欄位。顯示欄位由 columnPresetId 或 columns 其中一個決定，兩者互斥（都給會 400）：columnPresetId 是已登入使用者自己的 ColumnPreset id（見 GET /screener/column-presets）——未登入請求帶 columnPresetId 會被忽略，一律當作沒給；columns 是原始欄位 key 陣列（跟 field 格式一樣，例如 ColumnPresetTemplate 的 fieldKeys，見 GET /screener/column-preset-templates），不需要登入、不需要先建立任何個人資源，這是訪客／一次性查詢唯一能指定顯示欄位的方式。兩者都沒給的話：已登入就用該帳號自己設的預設欄位組合，找不到就用系統內建的常用欄位；未登入一律套用系統內建欄位。回應的 columnPresetId 會標明實際套用的是哪一組（null 代表用的是系統內建，或這次是用 columns 直接指定）。每個 results[].values 底下的欄位都是 { value, asOfDate } 物件，不是純值。asOfDate 統一是實際日期字串（\"YYYY-MM-DD\"，knowledge date）。",
   tags: ["Screener"],
   security: [{ bearerAuth: [] }, {}],
   request: { body: { required: true, content: { "application/json": { schema: screenerRequestDocSchema } } } },
@@ -63,7 +63,7 @@ registry.registerPath({
       description: "符合條件的股票清單（這一頁的部分），附上總筆數/頁碼/總頁數，以及實際套用的 columnPresetId。",
       content: { "application/json": { schema: screenerResultSchema } },
     },
-    400: errorResponse("請求格式錯誤，field 不存在於 filterCatalog，或 page/pageSize 不合法。"),
+    400: errorResponse("請求格式錯誤，field 不存在於 filterCatalog，page/pageSize 不合法，或 columnPresetId 和 columns 同時給了。"),
     401: errorResponse("帶了 Authorization header，但 token 無效或過期（完全不帶則視為匿名請求，不會 401）。"),
     404: errorResponse("指定的 columnPresetId 不存在，或不屬於目前登入的使用者。"),
     502: upstream502,
