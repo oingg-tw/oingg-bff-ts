@@ -1,7 +1,6 @@
 import { createApp } from "@/app.js";
 import { initFirebase } from "@/adapters/firebase/index.js";
 import { closeNeonPools, closePrismaClient, initNeonPools } from "@/adapters/neon/index.js";
-import { startColumnPresetTemplateSync } from "@/domainBusiness/columnPresetTemplates/index.js";
 import { startMetricCatalogSync } from "@/domainBusiness/metricCatalog/index.js";
 import { env } from "@/shared/env.js";
 import { logger } from "@/shared/logger.js";
@@ -11,12 +10,13 @@ async function main(): Promise<void> {
   initNeonPools();
 
   // oingg-analysis-ts (數據中台) must never know oingg-bff-ts exists, so there is no push/notify
-  // mechanism from their side — bff-ts is the only one who can keep these fresh, by pulling on its own.
+  // mechanism from their side — bff-ts is the only one who can keep this fresh, by pulling on its own.
   // Fire-and-forget from an external service that may still be booting or briefly down — never blocks
-  // startup or crashes the server; each retries on its own (see metricCatalog.service.ts /
-  // columnPresetTemplates.service.ts).
+  // startup or crashes the server; retries on its own (see metricCatalog.service.ts). Column preset
+  // templates used to sync the same way, but analysis-ts dropped that field entirely 2026-09-08 and
+  // never brought it back — that table is now purely bff-ts-curated (see prisma/seedColumnPresetTemplates.ts),
+  // same as PresetTemplate, with no sync mechanism at all.
   startMetricCatalogSync();
-  startColumnPresetTemplateSync();
 
   const app = createApp();
 

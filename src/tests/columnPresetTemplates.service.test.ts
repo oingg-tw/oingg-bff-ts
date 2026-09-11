@@ -6,16 +6,11 @@ vi.mock("@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository
   replaceColumnPresetTemplates: vi.fn(),
 }));
 
-vi.mock("@/domainBusiness/columnPresetTemplates/columnPresetTemplates.client.js", () => ({
-  fetchColumnPresetTemplates: vi.fn(),
-}));
-
 vi.mock("@/domainBusiness/screener/columnPresets.service.js", () => ({
   addColumnPresetWithName: vi.fn(),
 }));
 
 import { addColumnPresetWithName } from "@/domainBusiness/screener/columnPresets.service.js";
-import { fetchColumnPresetTemplates } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.client.js";
 import {
   findColumnPresetTemplate,
   listColumnPresetTemplates,
@@ -25,7 +20,6 @@ import {
   applyColumnPresetTemplate,
   getColumnPresetTemplateOrThrow,
   getColumnPresetTemplates,
-  syncColumnPresetTemplates,
 } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.service.js";
 
 const PROFITABILITY_QUALITY_TEMPLATE = {
@@ -47,7 +41,6 @@ beforeEach(() => {
   vi.mocked(listColumnPresetTemplates).mockReset();
   vi.mocked(findColumnPresetTemplate).mockReset();
   vi.mocked(replaceColumnPresetTemplates).mockReset();
-  vi.mocked(fetchColumnPresetTemplates).mockReset();
   vi.mocked(addColumnPresetWithName).mockReset();
 });
 
@@ -92,17 +85,5 @@ describe("applyColumnPresetTemplate", () => {
       PROFITABILITY_QUALITY_TEMPLATE.fieldKeys,
     );
     expect(result).toBe(created);
-  });
-});
-
-describe("syncColumnPresetTemplates", () => {
-  it("fetches from the client and replaces the stored templates", async () => {
-    vi.mocked(fetchColumnPresetTemplates).mockResolvedValue([PROFITABILITY_QUALITY_TEMPLATE]);
-    vi.mocked(replaceColumnPresetTemplates).mockResolvedValue(undefined);
-
-    const summary = await syncColumnPresetTemplates();
-
-    expect(replaceColumnPresetTemplates).toHaveBeenCalledWith([PROFITABILITY_QUALITY_TEMPLATE]);
-    expect(summary).toEqual({ templateCount: 1 });
   });
 });

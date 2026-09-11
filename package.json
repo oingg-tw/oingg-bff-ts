@@ -17,6 +17,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed:preset-templates": "tsx prisma/seedPresetTemplates.ts",
+    "seed:column-preset-templates": "tsx prisma/seedColumnPresetTemplates.ts",
     "security:check": "tsx scripts/security-check.ts",
     "kill-port": "powershell -ExecutionPolicy Bypass -File ./scripts/kill-port.ps1"
   },

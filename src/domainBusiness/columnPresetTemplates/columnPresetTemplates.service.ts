@@ -1,18 +1,10 @@
 import { addColumnPresetWithName } from "@/domainBusiness/screener/columnPresets.service.js";
 import type { ColumnPresetView } from "@/domainBusiness/screener/columnPresets.service.js";
-import { fetchColumnPresetTemplates } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.client.js";
-import {
-  findColumnPresetTemplate,
-  listColumnPresetTemplates,
-  replaceColumnPresetTemplates,
-} from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js";
+import { findColumnPresetTemplate, listColumnPresetTemplates } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js";
 import { AppError } from "@/shared/errorHandler.js";
-import { logger } from "@/shared/logger.js";
 import type { ColumnPresetTemplate } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.types.js";
 
-const RETRY_DELAY_MS = 30_000;
-
-/** Serves the templates to the frontend from our own DB — never proxies live to oingg-analysis-ts. */
+/** Serves the templates to the frontend from our own DB — curated locally via prisma/seedColumnPresetTemplates.ts, never synced from analysis-ts (see that script's doc comment for why). */
 export async function getColumnPresetTemplates(): Promise<ColumnPresetTemplate[]> {
   return listColumnPresetTemplates();
 }
@@ -34,37 +26,4 @@ export async function getColumnPresetTemplateOrThrow(key: string): Promise<Colum
 export async function applyColumnPresetTemplate(firebaseUid: string, key: string): Promise<ColumnPresetView> {
   const template = await getColumnPresetTemplateOrThrow(key);
   return addColumnPresetWithName(firebaseUid, template.name, template.fieldKeys);
-}
-
-export interface ColumnPresetTemplateSyncSummary {
-  templateCount: number;
-}
-
-/** Fetches the curated columnPresets from the filters service and stores them in the BFF's own database. */
-export async function syncColumnPresetTemplates(): Promise<ColumnPresetTemplateSyncSummary> {
-  const templates = await fetchColumnPresetTemplates();
-  await replaceColumnPresetTemplates(templates);
-
-  logger.info(`Synced column preset templates: ${templates.length} templates`);
-  return { templateCount: templates.length };
-}
-
-/**
- * Fire-and-forget sync with a single retry, called once at startup — same mechanism and rationale as
- * metricCatalog's startMetricCatalogSync (oingg-analysis-ts must never know oingg-bff-ts exists, so this
- * side is the only one that can initiate keeping this list fresh; freshness is bounded by how often this
- * process restarts).
- */
-export function startColumnPresetTemplateSync(retriesLeft = 1): void {
-  syncColumnPresetTemplates().catch((error: unknown) => {
-    if (retriesLeft > 0) {
-      logger.warn(
-        { err: error },
-        `Column preset template sync failed, keeping existing data and retrying in ${RETRY_DELAY_MS / 1000}s`,
-      );
-      setTimeout(() => startColumnPresetTemplateSync(retriesLeft - 1), RETRY_DELAY_MS);
-    } else {
-      logger.error({ err: error }, "Column preset template sync failed again, giving up until the next restart");
-    }
-  });
 }
