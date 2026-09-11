@@ -140,6 +140,24 @@ describe("fetchScreenerResults", () => {
 
     await expect(fetchScreenerResults([], [], { page: 1, pageSize: 50 })).rejects.toMatchObject({ statusCode: 502 });
   });
+
+  it("includes sectorCodes as an array in the POST body when given", async () => {
+    mockFetchOnce({ ok: true, body: { count: 0, page: 1, pageSize: 50, totalPages: 0, results: [] } });
+
+    await fetchScreenerResults([], [], { page: 1, pageSize: 50 }, undefined, ["24", "01"]);
+
+    const init = vi.mocked(globalThis.fetch).mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toMatchObject({ sectorCodes: ["24", "01"] });
+  });
+
+  it("omits sectorCodes from the POST body when empty or not given", async () => {
+    mockFetchOnce({ ok: true, body: { count: 0, page: 1, pageSize: 50, totalPages: 0, results: [] } });
+
+    await fetchScreenerResults([], [], { page: 1, pageSize: 50 }, undefined, []);
+
+    const init = vi.mocked(globalThis.fetch).mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(init.body as string)).not.toHaveProperty("sectorCodes");
+  });
 });
 
 describe("fetchScreenerRanking", () => {
@@ -173,6 +191,24 @@ describe("fetchScreenerRanking", () => {
 
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(url.searchParams.has("columns")).toBe(false);
+  });
+
+  it("includes sectorCodes as a comma-joined query param when given", async () => {
+    mockFetchOnce({ ok: true, body: { results: [] } });
+
+    await fetchScreenerRanking("roe.roeTtmPct", "desc", 10, [], ["24", "01"]);
+
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.searchParams.get("sectorCodes")).toBe("24,01");
+  });
+
+  it("omits the sectorCodes param entirely when empty or not given", async () => {
+    mockFetchOnce({ ok: true, body: { results: [] } });
+
+    await fetchScreenerRanking("roe.roeTtmPct", "desc", 10, [], []);
+
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.searchParams.has("sectorCodes")).toBe(false);
   });
 
   it("relays analysis-ts's 400 message for an unknown field", async () => {

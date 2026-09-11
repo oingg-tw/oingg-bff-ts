@@ -36,6 +36,7 @@ export const screenerRequestSchema = z
       .min(1, '"sortField" must be a non-empty string')
       .optional(),
     sortOrder: z.enum(["asc", "desc"], { error: '"sortOrder" must be "asc" or "desc"' }).optional(),
+    sectorCodes: z.array(z.string().trim().min(1)).optional(),
   })
   .refine((data) => (data.sortField === undefined) === (data.sortOrder === undefined), {
     message: '"sortField" and "sortOrder" must be given together, or not at all',
@@ -51,7 +52,7 @@ screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const sort = body.sortField !== undefined ? { field: body.sortField, order: body.sortOrder! } : undefined;
 
   const { columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, requestedColumnPresetId);
-  const result = await runScreener(filters, columns, pagination, sort);
+  const result = await runScreener(filters, columns, pagination, sort, body.sectorCodes);
   res.json({ ...result, columnPresetId });
 });
 
@@ -77,6 +78,16 @@ function parseRankingColumns(raw: string | undefined): ScreenerColumnRef[] {
     .map((field) => ({ field }));
 }
 
+function parseSectorCodes(raw: string | undefined): string[] {
+  if (raw === undefined) {
+    return [];
+  }
+  return raw
+    .split(",")
+    .map((code) => code.trim())
+    .filter(Boolean);
+}
+
 export const rankingQuerySchema = z.object({
   field: z.string({ error: '"field" query parameter is required' }).trim().min(1, '"field" query parameter is required'),
   direction: z.enum(["asc", "desc"], { error: '"direction" must be "asc" or "desc"' }).optional(),
@@ -93,6 +104,11 @@ export const rankingQuerySchema = z.object({
     .trim()
     .min(1, '"columns" must be a comma-separated string of fields')
     .optional(),
+  sectorCodes: z
+    .string({ error: '"sectorCodes" must be a comma-separated string of sector codes' })
+    .trim()
+    .min(1, '"sectorCodes" must be a comma-separated string of sector codes')
+    .optional(),
 });
 
 screenerRouter.get("/ranking", async (req, res) => {
@@ -100,7 +116,8 @@ screenerRouter.get("/ranking", async (req, res) => {
   const direction = query.direction ?? "desc";
   const limit = query.limit ?? DEFAULT_RANKING_LIMIT;
   const columns = parseRankingColumns(query.columns);
+  const sectorCodes = parseSectorCodes(query.sectorCodes);
 
-  const result = await runRanking(query.field, direction, limit, columns);
+  const result = await runRanking(query.field, direction, limit, columns, sectorCodes);
   res.json(result);
 });

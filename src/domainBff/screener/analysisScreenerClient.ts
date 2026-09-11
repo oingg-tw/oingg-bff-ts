@@ -119,6 +119,7 @@ export async function fetchScreenerResults(
   columns: ScreenerColumnInput[],
   pagination: Pagination,
   sort?: ScreenerSort,
+  sectorCodes?: string[],
 ): Promise<AnalysisScreenerResult> {
   const body = await postJson("/screener", {
     filters,
@@ -126,6 +127,7 @@ export async function fetchScreenerResults(
     page: pagination.page,
     pageSize: pagination.pageSize,
     ...(sort ? { sortField: sort.field, sortOrder: sort.order } : {}),
+    ...(sectorCodes && sectorCodes.length > 0 ? { sectorCodes } : {}),
   });
 
   const b = body as { count?: unknown; page?: unknown; pageSize?: unknown; totalPages?: unknown; results?: unknown };
@@ -153,12 +155,14 @@ export async function fetchScreenerRanking(
   direction: "asc" | "desc",
   limit: number,
   extraColumns: ScreenerColumnInput[],
+  sectorCodes?: string[],
 ): Promise<AnalysisRankingResult> {
   const body = await getJson("/screener/ranking", {
     field,
     direction,
     limit: String(limit),
     ...(extraColumns.length > 0 ? { columns: extraColumns.map((c) => c.field).join(",") } : {}),
+    ...(sectorCodes && sectorCodes.length > 0 ? { sectorCodes: sectorCodes.join(",") } : {}),
   });
 
   const b = body as { results?: unknown };

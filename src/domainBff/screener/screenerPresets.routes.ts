@@ -32,8 +32,11 @@ function parseId(raw: string): string {
   return parseUuidParam(raw, "preset");
 }
 
+const sectorCodesSchema = z.array(z.string().trim().min(1)).optional();
+
 export const createScreenerPresetSchema = z.object({
   filters: screenerFiltersArraySchema,
+  sectorCodes: sectorCodesSchema,
 });
 
 export const reorderScreenerPresetsSchema = z.object({
@@ -47,6 +50,7 @@ export const updateScreenerPresetSchema = z.object({
     .min(1, '"name" must be a non-empty string')
     .optional(),
   filters: screenerFiltersArraySchema.optional(),
+  sectorCodes: sectorCodesSchema,
 });
 
 screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
@@ -59,7 +63,7 @@ screenerPresetsRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const body = parseBody(createScreenerPresetSchema, req.body);
 
-  const preset = await addPreset(firebaseUid, normalizeScreenerFilters(body.filters));
+  const preset = await addPreset(firebaseUid, normalizeScreenerFilters(body.filters), body.sectorCodes);
   res.status(201).json({ preset });
 });
 
@@ -87,6 +91,7 @@ screenerPresetsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
   const preset = await editPreset(firebaseUid, id, {
     name: body.name,
     filters: body.filters === undefined ? undefined : normalizeScreenerFilters(body.filters),
+    sectorCodes: body.sectorCodes,
   });
   res.json({ preset });
 });

@@ -82,6 +82,27 @@ const industryFlatListSchema = z
     },
   });
 
+const securitiesSectorSchema = z.object({ code: z.string(), name: z.string(), companyCount: z.number() });
+
+const securitiesSectorListSchema = z
+  .object({ sectors: z.array(securitiesSectorSchema) })
+  .openapi("SecuritiesSectorList", {
+    example: { sectors: [{ code: "24", name: "半導體業", companyCount: 240 }] },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/industries/securities-sectors",
+  summary: "查詢證交所類股分類清單（供 screener 的 sectorCodes 篩選使用）",
+  description:
+    "跟上面的 GET /industries/tree（財政部稅籍五層分類）是完全不同的分類體系——這裡是證交所/櫃買中心自己的類股代碼（例如「24」是半導體業），二碼代號，沒有樹狀階層。回傳的 code 可直接用在 POST /screener 跟 GET /screener/ranking 的 sectorCodes 參數，多個代碼是聯集（OR），再跟其他篩選條件 AND。沒有查詢參數，一次回傳全部類股。",
+  tags: ["Industries"],
+  responses: {
+    200: { description: "全部證交所類股清單。", content: { "application/json": { schema: securitiesSectorListSchema } } },
+    502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
+  },
+});
+
 registry.registerPath({
   method: "get",
   path: "/industries/flat",

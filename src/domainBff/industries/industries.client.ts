@@ -9,6 +9,8 @@ import type {
   IndustryTree,
   IndustryTreeChild,
   IndustryTreeCompany,
+  SecuritiesSector,
+  SecuritiesSectorList,
 } from "@/domainBff/industries/industries.types.js";
 
 const VALID_LEVELS: IndustryLevel[] = ["section", "division", "group", "class", "subclass"];
@@ -105,4 +107,29 @@ export async function fetchIndustryFlatList(): Promise<IndustryFlatList> {
   }
 
   return { companies: companies.map(normalizeFlatCompany) };
+}
+
+function normalizeSector(raw: unknown): SecuritiesSector {
+  const r = raw as Record<string, unknown>;
+  return { code: String(r.code), name: String(r.name), companyCount: Number(r.companyCount) };
+}
+
+/**
+ * Fetches TWSE/TPEx's own securities-sector classification (證交所類股, e.g. "24" = 半導體業) from
+ * analysis-ts's GET /industries/securities-sectors — a separate scheme from the gov-ts tax-registration
+ * tree above, used to power the screener's sectorCodes filter.
+ */
+export async function fetchSecuritiesSectors(): Promise<SecuritiesSectorList> {
+  const url = buildAnalysisServiceUrl("/industries/securities-sectors");
+  const response = await fetchAnalysisService(url);
+  assertAnalysisServiceOk(response, url, "Securities sectors endpoint");
+
+  const body: unknown = await response.json();
+  const sectors = (body as { sectors?: unknown } | null)?.sectors;
+  if (!Array.isArray(sectors)) {
+    logger.error({ url: url.toString() }, "Securities sectors endpoint response is missing a sectors array");
+    throw new AppError("Securities sectors endpoint response is missing a sectors array", 502);
+  }
+
+  return { sectors: sectors.map(normalizeSector) };
 }

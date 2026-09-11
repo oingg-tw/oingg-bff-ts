@@ -139,6 +139,7 @@ export async function runScreener(
   columns: ScreenerColumnRef[],
   pagination: Pagination,
   sort?: ScreenerSort,
+  sectorCodes?: string[],
 ): Promise<ScreenerResult> {
   if (filters.length === 0) {
     throw new AppError("At least one filter is required", 400);
@@ -159,6 +160,7 @@ export async function runScreener(
     resolvedColumns.map((c) => ({ field: c.field })),
     pagination,
     sort,
+    sectorCodes,
   );
 
   const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
@@ -265,9 +267,17 @@ export async function runRanking(
   direction: "asc" | "desc",
   limit: number,
   columns: ScreenerColumnRef[],
+  sectorCodes?: string[],
 ): Promise<RankingResult> {
   const valuationMetric = VALUATION_RANKING_FIELDS[field];
   if (valuationMetric) {
+    if (sectorCodes && sectorCodes.length > 0) {
+      throw new AppError(
+        `"sectorCodes" can't be combined with a "${field}" ranking (sourced from oingg-analysis-ts's ` +
+          `ranking endpoint, not the general screener path, which has no sector-filter concept)`,
+        400,
+      );
+    }
     return runValuationRanking(field, valuationMetric, direction, limit, columns);
   }
 
@@ -283,6 +293,7 @@ export async function runRanking(
     direction,
     limit,
     extraColumnRefs.map((c) => ({ field: c.field })),
+    sectorCodes,
   );
 
   const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);

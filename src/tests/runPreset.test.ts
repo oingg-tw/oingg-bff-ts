@@ -25,6 +25,7 @@ const OTHER_COLUMN_PRESET_ID = "bbbbbbbb-0000-4000-8000-000000000009";
 const SAMPLE_ROW = {
   id: SAMPLE_ID,
   name: "績優股",
+  sectorCodes: [] as string[],
   lastColumnPresetId: null,
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
@@ -81,6 +82,7 @@ describe("runPreset", () => {
       [{ field: "per.peRatio" }],
       DEFAULT_PAGINATION,
       undefined,
+      [],
     );
     expect(result.preset.name).toBe("績優股");
     expect(result.columnPresetId).toBeNull();
@@ -116,7 +118,13 @@ describe("runPreset", () => {
 
     await runPreset("uid1", SAMPLE_ID, { page: 2, pageSize: 10 });
 
-    expect(runScreener).toHaveBeenCalledWith(expect.anything(), expect.anything(), { page: 2, pageSize: 10 }, undefined);
+    expect(runScreener).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { page: 2, pageSize: 10 },
+      undefined,
+      [],
+    );
   });
 
   // Perf regression test (2026-09-01): every call that repeats the same explicit columnPresetId as last

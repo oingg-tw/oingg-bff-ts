@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { parseBody } from "@/shared/validation.js";
-import { getIndustryFlatList, getIndustryTree } from "@/domainBff/industries/industries.service.js";
+import { getIndustryFlatList, getIndustryTree, getSecuritiesSectors } from "@/domainBff/industries/industries.service.js";
 
 export const industriesRouter = Router();
 
@@ -17,5 +17,10 @@ industriesRouter.get("/tree", async (req, res) => {
 
 industriesRouter.get("/flat", async (_req, res) => {
   const list = await getIndustryFlatList();
+  res.json(list);
+});
+
+industriesRouter.get("/securities-sectors", async (_req, res) => {
+  const list = await getSecuritiesSectors();
   res.json(list);
 });

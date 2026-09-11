@@ -32,6 +32,7 @@ export interface PresetView {
   id: string;
   name: string;
   filters: PresetFilterView[];
+  sectorCodes: string[];
   lastColumnPresetId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -47,10 +48,19 @@ function toView(row: PresetRow): PresetView {
       max: f.max,
       exclude: f.exclude,
     })),
+    sectorCodes: row.sectorCodes,
     lastColumnPresetId: row.lastColumnPresetId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+/** Trims and drops empty strings — no catalog to validate against (analysis-ts is sole authority, see schema.prisma). */
+function normalizeSectorCodes(sectorCodes: string[] | undefined): string[] | undefined {
+  if (sectorCodes === undefined) {
+    return undefined;
+  }
+  return sectorCodes.map((code) => code.trim()).filter((code) => code.length > 0);
 }
 
 /**
@@ -134,9 +144,13 @@ async function pickAvailableName(firebaseUid: string, name: string): Promise<str
  * The isUniqueViolation retry loop only guards the race where another request grabs the picked name
  * between the check and the insert.
  */
-export async function addPreset(firebaseUid: string, filters: ScreenerFilter[]): Promise<PresetView> {
+export async function addPreset(
+  firebaseUid: string,
+  filters: ScreenerFilter[],
+  sectorCodes: string[] = [],
+): Promise<PresetView> {
   const resolved = await resolveFilters(filters.length > 0 ? filters : DEFAULT_PRESET_FILTERS);
-  return createPresetWithAvailableName(firebaseUid, DEFAULT_PRESET_NAME, resolved);
+  return createPresetWithAvailableName(firebaseUid, DEFAULT_PRESET_NAME, resolved, normalizeSectorCodes(sectorCodes) ?? []);
 }
 
 /**
@@ -151,18 +165,19 @@ export async function addPresetWithName(
   filters: ScreenerFilter[],
 ): Promise<PresetView> {
   const resolved = await resolveFilters(filters);
-  return createPresetWithAvailableName(firebaseUid, name, resolved);
+  return createPresetWithAvailableName(firebaseUid, name, resolved, []);
 }
 
 async function createPresetWithAvailableName(
   firebaseUid: string,
   baseName: string,
   resolvedFilters: PresetFilterInput[],
+  sectorCodes: string[],
 ): Promise<PresetView> {
   for (let attempt = 0; attempt < MAX_NAME_SUFFIX_ATTEMPTS; attempt++) {
     const candidateName = await pickAvailableName(firebaseUid, baseName);
     try {
-      const row = await createPreset(firebaseUid, candidateName, resolvedFilters);
+      const row = await createPreset(firebaseUid, candidateName, resolvedFilters, sectorCodes);
       return toView(row);
     } catch (error) {
       if (!isUniqueViolation(error)) {
@@ -176,12 +191,16 @@ async function createPresetWithAvailableName(
 export async function editPreset(
   firebaseUid: string,
   id: string,
-  update: { name?: string; filters?: ScreenerFilter[] },
+  update: { name?: string; filters?: ScreenerFilter[]; sectorCodes?: string[] },
 ): Promise<PresetView> {
   const resolvedFilters = update.filters !== undefined ? await resolveFilters(update.filters) : undefined;
 
   try {
-    const row = await updatePreset(firebaseUid, id, { name: update.name, filters: resolvedFilters });
+    const row = await updatePreset(firebaseUid, id, {
+      name: update.name,
+      filters: resolvedFilters,
+      sectorCodes: normalizeSectorCodes(update.sectorCodes),
+    });
     if (!row) {
       throw new AppError(`Screener preset ${id} not found`, 404);
     }

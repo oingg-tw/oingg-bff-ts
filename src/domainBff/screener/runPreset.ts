@@ -54,6 +54,6 @@ export async function runPreset(
     await updateLastColumnPreset(firebaseUid, id, resolved.columnPresetId ?? columnPresetId);
   }
 
-  const screener = await runScreener(preset.filters, resolved.columns, pagination, sort);
+  const screener = await runScreener(preset.filters, resolved.columns, pagination, sort, preset.sectorCodes);
   return { preset, screener, columnPresetId: resolved.columnPresetId };
 }

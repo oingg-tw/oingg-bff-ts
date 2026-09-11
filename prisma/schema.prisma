@@ -370,6 +370,13 @@ model ScreenerPreset {
   /// UI) — same convention as ColumnPreset.position. Assigned at creation time and only otherwise changed
   /// via POST /screener/presets/reorder.
   position    Int      @default(0)
+  /// TWSE/TPEx securities-sector codes (證交所類股, e.g. "24") this preset filters to, as a plain JSON
+  /// string array — not FK'd to a local catalog, since analysis-ts (GET /industries/securities-sectors)
+  /// is the sole validation authority here, same reasoning as DashboardCardSettings.visibleCardIds. An
+  /// invalid/retired code saved here is only caught when the preset is actually run (GET
+  /// /screener/presets/:id/run calls analysis-ts's POST /screener), not at save time. Empty array means
+  /// no sector restriction.
+  sectorCodes Json     @default("[]") @map("sector_codes")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 

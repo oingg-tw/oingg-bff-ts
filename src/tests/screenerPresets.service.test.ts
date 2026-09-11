@@ -70,6 +70,7 @@ const OTHER_ID = "aaaaaaaa-0000-4000-8000-000000000002";
 const SAMPLE_ROW = {
   id: SAMPLE_ID,
   name: "績優股",
+  sectorCodes: [] as string[],
   lastColumnPresetId: null,
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
@@ -107,9 +108,12 @@ describe("addPreset", () => {
 
     await addPreset("uid1", []);
 
-    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名", [
-      { metricKey: "roe", fieldKey: "TTM", min: 30, max: null, exclude: false },
-    ]);
+    expect(createPreset).toHaveBeenCalledWith(
+      "uid1",
+      "未命名",
+      [{ metricKey: "roe", fieldKey: "TTM", min: 30, max: null, exclude: false }],
+      [],
+    );
   });
 
   it("rejects a filter whose field doesn't exist in the catalog", async () => {
@@ -127,10 +131,15 @@ describe("addPreset", () => {
       { field: "grossMargin.grossMarginTtm", min: 60, max: null, exclude: false },
     ]);
 
-    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名", [
-      { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
-      { metricKey: "grossMargin", fieldKey: "grossMarginTtm", min: 60, max: null, exclude: false },
-    ]);
+    expect(createPreset).toHaveBeenCalledWith(
+      "uid1",
+      "未命名",
+      [
+        { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
+        { metricKey: "grossMargin", fieldKey: "grossMarginTtm", min: 60, max: null, exclude: false },
+      ],
+      [],
+    );
   });
 
   // Regression test: fields used to be validated one at a time (one query per filter), which multiplied
@@ -156,9 +165,12 @@ describe("addPreset", () => {
 
     const result = await addPreset("uid1", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]);
 
-    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名 2", [
-      { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
-    ]);
+    expect(createPreset).toHaveBeenCalledWith(
+      "uid1",
+      "未命名 2",
+      [{ metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false }],
+      [],
+    );
     expect(result.name).toBe("未命名 2");
   });
 
@@ -171,7 +183,7 @@ describe("addPreset", () => {
 
     await addPreset("uid1", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]);
 
-    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名 3", expect.anything());
+    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名 3", expect.anything(), expect.anything());
   });
 
   // Regression: a stale name-availability check (checked once, then inserted) could still race with a
@@ -214,7 +226,7 @@ describe("editPreset", () => {
 
     await editPreset("uid1", SAMPLE_ID, { filters: [] });
 
-    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, { name: undefined, filters: [] });
+    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, { name: undefined, filters: [], sectorCodes: undefined });
   });
 
   it("throws 404 when the repository finds no matching row", async () => {

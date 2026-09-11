@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchIndustryFlatList, fetchIndustryTree } from "@/domainBff/industries/industries.client.js";
+import { fetchIndustryFlatList, fetchIndustryTree, fetchSecuritiesSectors } from "@/domainBff/industries/industries.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
@@ -188,6 +188,44 @@ describe("fetchIndustryFlatList", () => {
     });
 
     await expect(fetchIndustryFlatList()).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+// Real shape given directly by analysis-ts (2026-09-11).
+const SECTORS_RESPONSE = {
+  sectors: [
+    { code: "01", name: "水泥工業", companyCount: 8 },
+    { code: "24", name: "半導體業", companyCount: 240 },
+  ],
+};
+
+describe("fetchSecuritiesSectors", () => {
+  it("requests /industries/securities-sectors with no query params and normalizes the response", async () => {
+    mockFetchOnce({ ok: true, body: SECTORS_RESPONSE });
+
+    const result = await fetchSecuritiesSectors();
+
+    expect(result).toEqual(SECTORS_RESPONSE);
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(calledUrl.toString()).toBe("http://filters.test/industries/securities-sectors");
+  });
+
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchSecuritiesSectors()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError for a non-2xx status", async () => {
+    mockFetchOnce({ ok: false, status: 500, body: {} });
+
+    await expect(fetchSecuritiesSectors()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it('throws a 502 AppError when the response is missing a "sectors" array', async () => {
+    mockFetchOnce({ ok: true, body: { oops: true } });
+
+    await expect(fetchSecuritiesSectors()).rejects.toMatchObject({ statusCode: 502 });
   });
 });
 

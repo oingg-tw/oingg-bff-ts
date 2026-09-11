@@ -121,6 +121,7 @@ describe("runScreener", () => {
       [{ field: "roe.roeTtmPct" }],
       { page: 2, pageSize: 25 },
       undefined,
+      undefined,
     );
   });
 
@@ -135,10 +136,13 @@ describe("runScreener", () => {
         { field: "symbol", order: "desc" },
       );
 
-      expect(fetchScreenerResults).toHaveBeenCalledWith(expect.anything(), [], DEFAULT_PAGINATION, {
-        field: "symbol",
-        order: "desc",
-      });
+      expect(fetchScreenerResults).toHaveBeenCalledWith(
+        expect.anything(),
+        [],
+        DEFAULT_PAGINATION,
+        { field: "symbol", order: "desc" },
+        undefined,
+      );
     });
 
     it("passes a sortField that is one of this request's own columns through to fetchScreenerResults", async () => {
@@ -156,6 +160,7 @@ describe("runScreener", () => {
         [{ field: "roe.roeTtmPct" }],
         DEFAULT_PAGINATION,
         { field: "roe.roeTtmPct", order: "asc" },
+        undefined,
       );
     });
 
@@ -232,7 +237,7 @@ describe("runScreener", () => {
     );
 
     // "stock.price" must never leak into the columns sent to analysis-ts — it isn't a metricCatalog field.
-    expect(fetchScreenerResults).toHaveBeenCalledWith(expect.anything(), [], DEFAULT_PAGINATION, undefined);
+    expect(fetchScreenerResults).toHaveBeenCalledWith(expect.anything(), [], DEFAULT_PAGINATION, undefined, undefined);
     // One batched call for the whole result set, not one call per symbol.
     expect(getLatestClosePrices).toHaveBeenCalledTimes(1);
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330", "2317"]);
@@ -338,9 +343,13 @@ describe("runRanking", () => {
 
     await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "grossMargin.grossMarginTtm" }]);
 
-    expect(fetchScreenerRanking).toHaveBeenCalledWith("roe.roeTtmPct", "desc", 10, [
-      { field: "grossMargin.grossMarginTtm" },
-    ]);
+    expect(fetchScreenerRanking).toHaveBeenCalledWith(
+      "roe.roeTtmPct",
+      "desc",
+      10,
+      [{ field: "grossMargin.grossMarginTtm" }],
+      undefined,
+    );
   });
 
   it("resolves the ranked field and extra columns against the local catalog for the response's columns", async () => {
@@ -373,9 +382,13 @@ describe("runRanking", () => {
 
     await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "roe.roeTtmPct" }, { field: "grossMargin.grossMarginTtm" }]);
 
-    expect(fetchScreenerRanking).toHaveBeenCalledWith("roe.roeTtmPct", "desc", 10, [
-      { field: "grossMargin.grossMarginTtm" },
-    ]);
+    expect(fetchScreenerRanking).toHaveBeenCalledWith(
+      "roe.roeTtmPct",
+      "desc",
+      10,
+      [{ field: "grossMargin.grossMarginTtm" }],
+      undefined,
+    );
   });
 
   it("adds extra display columns to the response's columns array", async () => {
@@ -416,7 +429,7 @@ describe("runRanking", () => {
     const result = await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "stock.price" }]);
 
     // "stock.price" must never be sent to analysis-ts as an extra column — it isn't a metricCatalog field.
-    expect(fetchScreenerRanking).toHaveBeenCalledWith("roe.roeTtmPct", "desc", 10, []);
+    expect(fetchScreenerRanking).toHaveBeenCalledWith("roe.roeTtmPct", "desc", 10, [], undefined);
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330"]);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
     expect(result.results[0]?.values).toMatchObject({
@@ -486,6 +499,39 @@ describe("runRanking", () => {
         statusCode: 400,
       });
       expect(fetchValuationRanking).not.toHaveBeenCalled();
+    });
+
+    // The valuation ranking path is a separate analysis-ts endpoint with no filter concept at all — it
+    // can't be given sectorCodes, unlike the general ranking path below.
+    it("rejects sectorCodes on a valuation ranking (no sector-filter concept on that upstream endpoint)", async () => {
+      await expect(runRanking("exchangePeRatio.EOD", "asc", 10, [], ["24"])).rejects.toMatchObject({
+        statusCode: 400,
+      });
+      expect(fetchValuationRanking).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("sectorCodes", () => {
+    it("forwards sectorCodes to fetchScreenerResults on the general screener path", async () => {
+      vi.mocked(fetchScreenerResults).mockResolvedValue({ count: 0, page: 1, pageSize: 50, totalPages: 0, results: [] });
+
+      await runScreener(
+        [{ field: "grossMargin.grossMarginTtm", min: 20, max: null, exclude: false }],
+        [],
+        DEFAULT_PAGINATION,
+        undefined,
+        ["24", "01"],
+      );
+
+      expect(fetchScreenerResults).toHaveBeenCalledWith(expect.anything(), [], DEFAULT_PAGINATION, undefined, ["24", "01"]);
+    });
+
+    it("forwards sectorCodes to fetchScreenerRanking on the general ranking path", async () => {
+      vi.mocked(fetchScreenerRanking).mockResolvedValue({ results: [] });
+
+      await runRanking("roe.roeTtmPct", "desc", 10, [], ["24"]);
+
+      expect(fetchScreenerRanking).toHaveBeenCalledWith("roe.roeTtmPct", "desc", 10, [], ["24"]);
     });
   });
 });

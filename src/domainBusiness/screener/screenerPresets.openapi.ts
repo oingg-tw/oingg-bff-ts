@@ -19,6 +19,7 @@ export const presetSchema = z
     id: z.string(),
     name: z.string(),
     filters: z.array(presetFilterViewSchema),
+    sectorCodes: z.array(z.string()),
     lastColumnPresetId: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -30,7 +31,7 @@ const unauthorized = errorResponse("缺少或無效的 Authorization header / to
 const notFound = errorResponse("不存在，或不屬於目前登入的使用者。");
 
 const createScreenerPresetDocSchema = createScreenerPresetSchema.openapi("CreateScreenerPresetRequest", {
-  example: { filters: [{ field: "roe.TTM", min: 30, max: null, exclude: false }] },
+  example: { filters: [{ field: "roe.TTM", min: 30, max: null, exclude: false }], sectorCodes: ["24"] },
 });
 const updateScreenerPresetDocSchema = updateScreenerPresetSchema.openapi("UpdateScreenerPresetRequest");
 
@@ -54,7 +55,7 @@ registry.registerPath({
   path: "/screener/presets",
   summary: "儲存一組新的篩選組合",
   description:
-    "沒有 name 參數——新建立的組合一律取名「未命名」（撞名的話依序改成「未命名 2」「未命名 3」...，跟電腦新增檔案一樣不會報錯），前端請之後再用 PATCH /screener/presets/{id} 改名。格式跟 POST /screener 完全一樣，filters 可以是空陣列——此時會預設套用 ROE > 30（roe.TTM），之後可再用 PATCH 覆蓋條件。",
+    "沒有 name 參數——新建立的組合一律取名「未命名」（撞名的話依序改成「未命名 2」「未命名 3」...，跟電腦新增檔案一樣不會報錯），前端請之後再用 PATCH /screener/presets/{id} 改名。格式跟 POST /screener 完全一樣，filters 可以是空陣列——此時會預設套用 ROE > 30（roe.TTM），之後可再用 PATCH 覆蓋條件。sectorCodes 是選填的證交所類股代碼陣列（見 GET /industries/securities-sectors），會跟著這組 preset 一起持久化——之後每次用 GET /screener/presets/{id}/run 執行都會自動帶上，不用每次呼叫端再重複傳。省略或空陣列代表不限類股。無效／已停用的代碼在儲存當下不會被擋下來（analysis-ts 是唯一的驗證權威，這裡沒有本地類股字典可比對），要等實際執行（run）時才會知道。",
   tags: ["Screener"],
   security: [{ bearerAuth: [] }],
   request: {
@@ -114,7 +115,8 @@ registry.registerPath({
   method: "patch",
   path: "/screener/presets/{id}",
   summary: "更新篩選組合的名稱和／或條件",
-  description: "filters 有給的話是整組覆蓋（不是增量），跟 PATCH /screener/column-presets/{id} 的 columns 同樣邏輯。",
+  description:
+    "filters 有給的話是整組覆蓋（不是增量），跟 PATCH /screener/column-presets/{id} 的 columns 同樣邏輯。sectorCodes 同樣是整組覆蓋，省略代表不變、空陣列代表清空限制。",
   tags: ["Screener"],
   security: [{ bearerAuth: [] }],
   request: {

@@ -12,6 +12,7 @@ export interface PresetRow {
   id: string;
   name: string;
   filters: PresetFilterRow[];
+  sectorCodes: string[];
   lastColumnPresetId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -29,9 +30,15 @@ export interface PresetFilterInput {
 
 const FILTERS_ORDER = { position: "asc" as const };
 
+/** sectorCodes is stored as a plain JSON array (see schema.prisma) — analysis-ts is the sole validation authority, no local catalog to check against. */
+function normalizeSectorCodes(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string") : [];
+}
+
 function toPresetRow(preset: {
   id: string;
   name: string;
+  sectorCodes: unknown;
   lastColumnPresetId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +47,7 @@ function toPresetRow(preset: {
   return {
     id: preset.id,
     name: preset.name,
+    sectorCodes: normalizeSectorCodes(preset.sectorCodes),
     lastColumnPresetId: preset.lastColumnPresetId,
     createdAt: preset.createdAt.toISOString(),
     updatedAt: preset.updatedAt.toISOString(),
@@ -77,6 +85,7 @@ export async function createPreset(
   firebaseUid: string,
   name: string,
   filters: PresetFilterInput[],
+  sectorCodes: string[] = [],
 ): Promise<PresetRow> {
   const prisma = getPrismaClient();
   return prisma.$transaction(async (tx) => {
@@ -88,6 +97,7 @@ export async function createPreset(
         firebaseUid,
         name,
         position,
+        sectorCodes,
         filters: {
           create: filters.map((f, filterPosition) => ({
             metricKey: f.metricKey,
@@ -108,6 +118,7 @@ export async function createPreset(
 export interface PresetUpdate {
   name?: string;
   filters?: PresetFilterInput[];
+  sectorCodes?: string[];
 }
 
 /** Updates the name and/or replaces the whole filter set (not incremental) for a preset the user owns. */
@@ -124,8 +135,14 @@ export async function updatePreset(
       return null;
     }
 
-    if (update.name !== undefined) {
-      await tx.screenerPreset.update({ where: { id }, data: { name: update.name } });
+    if (update.name !== undefined || update.sectorCodes !== undefined) {
+      await tx.screenerPreset.update({
+        where: { id },
+        data: {
+          ...(update.name !== undefined ? { name: update.name } : {}),
+          ...(update.sectorCodes !== undefined ? { sectorCodes: update.sectorCodes } : {}),
+        },
+      });
     } else {
       // Bump updatedAt even when only filters change.
       await tx.screenerPreset.update({ where: { id }, data: {} });

@@ -60,3 +60,18 @@ export interface IndustryFlatList {
   companies: IndustryFlatCompany[];
 }
 
+export interface SecuritiesSector {
+  code: string;
+  name: string;
+  companyCount: number;
+}
+
+/**
+ * TWSE/TPEx's own securities-sector classification (證交所類股 — e.g. "24" = 半導體業), a completely
+ * separate scheme from the gov-ts tax-registration industry tree above (IndustryTree/IndustryFlatList).
+ * Two-digit codes, used by the screener's sectorCodes filter (union semantics across multiple codes).
+ */
+export interface SecuritiesSectorList {
+  sectors: SecuritiesSector[];
+}
+
