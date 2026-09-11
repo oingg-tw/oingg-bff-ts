@@ -16,7 +16,7 @@ import "@/domainBff/stock/stock.openapi.js";
 import "@/domainBusiness/watchlist/watchlist.openapi.js";
 import "@/domainBusiness/holdings/holdings.openapi.js";
 import "@/domainBusiness/transactions/transactions.openapi.js";
-import "@/domainBusiness/filterCatalog/filterCatalog.openapi.js";
+import "@/domainBusiness/metricCatalog/metricCatalog.openapi.js";
 import "@/domainBff/market/market.openapi.js";
 import "@/domainBff/etfScreener/etfScreener.openapi.js";
 import "@/domainBff/industries/industries.openapi.js";
@@ -49,7 +49,7 @@ function generateDocument() {
       { name: "Watchlist", description: "使用者自選股清單 CRUD" },
       { name: "Holdings", description: "使用者持股管理 CRUD（獨立維護，不從交易日誌自動計算）" },
       { name: "Transactions", description: "交易日誌（買進／賣出交易紀錄）CRUD" },
-      { name: "Screener", description: "依 filterCatalog 指標篩選個股，並依使用者設定的欄位偏好回傳結果" },
+      { name: "Screener", description: "依 metricCatalog 指標篩選個股，並依使用者設定的欄位偏好回傳結果" },
       { name: "Market", description: "市場排行/清單（外資持股、券資比、注意股、處置股、成交量、漲跌幅、ETF 排行等）" },
       { name: "ETF Screener", description: "ETF 篩選" },
       { name: "Industries", description: "產業分類樹（財政部稅籍五層分類）" },

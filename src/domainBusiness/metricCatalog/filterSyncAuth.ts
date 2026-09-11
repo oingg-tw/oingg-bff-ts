@@ -5,14 +5,17 @@ import { stripQuotes, timingSafeEqualString } from "@/shared/secretAuth.js";
 const HEADER_NAME = "x-filters-sync-secret";
 
 /**
- * Gates POST /metrics/sync (renamed from /filters/sync 2026-09-10, see filterCatalog.openapi.ts — manual
+ * Gates POST /metrics/sync (renamed from /filters/sync 2026-09-10, see metricCatalog.openapi.ts — manual
  * re-pull of analysis-ts's metric catalog, added 2026-09-09 so a copy tweak on their side doesn't require
  * restarting the whole bff-ts process; see feedback_analysis_ts_must_not_know_bff_exists.md for why this
  * has to be a manually-triggered pull, not analysis-ts pushing to bff-ts) behind a shared-secret header,
  * same TASK_SECRET convention as
  * oingg-twse-ts (stripQuotes + timingSafeEqual). Unlike /api-docs's Basic Auth gate, this fails closed in
- * every environment including dev — this endpoint actually triggers a DB write (replaceFilterCatalog),
- * not just a reconnaissance-surface concern, so there's no dev-friction tradeoff to make here.
+ * every environment including dev — this endpoint actually triggers a DB write (replaceMetricCatalog),
+ * not just a reconnaissance-surface concern, so there's no dev-friction tradeoff to make here. The header
+ * name/env var below (X-Filters-Sync-Secret / FILTERS_SYNC_SECRET) is deliberately NOT renamed to match
+ * the 2026-09-11 Filter*->Metric* domain/DB rename — it's an internal auth mechanism name, not part of
+ * the ubiquitous-language communication surface, and web-nuxt already has it configured in their own .env.
  */
 export function requireFilterSyncSecret(req: Request, res: Response, next: NextFunction): void {
   const expected = stripQuotes(requireEnv("FILTERS_SYNC_SECRET"));

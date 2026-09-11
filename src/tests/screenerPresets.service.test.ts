@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/filterCatalog/index.js", () => ({
-  findFilterFields: vi.fn(),
+vi.mock("@/domainBusiness/metricCatalog/index.js", () => ({
+  findMetricFields: vi.fn(),
 }));
 
 vi.mock("@/domainBusiness/screener/screenerPresets.repository.js", () => ({
@@ -14,7 +14,7 @@ vi.mock("@/domainBusiness/screener/screenerPresets.repository.js", () => ({
 }));
 
 import { Prisma } from "@/generated/prisma/client.js";
-import { findFilterFields } from "@/domainBusiness/filterCatalog/index.js";
+import { findMetricFields } from "@/domainBusiness/metricCatalog/index.js";
 import {
   createPreset,
   deletePreset,
@@ -25,7 +25,7 @@ import {
 } from "@/domainBusiness/screener/screenerPresets.repository.js";
 import { addPreset, editPreset, getPresetOrThrow, removePreset } from "@/domainBusiness/screener/screenerPresets.service.js";
 
-type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
+type Lookup = Awaited<ReturnType<typeof findMetricFields>>[number];
 
 const ROE_FIELD: Lookup = {
   categoryKey: "profitability",
@@ -71,8 +71,8 @@ const SAMPLE_ROW = {
 };
 
 beforeEach(() => {
-  vi.mocked(findFilterFields).mockReset();
-  vi.mocked(findFilterFields).mockImplementation(async (refs) =>
+  vi.mocked(findMetricFields).mockReset();
+  vi.mocked(findMetricFields).mockImplementation(async (refs) =>
     refs
       .map((ref) => {
         if (ref.metricKey === "roe" && ref.fieldKey === "roeTtmPct") return ROE_FIELD;
@@ -133,8 +133,8 @@ describe("addPreset", () => {
       { field: "grossMargin.grossMarginTtm", min: 60, max: null, exclude: false },
     ]);
 
-    expect(findFilterFields).toHaveBeenCalledTimes(1);
-    expect(findFilterFields).toHaveBeenCalledWith([
+    expect(findMetricFields).toHaveBeenCalledTimes(1);
+    expect(findMetricFields).toHaveBeenCalledWith([
       { metricKey: "roe", fieldKey: "roeTtmPct" },
       { metricKey: "grossMargin", fieldKey: "grossMarginTtm" },
     ]);

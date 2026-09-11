@@ -40,7 +40,7 @@ export async function findDefaultColumnPresetTemplate(): Promise<ColumnPresetTem
 
 /**
  * Upserts by natural key (`key`) and deletes only rows genuinely absent from the new list — not a
- * delete-everything-then-recreate (see filterCatalog.repository.ts's replaceFilterCatalog for why that
+ * delete-everything-then-recreate (see metricCatalog.repository.ts's replaceMetricCatalog for why that
  * pattern is banned here: nothing FKs into this table today, but a future feature might, and getting the
  * habit right now costs nothing).
  */

@@ -114,7 +114,7 @@ describe("replaceColumnPresetTemplates", () => {
     vi.clearAllMocks();
   });
 
-  // Same rationale as replaceFilterCatalog: upsert by natural key (`key`) in one batched statement,
+  // Same rationale as replaceMetricCatalog: upsert by natural key (`key`) in one batched statement,
   // never delete-everything-then-recreate — even though nothing FKs into this table today, getting the
   // habit right avoids a silent trap the day something does.
   it("upserts via a single batched statement instead of wiping and recreating every row", async () => {

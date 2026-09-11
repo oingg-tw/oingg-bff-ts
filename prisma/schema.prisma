@@ -26,7 +26,7 @@ enum PresetTemplateStatus {
 /// (2026-08-30, see prisma/seedPresetTemplates.ts) recommending named strategy templates (guru
 /// strategies, quant factors, TW-specific chip signals, dividend/theme screens) as a discoverability
 /// aid, matching how incumbents' preset libraries work. `filters` is plain JSON (not FK'd to
-/// FilterMetricField like ScreenerPresetFilter) because a PENDING template's filters may reference a
+/// MetricDefinitionField like ScreenerPresetFilter) because a PENDING template's filters may reference a
 /// metric this ecosystem doesn't compute yet — see `status`/`pendingReason`.
 model PresetTemplate {
   id            String               @id @default(uuid()) @db.Uuid
@@ -46,24 +46,26 @@ model PresetTemplate {
   @@map("preset_template")
 }
 
-/// Filter catalog, synced from oingg-analysis-ts's /metrics endpoint at startup (see
-/// src/domainBusiness/filterCatalog — renamed from /filters 2026-09-10, same rename on both sides for
-/// ubiquitous language: the response is metric definitions, not filters themselves).
-/// `position` mirrors this row's index in the source array, so GET /metrics on this service can reproduce
-/// the same category/metric/field ordering the frontend would get from oingg-analysis-ts directly — the
-/// source order matters for UX (e.g. "profitability" before more niche categories).
-model FilterCategory {
-  key      String         @id
+/// Metric catalog, synced from oingg-analysis-ts's /metrics endpoint at startup (see
+/// src/domainBusiness/metricCatalog — models renamed from Filter* to Metric* 2026-09-11, following through
+/// on the /filters -> /metrics rename from 2026-09-10 that only touched the public route at the time:
+/// the response is metric definitions, not filters, and the DB/domain layer should say so too, for
+/// ubiquitous language). `position` mirrors this row's index in the source array, so GET /metrics on this
+/// service can reproduce the same category/metric/field ordering the frontend would get from
+/// oingg-analysis-ts directly — the source order matters for UX (e.g. "profitability" before more niche
+/// categories).
+model MetricCategory {
+  key      String             @id
   name     String
   position Int
-  metrics  FilterMetric[]
+  metrics  MetricDefinition[]
 
-  @@map("filter_category")
+  @@map("metric_category")
 }
 
-model FilterMetric {
-  key         String              @map("key")
-  categoryKey String              @map("category_key")
+model MetricDefinition {
+  key         String                    @map("key")
+  categoryKey String                    @map("category_key")
   name        String
   path        String
   /// Definition tooltip text for this metric — nullable until oingg-analysis-ts's /metrics starts sending it.
@@ -77,18 +79,18 @@ model FilterMetric {
   /// actual computation (analysis-ts's real figures are bigint-precise, LaTeX compute engines are float-
   /// based). Nullable — analysis-ts only documents a formula for a handful of metrics as of 2026-09-10
   /// (pilot rollout), absent entirely from their /metrics response for the rest, not an empty string.
-  formulaLatex String?             @map("formula_latex")
+  formulaLatex String?                  @map("formula_latex")
   /// URL to an external reference explaining this metric (e.g. a Wikipedia article) — same "not every
   /// metric has one yet" convention as formulaLatex. Lets web-nuxt drop its own hardcoded per-metric
   /// source-link table (guru-badges.ts) and just render whatever analysis-ts's MetricDefinitionSpec
   /// already declares, added 2026-09-10.
-  referenceUrl String?             @map("reference_url")
+  referenceUrl String?                  @map("reference_url")
   /// URL to the original academic paper (author/year/journal) behind this metric's methodology — distinct
   /// from `referenceUrl` above, which is a general-reader explanation (often Wikipedia). analysis-ts's own
   /// words: "referenceUrl 給一般讀者看的白話解釋，academicSourceUrl 給想找原始論文的人". Nullable — set on only
   /// ~13 curated "guru badge" methodologies (sue, the Basel III/IMF FSI banking ratios, etc.) as of
   /// 2026-09-10, same sparse-coverage pattern referenceUrl started with.
-  academicSourceUrl String?        @map("academic_source_url")
+  academicSourceUrl String?             @map("academic_source_url")
   /// Curated "guru badge" methodology threshold (whole object: id/name/author/summary/detail/token/
   /// threshold), moved from web-nuxt's own hardcoded GURU_BADGES table into analysis-ts's
   /// MetricDefinitionSpec 2026-09-10 and echoed back here. Nullable — present on only the ~11 metrics that
@@ -100,17 +102,17 @@ model FilterMetric {
   /// present and non-empty for every metric (added 2026-09-10) — not a "not every metric has one yet"
   /// field. Defaults to an empty array only defensively (a metric genuinely missing this from
   /// analysis-ts's response is a validation error at the client layer, not silently tolerated here).
-  sources     String[]            @default([])
+  sources     String[]                  @default([])
   position    Int
-  category    FilterCategory      @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
-  fields      FilterMetricField[]
+  category    MetricCategory            @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
+  fields      MetricDefinitionField[]
 
   @@id([key])
-  @@map("filter_metric")
+  @@map("metric_definition")
 }
 
-model FilterMetricField {
-  metricKey String       @map("metric_key")
+model MetricDefinitionField {
+  metricKey String           @map("metric_key")
   key       String
   name      String
   period    String
@@ -122,20 +124,20 @@ model FilterMetricField {
   /// dupont metric's own default unit is "percent") — falls back to the metric's unit when not set.
   unit        String?
   position  Int
-  metric    FilterMetric @relation(fields: [metricKey], references: [key], onDelete: Cascade)
+  metric    MetricDefinition @relation(fields: [metricKey], references: [key], onDelete: Cascade)
 
   presetFilters ScreenerPresetFilter[]
 
   @@id([metricKey, key])
-  @@map("filter_metric_field")
+  @@map("metric_definition_field")
 }
 
 /// Curated, product-defined column-preset templates (e.g. "存股領息", "獲利品質拆解"), synced from
-/// oingg-analysis-ts's /metrics endpoint at startup — same mechanism/rationale as FilterCategory above,
+/// oingg-analysis-ts's /metrics endpoint at startup — same mechanism/rationale as MetricCategory above,
 /// just a separate table since these aren't part of the category/metric/field catalog tree (see
 /// src/domainBusiness/columnPresetTemplates). `fieldKeys` is a plain JSON string array of "<metricKey>.<fieldKey>"
 /// refs, the same format ColumnPresetField.field uses — applying a template is just handing its fieldKeys
-/// straight to createColumnPreset as a new personal ColumnPreset, not FK'd to FilterMetricField (so a
+/// straight to createColumnPreset as a new personal ColumnPreset, not FK'd to MetricDefinitionField (so a
 /// template referencing a field the catalog later drops doesn't cascade-delete anything here; it just
 /// starts failing validation on apply, same as a hand-typed bad field would).
 model ColumnPresetTemplate {
@@ -312,7 +314,7 @@ model WatchlistItem {
 /// A user's named, reusable set of display columns for /screener results (see src/domainBusiness/screener) —
 /// independent from ScreenerPreset (filter combos); a ScreenerPreset just remembers the last one it was
 /// viewed with (see ScreenerPreset.lastColumnPreset). `field` is a plain string, not FK'd to
-/// FilterMetricField, because it can also be a "special" non-catalog field (currently just
+/// MetricDefinitionField, because it can also be a "special" non-catalog field (currently just
 /// "stock.price", joined in from the twse/tpex price tables) — validity is checked in the service layer
 /// instead. At most one preset per user should have `isDefault: true` (enforced in code, not the DB);
 /// it's what /screener falls back to when no columnPresetId is given and there's no hardcoded fallback.
@@ -408,7 +410,7 @@ model StockTransaction {
   @@map("stock_transaction")
 }
 
-/// One filter condition within a ScreenerPreset. References FilterMetricField for the same reason
+/// One filter condition within a ScreenerPreset. References MetricDefinitionField for the same reason
 /// ScreenerColumnPreference does — a saved filter can never point at a field the catalog doesn't have.
 model ScreenerPresetFilter {
   id        Int     @id @default(autoincrement())
@@ -420,8 +422,8 @@ model ScreenerPresetFilter {
   exclude   Boolean @default(false)
   position  Int
 
-  preset ScreenerPreset    @relation(fields: [presetId], references: [id], onDelete: Cascade)
-  field  FilterMetricField @relation(fields: [metricKey, fieldKey], references: [metricKey, key], onDelete: Cascade)
+  preset ScreenerPreset         @relation(fields: [presetId], references: [id], onDelete: Cascade)
+  field  MetricDefinitionField  @relation(fields: [metricKey, fieldKey], references: [metricKey, key], onDelete: Cascade)
 
   @@index([presetId])
   @@map("screener_preset_filter")

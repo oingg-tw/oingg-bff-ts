@@ -1,4 +1,4 @@
-import { findFilterFields } from "@/domainBusiness/filterCatalog/index.js";
+import { findMetricFields } from "@/domainBusiness/metricCatalog/index.js";
 import { getLatestClosePrices } from "@/domainBff/stock/index.js";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
@@ -28,7 +28,7 @@ const STOCK_PRICE_FIELD = "stock.price";
  * P/B), covering both TWSE and TPEx. These three fields go there (see valuationRanking.client.ts)
  * instead of the general screener path below — this override is ranking-only.
  *
- * Trigger keys updated 2026-09-08 for analysis-ts's pitMetrics rebuild (old filterCatalog metricKeys
+ * Trigger keys updated 2026-09-08 for analysis-ts's pitMetrics rebuild (old metricCatalog metricKeys
  * per/pbr/dividendYield no longer exist). The new catalog has two distinct metrics per concept — e.g.
  * `exchangePeRatio` (TWSE-computed daily snapshot) vs. `peRatio` (TTM basis, financial-statement-derived)
  * — confirmed live which one actually matches GET /valuation/ranking's own daily TWSE/TPEx
@@ -57,7 +57,7 @@ interface ResolvedRef {
 }
 
 /**
- * Resolves filterCatalog fields against bff-ts's own synced catalog — used for filters, and for catalog
+ * Resolves metricCatalog fields against bff-ts's own synced catalog — used for filters, and for catalog
  * display columns (to attach metricName/fieldName in the response; the actual query now runs on
  * analysis-ts's side, see analysisScreenerClient.ts). Looks all of them up in a single batched query
  * rather than one query per field.
@@ -71,7 +71,7 @@ interface ResolvedRef {
  */
 async function resolveCatalogFieldRefs(fields: string[]): Promise<ResolvedRef[]> {
   const refs = fields.map((field) => ({ field, ...parseFieldRef(field) }));
-  const found = await findFilterFields(refs);
+  const found = await findMetricFields(refs);
   const foundByKey = new Map(found.map((f) => [toFieldRefString(f.metricKey, f.fieldKey), f]));
 
   return refs.map((ref) => {
@@ -122,13 +122,13 @@ function validateSort(sort: ScreenerSort | undefined, resolvedColumns: ResolvedR
 }
 
 /**
- * Screens companies by filterCatalog metrics — the actual query (dynamic CTE/JOIN across 30+ metric
+ * Screens companies by metricCatalog metrics — the actual query (dynamic CTE/JOIN across 30+ metric
  * tables, latest-row-per-symbol, ROC-year quarter labels, null/exclude filter semantics, sorting) now
  * runs on analysis-ts's own POST /screener (see analysisScreenerClient.ts and
  * docs/直連DB反模式修復計畫.md for what moved and why). This function's remaining job is: validate/resolve
  * fields against bff-ts's own synced catalog (for metricName/fieldName in the response — analysis-ts's
  * endpoint doesn't echo those back, we already have them locally), split off "stock.price" (twse/tpex,
- * not part of the filterCatalog at all), delegate the rest, then merge stock.price in (company names come
+ * not part of the metricCatalog at all), delegate the rest, then merge stock.price in (company names come
  * back attached directly from analysis-ts as of 2026-09-01, no local merge needed).
  *
  * Requires at least one filter — an empty-filters "list everything" mode isn't supported (bff-ts's own

@@ -1,5 +1,5 @@
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
-import { findFilterFields } from "@/domainBusiness/filterCatalog/index.js";
+import { findMetricFields } from "@/domainBusiness/metricCatalog/index.js";
 
 export interface ColumnFieldInfo {
   field: string;
@@ -9,9 +9,9 @@ export interface ColumnFieldInfo {
 }
 
 /**
- * Non-filterCatalog columns the screener can also display. Currently just the stock's latest close
+ * Non-metricCatalog columns the screener can also display. Currently just the stock's latest close
  * price, which lives in the twse/tpex `daily_price` tables — a different source than the analysis DB
- * everything else here comes from, so it can't be resolved through findFilterField/ANALYSIS_METRIC_TABLES.
+ * everything else here comes from, so it can't be resolved through findMetricField/ANALYSIS_METRIC_TABLES.
  * Add here (and wire the actual join in screener.service.ts) when a new non-catalog column is needed.
  */
 export const SPECIAL_COLUMNS: Record<string, { metricName: string; fieldName: string; unit: string | null }> = {
@@ -44,7 +44,7 @@ export async function resolveColumnFields(fields: string[]): Promise<Map<string,
   }
 
   if (catalogRefs.length > 0) {
-    const found = await findFilterFields(catalogRefs);
+    const found = await findMetricFields(catalogRefs);
     const foundByKey = new Map(found.map((f) => [toFieldRefString(f.metricKey, f.fieldKey), f]));
 
     for (const ref of catalogRefs) {

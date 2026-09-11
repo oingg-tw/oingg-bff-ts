@@ -1,14 +1,14 @@
-export interface FilterField {
+export interface MetricField {
   key: string;
   name: string;
   period: string;
-  /** What this specific number means (e.g. calculation basis, TTM vs quarterly) — shown as an info-icon tooltip on the frontend. Null until oingg-analysis-ts's /filters starts sending it. */
+  /** What this specific number means (e.g. calculation basis, TTM vs quarterly) — shown as an info-icon tooltip on the frontend. Null until oingg-analysis-ts's /metrics starts sending it. */
   description?: string | null;
-  /** Where this number is computed from (e.g. which upstream report/table) — shown alongside description. Null until oingg-analysis-ts's /filters starts sending it. */
+  /** Where this number is computed from (e.g. which upstream report/table) — shown alongside description. Null until oingg-analysis-ts's /metrics starts sending it. */
   source?: string | null;
   /** Display unit (e.g. "percent", "currency", "times", "ratio") — overrides the metric's own unit when
    * set (e.g. dupont.assetTurnoverQuarterly is "times" even though the dupont metric's own unit is
-   * "percent"). Null/undefined means "use the metric's unit" (see FilterMetric.unit). */
+   * "percent"). Null/undefined means "use the metric's unit" (see MetricDefinition.unit). */
   unit?: string | null;
   /** Display order among sibling fields under the same metric (0-based). The response array is already
    * in this order — exposed explicitly too so a frontend that reorders/filters the array client-side
@@ -16,7 +16,7 @@ export interface FilterField {
   sort: number;
 }
 
-export interface FilterMetricBadgeThreshold {
+export interface MetricBadgeThreshold {
   description: string;
   denominator: number;
   /** "in_range" (2026-09-10, dividendPayoutRatio's Fidelity-range correction) pairs with valueMin/valueMax
@@ -36,9 +36,9 @@ export interface FilterMetricBadgeThreshold {
  * A curated "guru badge" methodology threshold (e.g. Graham Number, Piotroski F-Score-style methodologies)
  * — moved from web-nuxt's own hardcoded GURU_BADGES table into analysis-ts's MetricDefinitionSpec 2026-09-10,
  * echoed back here so bff-ts's consumers don't need their own copy. Present on only the ~11 metrics that
- * table covered (see FilterMetric.badge).
+ * table covered (see MetricDefinition.badge).
  */
-export interface FilterMetricBadge {
+export interface MetricBadge {
   id: string;
   name: string;
   nameEn: string;
@@ -51,18 +51,18 @@ export interface FilterMetricBadge {
    * checks both "eps.TTM" and "eps.Q" — there's no single token to name).
    */
   token?: string;
-  threshold: FilterMetricBadgeThreshold;
+  threshold: MetricBadgeThreshold;
 }
 
-export interface FilterMetric {
+export interface MetricDefinition {
   key: string;
   name: string;
   path: string;
-  /** Metric-level definition, same tooltip purpose as FilterField.description but for the metric as a whole. */
+  /** Metric-level definition, same tooltip purpose as MetricField.description but for the metric as a whole. */
   description?: string | null;
-  /** Metric-level data source, same tooltip purpose as FilterField.source but for the metric as a whole. */
+  /** Metric-level data source, same tooltip purpose as MetricField.source but for the metric as a whole. */
   source?: string | null;
-  /** Metric-level display unit — the default for every field under it, unless a field overrides it (see FilterField.unit). */
+  /** Metric-level display unit — the default for every field under it, unless a field overrides it (see MetricField.unit). */
   unit?: string | null;
   /**
    * LaTeX source for this metric's formula, meant for read-only rendering (e.g. KaTeX/mathlive
@@ -92,11 +92,11 @@ export interface FilterMetric {
   academicSourceUrl?: string | null;
   /**
    * Curated "guru badge" methodology threshold (e.g. Graham Number, Altman Z-Score) — see
-   * FilterMetricBadge. Present only on the ~11 metrics analysis-ts has one for as of 2026-09-10; null
+   * MetricBadge. Present only on the ~11 metrics analysis-ts has one for as of 2026-09-10; null
    * everywhere else, including Piotroski F-Score (deliberately excluded, stays frontend-hardcoded — its
    * clamp/round + custom isMet logic doesn't fit analysis-ts's threshold/comparator vocabulary).
    */
-  badge?: FilterMetricBadge | null;
+  badge?: MetricBadge | null;
   /**
    * Data-provenance category labels (e.g. "公開發行公司資產負債表（XBRL）"), a fixed 9-label vocabulary on
    * analysis-ts's side — distinct from the free-text `source` tooltip field above (which analysis-ts has
@@ -105,15 +105,15 @@ export interface FilterMetric {
    * metric has one yet" field.
    */
   sources: string[];
-  /** Display order among sibling metrics under the same category (0-based) — see FilterField.sort. */
+  /** Display order among sibling metrics under the same category (0-based) — see MetricField.sort. */
   sort: number;
-  fields: FilterField[];
+  fields: MetricField[];
 }
 
-export interface FilterCategory {
+export interface MetricCategory {
   key: string;
   name: string;
-  /** Display order among categories (0-based) — see FilterField.sort. */
+  /** Display order among categories (0-based) — see MetricField.sort. */
   sort: number;
-  metrics: FilterMetric[];
+  metrics: MetricDefinition[];
 }

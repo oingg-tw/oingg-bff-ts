@@ -51,7 +51,7 @@ export async function syncColumnPresetTemplates(): Promise<ColumnPresetTemplateS
 
 /**
  * Fire-and-forget sync with a single retry, called once at startup — same mechanism and rationale as
- * filterCatalog's startFilterCatalogSync (oingg-analysis-ts must never know oingg-bff-ts exists, so this
+ * metricCatalog's startMetricCatalogSync (oingg-analysis-ts must never know oingg-bff-ts exists, so this
  * side is the only one that can initiate keeping this list fresh; freshness is bounded by how often this
  * process restarts).
  */

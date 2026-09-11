@@ -6,7 +6,7 @@ import { requireApiDocsAuth } from "@/adapters/swagger/apiDocsAuth.js";
 import { swaggerSpec, swaggerUi } from "@/adapters/swagger/index.js";
 import { authRouter } from "@/domainBusiness/auth/index.js";
 import { etfScreenerRouter } from "@/domainBff/etfScreener/index.js";
-import { filterCatalogRouter } from "@/domainBusiness/filterCatalog/index.js";
+import { metricCatalogRouter } from "@/domainBusiness/metricCatalog/index.js";
 import { holdingsRouter } from "@/domainBusiness/holdings/index.js";
 import { industriesRouter } from "@/domainBff/industries/index.js";
 import { marketRouter } from "@/domainBff/market/index.js";
@@ -64,7 +64,7 @@ routes.use("/transactions", transactionsRouter); // GET/POST /transactions, GET/
 // GET/POST /screener/presets, GET/PATCH/DELETE /screener/presets/:id, GET /screener/presets/:id/run;
 // GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply
 routes.use("/screener", screenerRoutes);
-routes.use("/metrics", filterCatalogRouter); // GET /metrics, POST /metrics/sync
+routes.use("/metrics", metricCatalogRouter); // GET /metrics, POST /metrics/sync
 routes.use("/market", marketRouter); // GET /market/margin-short-ratio-ranking, ...
 routes.use("/etf-screener", etfScreenerRouter); // GET /etf-screener/filters, POST /etf-screener
 routes.use("/industries", industriesRouter); // GET /industries/tree

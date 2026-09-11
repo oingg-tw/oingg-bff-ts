@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchFilterCatalog } from "@/domainBusiness/filterCatalog/filterCatalog.client.js";
+import { fetchMetricCatalog } from "@/domainBusiness/metricCatalog/metricCatalog.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
@@ -39,11 +39,11 @@ const RAW_CATEGORIES = [
   },
 ];
 
-describe("fetchFilterCatalog", () => {
-  it("requests /filters and converts validTokens into FilterCategory[] fields, using categoryDisplayName/displayName/unit", async () => {
+describe("fetchMetricCatalog", () => {
+  it("requests /filters and converts validTokens into MetricCategory[] fields, using categoryDisplayName/displayName/unit", async () => {
     mockFetchOnce({ ok: true, body: { categories: RAW_CATEGORIES } });
 
-    const result = await fetchFilterCatalog();
+    const result = await fetchMetricCatalog();
 
     expect(result).toEqual([
       {
@@ -106,7 +106,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    const result = await fetchFilterCatalog();
+    const result = await fetchMetricCatalog();
 
     expect(result[0]?.metrics[0]?.fields.map((f) => f.key)).toEqual(["1Y_1D", "2Y_1W", "5Y_1M"]);
   });
@@ -117,25 +117,25 @@ describe("fetchFilterCatalog", () => {
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("throws a 502 AppError when the filters service responds with a non-2xx status", async () => {
     mockFetchOnce({ ok: false, status: 503, body: {} });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it('throws a 502 AppError when the response body has no "categories" array', async () => {
     mockFetchOnce({ ok: true, body: { oops: true } });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("throws a 502 AppError when a category is missing categoryKey or metrics", async () => {
     mockFetchOnce({ ok: true, body: { categories: [{ metrics: [] }] } });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   // Regression: caught live (2026-09-09) that a category could be missing categoryDisplayName right after
@@ -144,7 +144,7 @@ describe("fetchFilterCatalog", () => {
   it("throws a 502 AppError when a category is missing categoryDisplayName", async () => {
     mockFetchOnce({ ok: true, body: { categories: [{ categoryKey: "profitability", metrics: [] }] } });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("throws a 502 AppError when a metric is missing metricCode or validTokens", async () => {
@@ -157,7 +157,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("throws a 502 AppError when a metric is missing displayName or unit", async () => {
@@ -168,7 +168,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   // formulaLatex pilot (2026-09-10): absent entirely (not an empty string) on metrics analysis-ts hasn't
@@ -197,7 +197,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    const result = await fetchFilterCatalog();
+    const result = await fetchMetricCatalog();
 
     expect(result[0]?.metrics[0]?.formulaLatex).toBe("\\mathrm{ROE} = \\frac{\\mathrm{NetIncome}}{\\mathrm{Equity}} \\times 100");
     expect(result[0]?.metrics[1]?.formulaLatex).toBeNull();
@@ -217,7 +217,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   // referenceUrl (2026-09-10, same rollout as formulaLatex): absent entirely (not an empty string) on
@@ -246,7 +246,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    const result = await fetchFilterCatalog();
+    const result = await fetchMetricCatalog();
 
     expect(result[0]?.metrics[0]?.referenceUrl).toBe("https://en.wikipedia.org/wiki/Dividend_payout_ratio");
     expect(result[0]?.metrics[1]?.referenceUrl).toBeNull();
@@ -266,7 +266,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   // academicSourceUrl (2026-09-10, added alongside referenceUrl but on a narrower ~13-metric set): a
@@ -296,7 +296,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    const result = await fetchFilterCatalog();
+    const result = await fetchMetricCatalog();
 
     expect(result[0]?.metrics[0]?.academicSourceUrl).toBe("https://doi.org/10.2307/2491062");
     expect(result[0]?.metrics[1]?.academicSourceUrl).toBeNull();
@@ -316,7 +316,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   // badge (2026-09-10, same rollout wave): the "guru badge" methodology object, moved from web-nuxt's own
@@ -357,7 +357,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    const result = await fetchFilterCatalog();
+    const result = await fetchMetricCatalog();
 
     expect(result[0]?.metrics[0]?.badge).toEqual(SAMPLE_BADGE);
     expect(result[0]?.metrics[1]?.badge).toBeNull();
@@ -392,7 +392,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    const result = await fetchFilterCatalog();
+    const result = await fetchMetricCatalog();
 
     expect(result[0]?.metrics[0]?.badge?.threshold.allPositiveFieldIds).toEqual(["eps.TTM", "eps.Q"]);
     expect(result[0]?.metrics[0]?.badge?.token).toBeUndefined();
@@ -420,7 +420,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("throws a 502 AppError when badge.threshold.comparator is not one of the allowed enum values", async () => {
@@ -445,7 +445,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   // in_range (2026-09-10, dividendPayoutRatio's Fidelity-range correction): pairs with valueMin/valueMax
@@ -478,7 +478,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    const result = await fetchFilterCatalog();
+    const result = await fetchMetricCatalog();
 
     expect(result[0]?.metrics[0]?.badge?.threshold).toMatchObject({ comparator: "in_range", valueMin: 40, valueMax: 60 });
   });
@@ -507,7 +507,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    const result = await fetchFilterCatalog();
+    const result = await fetchMetricCatalog();
 
     expect(result[0]?.metrics[0]?.sources).toEqual(["公開發行公司資產負債表（XBRL）", "公開發行公司損益表（XBRL）"]);
   });
@@ -526,7 +526,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("throws a 502 AppError when sources is present but not an array of strings", async () => {
@@ -543,7 +543,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    await expect(fetchFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("handles an empty validTokens array (zero queryable fields for that metric)", async () => {
@@ -560,7 +560,7 @@ describe("fetchFilterCatalog", () => {
       },
     });
 
-    const result = await fetchFilterCatalog();
+    const result = await fetchMetricCatalog();
 
     expect(result[0]?.metrics[0]?.fields).toEqual([]);
   });

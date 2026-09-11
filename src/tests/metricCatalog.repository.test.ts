@@ -2,24 +2,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockTx = {
   $executeRaw: vi.fn(async () => 0),
-  filterCategory: { deleteMany: vi.fn() },
-  filterMetric: { deleteMany: vi.fn() },
-  filterMetricField: { deleteMany: vi.fn() },
+  metricCategory: { deleteMany: vi.fn() },
+  metricDefinition: { deleteMany: vi.fn() },
+  metricDefinitionField: { deleteMany: vi.fn() },
 };
 
 const mockPrisma = {
   $transaction: vi.fn(async (callback: (tx: typeof mockTx) => Promise<void>) => callback(mockTx)),
-  filterCategory: { findMany: vi.fn() },
+  metricCategory: { findMany: vi.fn() },
 };
 
 vi.mock("@/adapters/neon/index.js", () => ({
   getPrismaClient: () => mockPrisma,
 }));
 
-import { listFilterCatalog, replaceFilterCatalog } from "@/domainBusiness/filterCatalog/filterCatalog.repository.js";
-import type { FilterCategory } from "@/domainBusiness/filterCatalog/filterCatalog.types.js";
+import { listMetricCatalog, replaceMetricCatalog } from "@/domainBusiness/metricCatalog/metricCatalog.repository.js";
+import type { MetricCategory } from "@/domainBusiness/metricCatalog/metricCatalog.types.js";
 
-const SAMPLE_CATALOG: FilterCategory[] = [
+const SAMPLE_CATALOG: MetricCategory[] = [
   {
     key: "profitability",
     name: "Profitability",
@@ -55,16 +55,16 @@ const SAMPLE_CATALOG: FilterCategory[] = [
   },
 ];
 
-describe("listFilterCatalog", () => {
+describe("listMetricCatalog", () => {
   beforeEach(() => {
-    vi.mocked(mockPrisma.filterCategory.findMany).mockReset();
+    vi.mocked(mockPrisma.metricCategory.findMany).mockReset();
   });
 
   // The response array is already in display order (queried with orderBy: position asc at every
   // level), but a frontend that reorders/filters the array client-side loses that implicit order — this
   // exposes the same "position" column explicitly as "sort" so it survives that kind of transformation.
   it("exposes each level's internal position as an explicit sort number", async () => {
-    vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
+    vi.mocked(mockPrisma.metricCategory.findMany).mockResolvedValue([
       {
         key: "technicals",
         name: "Technicals",
@@ -86,7 +86,7 @@ describe("listFilterCatalog", () => {
       },
     ] as never);
 
-    const result = await listFilterCatalog();
+    const result = await listMetricCatalog();
 
     expect(result[0]?.sort).toBe(3);
     expect(result[0]?.metrics[0]?.sort).toBe(2);
@@ -101,7 +101,7 @@ describe("listFilterCatalog", () => {
   // A field without its own description/source must fall back to its metric's, so the frontend can
   // always just read field.description/field.source without knowing this upstream convention.
   it("falls back to the metric's description/source for a field that has none of its own", async () => {
-    vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
+    vi.mocked(mockPrisma.metricCategory.findMany).mockResolvedValue([
       {
         key: "profitability",
         name: "Profitability",
@@ -122,7 +122,7 @@ describe("listFilterCatalog", () => {
       },
     ] as never);
 
-    const result = await listFilterCatalog();
+    const result = await listMetricCatalog();
 
     expect(result[0]?.metrics[0]).toMatchObject({
       key: "roe",
@@ -141,7 +141,7 @@ describe("listFilterCatalog", () => {
   // metric's unit is a real, observed case (not just theoretical): dupont's own unit is "percent" but
   // dupont.assetTurnoverQuarterly is "times" — verified live against analysis-ts's real /filters response.
   it("falls back to the metric's unit for a field that has none of its own", async () => {
-    vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
+    vi.mocked(mockPrisma.metricCategory.findMany).mockResolvedValue([
       {
         key: "profitability",
         name: "Profitability",
@@ -180,7 +180,7 @@ describe("listFilterCatalog", () => {
       },
     ] as never);
 
-    const result = await listFilterCatalog();
+    const result = await listMetricCatalog();
 
     expect(result[0]?.metrics[0]?.unit).toBe("percent");
     // No unit of its own -> falls back to the metric's "percent".
@@ -190,7 +190,7 @@ describe("listFilterCatalog", () => {
   });
 
   it("keeps a field's own description/source when it has one, rather than always preferring the metric's", async () => {
-    vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
+    vi.mocked(mockPrisma.metricCategory.findMany).mockResolvedValue([
       {
         key: "profitability",
         name: "Profitability",
@@ -218,7 +218,7 @@ describe("listFilterCatalog", () => {
       },
     ] as never);
 
-    const result = await listFilterCatalog();
+    const result = await listMetricCatalog();
 
     expect(result[0]?.metrics[0]?.fields[0]).toMatchObject({
       description: "field-level definition",
@@ -227,7 +227,7 @@ describe("listFilterCatalog", () => {
   });
 
   it("stays null when neither the field nor its metric has a description/source yet", async () => {
-    vi.mocked(mockPrisma.filterCategory.findMany).mockResolvedValue([
+    vi.mocked(mockPrisma.metricCategory.findMany).mockResolvedValue([
       {
         key: "profitability",
         name: "Profitability",
@@ -248,25 +248,25 @@ describe("listFilterCatalog", () => {
       },
     ] as never);
 
-    const result = await listFilterCatalog();
+    const result = await listMetricCatalog();
 
     expect(result[0]?.metrics[0]?.fields[0]).toMatchObject({ description: null, source: null });
   });
 });
 
-describe("replaceFilterCatalog", () => {
+describe("replaceMetricCatalog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   // Regression test: this used to `deleteMany()` the whole table then `createMany()` fresh rows on
-  // every sync (called once at every server startup). FilterMetricField cascades onDelete into
+  // every sync (called once at every server startup). MetricDefinitionField cascades onDelete into
   // ScreenerPresetFilter, so recreating a field that already existed — same key, same data — silently
   // wiped every user's saved preset filters on every restart, even though nothing about that field
   // actually changed. Upserting by natural key must leave an unchanged/kept row's identity intact
   // (no delete at all for it), and only ever delete a row that's genuinely absent from the new catalog.
   it("upserts via a single batched statement per table instead of wiping and recreating every row", async () => {
-    await replaceFilterCatalog(SAMPLE_CATALOG);
+    await replaceMetricCatalog(SAMPLE_CATALOG);
 
     // One batched INSERT ... ON CONFLICT DO UPDATE per table (category/metric/field) — never a
     // deleteMany() covering rows that are still present in the new catalog.
@@ -274,15 +274,15 @@ describe("replaceFilterCatalog", () => {
   });
 
   it("only deletes rows that are genuinely absent from the new catalog, not the whole table", async () => {
-    await replaceFilterCatalog(SAMPLE_CATALOG);
+    await replaceMetricCatalog(SAMPLE_CATALOG);
 
-    expect(mockTx.filterCategory.deleteMany).toHaveBeenCalledWith({
+    expect(mockTx.metricCategory.deleteMany).toHaveBeenCalledWith({
       where: { key: { notIn: ["profitability", "guru"] } },
     });
-    expect(mockTx.filterMetric.deleteMany).toHaveBeenCalledWith({
+    expect(mockTx.metricDefinition.deleteMany).toHaveBeenCalledWith({
       where: { key: { notIn: ["eps", "grahamNumber"] } },
     });
-    expect(mockTx.filterMetricField.deleteMany).toHaveBeenCalledWith({
+    expect(mockTx.metricDefinitionField.deleteMany).toHaveBeenCalledWith({
       where: {
         NOT: {
           OR: [
@@ -296,16 +296,16 @@ describe("replaceFilterCatalog", () => {
   });
 
   it("deletes everything when the new catalog is empty, instead of leaving stale rows behind", async () => {
-    await replaceFilterCatalog([]);
+    await replaceMetricCatalog([]);
 
     expect(mockTx.$executeRaw).not.toHaveBeenCalled();
-    expect(mockTx.filterMetricField.deleteMany).toHaveBeenCalledWith({ where: {} });
-    expect(mockTx.filterMetric.deleteMany).toHaveBeenCalledWith({ where: { key: { notIn: [] } } });
-    expect(mockTx.filterCategory.deleteMany).toHaveBeenCalledWith({ where: { key: { notIn: [] } } });
+    expect(mockTx.metricDefinitionField.deleteMany).toHaveBeenCalledWith({ where: {} });
+    expect(mockTx.metricDefinition.deleteMany).toHaveBeenCalledWith({ where: { key: { notIn: [] } } });
+    expect(mockTx.metricCategory.deleteMany).toHaveBeenCalledWith({ where: { key: { notIn: [] } } });
   });
 
   it("stays at a fixed number of queries no matter how many categories/metrics/fields there are", async () => {
-    const bigCatalog: FilterCategory[] = Array.from({ length: 10 }, (_, categoryIndex) => ({
+    const bigCatalog: MetricCategory[] = Array.from({ length: 10 }, (_, categoryIndex) => ({
       key: `category${categoryIndex}`,
       name: `Category ${categoryIndex}`,
       sort: categoryIndex,
@@ -324,13 +324,13 @@ describe("replaceFilterCatalog", () => {
       })),
     }));
 
-    await replaceFilterCatalog(bigCatalog);
+    await replaceMetricCatalog(bigCatalog);
 
     const totalCalls =
       mockTx.$executeRaw.mock.calls.length +
-      mockTx.filterCategory.deleteMany.mock.calls.length +
-      mockTx.filterMetric.deleteMany.mock.calls.length +
-      mockTx.filterMetricField.deleteMany.mock.calls.length;
+      mockTx.metricCategory.deleteMany.mock.calls.length +
+      mockTx.metricDefinition.deleteMany.mock.calls.length +
+      mockTx.metricDefinitionField.deleteMany.mock.calls.length;
 
     expect(totalCalls).toBe(6);
   });

@@ -1,7 +1,7 @@
 import { Prisma } from "@/generated/prisma/client.js";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
-import { findFilterFields } from "@/domainBusiness/filterCatalog/index.js";
+import { findMetricFields } from "@/domainBusiness/metricCatalog/index.js";
 import type { ScreenerFilter } from "@/domainBff/screener/screener.types.js";
 import {
   createPreset,
@@ -61,7 +61,7 @@ function toView(row: PresetRow): PresetView {
  */
 async function resolveFilters(filters: ScreenerFilter[]): Promise<PresetFilterInput[]> {
   const refs = filters.map((filter) => parseFieldRef(filter.field));
-  const found = await findFilterFields(refs);
+  const found = await findMetricFields(refs);
   const foundKeys = new Set(found.map((f) => toFieldRefString(f.metricKey, f.fieldKey)));
 
   return filters.map((filter, i) => {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { requireFilterSyncSecret } from "@/domainBusiness/filterCatalog/filterSyncAuth.js";
+import { requireFilterSyncSecret } from "@/domainBusiness/metricCatalog/filterSyncAuth.js";
 
 const HEADER_NAME = "x-filters-sync-secret";
 const ORIGINAL_SECRET = process.env.FILTERS_SYNC_SECRET;

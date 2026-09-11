@@ -6,8 +6,8 @@ vi.mock("@/domainBff/screener/analysisScreenerClient.js", () => ({
   fetchScreenerValues: vi.fn(),
 }));
 
-vi.mock("@/domainBusiness/filterCatalog/index.js", () => ({
-  findFilterFields: vi.fn(),
+vi.mock("@/domainBusiness/metricCatalog/index.js", () => ({
+  findMetricFields: vi.fn(),
 }));
 
 vi.mock("@/domainBff/stock/index.js", () => ({
@@ -19,7 +19,7 @@ vi.mock("@/domainBff/screener/valuationRanking.client.js", () => ({
 }));
 
 import { fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domainBff/screener/analysisScreenerClient.js";
-import { findFilterFields } from "@/domainBusiness/filterCatalog/index.js";
+import { findMetricFields } from "@/domainBusiness/metricCatalog/index.js";
 import { getLatestClosePrices } from "@/domainBff/stock/index.js";
 import { fetchValuationRanking } from "@/domainBff/screener/valuationRanking.client.js";
 import { runRanking, runScreener, runScreenerValues } from "@/domainBff/screener/screener.service.js";
@@ -27,7 +27,7 @@ import type { Pagination } from "@/domainBff/screener/pagination.js";
 
 const DEFAULT_PAGINATION: Pagination = { page: 1, pageSize: 50 };
 
-type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
+type Lookup = Awaited<ReturnType<typeof findMetricFields>>[number];
 
 const KNOWN_FIELDS: Record<string, Lookup> = {
   "grossMargin.grossMarginTtm": {
@@ -74,8 +74,8 @@ beforeEach(() => {
   vi.mocked(fetchScreenerResults).mockReset();
   vi.mocked(fetchScreenerRanking).mockReset();
   vi.mocked(fetchScreenerValues).mockReset();
-  vi.mocked(findFilterFields).mockReset();
-  vi.mocked(findFilterFields).mockImplementation(async (refs) =>
+  vi.mocked(findMetricFields).mockReset();
+  vi.mocked(findMetricFields).mockImplementation(async (refs) =>
     refs
       .map((ref) => KNOWN_FIELDS[`${ref.metricKey}.${ref.fieldKey}`] ?? null)
       .filter((f): f is Lookup => f !== null),
@@ -231,7 +231,7 @@ describe("runScreener", () => {
       DEFAULT_PAGINATION,
     );
 
-    // "stock.price" must never leak into the columns sent to analysis-ts — it isn't a filterCatalog field.
+    // "stock.price" must never leak into the columns sent to analysis-ts — it isn't a metricCatalog field.
     expect(fetchScreenerResults).toHaveBeenCalledWith(expect.anything(), [], DEFAULT_PAGINATION, undefined);
     // One batched call for the whole result set, not one call per symbol.
     expect(getLatestClosePrices).toHaveBeenCalledTimes(1);
@@ -283,8 +283,8 @@ describe("runScreener", () => {
       DEFAULT_PAGINATION,
     );
 
-    expect(findFilterFields).toHaveBeenCalledTimes(1);
-    expect(findFilterFields).toHaveBeenCalledWith([
+    expect(findMetricFields).toHaveBeenCalledTimes(1);
+    expect(findMetricFields).toHaveBeenCalledWith([
       { field: "grossMargin.grossMarginTtm", metricKey: "grossMargin", fieldKey: "grossMarginTtm" },
       { field: "roe.roeTtmPct", metricKey: "roe", fieldKey: "roeTtmPct" },
       { field: "roe.roeTtmPct", metricKey: "roe", fieldKey: "roeTtmPct" },
@@ -415,7 +415,7 @@ describe("runRanking", () => {
 
     const result = await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "stock.price" }]);
 
-    // "stock.price" must never be sent to analysis-ts as an extra column — it isn't a filterCatalog field.
+    // "stock.price" must never be sent to analysis-ts as an extra column — it isn't a metricCatalog field.
     expect(fetchScreenerRanking).toHaveBeenCalledWith("roe.roeTtmPct", "desc", 10, []);
     expect(getLatestClosePrices).toHaveBeenCalledWith(["2330"]);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });

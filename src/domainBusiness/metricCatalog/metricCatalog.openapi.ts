@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
 
-const filterFieldSchema = z.object({
+const metricFieldSchema = z.object({
   key: z.string(),
   name: z.string(),
   period: z.string(),
@@ -11,7 +11,7 @@ const filterFieldSchema = z.object({
   sort: z.number(),
 });
 
-const filterMetricBadgeThresholdSchema = z.object({
+const metricBadgeThresholdSchema = z.object({
   description: z.string(),
   denominator: z.number(),
   comparator: z.enum(["gt", "lt", "gte", "abs_lt", "in_range"]).optional(),
@@ -23,7 +23,7 @@ const filterMetricBadgeThresholdSchema = z.object({
   allPositiveFieldIds: z.array(z.string()).optional(),
 });
 
-const filterMetricBadgeSchema = z.object({
+const metricBadgeSchema = z.object({
   id: z.string(),
   name: z.string(),
   nameEn: z.string(),
@@ -32,10 +32,10 @@ const filterMetricBadgeSchema = z.object({
   detail: z.string(),
   /** Absent when the threshold spans multiple periods instead of one (e.g. eps's allPositiveFieldIds). */
   token: z.string().optional(),
-  threshold: filterMetricBadgeThresholdSchema,
+  threshold: metricBadgeThresholdSchema,
 });
 
-const filterMetricSchema = z.object({
+const metricDefinitionSchema = z.object({
   key: z.string(),
   name: z.string(),
   path: z.string(),
@@ -49,21 +49,21 @@ const filterMetricSchema = z.object({
   /** Original academic paper URL — distinct from referenceUrl (general-reader vs. academic source). Null except on the ~13 metrics analysis-ts has one for (2026-09-10). */
   academicSourceUrl: z.string().nullish(),
   /** Curated "guru badge" methodology threshold — null except on the ~11 metrics analysis-ts has one for (2026-09-10). */
-  badge: filterMetricBadgeSchema.nullish(),
+  badge: metricBadgeSchema.nullish(),
   /** Data-provenance category labels (fixed 9-label vocabulary) — always present and non-empty, unlike formulaLatex/referenceUrl/badge (2026-09-10). */
   sources: z.array(z.string()),
   sort: z.number(),
-  fields: z.array(filterFieldSchema),
+  fields: z.array(metricFieldSchema),
 });
 
-const filterCategorySchema = z
+const metricCategorySchema = z
   .object({
     key: z.string(),
     name: z.string(),
     sort: z.number(),
-    metrics: z.array(filterMetricSchema),
+    metrics: z.array(metricDefinitionSchema),
   })
-  .openapi("FilterCategory");
+  .openapi("MetricCategory");
 
 registry.registerPath({
   method: "get",
@@ -75,7 +75,7 @@ registry.registerPath({
   responses: {
     200: {
       description: "分類 / 指標 / 欄位清單（含 description/source）。伺服器剛啟動、還沒同步成功過時可能是空陣列。",
-      content: { "application/json": { schema: z.object({ categories: z.array(filterCategorySchema) }) } },
+      content: { "application/json": { schema: z.object({ categories: z.array(metricCategorySchema) }) } },
     },
   },
 });

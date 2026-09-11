@@ -71,7 +71,7 @@ async function validateFields(fields: string[]): Promise<void> {
  * Regression-shaped perf fix (2026-09-01): used to call toView() per row via Promise.all, each doing its
  * own resolveColumnFields round trip — N presets meant N concurrent-but-separate remote DB queries
  * instead of one. Batches every preset's columns into a single resolveColumnFields call up front, same
- * "one round trip, not one per item" rule already applied to findFilterFields/findFilterField elsewhere
+ * "one round trip, not one per item" rule already applied to findMetricFields/findMetricField elsewhere
  * in this codebase.
  */
 export async function getColumnPresets(firebaseUid: string): Promise<ColumnPresetView[]> {

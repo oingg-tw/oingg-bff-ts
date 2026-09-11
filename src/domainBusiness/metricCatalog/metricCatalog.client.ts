@@ -1,15 +1,15 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
-import type { FilterCategory, FilterMetricBadge, FilterMetricBadgeThreshold } from "@/domainBusiness/filterCatalog/filterCatalog.types.js";
+import type { MetricBadge, MetricBadgeThreshold, MetricCategory } from "@/domainBusiness/metricCatalog/metricCatalog.types.js";
 
 const BADGE_COMPARATORS = ["gt", "lt", "gte", "abs_lt", "in_range"] as const;
 
-function isRawBadgeThreshold(value: unknown): value is FilterMetricBadgeThreshold {
+function isRawBadgeThreshold(value: unknown): value is MetricBadgeThreshold {
   if (typeof value !== "object" || value === null) {
     return false;
   }
-  const t = value as FilterMetricBadgeThreshold;
+  const t = value as MetricBadgeThreshold;
   return (
     typeof t.description === "string" &&
     typeof t.denominator === "number" &&
@@ -23,11 +23,11 @@ function isRawBadgeThreshold(value: unknown): value is FilterMetricBadgeThreshol
   );
 }
 
-function isRawBadge(value: unknown): value is FilterMetricBadge {
+function isRawBadge(value: unknown): value is MetricBadge {
   if (typeof value !== "object" || value === null) {
     return false;
   }
-  const b = value as FilterMetricBadge;
+  const b = value as MetricBadge;
   return (
     typeof b.id === "string" &&
     typeof b.name === "string" &&
@@ -52,7 +52,7 @@ interface RawPitMetric {
   /** Present only on the ~13 metrics with a documented academic paper source, 2026-09-10. */
   academicSourceUrl?: string;
   /** Present only on the ~11 metrics with a curated "guru badge" methodology threshold, 2026-09-10. */
-  badge?: FilterMetricBadge;
+  badge?: MetricBadge;
   /** Data-provenance category labels — a fixed 9-label vocabulary, required and non-empty on every metric (2026-09-10). */
   sources: string[];
 }
@@ -95,7 +95,7 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
 
 /**
  * Converts analysis-ts's pitMetrics-native `/filters` shape into this codebase's existing
- * FilterCategory/FilterMetric/FilterField shape, so the rest of this domain (repository, screener field
+ * MetricCategory/MetricDefinition/MetricField shape, so the rest of this domain (repository, screener field
  * validation) doesn't need to change.
  *
  * Deliberately built from each metric's `validTokens` array, NOT any `allowedPeriodTypes`/
@@ -150,7 +150,7 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
  * it's validated as required here (missing/wrong-shape fails the whole sync, same as displayName/unit/
  * validTokens) rather than defaulted to null/undefined.
  */
-function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
+function toMetricCategories(raw: RawPitCategory[]): MetricCategory[] {
   return raw.map((category, categoryIndex) => ({
     key: category.categoryKey,
     name: category.categoryDisplayName,
@@ -182,25 +182,26 @@ function toFilterCategories(raw: RawPitCategory[]): FilterCategory[] {
 }
 
 /**
- * Fetches the filter category/metric/field catalog from oingg-analysis-ts's `/metrics` endpoint —
+ * Fetches the metric category/definition/field catalog from oingg-analysis-ts's `/metrics` endpoint —
  * renamed from `/filters` 2026-09-10 (their reasoning: the response is metric definitions, not filters
  * themselves; response shape unchanged). Unlike the basis->token/periodType rename (a pure internal
  * wire-format change, shielded from web-nuxt — see [[project_basis_field_split_migration]]), this one
  * carries domain-language significance, so bff-ts's own public path was renamed too (`GET /filters` ->
  * `GET /metrics`, same day) — for ubiquitous language, so cross-team communication doesn't end up with
- * two names for the same thing.
+ * two names for the same thing. This module/its types followed suit 2026-09-11 (Filter* -> Metric*
+ * internally too — see [[feedback_mirror_ubiquitous_language_renames]]).
  */
-export async function fetchFilterCatalog(): Promise<FilterCategory[]> {
+export async function fetchMetricCatalog(): Promise<MetricCategory[]> {
   const url = buildAnalysisServiceUrl("/metrics");
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Filters service");
+  assertAnalysisServiceOk(response, url, "Metrics service");
 
   const body: unknown = await response.json();
   const categories = (body as { categories?: unknown } | null)?.categories;
   if (!isRawPitCategoryArray(categories)) {
-    logger.error({ url: url.toString() }, 'Filters service response is missing a valid "categories" array');
-    throw new AppError('Filters service response is missing a valid "categories" array', 502);
+    logger.error({ url: url.toString() }, 'Metrics service response is missing a valid "categories" array');
+    throw new AppError('Metrics service response is missing a valid "categories" array', 502);
   }
 
-  return toFilterCategories(categories);
+  return toMetricCategories(categories);
 }

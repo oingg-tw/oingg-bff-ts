@@ -32,9 +32,9 @@ function isRawColumnPresetTemplateArray(value: unknown): value is RawColumnPrese
 
 /**
  * Fetches the curated columnPresets from oingg-analysis-ts's `/metrics` endpoint (renamed from `/filters`
- * 2026-09-10, response shape unchanged — see filterCatalog.client.ts's fetchFilterCatalog) — same endpoint
+ * 2026-09-10, response shape unchanged — see metricCatalog.client.ts's fetchMetricCatalog) — same endpoint
  * that reads `categories` from, just a different top-level field. A separate request (rather than sharing
- * filterCatalog's single fetch) keeps the two sync flows independent, at the cost of one extra GET at
+ * metricCatalog's single fetch) keeps the two sync flows independent, at the cost of one extra GET at
  * startup — negligible since this only runs once per process start.
  *
  * analysis-ts's 2026-09-08 pitMetrics rebuild dropped this field entirely (not even present as an empty

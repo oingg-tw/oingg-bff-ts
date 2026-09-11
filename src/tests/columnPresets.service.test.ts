@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/filterCatalog/index.js", () => ({
-  findFilterFields: vi.fn(),
+vi.mock("@/domainBusiness/metricCatalog/index.js", () => ({
+  findMetricFields: vi.fn(),
 }));
 
 vi.mock("@/domainBusiness/screener/columnPresets.repository.js", () => ({
@@ -18,7 +18,7 @@ vi.mock("@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository
 }));
 
 import { Prisma } from "@/generated/prisma/client.js";
-import { findFilterFields } from "@/domainBusiness/filterCatalog/index.js";
+import { findMetricFields } from "@/domainBusiness/metricCatalog/index.js";
 import { findDefaultColumnPresetTemplate } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js";
 import {
   createColumnPreset,
@@ -35,7 +35,7 @@ import {
   resolveScreenerColumns,
 } from "@/domainBusiness/screener/columnPresets.service.js";
 
-type Lookup = Awaited<ReturnType<typeof findFilterFields>>[number];
+type Lookup = Awaited<ReturnType<typeof findMetricFields>>[number];
 
 const PER_FIELD: Lookup = {
   categoryKey: "valuation",
@@ -70,8 +70,8 @@ const SAMPLE_ROW = {
 };
 
 beforeEach(() => {
-  vi.mocked(findFilterFields).mockReset();
-  vi.mocked(findFilterFields).mockImplementation(async (refs) =>
+  vi.mocked(findMetricFields).mockReset();
+  vi.mocked(findMetricFields).mockImplementation(async (refs) =>
     refs
       .map((ref) => {
         if (ref.metricKey === "per" && ref.fieldKey === "peRatio") return PER_FIELD;
@@ -92,7 +92,7 @@ describe("getColumnPresets", () => {
   // Perf regression test (2026-09-01): used to call toView() per preset row via Promise.all, each doing
   // its own resolveColumnFields round trip — N presets meant N separate remote DB queries (concurrent,
   // but still N of them) instead of one. Must batch every preset's columns into a single lookup.
-  it("resolves every preset's columns in a single batched findFilterFields call, not one per preset", async () => {
+  it("resolves every preset's columns in a single batched findMetricFields call, not one per preset", async () => {
     vi.mocked(listColumnPresets).mockResolvedValue([
       { ...SAMPLE_ROW, id: SAMPLE_ID, columns: ["per.peRatio"] },
       { ...SAMPLE_ROW, id: OTHER_ID, columns: ["pbr.pbRatio"] },
@@ -100,8 +100,8 @@ describe("getColumnPresets", () => {
 
     const result = await getColumnPresets("uid1");
 
-    expect(findFilterFields).toHaveBeenCalledTimes(1);
-    expect(findFilterFields).toHaveBeenCalledWith([
+    expect(findMetricFields).toHaveBeenCalledTimes(1);
+    expect(findMetricFields).toHaveBeenCalledWith([
       { field: "per.peRatio", metricKey: "per", fieldKey: "peRatio" },
       { field: "pbr.pbRatio", metricKey: "pbr", fieldKey: "pbRatio" },
     ]);
@@ -133,16 +133,16 @@ describe("getColumnPresets", () => {
 
     await getColumnPresets("uid1");
 
-    expect(findFilterFields).toHaveBeenCalledWith([{ field: "per.peRatio", metricKey: "per", fieldKey: "peRatio" }]);
+    expect(findMetricFields).toHaveBeenCalledWith([{ field: "per.peRatio", metricKey: "per", fieldKey: "peRatio" }]);
   });
 
-  it("returns an empty array without calling findFilterFields when the user has no presets", async () => {
+  it("returns an empty array without calling findMetricFields when the user has no presets", async () => {
     vi.mocked(listColumnPresets).mockResolvedValue([]);
 
     const result = await getColumnPresets("uid1");
 
     expect(result).toEqual([]);
-    expect(findFilterFields).not.toHaveBeenCalled();
+    expect(findMetricFields).not.toHaveBeenCalled();
   });
 });
 
@@ -162,7 +162,7 @@ describe("addColumnPreset", () => {
 
   // Regression test: fields used to be validated one at a time (one query per field, sequentially
   // awaited even). Must be a single batched lookup regardless of how many fields are given — every
-  // call findFilterFields receives here should carry all the catalog fields at once, never one at a time.
+  // call findMetricFields receives here should carry all the catalog fields at once, never one at a time.
   it("validates all fields in a single batched lookup, not one query per field", async () => {
     vi.mocked(createColumnPreset).mockResolvedValue({
       ...SAMPLE_ROW,
@@ -173,8 +173,8 @@ describe("addColumnPreset", () => {
 
     // validateFields (input) + toView (the created row's own columns) — 2 calls total, each batched
     // to cover both catalog fields at once rather than one call per field.
-    expect(findFilterFields).toHaveBeenCalledTimes(2);
-    for (const call of vi.mocked(findFilterFields).mock.calls) {
+    expect(findMetricFields).toHaveBeenCalledTimes(2);
+    for (const call of vi.mocked(findMetricFields).mock.calls) {
       expect(call[0]).toEqual([
         { field: "per.peRatio", metricKey: "per", fieldKey: "peRatio" },
         { field: "pbr.pbRatio", metricKey: "pbr", fieldKey: "pbRatio" },
@@ -291,7 +291,7 @@ describe("resolveScreenerColumns", () => {
   });
 
   // Also covers the drop-invalid-fields regression (2026-09-08): OVERVIEW_TEMPLATE includes
-  // roe.roeTtmPct, which the findFilterFields mock above doesn't recognize — analysis-ts's own
+  // roe.roeTtmPct, which the findMetricFields mock above doesn't recognize — analysis-ts's own
   // "overview" columnPreset kept referencing a field already dropped from their /filters `categories`
   // catalog, which made every screener call without an explicit columnPresetId fail 100% of the time
   // with an "unknown filter field" error unrelated to what the caller actually asked for. Must drop

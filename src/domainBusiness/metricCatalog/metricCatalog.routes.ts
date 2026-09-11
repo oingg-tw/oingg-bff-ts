@@ -1,11 +1,11 @@
 import { Router } from "ultimate-express";
-import { requireFilterSyncSecret } from "@/domainBusiness/filterCatalog/filterSyncAuth.js";
-import { getFilterCatalog, syncFilterCatalog } from "@/domainBusiness/filterCatalog/filterCatalog.service.js";
+import { requireFilterSyncSecret } from "@/domainBusiness/metricCatalog/filterSyncAuth.js";
+import { getMetricCatalog, syncMetricCatalog } from "@/domainBusiness/metricCatalog/metricCatalog.service.js";
 
-export const filterCatalogRouter = Router();
+export const metricCatalogRouter = Router();
 
-filterCatalogRouter.get("/", async (_req, res) => {
-  const categories = await getFilterCatalog();
+metricCatalogRouter.get("/", async (_req, res) => {
+  const categories = await getMetricCatalog();
   res.json({ categories });
 });
 
@@ -15,7 +15,7 @@ filterCatalogRouter.get("/", async (_req, res) => {
  * metric display-copy tweak on analysis-ts's side. Still bff-ts-initiated (analysis-ts doesn't call this;
  * a human or an internal tool does), so the "analysis-ts must not know bff-ts exists" boundary holds.
  */
-filterCatalogRouter.post("/sync", requireFilterSyncSecret, async (_req, res) => {
-  const summary = await syncFilterCatalog();
+metricCatalogRouter.post("/sync", requireFilterSyncSecret, async (_req, res) => {
+  const summary = await syncMetricCatalog();
   res.json(summary);
 });
