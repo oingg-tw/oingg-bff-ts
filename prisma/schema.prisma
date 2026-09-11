@@ -22,12 +22,13 @@ enum PresetTemplateStatus {
 }
 
 /// A curated, shared screener filter template shown to every user — not owned by anyone, unlike
-/// ScreenerPreset (per-user, firebaseUid-scoped). Seeded from a competitor-research report
-/// (2026-08-30, see prisma/seedPresetTemplates.ts) recommending named strategy templates (guru
-/// strategies, quant factors, TW-specific chip signals, dividend/theme screens) as a discoverability
-/// aid, matching how incumbents' preset libraries work. `filters` is plain JSON (not FK'd to
-/// MetricDefinitionField like ScreenerPresetFilter) because a PENDING template's filters may reference a
-/// metric this ecosystem doesn't compute yet — see `status`/`pendingReason`.
+/// ScreenerPreset (per-user, firebaseUid-scoped). The 21 rows originally seeded from a
+/// competitor-research report (2026-08-30) were all confirmed placeholder/demo data and deleted
+/// 2026-09-08; the 7 real templates seeded since 2026-09-11 (see prisma/seedPresetTemplates.ts) are
+/// grounded in metrics with real academic/methodology backing (GET /metrics' academicSourceUrl/badge
+/// fields) instead. `filters` is plain JSON (not FK'd to MetricDefinitionField like
+/// ScreenerPresetFilter) because a PENDING template's filters may reference a metric this ecosystem
+/// doesn't compute yet — see `status`/`pendingReason`.
 model PresetTemplate {
   id            String               @id @default(uuid()) @db.Uuid
   name          String               @unique
@@ -39,6 +40,12 @@ model PresetTemplate {
   pendingReason String?              @map("pending_reason")
   /// Array of { field, min, max, exclude } — same shape POST /screener accepts. Empty for PENDING templates.
   filters       Json
+  /// The template shown/pre-selected when a user opens the screener for the first time with no filters
+  /// chosen yet — same isDefault convention as ColumnPresetTemplate, but purely a frontend discoverability
+  /// signal here: unlike columns, bff-ts does NOT auto-apply this filter server-side (POST /screener still
+  /// requires at least one explicit filter — see screener.service.ts's runScreener). Exactly one row
+  /// should have this true, enforced by an assertion in prisma/seedPresetTemplates.ts, not the DB.
+  isDefault     Boolean              @default(false) @map("is_default")
   position      Int
   createdAt     DateTime             @default(now()) @map("created_at")
   updatedAt     DateTime             @default(now()) @updatedAt @map("updated_at")

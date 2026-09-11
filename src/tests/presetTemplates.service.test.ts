@@ -29,6 +29,7 @@ const AVAILABLE_TEMPLATE = {
   status: "AVAILABLE" as const,
   pendingReason: null,
   filters: [{ field: "roe.roeTtmPct", min: 15, max: null, exclude: false }],
+  isDefault: false,
   createdAt: "2026-08-30T00:00:00.000Z",
   updatedAt: "2026-08-30T00:00:00.000Z",
 };

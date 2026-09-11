@@ -12,6 +12,7 @@ const presetTemplateSchema = z
     status: z.enum(["AVAILABLE", "PENDING"]),
     pendingReason: z.string().nullable(),
     filters: z.array(z.object({ field: z.string(), min: z.number().nullable(), max: z.number().nullable(), exclude: z.boolean() })),
+    isDefault: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
@@ -24,7 +25,7 @@ registry.registerPath({
   path: "/screener/templates",
   summary: "列出所有人共用的篩選策略範本（大師策略／量化因子／台股籌碼面等）",
   description:
-    "不需要登入即可查看。每筆都有 tier（FREE/PAID，前端自行決定顯示/鎖定方式，這個服務本身不做付費驗證）跟 status（AVAILABLE 可直接套用；PENDING 表示目前生態系還沒有計算這個範本需要的指標，pendingReason 說明缺什麼，filters 會是空陣列）。",
+    "不需要登入即可查看。每筆都有 tier（FREE/PAID，前端自行決定顯示/鎖定方式，這個服務本身不做付費驗證）跟 status（AVAILABLE 可直接套用；PENDING 表示目前生態系還沒有計算這個範本需要的指標，pendingReason 說明缺什麼，filters 會是空陣列）。`isDefault`（2026-09-11 新增）標記使用者第一次進入 screener、還沒選任何篩選條件時該預先套用/凸顯的那一組，恰好一筆會是 true——純粹是前端的發現性提示，bff-ts 自己不會在 POST /screener 端自動套用這個篩選（該端點仍然要求至少給一個 filter）。",
   tags: ["Screener"],
   responses: {
     200: {

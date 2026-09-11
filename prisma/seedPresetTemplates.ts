@@ -17,6 +17,15 @@
  * listed below — it does NOT delete rows removed from this array (see feedback_no_destructive_syncs);
  * removing a template here requires a separate explicit delete against the live DB.
  *
+ * `isDefault` (2026-09-11): exactly one template is shown/pre-selected when a user opens the screener
+ * for the first time with no filters chosen yet — same isDefault convention as
+ * ColumnPresetTemplate/prisma/seedColumnPresetTemplates.ts, but a frontend discoverability signal only
+ * (bff-ts does not auto-apply this filter server-side — POST /screener still requires at least one
+ * explicit filter). "股利穩健" (Dividend Stability) was picked by the user as the default: the most
+ * broadly familiar/accepted strategy among Taiwanese retail investors (存股領息), unlike the more
+ * specialist/niche distress-scoring or higher-risk turnaround templates. Enforced by an assertion in main()
+ * before writing anything, not just by convention.
+ *
  * Run with: pnpm run seed:preset-templates
  */
 import "dotenv/config";
@@ -31,6 +40,7 @@ interface TemplateSeed {
   status: "AVAILABLE" | "PENDING";
   pendingReason: string | null;
   filters: PresetTemplateFilter[];
+  isDefault: boolean;
 }
 
 const TEMPLATES: TemplateSeed[] = [
@@ -43,6 +53,7 @@ const TEMPLATES: TemplateSeed[] = [
     status: "AVAILABLE",
     pendingReason: null,
     filters: [{ field: "grahamNumber.TTM", min: null, max: 22.5, exclude: false }],
+    isDefault: false,
   },
   {
     name: "低波動",
@@ -53,6 +64,7 @@ const TEMPLATES: TemplateSeed[] = [
     status: "AVAILABLE",
     pendingReason: null,
     filters: [{ field: "beta.2Y_1W", min: null, max: 1, exclude: false }],
+    isDefault: false,
   },
   {
     name: "股利穩健",
@@ -63,6 +75,7 @@ const TEMPLATES: TemplateSeed[] = [
     status: "AVAILABLE",
     pendingReason: null,
     filters: [{ field: "dividendPayoutRatio.TTM", min: 40, max: 60, exclude: false }],
+    isDefault: true,
   },
   {
     name: "財務韌性",
@@ -77,6 +90,7 @@ const TEMPLATES: TemplateSeed[] = [
       { field: "ohlsonOScore.TTM", min: null, max: 0.5, exclude: false },
       { field: "zmijewskiScore.TTM", min: null, max: 0.5, exclude: false },
     ],
+    isDefault: false,
   },
   {
     name: "獲利品質",
@@ -87,6 +101,7 @@ const TEMPLATES: TemplateSeed[] = [
     status: "AVAILABLE",
     pendingReason: null,
     filters: [{ field: "beneishMScore.Q", min: null, max: -1.78, exclude: false }],
+    isDefault: false,
   },
   {
     name: "轉機股",
@@ -100,6 +115,7 @@ const TEMPLATES: TemplateSeed[] = [
       { field: "piotroskiFScore.Q", min: 7, max: null, exclude: false },
       { field: "accrualsRatio.TTM", min: -10, max: 10, exclude: false },
     ],
+    isDefault: false,
   },
   {
     name: "成長動能",
@@ -110,10 +126,16 @@ const TEMPLATES: TemplateSeed[] = [
     status: "AVAILABLE",
     pendingReason: null,
     filters: [{ field: "sue.Q", min: 2, max: null, exclude: false }],
+    isDefault: false,
   },
 ];
 
 async function main() {
+  const defaults = TEMPLATES.filter((t) => t.isDefault);
+  if (defaults.length !== 1) {
+    throw new Error(`Expected exactly one isDefault template, found ${defaults.length}`);
+  }
+
   const prisma = getPrismaClient();
 
   for (const [index, template] of TEMPLATES.entries()) {
@@ -124,7 +146,7 @@ async function main() {
     });
   }
 
-  console.log(`Seeded ${TEMPLATES.length} preset templates.`);
+  console.log(`Seeded ${TEMPLATES.length} preset templates (default: "${defaults[0]!.name}").`);
   const available = TEMPLATES.filter((t) => t.status === "AVAILABLE").length;
   console.log(`  ${available} AVAILABLE, ${TEMPLATES.length - available} PENDING.`);
 }

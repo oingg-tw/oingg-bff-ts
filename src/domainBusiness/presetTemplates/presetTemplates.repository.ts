@@ -12,6 +12,7 @@ function toPresetTemplate(row: PresetTemplateRow): PresetTemplate {
     status: row.status,
     pendingReason: row.pendingReason,
     filters: row.filters as unknown as PresetTemplateFilter[],
+    isDefault: row.isDefault,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
