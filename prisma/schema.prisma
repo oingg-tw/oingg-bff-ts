@@ -330,6 +330,12 @@ model ColumnPreset {
   firebaseUid String   @map("firebase_uid")
   name        String
   isDefault   Boolean  @default(false) @map("is_default")
+  /// User-controlled display order of this preset among the caller's own tabs (2026-09-11, drag-to-reorder
+  /// UI) — distinct from ColumnPresetField.position, which orders the columns WITHIN one preset. Assigned
+  /// at creation time (appended to the end of the caller's own list) and only otherwise changed via the
+  /// dedicated POST /screener/column-presets/reorder endpoint, which requires the full ordered id set (not
+  /// a single position patch) so positions never collide or leave gaps.
+  position    Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -360,6 +366,10 @@ model ScreenerPreset {
   id          String   @id @default(uuid()) @db.Uuid
   firebaseUid String   @map("firebase_uid")
   name        String
+  /// User-controlled display order among the caller's own filter-combo tabs (2026-09-11, drag-to-reorder
+  /// UI) — same convention as ColumnPreset.position. Assigned at creation time and only otherwise changed
+  /// via POST /screener/presets/reorder.
+  position    Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 

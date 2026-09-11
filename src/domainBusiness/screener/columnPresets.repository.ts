@@ -10,6 +10,7 @@ export interface ColumnPresetRow {
 }
 
 const COLUMNS_ORDER = { position: "asc" as const };
+const PRESETS_ORDER = { position: "asc" as const };
 
 function toRow(preset: {
   id: string;
@@ -29,11 +30,12 @@ function toRow(preset: {
   };
 }
 
+/** Ordered by the user's own drag-to-reorder position (see ColumnPreset.position), not creation time. */
 export async function listColumnPresets(firebaseUid: string): Promise<ColumnPresetRow[]> {
   const prisma = getPrismaClient();
   const presets = await prisma.columnPreset.findMany({
     where: { firebaseUid },
-    orderBy: { createdAt: "desc" },
+    orderBy: PRESETS_ORDER,
     include: { columns: { orderBy: COLUMNS_ORDER } },
   });
   return presets.map(toRow);
@@ -69,12 +71,16 @@ export async function createColumnPreset(
     if (isDefault) {
       await tx.columnPreset.updateMany({ where: { firebaseUid, isDefault: true }, data: { isDefault: false } });
     }
+    // Appended to the end of this user's own tab order — count rather than max(position)+1 since a
+    // brand-new user has no rows at all (max would be null, not 0).
+    const position = await tx.columnPreset.count({ where: { firebaseUid } });
     const preset = await tx.columnPreset.create({
       data: {
         firebaseUid,
         name,
         isDefault,
-        columns: { create: fields.map((field, position) => ({ field, position })) },
+        position,
+        columns: { create: fields.map((field, fieldPosition) => ({ field, position: fieldPosition })) },
       },
       include: { columns: { orderBy: COLUMNS_ORDER } },
     });
@@ -138,4 +144,36 @@ export async function deleteColumnPreset(firebaseUid: string, id: string): Promi
   const prisma = getPrismaClient();
   const result = await prisma.columnPreset.deleteMany({ where: { firebaseUid, id } });
   return result.count > 0;
+}
+
+/**
+ * Reassigns position = array index for every id in `orderedIds`, all in one transaction. Returns null
+ * (no writes made) if `orderedIds` isn't exactly this user's current full set of preset ids — a partial
+ * reorder is ambiguous (where would the omitted ones go?), so this requires the complete set, same
+ * "full replacement, not incremental" rule PATCH already uses for columns/filters.
+ */
+export async function reorderColumnPresets(firebaseUid: string, orderedIds: string[]): Promise<ColumnPresetRow[] | null> {
+  const prisma = getPrismaClient();
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.columnPreset.findMany({ where: { firebaseUid }, select: { id: true } });
+    const existingIds = new Set(existing.map((row) => row.id));
+    const requestedIds = new Set(orderedIds);
+    if (existingIds.size !== requestedIds.size || [...existingIds].some((id) => !requestedIds.has(id))) {
+      return null;
+    }
+
+    // Sequential, not Promise.all — a single Postgres connection (this transaction) processes one query
+    // at a time regardless, and concurrent awaits against the same tx client risk interleaving badly.
+    for (const [position, id] of orderedIds.entries()) {
+      await tx.columnPreset.update({ where: { id }, data: { position } });
+    }
+
+    const reordered = await tx.columnPreset.findMany({
+      where: { firebaseUid },
+      orderBy: PRESETS_ORDER,
+      include: { columns: { orderBy: COLUMNS_ORDER } },
+    });
+    return reordered.map(toRow);
+  });
 }

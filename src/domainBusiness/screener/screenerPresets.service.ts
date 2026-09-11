@@ -8,6 +8,7 @@ import {
   deletePreset,
   findPreset,
   listPresets,
+  reorderPresets,
   setLastColumnPreset,
   updatePreset,
   type PresetFilterInput,
@@ -198,6 +199,19 @@ export async function removePreset(firebaseUid: string, id: string): Promise<voi
   if (!deleted) {
     throw new AppError(`Screener preset ${id} not found`, 404);
   }
+}
+
+/**
+ * Persists a full drag-to-reorder of the caller's own filter-preset tabs. `orderedIds` must be exactly
+ * this user's current set of preset ids — same "full replacement, 400 on mismatch" rule as
+ * columnPresets.service.ts's reorderColumnPresetsForUser.
+ */
+export async function reorderPresetsForUser(firebaseUid: string, orderedIds: string[]): Promise<PresetView[]> {
+  const rows = await reorderPresets(firebaseUid, orderedIds);
+  if (!rows) {
+    throw new AppError("`ids` must be exactly this user's current set of screener preset ids, in the new order", 400);
+  }
+  return rows.map(toView);
 }
 
 /**

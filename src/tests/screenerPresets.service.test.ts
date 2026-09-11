@@ -9,6 +9,7 @@ vi.mock("@/domainBusiness/screener/screenerPresets.repository.js", () => ({
   deletePreset: vi.fn(),
   findPreset: vi.fn(),
   listPresets: vi.fn(),
+  reorderPresets: vi.fn(),
   setLastColumnPreset: vi.fn(),
   updatePreset: vi.fn(),
 }));
@@ -20,10 +21,17 @@ import {
   deletePreset,
   findPreset,
   listPresets,
+  reorderPresets,
   setLastColumnPreset,
   updatePreset,
 } from "@/domainBusiness/screener/screenerPresets.repository.js";
-import { addPreset, editPreset, getPresetOrThrow, removePreset } from "@/domainBusiness/screener/screenerPresets.service.js";
+import {
+  addPreset,
+  editPreset,
+  getPresetOrThrow,
+  removePreset,
+  reorderPresetsForUser,
+} from "@/domainBusiness/screener/screenerPresets.service.js";
 
 type Lookup = Awaited<ReturnType<typeof findMetricFields>>[number];
 
@@ -57,6 +65,7 @@ const MARGIN_FIELD: Lookup = {
 };
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
+const OTHER_ID = "aaaaaaaa-0000-4000-8000-000000000002";
 
 const SAMPLE_ROW = {
   id: SAMPLE_ID,
@@ -88,6 +97,7 @@ beforeEach(() => {
   vi.mocked(listPresets).mockReset();
   vi.mocked(listPresets).mockResolvedValue([]);
   vi.mocked(deletePreset).mockReset();
+  vi.mocked(reorderPresets).mockReset();
   vi.mocked(setLastColumnPreset).mockReset();
 });
 
@@ -232,5 +242,27 @@ describe("getPresetOrThrow / removePreset", () => {
   it("removePreset throws 404 when nothing was deleted", async () => {
     vi.mocked(deletePreset).mockResolvedValue(false);
     await expect(removePreset("uid1", "missing-uuid")).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe("reorderPresetsForUser", () => {
+  it("passes the ordered ids straight through to the repository and returns the reordered view", async () => {
+    vi.mocked(reorderPresets).mockResolvedValue([
+      { ...SAMPLE_ROW, id: OTHER_ID, name: "轉機股" },
+      { ...SAMPLE_ROW, id: SAMPLE_ID, name: "績優股" },
+    ]);
+
+    const result = await reorderPresetsForUser("uid1", [OTHER_ID, SAMPLE_ID]);
+
+    expect(reorderPresets).toHaveBeenCalledWith("uid1", [OTHER_ID, SAMPLE_ID]);
+    expect(result.map((r) => r.id)).toEqual([OTHER_ID, SAMPLE_ID]);
+  });
+
+  // The repository returns null when `ids` isn't exactly the user's current full set — must surface as
+  // a 400, not a 500 or a silent no-op.
+  it("throws a 400 when the repository reports ids don't match the user's current full set", async () => {
+    vi.mocked(reorderPresets).mockResolvedValue(null);
+
+    await expect(reorderPresetsForUser("uid1", [SAMPLE_ID])).rejects.toMatchObject({ statusCode: 400 });
   });
 });

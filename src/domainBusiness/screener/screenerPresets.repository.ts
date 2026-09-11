@@ -17,6 +17,8 @@ export interface PresetRow {
   updatedAt: string;
 }
 
+const PRESETS_ORDER = { position: "asc" as const };
+
 export interface PresetFilterInput {
   metricKey: string;
   fieldKey: string;
@@ -51,11 +53,12 @@ function toPresetRow(preset: {
   };
 }
 
+/** Ordered by the user's own drag-to-reorder position (see ScreenerPreset.position), not creation time. */
 export async function listPresets(firebaseUid: string): Promise<PresetRow[]> {
   const prisma = getPrismaClient();
   const presets = await prisma.screenerPreset.findMany({
     where: { firebaseUid },
-    orderBy: { createdAt: "desc" },
+    orderBy: PRESETS_ORDER,
     include: { filters: { orderBy: FILTERS_ORDER } },
   });
   return presets.map(toPresetRow);
@@ -76,24 +79,30 @@ export async function createPreset(
   filters: PresetFilterInput[],
 ): Promise<PresetRow> {
   const prisma = getPrismaClient();
-  const preset = await prisma.screenerPreset.create({
-    data: {
-      firebaseUid,
-      name,
-      filters: {
-        create: filters.map((f, position) => ({
-          metricKey: f.metricKey,
-          fieldKey: f.fieldKey,
-          min: f.min,
-          max: f.max,
-          exclude: f.exclude,
-          position,
-        })),
+  return prisma.$transaction(async (tx) => {
+    // Appended to the end of this user's own tab order — count rather than max(position)+1 since a
+    // brand-new user has no rows at all (max would be null, not 0).
+    const position = await tx.screenerPreset.count({ where: { firebaseUid } });
+    const preset = await tx.screenerPreset.create({
+      data: {
+        firebaseUid,
+        name,
+        position,
+        filters: {
+          create: filters.map((f, filterPosition) => ({
+            metricKey: f.metricKey,
+            fieldKey: f.fieldKey,
+            min: f.min,
+            max: f.max,
+            exclude: f.exclude,
+            position: filterPosition,
+          })),
+        },
       },
-    },
-    include: { filters: { orderBy: FILTERS_ORDER } },
+      include: { filters: { orderBy: FILTERS_ORDER } },
+    });
+    return toPresetRow(preset);
   });
-  return toPresetRow(preset);
 }
 
 export interface PresetUpdate {
@@ -151,6 +160,37 @@ export async function deletePreset(firebaseUid: string, id: string): Promise<boo
   const prisma = getPrismaClient();
   const result = await prisma.screenerPreset.deleteMany({ where: { firebaseUid, id } });
   return result.count > 0;
+}
+
+/**
+ * Reassigns position = array index for every id in `orderedIds`, all in one transaction. Returns null
+ * (no writes made) if `orderedIds` isn't exactly this user's current full set of preset ids — same
+ * "requires the complete set" rule as columnPresets.repository.ts's reorderColumnPresets.
+ */
+export async function reorderPresets(firebaseUid: string, orderedIds: string[]): Promise<PresetRow[] | null> {
+  const prisma = getPrismaClient();
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.screenerPreset.findMany({ where: { firebaseUid }, select: { id: true } });
+    const existingIds = new Set(existing.map((row) => row.id));
+    const requestedIds = new Set(orderedIds);
+    if (existingIds.size !== requestedIds.size || [...existingIds].some((id) => !requestedIds.has(id))) {
+      return null;
+    }
+
+    // Sequential, not Promise.all — a single Postgres connection (this transaction) processes one query
+    // at a time regardless, and concurrent awaits against the same tx client risk interleaving badly.
+    for (const [position, id] of orderedIds.entries()) {
+      await tx.screenerPreset.update({ where: { id }, data: { position } });
+    }
+
+    const reordered = await tx.screenerPreset.findMany({
+      where: { firebaseUid },
+      orderBy: PRESETS_ORDER,
+      include: { filters: { orderBy: FILTERS_ORDER } },
+    });
+    return reordered.map(toPresetRow);
+  });
 }
 
 /** Remembers which ColumnPreset this ScreenerPreset was last viewed with (see runPreset). */

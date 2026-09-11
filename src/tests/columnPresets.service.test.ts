@@ -10,6 +10,7 @@ vi.mock("@/domainBusiness/screener/columnPresets.repository.js", () => ({
   findColumnPreset: vi.fn(),
   findDefaultColumnPreset: vi.fn(),
   listColumnPresets: vi.fn(),
+  reorderColumnPresets: vi.fn(),
   updateColumnPreset: vi.fn(),
 }));
 
@@ -25,6 +26,7 @@ import {
   findColumnPreset,
   findDefaultColumnPreset,
   listColumnPresets,
+  reorderColumnPresets,
   updateColumnPreset,
 } from "@/domainBusiness/screener/columnPresets.repository.js";
 import {
@@ -32,6 +34,7 @@ import {
   addColumnPresetWithName,
   editColumnPreset,
   getColumnPresets,
+  reorderColumnPresetsForUser,
   resolveScreenerColumns,
 } from "@/domainBusiness/screener/columnPresets.service.js";
 
@@ -85,6 +88,7 @@ beforeEach(() => {
   vi.mocked(findColumnPreset).mockReset();
   vi.mocked(findDefaultColumnPreset).mockReset();
   vi.mocked(listColumnPresets).mockReset();
+  vi.mocked(reorderColumnPresets).mockReset();
   vi.mocked(findDefaultColumnPresetTemplate).mockReset();
 });
 
@@ -339,5 +343,27 @@ describe("resolveScreenerColumns", () => {
     const result = await resolveScreenerColumns("uid1");
 
     expect(result).toEqual({ columnPresetId: null, columns: [] });
+  });
+});
+
+describe("reorderColumnPresetsForUser", () => {
+  it("passes the ordered ids straight through to the repository and returns the reordered view", async () => {
+    vi.mocked(reorderColumnPresets).mockResolvedValue([
+      { ...SAMPLE_ROW, id: OTHER_ID, columns: ["pbr.pbRatio"] },
+      { ...SAMPLE_ROW, id: SAMPLE_ID, columns: ["per.peRatio"] },
+    ]);
+
+    const result = await reorderColumnPresetsForUser("uid1", [OTHER_ID, SAMPLE_ID]);
+
+    expect(reorderColumnPresets).toHaveBeenCalledWith("uid1", [OTHER_ID, SAMPLE_ID]);
+    expect(result.map((r) => r.id)).toEqual([OTHER_ID, SAMPLE_ID]);
+  });
+
+  // The repository returns null when `ids` isn't exactly the user's current full set — must surface as
+  // a 400, not a 500 or a silent no-op.
+  it("throws a 400 when the repository reports ids don't match the user's current full set", async () => {
+    vi.mocked(reorderColumnPresets).mockResolvedValue(null);
+
+    await expect(reorderColumnPresetsForUser("uid1", [SAMPLE_ID])).rejects.toMatchObject({ statusCode: 400 });
   });
 });

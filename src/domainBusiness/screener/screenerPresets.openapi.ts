@@ -2,6 +2,7 @@ import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
 import {
   createScreenerPresetSchema,
+  reorderScreenerPresetsSchema,
   runPresetQuerySchema,
   updateScreenerPresetSchema,
 } from "@/domainBff/screener/screenerPresets.routes.js";
@@ -41,7 +42,7 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
-      description: "篩選組合清單（含每組的完整 filters），依建立時間新到舊排序。",
+      description: "篩選組合清單（含每組的完整 filters），依使用者自己拖曳排序後的順序（新建立的排在最後），不是建立時間。",
       content: { "application/json": { schema: z.object({ presets: z.array(presetSchema) }) } },
     },
     401: unauthorized,
@@ -68,6 +69,29 @@ registry.registerPath({
       content: { "application/json": { schema: z.object({ preset: presetSchema }) } },
     },
     400: errorResponse("缺少 filters，或有 field 不存在於 filterCatalog。"),
+    401: unauthorized,
+  },
+});
+
+const reorderScreenerPresetsRequestSchema = reorderScreenerPresetsSchema.openapi("ReorderScreenerPresetsRequest", {
+  example: { ids: ["b7f3a6b0-....", "1c2d3e4f-...."] },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/screener/presets/reorder",
+  summary: "拖曳排序：重新排列使用者自己的篩選組合分頁順序",
+  description:
+    "ids 必須是使用者目前擁有的篩選組合 id 的完整集合（依新順序排列）——不能只給部分，也不能新增/刪除 id，這裡不是增量更新，缺一個或多一個都會是 400。成功後每組的 position 會依 ids 陣列的索引重新指定，之後 GET /screener/presets 就會照這個順序回傳。",
+  tags: ["Screener"],
+  security: [{ bearerAuth: [] }],
+  request: { body: { required: true, content: { "application/json": { schema: reorderScreenerPresetsRequestSchema } } } },
+  responses: {
+    200: {
+      description: "重新排序後的完整篩選組合清單。",
+      content: { "application/json": { schema: z.object({ presets: z.array(presetSchema) }) } },
+    },
+    400: errorResponse("ids 不是使用者目前擁有的篩選組合 id 完整集合。"),
     401: unauthorized,
   },
 });

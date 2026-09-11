@@ -11,6 +11,7 @@ import {
   getColumnPresetOrThrow,
   getColumnPresets,
   removeColumnPreset,
+  reorderColumnPresetsForUser,
 } from "@/domainBusiness/screener/columnPresets.service.js";
 
 export const columnPresetsRouter = Router();
@@ -42,6 +43,10 @@ export const updateColumnPresetSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
+export const reorderColumnPresetsSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1, '"ids" must be a non-empty array of UUIDs'),
+});
+
 columnPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const columnPresets = await getColumnPresets(firebaseUid);
@@ -59,6 +64,15 @@ columnPresetsRouter.post("/", async (req: AuthenticatedRequest, res) => {
     body.isDefault ?? false,
   );
   res.status(201).json({ columnPreset });
+});
+
+// Mounted before the "/:id" routes below, or "reorder" would be captured as an :id — though since this
+// is POST and the /:id routes are all GET/PATCH/DELETE, there's no actual method collision either way.
+columnPresetsRouter.post("/reorder", async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = parseBody(reorderColumnPresetsSchema, req.body);
+  const columnPresets = await reorderColumnPresetsForUser(firebaseUid, body.ids);
+  res.json({ columnPresets });
 });
 
 columnPresetsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {

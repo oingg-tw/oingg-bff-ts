@@ -7,7 +7,14 @@ import { requireAuth } from "@/domainBusiness/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
 import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/domainBff/screener/pagination.js";
 import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/domainBff/screener/screenerFilterInput.js";
-import { addPreset, editPreset, getPresetOrThrow, getPresets, removePreset } from "@/domainBusiness/screener/screenerPresets.service.js";
+import {
+  addPreset,
+  editPreset,
+  getPresetOrThrow,
+  getPresets,
+  removePreset,
+  reorderPresetsForUser,
+} from "@/domainBusiness/screener/screenerPresets.service.js";
 import { runPreset } from "@/domainBff/screener/runPreset.js";
 
 export const screenerPresetsRouter = Router();
@@ -27,6 +34,10 @@ function parseId(raw: string): string {
 
 export const createScreenerPresetSchema = z.object({
   filters: screenerFiltersArraySchema,
+});
+
+export const reorderScreenerPresetsSchema = z.object({
+  ids: z.array(z.string().regex(UUID_PATTERN)).min(1, '"ids" must be a non-empty array of UUIDs'),
 });
 
 export const updateScreenerPresetSchema = z.object({
@@ -50,6 +61,15 @@ screenerPresetsRouter.post("/", async (req: AuthenticatedRequest, res) => {
 
   const preset = await addPreset(firebaseUid, normalizeScreenerFilters(body.filters));
   res.status(201).json({ preset });
+});
+
+// Mounted before the "/:id" routes below — though since this is POST and the /:id routes are all
+// GET/PATCH/DELETE, there's no actual method collision either way.
+screenerPresetsRouter.post("/reorder", async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = parseBody(reorderScreenerPresetsSchema, req.body);
+  const presets = await reorderPresetsForUser(firebaseUid, body.ids);
+  res.json({ presets });
 });
 
 screenerPresetsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {

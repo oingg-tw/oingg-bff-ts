@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
-import { createColumnPresetSchema, updateColumnPresetSchema } from "@/domainBusiness/screener/columnPresets.routes.js";
+import {
+  createColumnPresetSchema,
+  reorderColumnPresetsSchema,
+  updateColumnPresetSchema,
+} from "@/domainBusiness/screener/columnPresets.routes.js";
 
 export const columnPresetSchema = z
   .object({
@@ -28,7 +32,7 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
-      description: "欄位組合清單，依建立時間新到舊排序。",
+      description: "欄位組合清單，依使用者自己拖曳排序後的順序（新建立的預設排在最後），不是建立時間。",
       content: { "application/json": { schema: z.object({ columnPresets: z.array(columnPresetSchema) }) } },
     },
     401: unauthorized,
@@ -49,6 +53,29 @@ registry.registerPath({
     400: errorResponse("缺少 name/columns，或有 field 既不是 filterCatalog 欄位也不是特殊欄位。"),
     401: unauthorized,
     409: errorResponse("已經有同名的欄位組合。"),
+  },
+});
+
+const reorderColumnPresetsRequestSchema = reorderColumnPresetsSchema.openapi("ReorderColumnPresetsRequest", {
+  example: { ids: ["b7f3a6b0-....", "1c2d3e4f-...."] },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/screener/column-presets/reorder",
+  summary: "拖曳排序：重新排列使用者自己的欄位組合分頁順序",
+  description:
+    "ids 必須是使用者目前擁有的欄位組合 id 的完整集合（依新順序排列）——不能只給部分，也不能新增/刪除 id，這裡不是增量更新，缺一個或多一個都會是 400。成功後每組的 position 會依 ids 陣列的索引重新指定，之後 GET /screener/column-presets 就會照這個順序回傳。",
+  tags: ["Screener"],
+  security: [{ bearerAuth: [] }],
+  request: { body: { required: true, content: { "application/json": { schema: reorderColumnPresetsRequestSchema } } } },
+  responses: {
+    200: {
+      description: "重新排序後的完整欄位組合清單。",
+      content: { "application/json": { schema: z.object({ columnPresets: z.array(columnPresetSchema) }) } },
+    },
+    400: errorResponse("ids 不是使用者目前擁有的欄位組合 id 完整集合。"),
+    401: unauthorized,
   },
 });
 

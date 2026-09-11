@@ -9,6 +9,7 @@ import {
   findColumnPreset,
   findDefaultColumnPreset,
   listColumnPresets,
+  reorderColumnPresets,
   updateColumnPreset,
   type ColumnPresetRow,
 } from "@/domainBusiness/screener/columnPresets.repository.js";
@@ -179,6 +180,22 @@ export async function removeColumnPreset(firebaseUid: string, id: string): Promi
   if (!deleted) {
     throw new AppError(`Column preset ${id} not found`, 404);
   }
+}
+
+/**
+ * Persists a full drag-to-reorder of the caller's own column-preset tabs. `orderedIds` must be exactly
+ * this user's current set of preset ids (no add/remove here, same "full replacement" rule PATCH's
+ * `columns` already uses) — a 400 if it doesn't match, rather than silently reordering a subset.
+ */
+export async function reorderColumnPresetsForUser(firebaseUid: string, orderedIds: string[]): Promise<ColumnPresetView[]> {
+  const rows = await reorderColumnPresets(firebaseUid, orderedIds);
+  if (!rows) {
+    throw new AppError("`ids` must be exactly this user's current set of column preset ids, in the new order", 400);
+  }
+
+  const allFields = [...new Set(rows.flatMap((row) => row.columns))];
+  const infoByField = await resolveColumnFields(allFields);
+  return rows.map((row) => buildView(row, infoByField));
 }
 
 export interface ResolvedScreenerColumns {
