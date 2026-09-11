@@ -266,11 +266,14 @@ stockRouter.get("/:symbol/piotroski-breakdown", async (req, res) => {
   res.json(breakdown);
 });
 
-// Pilot scope is exactly these 3 metricCodes, zod-validated on analysis-ts's own side too — see
+// Pilot scope: started at sue/chowderNumber/roe, expanded 2026-09-11 to add
+// accrualsRatio/dividendPayoutRatio/altmanZScore — zod-validated on analysis-ts's own side too, see
 // metricProvenance.client.ts.
 export const metricProvenanceQuerySchema = z
   .object({
-    metricCode: z.enum(["sue", "chowderNumber", "roe"], { error: '"metricCode" must be "sue", "chowderNumber", or "roe"' }),
+    metricCode: z.enum(["sue", "chowderNumber", "roe", "accrualsRatio", "dividendPayoutRatio", "altmanZScore"], {
+      error: '"metricCode" must be "sue", "chowderNumber", "roe", "accrualsRatio", "dividendPayoutRatio", or "altmanZScore"',
+    }),
     year: z.string().trim().min(1, '"year" must be a non-empty string').optional(),
     season: z.string().trim().min(1, '"season" must be a non-empty string').optional(),
   })

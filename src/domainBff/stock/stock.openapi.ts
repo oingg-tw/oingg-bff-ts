@@ -353,7 +353,7 @@ const metricProvenanceEntrySchema = z.object({
 const metricProvenanceSchema = z
   .object({
     symbol: z.string(),
-    metricCode: z.enum(["sue", "chowderNumber", "roe"]),
+    metricCode: z.enum(["sue", "chowderNumber", "roe", "accrualsRatio", "dividendPayoutRatio", "altmanZScore"]),
     found: z.boolean(),
     fiscalYear: z.number().nullable(),
     fiscalQuarter: z.number().nullable(),
@@ -390,7 +390,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/metric-provenance",
   summary: "追溯某個指標算出來的數值，是從哪幾筆原始財報/申報資料算出來的",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/{symbol}/metric-provenance，用途是「這個徽章/數字是怎麼算出來的」溯源功能。試點階段只支援 3 個 metricCode（sue、chowderNumber、roe），兩邊都有 zod 驗證，給其他 metricCode 會是 400。單純原樣轉發，不做任何計算。`entries` 是這個指標這一期算出來所依賴的每一筆原始資料，`type` 為 \"statementField\" 時代表來自財報科目（`statementType`/`fieldKey` 會有值），為 \"other\" 時代表來自財報以外的資料源（`sourceDescription` 是文字說明，例如「證交所／櫃買中心每日評價指標」或「公開發行公司股本變動申報」），兩者互斥。**`entries[].value` 沒有做任何型別正規化**——大多數是財報金額，序列化成字串避免 bigint 精度問題（例如 \"706561938\"），但至少有一種已在正式環境確認過的情況（chowderNumber 的現金殖利率「市場快照」那筆）是原生浮點數（例如 0.92），不是字串，前端不能假設固定是某一種型別。頂層的 `value`（這個指標本身這一期算出來的數值，例如 roe 的 34.78）則一律是數字。不給 year/season 會查最新一季，跟 financial-statement/piotroski-breakdown 相同慣例；查無資料（代號不存在，或指定的 year/season 沒有資料）回應 found:false，`entries` 為空陣列，其餘欄位皆為 null，仍是 200，不是 404。`methodologyNote`（例如 sue 的樣本標準差說明）通常是 null，只有需要額外文字說明計算方法時才會有值。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/{symbol}/metric-provenance，用途是「這個徽章/數字是怎麼算出來的」溯源功能。試點階段原本只支援 3 個 metricCode（sue、chowderNumber、roe），2026-09-11 擴大到 6 個，新增 accrualsRatio、dividendPayoutRatio、altmanZScore（analysis-ts commit fd0416a，已驗證跟財報/metric-history 數字一致），兩邊都有 zod 驗證，給其他 metricCode 會是 400。單純原樣轉發，不做任何計算。`entries` 是這個指標這一期算出來所依賴的每一筆原始資料，`type` 為 \"statementField\" 時代表來自財報科目（`statementType`/`fieldKey` 會有值），為 \"other\" 時代表來自財報以外的資料源（`sourceDescription` 是文字說明，例如「證交所／櫃買中心每日評價指標」或「公開發行公司股本變動申報」），兩者互斥。**`entries[].value` 沒有做任何型別正規化**——大多數是財報金額，序列化成字串避免 bigint 精度問題（例如 \"706561938\"），但至少有一種已在正式環境確認過的情況（chowderNumber 的現金殖利率「市場快照」那筆）是原生浮點數（例如 0.92），不是字串，前端不能假設固定是某一種型別。頂層的 `value`（這個指標本身這一期算出來的數值，例如 roe 的 34.78）則一律是數字。不給 year/season 會查最新一季，跟 financial-statement/piotroski-breakdown 相同慣例；查無資料（代號不存在，或指定的 year/season 沒有資料）回應 found:false，`entries` 為空陣列，其餘欄位皆為 null，仍是 200，不是 404。`methodologyNote`（例如 sue 的樣本標準差說明）通常是 null，只有需要額外文字說明計算方法時才會有值。",
   tags: ["Stock"],
   request: {
     params: symbolParam,
@@ -403,7 +403,7 @@ registry.registerPath({
       description: "指標溯源資料，查無資料時 found 為 false、entries 為空陣列、其餘欄位皆為 null。",
       content: { "application/json": { schema: metricProvenanceSchema } },
     },
-    400: errorResponse('"metricCode" 缺少或不是 sue/chowderNumber/roe 之一，或 year/season 只給了其中一個。'),
+    400: errorResponse('"metricCode" 缺少或不是 sue/chowderNumber/roe/accrualsRatio/dividendPayoutRatio/altmanZScore 之一，或 year/season 只給了其中一個。'),
     502: unauthorized502,
   },
 });

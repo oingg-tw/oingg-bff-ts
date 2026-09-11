@@ -48,8 +48,9 @@ function isMetricProvenanceResponse(body: unknown): body is Record<string, unkno
 /**
  * Fetches the raw-filing provenance trail behind one metric's computed value from analysis-ts's GET
  * /companies/{symbol}/metric-provenance — backs web-nuxt's "trace this badge's number back to the raw
- * filing" feature. Pilot scope is exactly 3 metricCodes (sue/chowderNumber/roe), zod-validated on both
- * sides. Pure pass-through, zero computation (see [[feedback_proxy_apis_no_transformation]]). Unlike
+ * filing" feature. Pilot scope started at 3 metricCodes (sue/chowderNumber/roe), expanded 2026-09-11 to 6
+ * (added accrualsRatio/dividendPayoutRatio/altmanZScore, analysis-ts commit fd0416a) — zod-validated on
+ * both sides. Pure pass-through, zero computation (see [[feedback_proxy_apis_no_transformation]]). Unlike
  * bff-ts's other analysis-ts calls, symbol is a PATH segment on analysis-ts's own endpoint too (not a
  * query param) — confirmed live, 2026-09-10 — so it's interpolated into the path here instead of added
  * to searchParams.

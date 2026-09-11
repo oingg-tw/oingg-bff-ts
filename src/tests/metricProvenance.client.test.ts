@@ -113,6 +113,21 @@ describe("fetchMetricProvenance", () => {
     expect(calledUrl.toString()).toBe("http://filters.test/companies/2330/metric-provenance?metricCode=roe&year=115&season=2");
   });
 
+  // Pilot scope expanded 2026-09-11 (analysis-ts commit fd0416a) from 3 metricCodes to 6 — accrualsRatio,
+  // dividendPayoutRatio, and altmanZScore are the 3 new ones, verified live against real 2330 data.
+  it.each(["accrualsRatio", "dividendPayoutRatio", "altmanZScore"] as const)(
+    "accepts %s as a valid metricCode (2026-09-11 pilot expansion)",
+    async (metricCode) => {
+      mockFetchOnce({ ok: true, body: { ...ROE_BODY, metricCode } });
+
+      const result = await fetchMetricProvenance("2330", metricCode);
+
+      expect(result.metricCode).toBe(metricCode);
+      const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+      expect(calledUrl.toString()).toBe(`http://filters.test/companies/2330/metric-provenance?metricCode=${metricCode}`);
+    },
+  );
+
   // entries[].value has no fixed type — most are bigint-serialized strings, but this live case is a plain
   // float. Both must survive round-trip unchanged, with no coercion toward one or the other.
   it("preserves entries[].value's mixed string/number types with no coercion", async () => {

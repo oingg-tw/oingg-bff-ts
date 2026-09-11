@@ -1,4 +1,4 @@
-export type MetricProvenanceMetricCode = "sue" | "chowderNumber" | "roe";
+export type MetricProvenanceMetricCode = "sue" | "chowderNumber" | "roe" | "accrualsRatio" | "dividendPayoutRatio" | "altmanZScore";
 
 export interface MetricProvenanceEntry {
   /** Chinese label describing what this entry is for the computation (e.g. "TTM 淨利（第 1/4 季）"). */
