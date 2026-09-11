@@ -15,7 +15,7 @@ beforeEach(() => {
 
 describe("getEtfFilterCatalog", () => {
   it("delegates straight through", async () => {
-    vi.mocked(fetchEtfFilterCatalog).mockResolvedValue({ fields: [] });
+    vi.mocked(fetchEtfFilterCatalog).mockResolvedValue({ categories: [] });
 
     await getEtfFilterCatalog();
 

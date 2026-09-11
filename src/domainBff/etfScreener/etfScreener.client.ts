@@ -4,6 +4,7 @@ import { logger } from "@/shared/logger.js";
 import type {
   EtfColumnRef,
   EtfFilterCatalog,
+  EtfFilterCategory,
   EtfFilterField,
   EtfScreenerFilter,
   EtfScreenerResult,
@@ -23,10 +24,23 @@ function normalizeEtfFilterField(raw: unknown): EtfFilterField {
     label: String(r.label),
     kind: r.kind === "categorical" ? "categorical" : "numeric",
   };
+  if (typeof r.unit === "string") {
+    field.unit = r.unit;
+  }
   if (Array.isArray(r.values)) {
     field.values = r.values.map(String);
   }
   return field;
+}
+
+function normalizeEtfFilterCategory(raw: unknown): EtfFilterCategory {
+  const r = raw as Record<string, unknown>;
+  const fields = Array.isArray(r.fields) ? r.fields : [];
+  return {
+    categoryKey: String(r.categoryKey),
+    categoryDisplayName: String(r.categoryDisplayName),
+    fields: fields.map(normalizeEtfFilterField),
+  };
 }
 
 function normalizeEtfScreenerValue(value: unknown): EtfScreenerValue {
@@ -96,13 +110,19 @@ async function postJson(path: string, body: unknown): Promise<unknown> {
  * are live DB-distinct values that can grow over time, and there's no separate metricName/fieldName
  * decoration step needed here since `label` already covers that per field. This is the first version of
  * a feature analysis-ts expects to keep expanding.
+ *
+ * Restructured 2026-09-11: analysis-ts changed this from a flat `{ fields: [...] }` array to nested
+ * `{ categories: [{ categoryKey, categoryDisplayName, fields }] }` (5 categories: identity/sizeAndFlow/
+ * navAndPrice/performance/cost), matching the stock side's GET /metrics categories shape, and added
+ * `unit` to numeric fields. Passed through nested, not flattened — web-nuxt's own flatMap over
+ * categories[].fields covers any consumer that still wants a flat list.
  */
 export async function fetchEtfFilterCatalog(): Promise<EtfFilterCatalog> {
-  const body = (await getJson("/etf-screener/filters")) as { fields?: unknown };
-  if (!Array.isArray(body.fields)) {
-    throw new AppError("ETF filter catalog response is missing a fields array", 502);
+  const body = (await getJson("/etf-screener/filters")) as { categories?: unknown };
+  if (!Array.isArray(body.categories)) {
+    throw new AppError("ETF filter catalog response is missing a categories array", 502);
   }
-  return { fields: body.fields.map(normalizeEtfFilterField) };
+  return { categories: body.categories.map(normalizeEtfFilterCategory) };
 }
 
 /**

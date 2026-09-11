@@ -26,13 +26,23 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
 }
 
 describe("fetchEtfFilterCatalog", () => {
-  it("GETs /etf-screener/filters and normalizes numeric and categorical fields", async () => {
+  // Restructured 2026-09-11: analysis-ts changed this from a flat `{ fields: [...] }` array to nested
+  // `{ categories: [{ categoryKey, categoryDisplayName, fields }] }`, matching GET /metrics' shape.
+  it("GETs /etf-screener/filters and normalizes nested categories with numeric and categorical fields", async () => {
     mockFetchOnce({
       ok: true,
       body: {
-        fields: [
-          { field: "aum", label: "規模（新台幣）", kind: "numeric" },
-          { field: "market", label: "市場別", kind: "categorical", values: ["TWSE", "TPEx"] },
+        categories: [
+          {
+            categoryKey: "sizeAndFlow",
+            categoryDisplayName: "規模與資金",
+            fields: [{ field: "aum", label: "規模", unit: "元", kind: "numeric" }],
+          },
+          {
+            categoryKey: "identity",
+            categoryDisplayName: "基本資料",
+            fields: [{ field: "market", label: "市場別", kind: "categorical", values: ["TWSE", "TPEx"] }],
+          },
         ],
       },
     });
@@ -40,9 +50,17 @@ describe("fetchEtfFilterCatalog", () => {
     const catalog = await fetchEtfFilterCatalog();
 
     expect(catalog).toEqual({
-      fields: [
-        { field: "aum", label: "規模（新台幣）", kind: "numeric" },
-        { field: "market", label: "市場別", kind: "categorical", values: ["TWSE", "TPEx"] },
+      categories: [
+        {
+          categoryKey: "sizeAndFlow",
+          categoryDisplayName: "規模與資金",
+          fields: [{ field: "aum", label: "規模", unit: "元", kind: "numeric" }],
+        },
+        {
+          categoryKey: "identity",
+          categoryDisplayName: "基本資料",
+          fields: [{ field: "market", label: "市場別", kind: "categorical", values: ["TWSE", "TPEx"] }],
+        },
       ],
     });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
@@ -52,12 +70,35 @@ describe("fetchEtfFilterCatalog", () => {
   it("omits `values` for a numeric field rather than defaulting it to an empty array", async () => {
     mockFetchOnce({
       ok: true,
-      body: { fields: [{ field: "aum", label: "規模", kind: "numeric" }] },
+      body: { categories: [{ categoryKey: "sizeAndFlow", categoryDisplayName: "規模與資金", fields: [{ field: "aum", label: "規模", kind: "numeric" }] }] },
     });
 
     const catalog = await fetchEtfFilterCatalog();
 
-    expect(catalog.fields[0]).not.toHaveProperty("values");
+    expect(catalog.categories[0]?.fields[0]).not.toHaveProperty("values");
+  });
+
+  it("omits `unit` for a categorical field, and for a numeric field analysis-ts didn't set it on", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "identity",
+            categoryDisplayName: "基本資料",
+            fields: [
+              { field: "establishedDate", label: "成立日", kind: "date" },
+              { field: "assetClass", label: "資產類型", kind: "categorical", values: ["國內成分證券"] },
+            ],
+          },
+        ],
+      },
+    });
+
+    const catalog = await fetchEtfFilterCatalog();
+
+    expect(catalog.categories[0]?.fields[0]).not.toHaveProperty("unit");
+    expect(catalog.categories[0]?.fields[1]).not.toHaveProperty("unit");
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
@@ -66,7 +107,7 @@ describe("fetchEtfFilterCatalog", () => {
     await expect(fetchEtfFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });
   });
 
-  it("throws a 502 AppError when the response is missing a fields array", async () => {
+  it("throws a 502 AppError when the response is missing a categories array", async () => {
     mockFetchOnce({ ok: true, body: {} });
 
     await expect(fetchEtfFilterCatalog()).rejects.toMatchObject({ statusCode: 502 });

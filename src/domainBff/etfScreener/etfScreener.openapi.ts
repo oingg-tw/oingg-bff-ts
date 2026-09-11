@@ -8,7 +8,15 @@ const etfFilterFieldSchema = z.object({
   field: z.string(),
   label: z.string(),
   kind: z.enum(["numeric", "categorical"]),
+  /** Only present for kind: "numeric" (e.g. "元", "%", "人") — added 2026-09-11 alongside the categories restructure. */
+  unit: z.string().optional(),
   values: z.array(z.string()).optional(),
+});
+
+const etfFilterCategorySchema = z.object({
+  categoryKey: z.string(),
+  categoryDisplayName: z.string(),
+  fields: z.array(etfFilterFieldSchema),
 });
 
 registry.registerPath({
@@ -16,18 +24,28 @@ registry.registerPath({
   path: "/etf-screener/filters",
   summary: "ETF screener 可篩選/顯示欄位目錄",
   description:
-    "動態目錄，不是寫死清單——分類欄位（例如 assetClass）的 values 是現查資料庫的 distinct 值，之後可能會增加。這是 ETF screener 系列功能的第一版，之後應該還會擴充。",
+    "動態目錄，不是寫死清單——分類欄位（例如 assetClass）的 values 是現查資料庫的 distinct 值，之後可能會增加。這是 ETF screener 系列功能的第一版，之後應該還會擴充。2026-09-11 從扁平的 `{ fields: [...] }` 陣列改成巢狀分類 `{ categories: [{ categoryKey, categoryDisplayName, fields }] }`（5 個分類：identity/sizeAndFlow/navAndPrice/performance/cost），跟股票端 GET /metrics 的 categories 結構一致——這是 analysis-ts 自己的改法，bff-ts 這邊單純原樣轉發巢狀結構，不攤平。同時 numeric 欄位新增 `unit`（例如「元」、「%」、「人」）。",
   tags: ["ETF Screener"],
   responses: {
     200: {
-      description: "欄位目錄。",
+      description: "分類/欄位目錄。",
       content: {
         "application/json": {
-          schema: z.object({ fields: z.array(etfFilterFieldSchema) }).openapi("EtfFilterCatalog", {
+          schema: z.object({ categories: z.array(etfFilterCategorySchema) }).openapi("EtfFilterCatalog", {
             example: {
-              fields: [
-                { field: "aum", label: "規模（新台幣）", kind: "numeric" },
-                { field: "assetClass", label: "資產類型", kind: "categorical", values: ["國內成分證券", "國外成分證券", "債券成分", "槓桿型", "反向型", "多資產", "連結式"] },
+              categories: [
+                {
+                  categoryKey: "sizeAndFlow",
+                  categoryDisplayName: "規模與資金",
+                  fields: [{ field: "aum", label: "規模", unit: "元", kind: "numeric" }],
+                },
+                {
+                  categoryKey: "identity",
+                  categoryDisplayName: "基本資料",
+                  fields: [
+                    { field: "assetClass", label: "資產類型", kind: "categorical", values: ["國內成分證券", "國外成分證券", "債券成分", "槓桿型", "反向型", "多資產", "連結式"] },
+                  ],
+                },
               ],
             },
           }),
