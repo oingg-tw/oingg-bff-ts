@@ -25,21 +25,22 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// Real shape given directly by analysis-ts (2026-09-11): companyName, not name, on the wire; no
-// type/market discriminator field at all (common stock, preferred stock, and ETF entries all look the same).
+// Real shape given directly by analysis-ts (2026-09-11): companyName, not name, on the wire.
+// `type` added by analysis-ts the same day (commit 46df7ef) so callers can route search results without
+// guessing from the symbol shape.
 const RAW_BODY = {
   count: 2716,
   limit: 200,
   offset: 0,
   entries: [
-    { symbol: "2330", companyName: "台積電" },
-    { symbol: "2881A", companyName: "富邦特" },
-    { symbol: "0050", companyName: "元大台灣50" },
+    { symbol: "2330", companyName: "台積電", type: "COMMON" },
+    { symbol: "2881A", companyName: "富邦特", type: "PREFERRED" },
+    { symbol: "0050", companyName: "元大台灣50", type: "ETF" },
   ],
 };
 
 describe("fetchSecurityList", () => {
-  it("requests /securities with no query params by default and renames companyName to name", async () => {
+  it("requests /securities with no query params by default, renames companyName to name, and keeps type", async () => {
     mockFetchOnce({ ok: true, body: RAW_BODY });
 
     const result = await fetchSecurityList();
@@ -49,13 +50,22 @@ describe("fetchSecurityList", () => {
       limit: 200,
       offset: 0,
       entries: [
-        { symbol: "2330", name: "台積電" },
-        { symbol: "2881A", name: "富邦特" },
-        { symbol: "0050", name: "元大台灣50" },
+        { symbol: "2330", name: "台積電", type: "COMMON" },
+        { symbol: "2881A", name: "富邦特", type: "PREFERRED" },
+        { symbol: "0050", name: "元大台灣50", type: "ETF" },
       ],
     });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/securities");
+  });
+
+  it("throws a 502 AppError when an entry has an unrecognized type", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { count: 1, limit: 200, offset: 0, entries: [{ symbol: "9999", companyName: "x", type: "BOND" }] },
+    });
+
+    await expect(fetchSecurityList()).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("includes limit/offset in the request when given", async () => {
