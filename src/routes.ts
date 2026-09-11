@@ -11,6 +11,7 @@ import { holdingsRouter } from "@/domainBusiness/holdings/index.js";
 import { industriesRouter } from "@/domainBff/industries/index.js";
 import { marketRouter } from "@/domainBff/market/index.js";
 import { screenerRoutes } from "@/domainBff/screener/index.js";
+import { securitiesRouter } from "@/domainBff/securities/index.js";
 import { stockRouter } from "@/domainBff/stock/index.js";
 import { startedAt, systemRouter } from "@/domainBusiness/system/index.js";
 import { transactionsRouter } from "@/domainBusiness/transactions/index.js";
@@ -68,3 +69,4 @@ routes.use("/metrics", metricCatalogRouter); // GET /metrics, POST /metrics/sync
 routes.use("/market", marketRouter); // GET /market/margin-short-ratio-ranking, ...
 routes.use("/etf-screener", etfScreenerRouter); // GET /etf-screener/filters, POST /etf-screener
 routes.use("/industries", industriesRouter); // GET /industries/tree
+routes.use("/securities", securitiesRouter); // GET /securities

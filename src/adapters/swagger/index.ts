@@ -20,6 +20,7 @@ import "@/domainBusiness/metricCatalog/metricCatalog.openapi.js";
 import "@/domainBff/market/market.openapi.js";
 import "@/domainBff/etfScreener/etfScreener.openapi.js";
 import "@/domainBff/industries/industries.openapi.js";
+import "@/domainBff/securities/securities.openapi.js";
 import "@/domainBff/screener/screener.openapi.js";
 import "@/domainBusiness/screener/columnPresets.openapi.js";
 import "@/domainBusiness/screener/screenerPresets.openapi.js";
@@ -53,6 +54,7 @@ function generateDocument() {
       { name: "Market", description: "市場排行/清單（外資持股、券資比、注意股、處置股、成交量、漲跌幅、ETF 排行等）" },
       { name: "ETF Screener", description: "ETF 篩選" },
       { name: "Industries", description: "產業分類樹（財政部稅籍五層分類）" },
+      { name: "Securities", description: "統一搜尋索引（普通股＋TWSE 特別股＋全部 ETF）" },
     ],
   });
 }
