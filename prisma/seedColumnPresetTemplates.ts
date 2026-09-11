@@ -75,7 +75,10 @@ const TEMPLATES: ColumnPresetTemplate[] = [
     name: "獲利能力",
     description: "核心報酬率與利潤率指標，純粹看賺錢能力本身，不涉及財務危機評分。",
     isDefault: false,
-    fieldKeys: ["roe.TTM", "roa.TTM", "roic.TTM", "grossMargin.TTM", "netProfitMargin.TTM", "operatingMargin.TTM"],
+    // grossMargin -> operatingMargin -> netProfitMargin is deliberate order, matching the income
+    // statement's own top-down structure (營收 -> 毛利 -> 減營業費用 -> 營業利益 -> 加減業外/稅 -> 淨利) —
+    // a user flagged netProfitMargin-before-operatingMargin as breaking this reading order (2026-09-11).
+    fieldKeys: ["roe.TTM", "roa.TTM", "roic.TTM", "grossMargin.TTM", "operatingMargin.TTM", "netProfitMargin.TTM"],
   },
   {
     key: "dupont",
