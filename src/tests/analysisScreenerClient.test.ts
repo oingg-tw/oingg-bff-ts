@@ -39,8 +39,8 @@ describe("fetchScreenerResults", () => {
             symbol: "1210",
             companyName: "華瓊",
             values: {
-              "roe.roeTtmPct": { value: 13.33, asOfDate: "26Q2" },
-              "debtRatio.debtRatioPct": { value: 55.78, asOfDate: "26Q2" },
+              "roe.roeTtmPct": { value: 13.33, knowledgeDate: "26Q2", nullReason: null },
+              "debtRatio.debtRatioPct": { value: 55.78, knowledgeDate: "26Q2", nullReason: null },
             },
           },
         ],
@@ -63,8 +63,8 @@ describe("fetchScreenerResults", () => {
           symbol: "1210",
           name: "華瓊",
           values: {
-            "roe.roeTtmPct": { value: "13.33", asOfDate: "26Q2" },
-            "debtRatio.debtRatioPct": { value: "55.78", asOfDate: "26Q2" },
+            "roe.roeTtmPct": { value: "13.33", knowledgeDate: "26Q2", nullReason: null },
+            "debtRatio.debtRatioPct": { value: "55.78", knowledgeDate: "26Q2", nullReason: null },
           },
         },
       ],
@@ -91,13 +91,42 @@ describe("fetchScreenerResults", () => {
         page: 1,
         pageSize: 50,
         totalPages: 1,
-        results: [{ symbol: "2330", values: { "per.peRatio": { value: null, asOfDate: null } } }],
+        results: [{ symbol: "2330", values: { "per.peRatio": { value: null, knowledgeDate: null, nullReason: null } } }],
       },
     });
 
     const result = await fetchScreenerResults([], [{ field: "per.peRatio" }], { page: 1, pageSize: 50 });
 
-    expect(result.results[0]?.values["per.peRatio"]).toEqual({ value: null, asOfDate: null });
+    expect(result.results[0]?.values["per.peRatio"]).toEqual({ value: null, knowledgeDate: null, nullReason: null });
+  });
+
+  // Regression coverage for the asOfDate -> knowledgeDate rename + nullReason addition (analysis-ts,
+  // 2026-09-13, commit 7549119) — a null value now comes with a machine-readable reason instead of just
+  // a bare null, same 4-value convention as metric-history's nullReason.
+  it("passes through nullReason alongside a null value", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        count: 1,
+        page: 1,
+        pageSize: 50,
+        totalPages: 1,
+        results: [
+          {
+            symbol: "2891",
+            values: { "altmanZScore.TTM": { value: null, knowledgeDate: "2026-06-30", nullReason: "not_applicable_industry" } },
+          },
+        ],
+      },
+    });
+
+    const result = await fetchScreenerResults([], [{ field: "altmanZScore.TTM" }], { page: 1, pageSize: 50 });
+
+    expect(result.results[0]?.values["altmanZScore.TTM"]).toEqual({
+      value: null,
+      knowledgeDate: "2026-06-30",
+      nullReason: "not_applicable_industry",
+    });
   });
 
   // Regression: analysis-ts's exclude=true with no min/max filters out everything (count:0, results:[])
@@ -166,7 +195,11 @@ describe("fetchScreenerRanking", () => {
       ok: true,
       body: {
         results: [
-          { symbol: "2330", companyName: "台積電", values: { "roe.roeTtmPct": { value: 34.78, asOfDate: "26Q2" } } },
+          {
+            symbol: "2330",
+            companyName: "台積電",
+            values: { "roe.roeTtmPct": { value: 34.78, knowledgeDate: "26Q2", nullReason: null } },
+          },
         ],
       },
     });
@@ -175,7 +208,7 @@ describe("fetchScreenerRanking", () => {
 
     expect(result).toEqual({
       results: [
-        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } },
+        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", knowledgeDate: "26Q2", nullReason: null } } },
       ],
     });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
@@ -236,7 +269,11 @@ describe("fetchScreenerValues", () => {
       ok: true,
       body: {
         results: [
-          { symbol: "2330", companyName: "台積電", values: { "roe.roeTtmPct": { value: 34.78, asOfDate: "26Q2" } } },
+          {
+            symbol: "2330",
+            companyName: "台積電",
+            values: { "roe.roeTtmPct": { value: 34.78, knowledgeDate: "26Q2", nullReason: null } },
+          },
           { symbol: "2317", companyName: "鴻海", values: {} },
         ],
       },
@@ -246,7 +283,7 @@ describe("fetchScreenerValues", () => {
 
     expect(result).toEqual({
       results: [
-        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", asOfDate: "26Q2" } } },
+        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", knowledgeDate: "26Q2", nullReason: null } } },
         { symbol: "2317", name: "鴻海", values: {} },
       ],
     });

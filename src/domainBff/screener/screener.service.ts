@@ -98,7 +98,7 @@ async function mergeStockPrices(rows: ScreenerResultRow[], wantsStockPrice: bool
   const pricesBySymbol = await getLatestClosePrices(rows.map((row) => row.symbol));
   for (const row of rows) {
     const price = pricesBySymbol.get(row.symbol);
-    row.values[STOCK_PRICE_FIELD] = { value: price?.close ?? null, asOfDate: price?.tradeDate ?? null };
+    row.values[STOCK_PRICE_FIELD] = { value: price?.close ?? null, knowledgeDate: price?.tradeDate ?? null, nullReason: null };
   }
 }
 
@@ -347,7 +347,7 @@ async function runValuationRanking(
   const results: ScreenerResultRow[] = rankings.map((row) => ({
     symbol: row.symbol,
     name: row.name,
-    values: { [field]: { value: String(row.value), asOfDate: tradeDate } },
+    values: { [field]: { value: String(row.value), knowledgeDate: tradeDate, nullReason: null } },
   }));
   await mergeStockPrices(results, wantsStockPrice);
 

@@ -146,7 +146,11 @@ registry.registerPath({
   },
 });
 
-const screenerValueSchema = z.object({ value: z.unknown().nullable(), asOfDate: z.string().nullable() });
+const screenerValueSchema = z.object({
+  value: z.unknown().nullable(),
+  knowledgeDate: z.string().nullable(),
+  nullReason: z.string().nullable(),
+});
 const runPresetResultSchema = z
   .object({
     preset: presetSchema,

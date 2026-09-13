@@ -38,14 +38,24 @@ export interface AnalysisScreenerValuesResult {
  * node-postgres's default NUMERIC serialization from when this ran direct SQL, not a deliberate
  * convention either — but existing tests/frontend already depend on it), so normalize here to preserve
  * that regardless of the new backend.
+ *
+ * `asOfDate` was renamed to `knowledgeDate` by analysis-ts 2026-09-13 (commit 7549119) across POST
+ * /screener, GET /screener/ranking, and POST /screener/values — a genuine semantic-clarity fix (the field
+ * means "the day the market found out this value," not "the day it took effect"), and `nullReason` was
+ * added alongside it (same 4-value convention as metric-history's nullReason: missing_input/
+ * zero_or_negative_denominator/not_applicable_industry/insufficient_history). Mirrored into bff-ts's own
+ * ScreenerValue type rather than just the wire format, per feedback_mirror_ubiquitous_language_renames —
+ * this also brings the screener domain in line with every other bff-ts endpoint (metric-history,
+ * roe-history, etc.), which already called this field knowledgeDate.
  */
 function normalizeValues(values: Record<string, unknown>): Record<string, ScreenerValue> {
   const normalized: Record<string, ScreenerValue> = {};
   for (const [field, raw] of Object.entries(values)) {
-    const v = raw as { value?: unknown; asOfDate?: unknown } | null;
+    const v = raw as { value?: unknown; knowledgeDate?: unknown; nullReason?: unknown } | null;
     normalized[field] = {
       value: v?.value === null || v?.value === undefined ? null : String(v.value),
-      asOfDate: v?.asOfDate === null || v?.asOfDate === undefined ? null : String(v.asOfDate),
+      knowledgeDate: v?.knowledgeDate === null || v?.knowledgeDate === undefined ? null : String(v.knowledgeDate),
+      nullReason: v?.nullReason === null || v?.nullReason === undefined ? null : String(v.nullReason),
     };
   }
   return normalized;

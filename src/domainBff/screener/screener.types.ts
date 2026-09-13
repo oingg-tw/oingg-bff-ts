@@ -22,13 +22,24 @@ export interface ScreenerResultColumn {
 export interface ScreenerValue {
   value: unknown;
   /**
-   * The period/trading day this specific number describes (report_date for quarterly metrics,
-   * trade_date for daily/technical ones) — not when bff-ts queried it. Different symbols can
-   * legitimately have different asOfDate for the same field (e.g. one company hasn't filed this
-   * quarter's report yet). null when the underlying source has no such date (e.g. stock.price
-   * before a symbol has any price history).
+   * The day this specific number was found out by the market (report_date for quarterly metrics,
+   * trade_date for daily/technical ones) — not when bff-ts queried it, and not "the day it took effect."
+   * Different symbols can legitimately have different knowledgeDate for the same field (e.g. one company
+   * hasn't filed this quarter's report yet). null when the underlying source has no such date (e.g.
+   * stock.price before a symbol has any price history). Renamed from asOfDate 2026-09-13 to match
+   * analysis-ts's own rename (see analysisScreenerClient.ts's normalizeValues) and bff-ts's other
+   * endpoints (metric-history, roe-history, etc.), which already used this name.
    */
-  asOfDate: string | null;
+  knowledgeDate: string | null;
+  /**
+   * Why `value` is null — one of missing_input/zero_or_negative_denominator/not_applicable_industry/
+   * insufficient_history (same convention as metric-history's nullReason), or null when `value` is
+   * present, or when the underlying source doesn't classify the reason (e.g. stock.price, or the
+   * exchangePeRatio/exchangePbRatio/dividendYield valuation-ranking path — see screener.service.ts's
+   * runValuationRanking, which constructs this value directly rather than getting it from analysis-ts's
+   * screener endpoints).
+   */
+  nullReason: string | null;
 }
 
 export interface ScreenerResultRow {
