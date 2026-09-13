@@ -40,20 +40,26 @@ function isMetricsHistoryResponse(body: unknown): body is { entries: unknown[] }
 
 /**
  * Fetches multiple metrics' history for one symbol in a single call from analysis-ts's own
- * GET /companies/metrics-history?symbol=&metricCodes=a,b,c&token= — added 2026-09-09 for stock-detail
+ * GET /companies/metrics-history?symbol=&metricCodes=a,b,c&timeframe= — added 2026-09-09 for stock-detail
  * "growth decomposition" cards (e.g. netIncomeGrowthRate/epsGrowthRate/shareCountChangeRate) that need
  * several related metrics for the same fiscal period at once, without one round trip per metric.
  *
  * Response shape genuinely differs from the single-metric metric-history endpoint: one entry per fiscal
  * period with a `values` map keyed by metricCode, not a flat `value` field — doesn't share
- * metricHistoryShared.ts's helper (same reason dupont-history doesn't). `token` is a single value shared
+ * metricHistoryShared.ts's helper (same reason dupont-history doesn't). `token` (this client's own param/
+ * field name, kept as-is through analysis-ts's wire-level renames — see below) is a single value shared
  * by every requested metricCode; analysis-ts validates each metricCode actually supports it and returns a
  * 400 with a clear message otherwise (confirmed live: netIncomeGrowthRate only supports "Q", not "TTM") —
  * relayed as-is, same convention as the other history endpoints in this domain. limit bounds are 1-40,
  * default 20 — same as the single-metric endpoint. An unknown symbol returns `entries: []`, not a 404.
+ *
+ * The wire query param analysis-ts expects was `token` (2026-09-08), renamed to `timeframe` 2026-09-14
+ * (their user felt "token" was still semantically empty — "timeframe" is the familiar candlestick-chart
+ * term, 1D/1W/1M etc.) — same pattern as metricHistory.client.ts's fetchMetricHistory. Kept this client's
+ * own `token` param/field name unchanged through both renames; only the wire-level key changed.
  */
 export async function fetchMetricsHistory(symbol: string, metricCodes: string[], token: string, limit?: number): Promise<MetricsHistoryResult> {
-  const searchParams: Record<string, string> = { symbol, metricCodes: metricCodes.join(","), token };
+  const searchParams: Record<string, string> = { symbol, metricCodes: metricCodes.join(","), timeframe: token };
   if (limit !== undefined) {
     searchParams.limit = String(limit);
   }

@@ -51,11 +51,15 @@ export interface MetricBadge {
   summary: string;
   detail: string;
   /**
-   * The basis/period this badge's threshold applies to (e.g. "TTM"/"Q"/"FY"). Absent when the threshold
-   * itself spans multiple periods instead of applying to one (e.g. eps's allPositiveFieldIds threshold
-   * checks both "eps.TTM" and "eps.Q" — there's no single token to name).
+   * The basis/period this badge's threshold applies to (e.g. "TTM"/"Q"/"FY") — renamed from `token` to
+   * `timeframe` by analysis-ts 2026-09-14 (part of the same token->timeframe rename as the metric-history
+   * query params). Absent when the threshold itself spans multiple periods instead of applying to one
+   * (e.g. eps's allPositiveFieldIds threshold checks both "eps.TTM" and "eps.Q" — there's no single
+   * timeframe to name). This object is echoed through to bff-ts's own GET /metrics response unchanged
+   * (see metricCatalog.client.ts/repository.ts), so this rename is a real public-contract change, not
+   * just an internal wire-format detail.
    */
-  token?: string;
+  timeframe?: string;
   threshold: MetricBadgeThreshold;
 }
 

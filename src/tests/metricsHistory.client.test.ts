@@ -61,7 +61,7 @@ describe("fetchMetricsHistory", () => {
     });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe(
-      "http://filters.test/companies/metrics-history?symbol=2330&metricCodes=netIncomeGrowthRate%2CepsGrowthRate%2CshareCountChangeRate&token=Q",
+      "http://filters.test/companies/metrics-history?symbol=2330&metricCodes=netIncomeGrowthRate%2CepsGrowthRate%2CshareCountChangeRate&timeframe=Q",
     );
   });
 
@@ -71,7 +71,7 @@ describe("fetchMetricsHistory", () => {
     await fetchMetricsHistory("2330", ["roe"], "TTM", 5);
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/metrics-history?symbol=2330&metricCodes=roe&token=TTM&limit=5");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/metrics-history?symbol=2330&metricCodes=roe&timeframe=TTM&limit=5");
   });
 
   it("returns an empty entries array for an unknown symbol, without throwing", async () => {

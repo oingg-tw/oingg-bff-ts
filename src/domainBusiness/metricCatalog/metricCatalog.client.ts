@@ -35,7 +35,7 @@ function isRawBadge(value: unknown): value is MetricBadge {
     typeof b.author === "string" &&
     typeof b.summary === "string" &&
     typeof b.detail === "string" &&
-    (b.token === undefined || typeof b.token === "string") &&
+    (b.timeframe === undefined || typeof b.timeframe === "string") &&
     isRawBadgeThreshold(b.threshold)
   );
 }
@@ -45,7 +45,8 @@ interface RawPitMetric {
   /** Renamed from displayName 2026-09-13 — confirmed live, analysis-ts did not announce this ahead of time. */
   name: string;
   unit: string;
-  validTokens: string[];
+  /** Renamed from validTokens 2026-09-14, alongside the token->timeframe query-param rename (see fetchMetricHistory/fetchMetricsHistory) — same "timeframe" terminology throughout. */
+  validTimeframes: string[];
   /** Absent entirely (not an empty string) for metrics without a documented formula yet — pilot rollout, 2026-09-10. */
   formulaLatex?: string;
   /** Absent entirely (not an empty string) for metrics without a documented reference link yet, 2026-09-10. */
@@ -87,8 +88,8 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
             typeof (m as RawPitMetric).metricCode === "string" &&
             typeof (m as RawPitMetric).name === "string" &&
             typeof (m as RawPitMetric).unit === "string" &&
-            Array.isArray((m as RawPitMetric).validTokens) &&
-            (m as RawPitMetric).validTokens.every((t) => typeof t === "string") &&
+            Array.isArray((m as RawPitMetric).validTimeframes) &&
+            (m as RawPitMetric).validTimeframes.every((t) => typeof t === "string") &&
             ((m as RawPitMetric).formulaLatex === undefined || typeof (m as RawPitMetric).formulaLatex === "string") &&
             ((m as RawPitMetric).referenceUrl === undefined || typeof (m as RawPitMetric).referenceUrl === "string") &&
             ((m as RawPitMetric).academicSourceUrl === undefined || typeof (m as RawPitMetric).academicSourceUrl === "string") &&
@@ -179,7 +180,7 @@ function toMetricCategories(raw: RawPitCategory[]): MetricCategory[] {
       sources: metric.sources,
       hasProvenance: metric.hasProvenance,
       sort: metricIndex,
-      fields: metric.validTokens.map((token, tokenIndex) => ({
+      fields: metric.validTimeframes.map((token, tokenIndex) => ({
         key: token,
         name: token,
         period: token,

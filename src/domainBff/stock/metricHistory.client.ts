@@ -16,8 +16,10 @@ import type { MetricHistoryBasis, MetricHistoryCode, MetricHistoryResult } from 
  *
  * analysis-ts renamed this endpoint's query param from `basis` to `token` on 2026-09-08 (part of a wider
  * rename splitting their internal `metric_values.basis` column into periodType/lookbackRange/
- * samplingInterval/snapshotCadence — "basis" was overloading an accounting reserved word). Kept this
- * client's own parameter/type names as `basis` deliberately — bff-ts's own public contract to web-nuxt is
+ * samplingInterval/snapshotCadence — "basis" was overloading an accounting reserved word), then from
+ * `token` to `timeframe` on 2026-09-14 (their user felt "token" was still semantically empty — "timeframe"
+ * is the familiar term from candlestick-chart APIs, 1D/1W/1M etc.). Kept this client's own parameter/type
+ * names as `basis` deliberately through both renames — bff-ts's own public contract to web-nuxt is
  * unaffected, only the wire-level param sent upstream changed.
  */
 export async function fetchMetricHistory(
@@ -26,7 +28,7 @@ export async function fetchMetricHistory(
   basis: MetricHistoryBasis,
   limit?: number,
 ): Promise<MetricHistoryResult> {
-  const searchParams: Record<string, string> = { symbol, metricCode, token: basis };
+  const searchParams: Record<string, string> = { symbol, metricCode, timeframe: basis };
   if (limit !== undefined) {
     searchParams.limit = String(limit);
   }
