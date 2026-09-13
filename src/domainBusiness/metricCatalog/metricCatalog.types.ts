@@ -110,6 +110,12 @@ export interface MetricDefinition {
    * metric has one yet" field.
    */
   sources: string[];
+  /**
+   * Whether this metricCode supports GET /stocks/:symbol/metric-provenance (the raw-filing audit trail
+   * behind a computed value) — added by analysis-ts 2026-09-13, a growing allowlist read off this field
+   * rather than hardcoded, since coverage is expected to expand over time.
+   */
+  hasProvenance: boolean;
   /** Display order among sibling metrics under the same category (0-based) — see MetricField.sort. */
   sort: number;
   fields: MetricField[];

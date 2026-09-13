@@ -110,6 +110,13 @@ model MetricDefinition {
   /// field. Defaults to an empty array only defensively (a metric genuinely missing this from
   /// analysis-ts's response is a validation error at the client layer, not silently tolerated here).
   sources     String[]                  @default([])
+  /// Whether this metricCode supports GET /companies/:symbol/metric-provenance (the raw-filing audit
+  /// trail behind a computed value) — added by analysis-ts 2026-09-13, a growing allowlist (12 metrics at
+  /// launch: sue/chowderNumber/roe/accrualsRatio/dividendPayoutRatio/altmanZScore/dupontTaxBurden/
+  /// dupontInterestBurden/inventoryTurnover/receivablesTurnover/fixedAssetTurnover/payablesTurnover).
+  /// Read off this field rather than hardcoding the list, since analysis-ts said coverage will keep
+  /// expanding. Defaults to false for any metric predating this field (there is no "unknown" state).
+  hasProvenance Boolean                 @default(false) @map("has_provenance")
   position    Int
   category    MetricCategory            @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
   fields      MetricDefinitionField[]

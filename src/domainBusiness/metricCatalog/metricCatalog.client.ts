@@ -56,6 +56,12 @@ interface RawPitMetric {
   badge?: MetricBadge;
   /** Data-provenance category labels — a fixed 9-label vocabulary, required and non-empty on every metric (2026-09-10). */
   sources: string[];
+  /**
+   * Whether GET /companies/:symbol/metric-provenance supports this metricCode — added 2026-09-13, present
+   * (true or false) on every metric, not a "not every metric has one yet" field like formulaLatex/
+   * referenceUrl/badge. A growing allowlist (12 metrics at launch) — read off this field, never hardcoded.
+   */
+  hasProvenance: boolean;
 }
 
 interface RawPitCategory {
@@ -88,7 +94,8 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
             ((m as RawPitMetric).academicSourceUrl === undefined || typeof (m as RawPitMetric).academicSourceUrl === "string") &&
             ((m as RawPitMetric).badge === undefined || isRawBadge((m as RawPitMetric).badge)) &&
             Array.isArray((m as RawPitMetric).sources) &&
-            (m as RawPitMetric).sources.every((s) => typeof s === "string"),
+            (m as RawPitMetric).sources.every((s) => typeof s === "string") &&
+            typeof (m as RawPitMetric).hasProvenance === "boolean",
         ),
     )
   );
@@ -170,6 +177,7 @@ function toMetricCategories(raw: RawPitCategory[]): MetricCategory[] {
       academicSourceUrl: metric.academicSourceUrl ?? null,
       badge: metric.badge ?? null,
       sources: metric.sources,
+      hasProvenance: metric.hasProvenance,
       sort: metricIndex,
       fields: metric.validTokens.map((token, tokenIndex) => ({
         key: token,
