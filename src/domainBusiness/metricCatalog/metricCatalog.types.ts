@@ -30,6 +30,10 @@ export interface MetricBadgeThreshold {
   compareAgainstFieldId?: string;
   /** eps's own case: ["eps.TTM", "eps.Q"] — met only when every listed field is positive. */
   allPositiveFieldIds?: string[];
+  /** LaTeX source for the threshold condition itself (e.g. "\mathrm{SUE} > 2") — added by analysis-ts 2026-09-13, display-only like MetricDefinition.formulaLatex. */
+  thresholdLatex?: string;
+  /** Free-text annotation about where/why this specific threshold value was chosen — added 2026-09-13. */
+  note?: string;
 }
 
 /**
@@ -39,7 +43,8 @@ export interface MetricBadgeThreshold {
  * table covered (see MetricDefinition.badge).
  */
 export interface MetricBadge {
-  id: string;
+  /** analysis-ts dropped this field 2026-09-13 (badges are already 1:1 with the metric they're attached to, so a separate id was redundant) — kept optional here rather than removed outright, in case it comes back. */
+  id?: string;
   name: string;
   nameEn: string;
   author: string;

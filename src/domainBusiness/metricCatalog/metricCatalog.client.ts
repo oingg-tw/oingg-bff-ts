@@ -29,7 +29,7 @@ function isRawBadge(value: unknown): value is MetricBadge {
   }
   const b = value as MetricBadge;
   return (
-    typeof b.id === "string" &&
+    (b.id === undefined || typeof b.id === "string") &&
     typeof b.name === "string" &&
     typeof b.nameEn === "string" &&
     typeof b.author === "string" &&
@@ -42,7 +42,8 @@ function isRawBadge(value: unknown): value is MetricBadge {
 
 interface RawPitMetric {
   metricCode: string;
-  displayName: string;
+  /** Renamed from displayName 2026-09-13 — confirmed live, analysis-ts did not announce this ahead of time. */
+  name: string;
   unit: string;
   validTokens: string[];
   /** Absent entirely (not an empty string) for metrics without a documented formula yet — pilot rollout, 2026-09-10. */
@@ -78,7 +79,7 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
             typeof m === "object" &&
             m !== null &&
             typeof (m as RawPitMetric).metricCode === "string" &&
-            typeof (m as RawPitMetric).displayName === "string" &&
+            typeof (m as RawPitMetric).name === "string" &&
             typeof (m as RawPitMetric).unit === "string" &&
             Array.isArray((m as RawPitMetric).validTokens) &&
             (m as RawPitMetric).validTokens.every((t) => typeof t === "string") &&
@@ -106,9 +107,11 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
  * 9 possible tokens, but only 3 pairings (1Y_1D, 2Y_1W, 5Y_1M) actually have data — so `validTokens` has
  * been the only field this client has ever parsed for a field's possible values.
  *
- * `displayName`/`unit` (real Chinese labels, e.g. "殖利率（交易所公告）"/"%") landed on every one of the 64
+ * `name`/`unit` (real Chinese labels, e.g. "殖利率（交易所公告）"/"%") landed on every one of the 64
  * metrics as of 2026-09-09 — used directly for the metric-level name/unit now instead of the metricCode
- * placeholder this client used from 2026-09-08 until copy shipped. `categoryDisplayName` (e.g. "股利" for
+ * placeholder this client used from 2026-09-08 until copy shipped (this field was itself called
+ * `displayName` on the wire until analysis-ts silently renamed it to `name` 2026-09-13, breaking sync
+ * until caught here). `categoryDisplayName` (e.g. "股利" for
  * categoryKey "dividend") landed on all 7 categories the same day, added here shortly after — used for the
  * category-level name. Individual tokens still have no display name of their own (no per-token label
  * distinct from the token string) — `key`/`name` for those stay placeholder-filled with the raw token.
@@ -157,7 +160,7 @@ function toMetricCategories(raw: RawPitCategory[]): MetricCategory[] {
     sort: categoryIndex,
     metrics: category.metrics.map((metric, metricIndex) => ({
       key: metric.metricCode,
-      name: metric.displayName,
+      name: metric.name,
       path: metric.metricCode,
       description: null,
       source: null,
