@@ -3,6 +3,7 @@ import { z } from "zod";
 import { parseBody } from "@/shared/validation.js";
 import {
   getChainClassification,
+  getChainClusters,
   getIndustryFlatList,
   getIndustryTree,
   getSecuritiesSectors,
@@ -33,4 +34,9 @@ industriesRouter.get("/securities-sectors", async (_req, res) => {
 industriesRouter.get("/chain-classification", async (_req, res) => {
   const list = await getChainClassification();
   res.json(list);
+});
+
+industriesRouter.get("/chain-clusters", async (_req, res) => {
+  const tree = await getChainClusters();
+  res.json(tree);
 });

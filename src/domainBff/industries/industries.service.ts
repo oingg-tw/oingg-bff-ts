@@ -1,11 +1,13 @@
 import {
   fetchChainClassification,
+  fetchChainClusters,
   fetchIndustryFlatList,
   fetchIndustryTree,
   fetchSecuritiesSectors,
 } from "@/domainBff/industries/industries.client.js";
 import type {
   ChainClassificationList,
+  ChainClusterTree,
   IndustryFlatList,
   IndustryTree,
   SecuritiesSectorList,
@@ -29,4 +31,9 @@ export async function getSecuritiesSectors(): Promise<SecuritiesSectorList> {
 /** Supply-chain-derived classification listing (companies + coarse-group rollup) — GET /industries/chain-classification. */
 export async function getChainClassification(): Promise<ChainClassificationList> {
   return fetchChainClassification();
+}
+
+/** Full supply-chain cluster tree — GET /industries/chain-clusters. clusterId/subClusterId are NOT stable across requests. */
+export async function getChainClusters(): Promise<ChainClusterTree> {
+  return fetchChainClusters();
 }

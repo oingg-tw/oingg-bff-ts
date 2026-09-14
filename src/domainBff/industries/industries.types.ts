@@ -112,3 +112,42 @@ export interface ChainClassificationList {
   groups: ChainClassificationGroup[];
 }
 
+export interface ChainClusterMember {
+  code: string;
+  name: string;
+  /** False for a supply-chain node with no Taiwan stock listing (e.g. Apple, NVIDIA) — no stock-detail
+   * page to link to for these; callers must branch on this before treating `code` as a stock symbol. */
+  isListed: boolean;
+}
+
+export interface ChainSubCluster {
+  /**
+   * NOT a stable id — playwright-py's clustering re-run reshuffles these numbers across an entirely
+   * different set of companies. Never cache, bookmark, share-link, or otherwise persist this value across
+   * requests; treat it as valid only within the response it came from. Same caveat as ChainCluster.clusterId.
+   */
+  subClusterId: number;
+  subLabel: string;
+  members: ChainClusterMember[];
+}
+
+export interface ChainCluster {
+  /** NOT a stable id — see ChainSubCluster.subClusterId's note; the same instability applies here. */
+  clusterId: number;
+  label: string;
+  /** Populated only for top-level clusters small enough (<=100 nodes) to skip sub-clustering entirely — otherwise empty and members live under subClusters instead. */
+  directMembers: ChainClusterMember[];
+  subClusters: ChainSubCluster[];
+}
+
+/**
+ * The full supply-chain cluster tree (113 top-level clusters, 475 sub-clusters as of 2026-09-14) from
+ * analysis-ts's GET /industries/chain-clusters — a completely independent grouping concept from
+ * ChainClassificationList's flat category/coarseGroup scheme above (both are served in parallel, neither
+ * replaces the other). Includes non-listed international supply-chain nodes (customers/suppliers like
+ * Apple/NVIDIA — ~5,654 of the ~7,566 total member nodes), not just TWSE/TPEx-listed companies.
+ */
+export interface ChainClusterTree {
+  clusters: ChainCluster[];
+}
+

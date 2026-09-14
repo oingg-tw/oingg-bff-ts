@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchChainClassification,
+  fetchChainClusters,
   fetchIndustryFlatList,
   fetchIndustryTree,
   fetchSecuritiesSectors,
@@ -289,6 +290,92 @@ describe("fetchChainClassification", () => {
     mockFetchOnce({ ok: true, body: { oops: true } });
 
     await expect(fetchChainClassification()).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+// Real shape given directly by analysis-ts (2026-09-14).
+const CHAIN_CLUSTERS_RESPONSE = {
+  clusters: [
+    {
+      clusterId: 0,
+      label: "證券金融與資安雲端",
+      directMembers: [],
+      subClusters: [
+        {
+          subClusterId: 0,
+          subLabel: "期貨與證券商",
+          members: [
+            { code: "5201", name: "凱衛", isListed: true },
+            { code: "citigroupinc", name: "花旗集團（Citigroup Inc）", isListed: false },
+          ],
+        },
+      ],
+    },
+    {
+      clusterId: 1,
+      label: "小型獨立聚落",
+      directMembers: [{ code: "9999", name: "測試公司", isListed: true }],
+      subClusters: [],
+    },
+  ],
+};
+
+describe("fetchChainClusters", () => {
+  it("requests /industries/chain-clusters with no query params and normalizes the full tree", async () => {
+    mockFetchOnce({ ok: true, body: CHAIN_CLUSTERS_RESPONSE });
+
+    const result = await fetchChainClusters();
+
+    expect(result).toEqual(CHAIN_CLUSTERS_RESPONSE);
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(calledUrl.toString()).toBe("http://filters.test/industries/chain-clusters");
+  });
+
+  // isListed:false marks an international supply-chain node (e.g. Citigroup) with no stock-detail page —
+  // must survive normalization exactly, not be coerced to true or dropped.
+  it("preserves isListed:false for a non-listed international node", async () => {
+    mockFetchOnce({ ok: true, body: CHAIN_CLUSTERS_RESPONSE });
+
+    const result = await fetchChainClusters();
+
+    expect(result.clusters[0]?.subClusters[0]?.members[1]).toEqual({
+      code: "citigroupinc",
+      name: "花旗集團（Citigroup Inc）",
+      isListed: false,
+    });
+  });
+
+  // A small top-level cluster (<=100 nodes) can skip sub-clustering entirely — members live directly on
+  // the cluster instead of under subClusters.
+  it("handles a top-level cluster with directMembers and no subClusters", async () => {
+    mockFetchOnce({ ok: true, body: CHAIN_CLUSTERS_RESPONSE });
+
+    const result = await fetchChainClusters();
+
+    expect(result.clusters[1]).toEqual({
+      clusterId: 1,
+      label: "小型獨立聚落",
+      directMembers: [{ code: "9999", name: "測試公司", isListed: true }],
+      subClusters: [],
+    });
+  });
+
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchChainClusters()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError for a non-2xx status", async () => {
+    mockFetchOnce({ ok: false, status: 500, body: {} });
+
+    await expect(fetchChainClusters()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it('throws a 502 AppError when the response is missing a "clusters" array', async () => {
+    mockFetchOnce({ ok: true, body: { oops: true } });
+
+    await expect(fetchChainClusters()).rejects.toMatchObject({ statusCode: 502 });
   });
 });
 

@@ -5,6 +5,10 @@ import type {
   ChainClassificationCompany,
   ChainClassificationGroup,
   ChainClassificationList,
+  ChainCluster,
+  ChainClusterMember,
+  ChainClusterTree,
+  ChainSubCluster,
   IndustryFlatCompany,
   IndustryFlatList,
   IndustryLevel,
@@ -182,4 +186,54 @@ export async function fetchChainClassification(): Promise<ChainClassificationLis
     companies: b.companies.map(normalizeChainClassificationCompany),
     groups: b.groups.map(normalizeChainClassificationGroup),
   };
+}
+
+function normalizeChainClusterMember(raw: unknown): ChainClusterMember {
+  const r = raw as Record<string, unknown>;
+  return {
+    code: String(r.code),
+    name: String(r.name),
+    isListed: r.isListed === true,
+  };
+}
+
+function normalizeChainSubCluster(raw: unknown): ChainSubCluster {
+  const r = raw as Record<string, unknown>;
+  return {
+    subClusterId: Number(r.subClusterId),
+    subLabel: String(r.subLabel),
+    members: Array.isArray(r.members) ? r.members.map(normalizeChainClusterMember) : [],
+  };
+}
+
+function normalizeChainCluster(raw: unknown): ChainCluster {
+  const r = raw as Record<string, unknown>;
+  return {
+    clusterId: Number(r.clusterId),
+    label: String(r.label),
+    directMembers: Array.isArray(r.directMembers) ? r.directMembers.map(normalizeChainClusterMember) : [],
+    subClusters: Array.isArray(r.subClusters) ? r.subClusters.map(normalizeChainSubCluster) : [],
+  };
+}
+
+/**
+ * Fetches the full supply-chain cluster tree from analysis-ts's GET /industries/chain-clusters — added
+ * 2026-09-14, an independent grouping concept from fetchChainClassification's flat category/coarseGroup
+ * scheme (both served in parallel). `clusterId`/`subClusterId` are NOT stable across requests (see
+ * industries.types.ts's ChainCluster/ChainSubCluster) — never persist them. No query params — always the
+ * full tree (113 top-level clusters, 475 sub-clusters as of 2026-09-14).
+ */
+export async function fetchChainClusters(): Promise<ChainClusterTree> {
+  const url = buildAnalysisServiceUrl("/industries/chain-clusters");
+  const response = await fetchAnalysisService(url);
+  assertAnalysisServiceOk(response, url, "Chain clusters endpoint");
+
+  const body: unknown = await response.json();
+  const clusters = (body as { clusters?: unknown } | null)?.clusters;
+  if (!Array.isArray(clusters)) {
+    logger.error({ url: url.toString() }, "Chain clusters endpoint response is missing a clusters array");
+    throw new AppError("Chain clusters endpoint response is missing a clusters array", 502);
+  }
+
+  return { clusters: clusters.map(normalizeChainCluster) };
 }

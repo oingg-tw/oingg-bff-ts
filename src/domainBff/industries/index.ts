@@ -1,6 +1,7 @@
 export { industriesRouter } from "@/domainBff/industries/industries.routes.js";
 export {
   getChainClassification,
+  getChainClusters,
   getIndustryFlatList,
   getIndustryTree,
   getSecuritiesSectors,
@@ -9,6 +10,10 @@ export type {
   ChainClassificationCompany,
   ChainClassificationGroup,
   ChainClassificationList,
+  ChainCluster,
+  ChainClusterMember,
+  ChainClusterTree,
+  ChainSubCluster,
   IndustryFlatCompany,
   IndustryFlatList,
   IndustryLevel,
