@@ -8,6 +8,7 @@ import {
   fetchPriceChangeRanking,
   fetchPriceLimitRange,
   fetchRevenueRanking,
+  fetchTaiexDailyPrice,
   fetchVolumeTop20,
 } from "@/domainBff/market/marketRankings.client.js";
 
@@ -804,5 +805,56 @@ describe("fetchEtfRanking", () => {
     mockFetchOnce({ ok: true, body: {} });
 
     await expect(fetchEtfRanking("aum", "desc", 20)).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+describe("fetchTaiexDailyPrice", () => {
+  it("requests /market/taiex-daily-price with limit and normalizes close to a string", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        entries: [
+          { tradeDate: "2026-09-10", close: 46940.49 },
+          { tradeDate: "2026-09-11", close: 46184.85 },
+        ],
+      },
+    });
+
+    const result = await fetchTaiexDailyPrice(250);
+
+    expect(result).toEqual({
+      entries: [
+        { tradeDate: "2026-09-10", close: "46940.49" },
+        { tradeDate: "2026-09-11", close: "46184.85" },
+      ],
+    });
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/market/taiex-daily-price?limit=250");
+  });
+
+  it("normalizes a null close (no data that day) to null, not a stringified 'null'", async () => {
+    mockFetchOnce({ ok: true, body: { entries: [{ tradeDate: "2026-09-12", close: null }] } });
+
+    const result = await fetchTaiexDailyPrice(1);
+
+    expect(result.entries[0]).toEqual({ tradeDate: "2026-09-12", close: null });
+  });
+
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchTaiexDailyPrice(250)).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError for a non-2xx status", async () => {
+    mockFetchOnce({ ok: false, status: 500, body: {} });
+
+    await expect(fetchTaiexDailyPrice(250)).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when the response is missing an entries array", async () => {
+    mockFetchOnce({ ok: true, body: {} });
+
+    await expect(fetchTaiexDailyPrice(250)).rejects.toMatchObject({ statusCode: 502 });
   });
 });

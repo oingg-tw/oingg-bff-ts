@@ -8,6 +8,7 @@ import {
   DEFAULT_MATERIAL_ANNOUNCEMENTS_LIMIT,
   DEFAULT_PRICE_CHANGE_RANKING_LIMIT,
   DEFAULT_REVENUE_RANKING_LIMIT,
+  DEFAULT_TAIEX_DAILY_PRICE_LIMIT,
   getAttentionStocks,
   getDisposedStocks,
   getEtfRanking,
@@ -16,6 +17,7 @@ import {
   getPriceChangeRanking,
   getPriceLimitRange,
   getRevenueRanking,
+  getTaiexDailyPrice,
   getVolumeTop20,
 } from "@/domainBff/market/market.service.js";
 
@@ -93,5 +95,11 @@ marketRouter.get("/etf-ranking", async (req, res) => {
   const order = requireStringQueryParam(req.query.order, "order");
   const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_ETF_RANKING_LIMIT);
   const result = await getEtfRanking(metric, order, limit);
+  res.json(result);
+});
+
+marketRouter.get("/taiex-daily-price", async (req, res) => {
+  const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_TAIEX_DAILY_PRICE_LIMIT);
+  const result = await getTaiexDailyPrice(limit);
   res.json(result);
 });

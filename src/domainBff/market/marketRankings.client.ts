@@ -25,6 +25,8 @@ import type {
   RevenueRankingEntry,
   RevenueRankingMetric,
   RevenueRankingResult,
+  TaiexDailyPriceEntry,
+  TaiexDailyPriceResult,
   VolumeTop20Entry,
   VolumeTop20Result,
 } from "@/domainBff/market/market.types.js";
@@ -193,6 +195,14 @@ function normalizePriceChangeRankingEntry(raw: unknown): PriceChangeRankingEntry
     previousClose: toStringOrEmpty(r.previousClose),
     changeAmount: toStringOrEmpty(r.changeAmount),
     changePercent: toStringOrEmpty(r.changePercent),
+  };
+}
+
+function normalizeTaiexDailyPriceEntry(raw: unknown): TaiexDailyPriceEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    tradeDate: toStringOrEmpty(r.tradeDate),
+    close: toStringOrNull(r.close),
   };
 }
 
@@ -456,4 +466,20 @@ export async function fetchEtfRanking(
     rankings: body.rankings.map(normalizeEtfRankingEntry),
     warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
   };
+}
+
+/**
+ * TAIEX (加權股價指數) daily closing series from analysis-ts's GET /market/taiex-daily-price — added
+ * 2026-09-14 for web-nuxt's Beta card "個股 vs 大盤" comparison chart. Oldest to newest (confirmed live),
+ * `limit` bounds 1-2000, default 250 on analysis-ts's side (mirrored in market.service.ts's
+ * getTaiexDailyPrice for a fast local 400, same convention as this file's other endpoints).
+ */
+export async function fetchTaiexDailyPrice(limit: number): Promise<TaiexDailyPriceResult> {
+  const body = (await getJson("/market/taiex-daily-price", { limit: String(limit) })) as { entries?: unknown };
+
+  if (!Array.isArray(body.entries)) {
+    throw new AppError("TAIEX daily price response is missing an entries array", 502);
+  }
+
+  return { entries: body.entries.map(normalizeTaiexDailyPriceEntry) };
 }

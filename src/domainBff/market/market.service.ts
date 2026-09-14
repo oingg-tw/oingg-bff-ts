@@ -8,6 +8,7 @@ import {
   fetchPriceChangeRanking,
   fetchPriceLimitRange,
   fetchRevenueRanking,
+  fetchTaiexDailyPrice,
   fetchVolumeTop20,
 } from "@/domainBff/market/marketRankings.client.js";
 import type {
@@ -22,6 +23,7 @@ import type {
   RankingOrder,
   RevenueRankingMetric,
   RevenueRankingResult,
+  TaiexDailyPriceResult,
   VolumeTop20Result,
 } from "@/domainBff/market/market.types.js";
 
@@ -70,6 +72,10 @@ export const MAX_PRICE_CHANGE_RANKING_LIMIT = 50;
 export const DEFAULT_ETF_RANKING_LIMIT = 20;
 export const MIN_ETF_RANKING_LIMIT = 1;
 export const MAX_ETF_RANKING_LIMIT = 50;
+
+export const DEFAULT_TAIEX_DAILY_PRICE_LIMIT = 250;
+export const MIN_TAIEX_DAILY_PRICE_LIMIT = 1;
+export const MAX_TAIEX_DAILY_PRICE_LIMIT = 2000;
 
 /** Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400. */
 export async function getMarginShortRatioRanking(limit: number): Promise<MarginShortRatioRankingResult> {
@@ -183,4 +189,19 @@ export async function getEtfRanking(metric: string, order: string, limit: number
     throw new AppError(`"limit" must be an integer between ${MIN_ETF_RANKING_LIMIT} and ${MAX_ETF_RANKING_LIMIT}`, 400);
   }
   return fetchEtfRanking(metric as EtfRankingMetric, order as RankingOrder, limit);
+}
+
+/** Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400. */
+export async function getTaiexDailyPrice(limit: number): Promise<TaiexDailyPriceResult> {
+  if (
+    !Number.isInteger(limit) ||
+    limit < MIN_TAIEX_DAILY_PRICE_LIMIT ||
+    limit > MAX_TAIEX_DAILY_PRICE_LIMIT
+  ) {
+    throw new AppError(
+      `"limit" must be an integer between ${MIN_TAIEX_DAILY_PRICE_LIMIT} and ${MAX_TAIEX_DAILY_PRICE_LIMIT}`,
+      400,
+    );
+  }
+  return fetchTaiexDailyPrice(limit);
 }

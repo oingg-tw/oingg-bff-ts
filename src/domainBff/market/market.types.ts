@@ -283,3 +283,20 @@ export interface EtfRankingResult {
   rankings: EtfRankingEntry[];
   warnings: string[];
 }
+
+/**
+ * One trading day's TAIEX (加權股價指數) closing value from analysis-ts's own daily_taiex_index mirror
+ * (twse-ts's source dataset, 1999-01-05 onward) — added 2026-09-14 for web-nuxt's Beta card "個股 vs 大盤"
+ * comparison chart. `close` is Decimal-backed on analysis-ts's side (comes back as a JSON number, same
+ * convention as every other numeric field in this domain) — normalized to a string here, same as
+ * VolumeTop20Entry.close.
+ */
+export interface TaiexDailyPriceEntry {
+  tradeDate: string;
+  close: string | null;
+}
+
+/** Oldest to newest — confirmed live, unlike some sibling endpoints in this domain that go newest-first. */
+export interface TaiexDailyPriceResult {
+  entries: TaiexDailyPriceEntry[];
+}

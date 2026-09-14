@@ -10,6 +10,7 @@ vi.mock("@/domainBff/market/marketRankings.client.js", () => ({
   fetchPriceLimitRange: vi.fn(),
   fetchPriceChangeRanking: vi.fn(),
   fetchEtfRanking: vi.fn(),
+  fetchTaiexDailyPrice: vi.fn(),
 }));
 
 import {
@@ -21,6 +22,7 @@ import {
   fetchPriceChangeRanking,
   fetchPriceLimitRange,
   fetchRevenueRanking,
+  fetchTaiexDailyPrice,
   fetchVolumeTop20,
 } from "@/domainBff/market/marketRankings.client.js";
 import {
@@ -32,6 +34,7 @@ import {
   getPriceChangeRanking,
   getPriceLimitRange,
   getRevenueRanking,
+  getTaiexDailyPrice,
   getVolumeTop20,
 } from "@/domainBff/market/market.service.js";
 
@@ -45,6 +48,7 @@ beforeEach(() => {
   vi.mocked(fetchDisposedStocks).mockReset();
   vi.mocked(fetchAttentionStocks).mockReset();
   vi.mocked(fetchPriceLimitRange).mockReset();
+  vi.mocked(fetchTaiexDailyPrice).mockReset();
 });
 
 describe("getMarginShortRatioRanking", () => {
@@ -297,5 +301,27 @@ describe("getEtfRanking", () => {
     vi.mocked(fetchEtfRanking).mockResolvedValue({ metric: metric as never, order: "desc", limit: 20, rankings: [], warnings: [] });
 
     await expect(getEtfRanking(metric, "desc", 20)).resolves.toBeDefined();
+  });
+});
+
+describe("getTaiexDailyPrice", () => {
+  it("delegates a valid limit straight through", async () => {
+    vi.mocked(fetchTaiexDailyPrice).mockResolvedValue({ entries: [] });
+
+    await getTaiexDailyPrice(250);
+
+    expect(fetchTaiexDailyPrice).toHaveBeenCalledWith(250);
+  });
+
+  // Bounds match analysis-ts's own validation (verified live: 1-2000).
+  it.each([0, -1, 2001, 2.5])("rejects an out-of-range limit (%s) without calling analysis-ts", async (value) => {
+    await expect(getTaiexDailyPrice(value)).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchTaiexDailyPrice).not.toHaveBeenCalled();
+  });
+
+  it.each([1, 2000])("accepts a boundary limit (%s)", async (value) => {
+    vi.mocked(fetchTaiexDailyPrice).mockResolvedValue({ entries: [] });
+
+    await expect(getTaiexDailyPrice(value)).resolves.toBeDefined();
   });
 });

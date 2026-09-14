@@ -446,3 +446,38 @@ registry.registerPath({
     502: upstream502,
   },
 });
+
+// --- taiex-daily-price ---
+const taiexDailyPriceEntrySchema = z.object({
+  tradeDate: z.string(),
+  close: z.string().nullable(),
+});
+const taiexDailyPriceResultSchema = z
+  .object({ entries: z.array(taiexDailyPriceEntrySchema) })
+  .openapi("TaiexDailyPriceResult", {
+    example: {
+      entries: [
+        { tradeDate: "2026-09-10", close: "46940.49" },
+        { tradeDate: "2026-09-11", close: "46184.85" },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/market/taiex-daily-price",
+  summary: "台股加權股價指數（TAIEX）逐日收盤序列——給個股 vs 大盤對照走勢圖用",
+  description:
+    "資料來自 twse-ts 的 daily_taiex_index（1999-01-05 起至今）。舊到新排序（跟這個 domain 其他幾支端點慣例相反，注意不要照舊假設）。limit 1~2000，預設 250。close 可能是 null（查無當天收盤資料）。",
+  tags: ["Market"],
+  request: {
+    query: z.object({
+      limit: z.coerce.number().int().optional().openapi({ default: 250, minimum: 1, maximum: 2000 }),
+    }),
+  },
+  responses: {
+    200: { description: "TAIEX 逐日收盤序列。", content: { "application/json": { schema: taiexDailyPriceResultSchema } } },
+    400: badRequest("limit 不是 1~2000 之間的整數。"),
+    502: upstream502,
+  },
+});
