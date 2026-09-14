@@ -1,4 +1,6 @@
 import { AppError } from "@/shared/errorHandler.js";
+import { fetchBeta } from "@/domainBff/stock/beta.client.js";
+import type { BetaResult } from "@/domainBff/stock/beta.types.js";
 import { fetchCompanyList } from "@/domainBff/stock/companyList.client.js";
 import type { CompanyListResult } from "@/domainBff/stock/companyList.types.js";
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
@@ -76,6 +78,11 @@ export async function getLatestClosePrices(symbols: string[]): Promise<Map<strin
 /** Company basic-info profile — GET /stocks/:symbol/profile. */
 export async function getCompanyProfile(symbol: string): Promise<CompanyProfile | null> {
   return fetchCompanyProfile(symbol);
+}
+
+/** Beta coefficient across all 3 fixed windows (1Y_1D/2Y_1W/5Y_1M) — GET /stocks/:symbol/beta. */
+export async function getBeta(symbol: string): Promise<BetaResult> {
+  return fetchBeta(symbol);
 }
 
 /** Historical paid-in-capital/shares changes — GET /stocks/:symbol/capital-stock-history. */

@@ -1,6 +1,7 @@
 export { stockRouter } from "@/domainBff/stock/stock.routes.js";
 export {
   assertSymbolExists,
+  getBeta,
   getCapitalStockHistory,
   getCompanyList,
   getCompanyProfile,
@@ -26,6 +27,7 @@ export type { ClosePrice } from "@/domainBff/stock/stock.service.js";
 export type { StockPrice, StockQuote, StockValuation } from "@/domainBff/stock/stock.types.js";
 export type { CompanyListEntry, CompanyListResult } from "@/domainBff/stock/companyList.types.js";
 export type { CompanyProfile, CompanyProfileMarket } from "@/domainBff/stock/companyProfile.types.js";
+export type { BetaResult, BetaTimeframe, BetaWindow } from "@/domainBff/stock/beta.types.js";
 export type {
   CapitalStockChangeSource,
   CapitalStockHistoryEntry,

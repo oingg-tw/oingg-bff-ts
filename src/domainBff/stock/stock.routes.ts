@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseBody } from "@/shared/validation.js";
 import {
+  getBeta,
   getCapitalStockHistory,
   getCompanyList,
   getCompanyProfile,
@@ -132,6 +133,12 @@ stockRouter.get("/:symbol/profile", async (req, res) => {
     throw new AppError(`No company profile found for symbol "${symbol}"`, 404);
   }
   res.json(profile);
+});
+
+stockRouter.get("/:symbol/beta", async (req, res) => {
+  const { symbol } = req.params;
+  const beta = await getBeta(symbol);
+  res.json(beta);
 });
 
 stockRouter.get("/:symbol/capital-stock-history", async (req, res) => {
