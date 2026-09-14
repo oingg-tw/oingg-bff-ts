@@ -15,6 +15,10 @@ export interface CompanyBadgeEntry {
   timeframe: string;
   value: number | null;
   nullReason: string | null;
+  /** Added by analysis-ts 2026-09-14 — same semantics as metrics-history/piotroski-breakdown: the date this value was as-of, null alongside value when there's nothing to evaluate. */
+  knowledgeDate: string | null;
+  /** True when knowledgeDate is a fallback (fiscal period end date) rather than the real filing/announcement date. */
+  knowledgeDateIsFallback: boolean | null;
   /** Null exactly when value is null (nothing to evaluate) — never re-derive this from value + threshold. */
   passed: boolean | null;
 }

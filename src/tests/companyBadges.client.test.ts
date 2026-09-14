@@ -25,7 +25,7 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// Real shape given directly by analysis-ts (2026-09-14).
+// Real shape given directly by analysis-ts (2026-09-14; knowledgeDate/knowledgeDateIsFallback added same day, commit 7bf2ff7).
 const RAW_BODY = {
   symbol: "2330",
   categories: [
@@ -33,7 +33,17 @@ const RAW_BODY = {
       categoryKey: "resilience",
       categoryDisplayName: "財務韌性",
       badges: [
-        { metricCode: "altmanZScore", name: "Altman Z-Score", nameEn: "Altman Z-Score", timeframe: "TTM", value: 15.51, nullReason: null, passed: true },
+        {
+          metricCode: "altmanZScore",
+          name: "Altman Z-Score",
+          nameEn: "Altman Z-Score",
+          timeframe: "TTM",
+          value: 15.51,
+          nullReason: null,
+          knowledgeDate: "2026-09-11",
+          knowledgeDateIsFallback: false,
+          passed: true,
+        },
         {
           metricCode: "altmanZDoublePrimeScore",
           name: "Altman Z''-Score",
@@ -41,6 +51,8 @@ const RAW_BODY = {
           timeframe: "TTM",
           value: null,
           nullReason: "not_applicable_industry",
+          knowledgeDate: null,
+          knowledgeDateIsFallback: null,
           passed: null,
         },
       ],
@@ -73,7 +85,20 @@ describe("fetchCompanyBadges", () => {
       timeframe: "TTM",
       value: null,
       nullReason: "not_applicable_industry",
+      knowledgeDate: null,
+      knowledgeDateIsFallback: null,
       passed: null,
+    });
+  });
+
+  it("passes through knowledgeDate/knowledgeDateIsFallback for a badge with data", async () => {
+    mockFetchOnce({ ok: true, body: RAW_BODY });
+
+    const result = await fetchCompanyBadges("2330");
+
+    expect(result.categories[0]?.badges[0]).toMatchObject({
+      knowledgeDate: "2026-09-11",
+      knowledgeDateIsFallback: false,
     });
   });
 
