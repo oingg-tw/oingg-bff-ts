@@ -37,6 +37,7 @@ export type {
 } from "@/domainBff/stock/companyBadges.types.js";
 export type {
   PeerGroupClassificationLevel,
+  PeerGroupClassificationSource,
   PeerGroupCompany,
   PeerGroupResult,
 } from "@/domainBff/stock/peerGroup.types.js";

@@ -1,6 +1,7 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
+import type { PeerGroupClassificationSource } from "@/domainBff/stock/peerGroup.types.js";
 import type {
   ChainClassificationCompany,
   ChainClassificationGroup,
@@ -141,6 +142,10 @@ export async function fetchSecuritiesSectors(): Promise<SecuritiesSectorList> {
   return { sectors: sectors.map(normalizeSector) };
 }
 
+function isPeerGroupClassificationSource(value: unknown): value is PeerGroupClassificationSource {
+  return value === "keyword" || value === "gemini";
+}
+
 function normalizeChainClassificationCompany(raw: unknown): ChainClassificationCompany {
   const r = raw as Record<string, unknown>;
   return {
@@ -148,8 +153,7 @@ function normalizeChainClassificationCompany(raw: unknown): ChainClassificationC
     companyName: String(r.companyName),
     category: typeof r.category === "string" ? r.category : null,
     coarseGroup: typeof r.coarseGroup === "string" ? r.coarseGroup : null,
-    confidence: typeof r.confidence === "number" ? r.confidence : null,
-    sampleSize: typeof r.sampleSize === "number" ? r.sampleSize : null,
+    source: isPeerGroupClassificationSource(r.source) ? r.source : null,
     updatedAt: typeof r.updatedAt === "string" ? r.updatedAt : null,
   };
 }

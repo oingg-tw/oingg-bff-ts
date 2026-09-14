@@ -1,10 +1,19 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
-import type { PeerGroupClassificationLevel, PeerGroupCompany, PeerGroupResult } from "@/domainBff/stock/peerGroup.types.js";
+import type {
+  PeerGroupClassificationLevel,
+  PeerGroupClassificationSource,
+  PeerGroupCompany,
+  PeerGroupResult,
+} from "@/domainBff/stock/peerGroup.types.js";
 
 function isClassificationLevel(value: unknown): value is PeerGroupClassificationLevel {
   return value === "category" || value === "coarseGroup";
+}
+
+function isClassificationSource(value: unknown): value is PeerGroupClassificationSource {
+  return value === "keyword" || value === "gemini";
 }
 
 function normalizePeer(raw: unknown): PeerGroupCompany {
@@ -17,26 +26,20 @@ function normalizePeer(raw: unknown): PeerGroupCompany {
 
 export interface PeerGroupParams {
   minPeers?: number;
-  minConfidence?: number;
-  minSampleSize?: number;
 }
 
 /**
  * Fetches a symbol's supply-chain-derived peer group from analysis-ts's GET /companies/peer-group —
- * see peerGroup.types.ts's PeerGroupResult for the full shape/behavior notes. `minPeers`/`minConfidence`/
- * `minSampleSize` are optional; analysis-ts applies its own defaults (3/0.6/1) when omitted, so bff-ts
- * doesn't hardcode them here either — an unset param here means "let analysis-ts decide."
+ * see peerGroup.types.ts's PeerGroupResult for the full shape/behavior notes. `minPeers` is optional;
+ * analysis-ts applies its own default (3) when omitted. `minConfidence`/`minSampleSize` were removed
+ * 2026-09-15 alongside the confidence/sampleSize -> source field change — analysis-ts's own data showed
+ * the keyword-only population was under 1%, so the filter had no real use, and findPeerGroup() on their
+ * side dropped the params entirely.
  */
 export async function fetchPeerGroup(symbol: string, params: PeerGroupParams = {}): Promise<PeerGroupResult> {
   const searchParams: Record<string, string> = { symbol };
   if (params.minPeers !== undefined) {
     searchParams.minPeers = String(params.minPeers);
-  }
-  if (params.minConfidence !== undefined) {
-    searchParams.minConfidence = String(params.minConfidence);
-  }
-  if (params.minSampleSize !== undefined) {
-    searchParams.minSampleSize = String(params.minSampleSize);
   }
 
   const url = buildAnalysisServiceUrl("/companies/peer-group", searchParams);
@@ -66,8 +69,7 @@ export async function fetchPeerGroup(symbol: string, params: PeerGroupParams = {
     classificationLevel: isClassificationLevel(b.classificationLevel) ? b.classificationLevel : null,
     industryCode: typeof b.industryCode === "string" ? b.industryCode : null,
     industryName: typeof b.industryName === "string" ? b.industryName : null,
-    confidence: typeof b.confidence === "number" ? b.confidence : null,
-    sampleSize: typeof b.sampleSize === "number" ? b.sampleSize : null,
+    source: isClassificationSource(b.source) ? b.source : null,
     updatedAt: typeof b.updatedAt === "string" ? b.updatedAt : null,
     peers: b.peers.map(normalizePeer),
     warnings: b.warnings.map(String),

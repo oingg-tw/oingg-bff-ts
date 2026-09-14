@@ -25,7 +25,7 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// Real shape given directly by analysis-ts (2026-09-14).
+// Real shape given directly by analysis-ts (2026-09-15: confidence/sampleSize replaced by source).
 const RAW_BODY = {
   symbol: "2330",
   companyName: "台積電",
@@ -33,8 +33,7 @@ const RAW_BODY = {
   classificationLevel: "category",
   industryCode: "積體電路",
   industryName: "積體電路",
-  confidence: 0.9079,
-  sampleSize: 76,
+  source: "gemini",
   updatedAt: "2026-09-14",
   peers: [
     { symbol: "2330", companyName: "台積電" },
@@ -54,15 +53,13 @@ describe("fetchPeerGroup", () => {
     expect(url.toString()).toBe("http://filters.test/companies/peer-group?symbol=2330");
   });
 
-  it("includes minPeers/minConfidence/minSampleSize when given", async () => {
+  it("includes minPeers when given", async () => {
     mockFetchOnce({ ok: true, body: RAW_BODY });
 
-    await fetchPeerGroup("2330", { minPeers: 5, minConfidence: 0.8, minSampleSize: 10 });
+    await fetchPeerGroup("2330", { minPeers: 5 });
 
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(url.toString()).toBe(
-      "http://filters.test/companies/peer-group?symbol=2330&minPeers=5&minConfidence=0.8&minSampleSize=10",
-    );
+    expect(url.toString()).toBe("http://filters.test/companies/peer-group?symbol=2330&minPeers=5");
   });
 
   // Confirmed live: falling back from category to coarseGroup carries an explanatory warning.
@@ -76,10 +73,19 @@ describe("fetchPeerGroup", () => {
       },
     });
 
-    const result = await fetchPeerGroup("2330", { minSampleSize: 1000 });
+    const result = await fetchPeerGroup("2330");
 
     expect(result.classificationLevel).toBe("coarseGroup");
     expect(result.warnings).toEqual(["同業數在較細的分類下不足，已回退到更粗的分類層級。"]);
+  });
+
+  // source replaced confidence/sampleSize 2026-09-15 — must survive normalization as-is.
+  it("passes through source: keyword for the minority classified by keyword rules alone", async () => {
+    mockFetchOnce({ ok: true, body: { ...RAW_BODY, source: "keyword" } });
+
+    const result = await fetchPeerGroup("2330");
+
+    expect(result.source).toBe("keyword");
   });
 
   // Confirmed live: an unknown/not-yet-classified symbol is still a 200, found:false, everything else null/empty.
@@ -93,8 +99,7 @@ describe("fetchPeerGroup", () => {
         classificationLevel: null,
         industryCode: null,
         industryName: null,
-        confidence: null,
-        sampleSize: null,
+        source: null,
         updatedAt: null,
         peers: [],
         warnings: [],
@@ -110,8 +115,7 @@ describe("fetchPeerGroup", () => {
       classificationLevel: null,
       industryCode: null,
       industryName: null,
-      confidence: null,
-      sampleSize: null,
+      source: null,
       updatedAt: null,
       peers: [],
       warnings: [],
@@ -119,11 +123,11 @@ describe("fetchPeerGroup", () => {
   });
 
   it("relays analysis-ts's 400 message for an invalid query param", async () => {
-    mockFetchOnce({ ok: false, status: 400, body: { message: '"minConfidence" must be a number' } });
+    mockFetchOnce({ ok: false, status: 400, body: { message: '"minPeers" must be a number' } });
 
-    await expect(fetchPeerGroup("2330", { minConfidence: Number.NaN })).rejects.toMatchObject({
+    await expect(fetchPeerGroup("2330", { minPeers: Number.NaN })).rejects.toMatchObject({
       statusCode: 400,
-      message: '"minConfidence" must be a number',
+      message: '"minPeers" must be a number',
     });
   });
 

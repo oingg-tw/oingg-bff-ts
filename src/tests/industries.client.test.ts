@@ -235,11 +235,11 @@ describe("fetchSecuritiesSectors", () => {
   });
 });
 
-// Real shape given directly by analysis-ts (2026-09-14).
+// Real shape given directly by analysis-ts (2026-09-14; confidence/sampleSize replaced by source 2026-09-15).
 const CHAIN_CLASSIFICATION_RESPONSE = {
   companies: [
-    { symbol: "1101", companyName: "台泥", category: "水泥建材", coarseGroup: "工業材料與設備", confidence: 0.7692, sampleSize: 26, updatedAt: "2026-09-14" },
-    { symbol: "9999", companyName: "未分類公司", category: null, coarseGroup: null, confidence: null, sampleSize: null, updatedAt: null },
+    { symbol: "1101", companyName: "台泥", category: "水泥建材", coarseGroup: "工業材料與設備", source: "gemini", updatedAt: "2026-09-14" },
+    { symbol: "9999", companyName: "未分類公司", category: null, coarseGroup: null, source: null, updatedAt: null },
   ],
   groups: [
     { coarseGroup: "工業材料與設備", fineCategories: ["化學塑膠材料", "工業自動化", "水泥建材", "紙業包裝材料", "鋼鐵金屬材料"] },
@@ -258,7 +258,7 @@ describe("fetchChainClassification", () => {
   });
 
   // A null category must survive as null, not be filtered out or coerced into a placeholder string.
-  it("keeps a null category/coarseGroup/confidence/sampleSize/updatedAt for an unclassified company", async () => {
+  it("keeps a null category/coarseGroup/source/updatedAt for an unclassified company", async () => {
     mockFetchOnce({ ok: true, body: CHAIN_CLASSIFICATION_RESPONSE });
 
     const result = await fetchChainClassification();
@@ -268,8 +268,7 @@ describe("fetchChainClassification", () => {
       companyName: "未分類公司",
       category: null,
       coarseGroup: null,
-      confidence: null,
-      sampleSize: null,
+      source: null,
       updatedAt: null,
     });
   });

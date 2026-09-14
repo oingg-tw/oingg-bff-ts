@@ -1,3 +1,5 @@
+import type { PeerGroupClassificationSource } from "@/domainBff/stock/peerGroup.types.js";
+
 export type IndustryLevel = "section" | "division" | "group" | "class" | "subclass";
 
 export interface IndustryTreeChild {
@@ -77,22 +79,21 @@ export interface SecuritiesSectorList {
 
 /**
  * One company's supply-chain-derived industry classification, from analysis-ts's own oingg-playwright-py
- * cache (Gemini-parsed real supply-chain relationships) — same underlying cache as GET /companies/peer-group
+ * cache (real supply-chain relationships) — same underlying cache as GET /companies/peer-group
  * (see peerGroup.types.ts), NOT the gov-ts tax-registration scheme above (IndustryTree/IndustryFlatList) —
  * a completely separate, unrelated classification. `category`/`coarseGroup` mirror
  * PeerGroupResult.industryName/PeerGroupResult's coarser fallback level, but at the company-list scale
  * (~1984 companies, TWSE+TPEx+KY, including ones with `category: null` — not filtered out, unlike
- * IndustryFlatList's TWSE-only tax-registered scope). `confidence`/`sampleSize`/`updatedAt` are this
- * company's own classification quality, same semantics as peer-group's fields — there is no scheduled
- * re-scrape, so `updatedAt` doesn't imply freshness beyond "whenever this cache was last built."
+ * IndustryFlatList's TWSE-only tax-registered scope). `source`/`updatedAt` are this company's own
+ * classification quality, same semantics as peer-group's fields (see PeerGroupResult) — there is no
+ * scheduled re-scrape, so `updatedAt` doesn't imply freshness beyond "whenever this cache was last built."
  */
 export interface ChainClassificationCompany {
   symbol: string;
   companyName: string;
   category: string | null;
   coarseGroup: string | null;
-  confidence: number | null;
-  sampleSize: number | null;
+  source: PeerGroupClassificationSource | null;
   updatedAt: string | null;
 }
 
