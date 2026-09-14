@@ -103,6 +103,50 @@ registry.registerPath({
   },
 });
 
+const chainClassificationCompanySchema = z.object({
+  symbol: z.string(),
+  companyName: z.string(),
+  category: z.string().nullable(),
+  coarseGroup: z.string().nullable(),
+  confidence: z.number().nullable(),
+  sampleSize: z.number().nullable(),
+  updatedAt: z.string().nullable(),
+});
+
+const chainClassificationGroupSchema = z.object({
+  coarseGroup: z.string(),
+  fineCategories: z.array(z.string()),
+});
+
+const chainClassificationListSchema = z
+  .object({
+    companies: z.array(chainClassificationCompanySchema),
+    groups: z.array(chainClassificationGroupSchema),
+  })
+  .openapi("ChainClassificationList", {
+    example: {
+      companies: [
+        { symbol: "1101", companyName: "台泥", category: "水泥建材", coarseGroup: "工業材料與設備", confidence: 0.7692, sampleSize: 26, updatedAt: "2026-09-14" },
+      ],
+      groups: [
+        { coarseGroup: "工業材料與設備", fineCategories: ["化學塑膠材料", "工業自動化", "水泥建材", "紙業包裝材料", "鋼鐵金屬材料"] },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/industries/chain-classification",
+  summary: "供應鏈關係分類全量清單（給「產業追蹤」頁面用，非財政部稅籍分類）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /industries/chain-classification（2026-09-14 新增）——分類來源是 oingg-playwright-py 用 Gemini 解析真實供應鏈關係得出的分類，跟上面 GET /industries/tree／GET /industries/flat 的財政部稅籍五層分類是完全不同、互不相關的體系，這支是全新獨立端點，不是取代那兩支（那兩支照常運作不受影響）。companies 約 1984 家（涵蓋上市＋上櫃＋KY 境外註冊公司，比稅籍分類的 999 家範圍更廣），category 為 null 的公司不會被濾掉（代表這家公司尚未被分類或分類信心不足）。groups 是粗分類→細分類的對照表（10 組），可用來做前端的 drill-down 選單。confidence/sampleSize/updatedAt 跟 GET /stocks/{symbol}/peer-group 的同名欄位語意完全一致（同一份底層快取）——這家公司自己的分類信心分數（0~1）、已分類供應鏈邊數量、跟快取最後更新時間，沒有排程重抓機制，updatedAt 不代表資料新鮮度保證。沒有查詢參數，一次回傳全量。",
+  tags: ["Industries"],
+  responses: {
+    200: { description: "全量供應鏈分類清單（公司 + 分類對照表）。", content: { "application/json": { schema: chainClassificationListSchema } } },
+    502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
+  },
+});
+
 registry.registerPath({
   method: "get",
   path: "/industries/flat",

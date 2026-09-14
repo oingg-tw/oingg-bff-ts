@@ -1,5 +1,15 @@
-import { fetchIndustryFlatList, fetchIndustryTree, fetchSecuritiesSectors } from "@/domainBff/industries/industries.client.js";
-import type { IndustryFlatList, IndustryTree, SecuritiesSectorList } from "@/domainBff/industries/industries.types.js";
+import {
+  fetchChainClassification,
+  fetchIndustryFlatList,
+  fetchIndustryTree,
+  fetchSecuritiesSectors,
+} from "@/domainBff/industries/industries.client.js";
+import type {
+  ChainClassificationList,
+  IndustryFlatList,
+  IndustryTree,
+  SecuritiesSectorList,
+} from "@/domainBff/industries/industries.types.js";
 
 /** Node of the industry classification tree — GET /industries/tree. */
 export async function getIndustryTree(code?: string): Promise<IndustryTree> {
@@ -14,4 +24,9 @@ export async function getIndustryFlatList(): Promise<IndustryFlatList> {
 /** TWSE/TPEx securities-sector list (證交所類股), for the screener's sectorCodes filter — GET /industries/securities-sectors. */
 export async function getSecuritiesSectors(): Promise<SecuritiesSectorList> {
   return fetchSecuritiesSectors();
+}
+
+/** Supply-chain-derived classification listing (companies + coarse-group rollup) — GET /industries/chain-classification. */
+export async function getChainClassification(): Promise<ChainClassificationList> {
+  return fetchChainClassification();
 }

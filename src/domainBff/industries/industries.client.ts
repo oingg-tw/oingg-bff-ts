@@ -2,6 +2,9 @@ import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type {
+  ChainClassificationCompany,
+  ChainClassificationGroup,
+  ChainClassificationList,
   IndustryFlatCompany,
   IndustryFlatList,
   IndustryLevel,
@@ -132,4 +135,51 @@ export async function fetchSecuritiesSectors(): Promise<SecuritiesSectorList> {
   }
 
   return { sectors: sectors.map(normalizeSector) };
+}
+
+function normalizeChainClassificationCompany(raw: unknown): ChainClassificationCompany {
+  const r = raw as Record<string, unknown>;
+  return {
+    symbol: String(r.symbol),
+    companyName: String(r.companyName),
+    category: typeof r.category === "string" ? r.category : null,
+    coarseGroup: typeof r.coarseGroup === "string" ? r.coarseGroup : null,
+    confidence: typeof r.confidence === "number" ? r.confidence : null,
+    sampleSize: typeof r.sampleSize === "number" ? r.sampleSize : null,
+    updatedAt: typeof r.updatedAt === "string" ? r.updatedAt : null,
+  };
+}
+
+function normalizeChainClassificationGroup(raw: unknown): ChainClassificationGroup {
+  const r = raw as Record<string, unknown>;
+  return {
+    coarseGroup: String(r.coarseGroup),
+    fineCategories: Array.isArray(r.fineCategories) ? r.fineCategories.map(String) : [],
+  };
+}
+
+/**
+ * Fetches the full supply-chain-derived classification listing (companies + coarse-group/fine-category
+ * rollup) from analysis-ts's GET /industries/chain-classification — added 2026-09-14 for web-nuxt's
+ * "產業追蹤" page rebuild. Same underlying cache as GET /companies/peer-group (see peerGroup.client.ts),
+ * NOT a replacement for GET /industries/tree/flat (the unrelated gov-ts tax-registration scheme), which
+ * keep working unchanged. No query params — always the full ~1984-company listing; companies with
+ * `category: null` are included, not filtered out.
+ */
+export async function fetchChainClassification(): Promise<ChainClassificationList> {
+  const url = buildAnalysisServiceUrl("/industries/chain-classification");
+  const response = await fetchAnalysisService(url);
+  assertAnalysisServiceOk(response, url, "Chain classification endpoint");
+
+  const body: unknown = await response.json();
+  const b = body as { companies?: unknown; groups?: unknown };
+  if (!Array.isArray(b.companies) || !Array.isArray(b.groups)) {
+    logger.error({ url: url.toString() }, "Chain classification endpoint response is missing companies/groups arrays");
+    throw new AppError("Chain classification endpoint response is missing companies/groups arrays", 502);
+  }
+
+  return {
+    companies: b.companies.map(normalizeChainClassificationCompany),
+    groups: b.groups.map(normalizeChainClassificationGroup),
+  };
 }

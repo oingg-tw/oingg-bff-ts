@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchIndustryFlatList, fetchIndustryTree, fetchSecuritiesSectors } from "@/domainBff/industries/industries.client.js";
+import {
+  fetchChainClassification,
+  fetchIndustryFlatList,
+  fetchIndustryTree,
+  fetchSecuritiesSectors,
+} from "@/domainBff/industries/industries.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
@@ -226,6 +231,64 @@ describe("fetchSecuritiesSectors", () => {
     mockFetchOnce({ ok: true, body: { oops: true } });
 
     await expect(fetchSecuritiesSectors()).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+// Real shape given directly by analysis-ts (2026-09-14).
+const CHAIN_CLASSIFICATION_RESPONSE = {
+  companies: [
+    { symbol: "1101", companyName: "台泥", category: "水泥建材", coarseGroup: "工業材料與設備", confidence: 0.7692, sampleSize: 26, updatedAt: "2026-09-14" },
+    { symbol: "9999", companyName: "未分類公司", category: null, coarseGroup: null, confidence: null, sampleSize: null, updatedAt: null },
+  ],
+  groups: [
+    { coarseGroup: "工業材料與設備", fineCategories: ["化學塑膠材料", "工業自動化", "水泥建材", "紙業包裝材料", "鋼鐵金屬材料"] },
+  ],
+};
+
+describe("fetchChainClassification", () => {
+  it("requests /industries/chain-classification with no query params and normalizes companies/groups", async () => {
+    mockFetchOnce({ ok: true, body: CHAIN_CLASSIFICATION_RESPONSE });
+
+    const result = await fetchChainClassification();
+
+    expect(result).toEqual(CHAIN_CLASSIFICATION_RESPONSE);
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(calledUrl.toString()).toBe("http://filters.test/industries/chain-classification");
+  });
+
+  // A null category must survive as null, not be filtered out or coerced into a placeholder string.
+  it("keeps a null category/coarseGroup/confidence/sampleSize/updatedAt for an unclassified company", async () => {
+    mockFetchOnce({ ok: true, body: CHAIN_CLASSIFICATION_RESPONSE });
+
+    const result = await fetchChainClassification();
+
+    expect(result.companies[1]).toEqual({
+      symbol: "9999",
+      companyName: "未分類公司",
+      category: null,
+      coarseGroup: null,
+      confidence: null,
+      sampleSize: null,
+      updatedAt: null,
+    });
+  });
+
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchChainClassification()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError for a non-2xx status", async () => {
+    mockFetchOnce({ ok: false, status: 500, body: {} });
+
+    await expect(fetchChainClassification()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it('throws a 502 AppError when the response is missing "companies"/"groups" arrays', async () => {
+    mockFetchOnce({ ok: true, body: { oops: true } });
+
+    await expect(fetchChainClassification()).rejects.toMatchObject({ statusCode: 502 });
   });
 });
 
