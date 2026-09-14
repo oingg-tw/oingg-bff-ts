@@ -18,6 +18,7 @@ import {
   getMetricProvenance,
   getMetricsHistory,
   getMonthlyRevenueHistory,
+  getPeerGroup,
   getPiotroskiBreakdown,
   getPreferredStockFieldCatalog,
   getPreferredStocks,
@@ -146,6 +147,22 @@ stockRouter.get("/:symbol/badges", async (req, res) => {
   const { symbol } = req.params;
   const badges = await getCompanyBadges(symbol);
   res.json(badges);
+});
+
+// Bounds not locally validated (unlike this file's other "limit"-style params) — analysis-ts's own valid
+// ranges for minConfidence (a 0-1 fraction)/minPeers/minSampleSize aren't documented as fixed bounds, so
+// a bad value is relayed as-is via its own 400 message (see peerGroup.client.ts) rather than guessed at.
+export const peerGroupQuerySchema = z.object({
+  minPeers: z.coerce.number({ error: '"minPeers" must be a number' }).optional(),
+  minConfidence: z.coerce.number({ error: '"minConfidence" must be a number' }).optional(),
+  minSampleSize: z.coerce.number({ error: '"minSampleSize" must be a number' }).optional(),
+});
+
+stockRouter.get("/:symbol/peer-group", async (req, res) => {
+  const { symbol } = req.params;
+  const query = parseBody(peerGroupQuerySchema, req.query);
+  const peerGroup = await getPeerGroup(symbol, query);
+  res.json(peerGroup);
 });
 
 stockRouter.get("/:symbol/capital-stock-history", async (req, res) => {

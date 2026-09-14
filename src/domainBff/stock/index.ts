@@ -17,6 +17,7 @@ export {
   getMetricsHistory,
   getMetricProvenance,
   getMonthlyRevenueHistory,
+  getPeerGroup,
   getPiotroskiBreakdown,
   getPreferredStockFieldCatalog,
   getPreferredStocks,
@@ -34,6 +35,11 @@ export type {
   CompanyBadgeEntry,
   CompanyBadgesResult,
 } from "@/domainBff/stock/companyBadges.types.js";
+export type {
+  PeerGroupClassificationLevel,
+  PeerGroupCompany,
+  PeerGroupResult,
+} from "@/domainBff/stock/peerGroup.types.js";
 export type {
   CapitalStockChangeSource,
   CapitalStockHistoryEntry,

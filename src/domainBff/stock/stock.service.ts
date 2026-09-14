@@ -4,6 +4,8 @@ import type { BetaResult } from "@/domainBff/stock/beta.types.js";
 import { fetchCompanyBadges } from "@/domainBff/stock/companyBadges.client.js";
 import type { CompanyBadgesResult } from "@/domainBff/stock/companyBadges.types.js";
 import { fetchCompanyList } from "@/domainBff/stock/companyList.client.js";
+import { fetchPeerGroup, type PeerGroupParams } from "@/domainBff/stock/peerGroup.client.js";
+import type { PeerGroupResult } from "@/domainBff/stock/peerGroup.types.js";
 import type { CompanyListResult } from "@/domainBff/stock/companyList.types.js";
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
 import type { CapitalStockHistoryResult } from "@/domainBff/stock/capitalStockHistory.types.js";
@@ -90,6 +92,11 @@ export async function getBeta(symbol: string): Promise<BetaResult> {
 /** Evaluated "guru badges" (value + pass/fail per badge) for one symbol — GET /stocks/:symbol/badges. */
 export async function getCompanyBadges(symbol: string): Promise<CompanyBadgesResult> {
   return fetchCompanyBadges(symbol);
+}
+
+/** Supply-chain-derived peer comparison for one symbol — GET /stocks/:symbol/peer-group. */
+export async function getPeerGroup(symbol: string, params: PeerGroupParams): Promise<PeerGroupResult> {
+  return fetchPeerGroup(symbol, params);
 }
 
 /** Historical paid-in-capital/shares changes — GET /stocks/:symbol/capital-stock-history. */

@@ -11,6 +11,7 @@ import {
   metricProvenanceQuerySchema,
   metricsHistoryQuerySchema,
   monthlyRevenueHistoryQuerySchema,
+  peerGroupQuerySchema,
   piotroskiBreakdownQuerySchema,
   preferredStocksQuerySchema,
   roeRoaHistoryQuerySchema,
@@ -245,6 +246,63 @@ registry.registerPath({
   request: { params: symbolParam },
   responses: {
     200: { description: "依分類分組的徽章清單。", content: { "application/json": { schema: companyBadgesResultSchema } } },
+    502: unauthorized502,
+  },
+});
+
+const peerGroupCompanySchema = z.object({
+  symbol: z.string(),
+  companyName: z.string().nullable(),
+});
+
+const peerGroupResultSchema = z
+  .object({
+    symbol: z.string(),
+    companyName: z.string().nullable(),
+    found: z.boolean(),
+    classificationLevel: z.enum(["category", "coarseGroup"]).nullable(),
+    industryCode: z.string().nullable(),
+    industryName: z.string().nullable(),
+    confidence: z.number().nullable(),
+    sampleSize: z.number().nullable(),
+    updatedAt: z.string().nullable(),
+    peers: z.array(peerGroupCompanySchema),
+    warnings: z.array(z.string()),
+  })
+  .openapi("PeerGroupResult", {
+    example: {
+      symbol: "2330",
+      companyName: "台積電",
+      found: true,
+      classificationLevel: "category",
+      industryCode: "積體電路",
+      industryName: "積體電路",
+      confidence: 0.9079,
+      sampleSize: 76,
+      updatedAt: "2026-09-14",
+      peers: [
+        { symbol: "2330", companyName: "台積電" },
+        { symbol: "2454", companyName: "聯發科" },
+      ],
+      warnings: [],
+    },
+  });
+
+const peerGroupQueryDocSchema = peerGroupQuerySchema.openapi("PeerGroupQuery", {
+  example: { minPeers: 3, minConfidence: 0.6, minSampleSize: 1 },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/peer-group",
+  summary: "查詢個股的同業比較清單（供應鏈關係分類，非財政部稅籍分類）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/peer-group（2026-09-14 上線，取代先前財政部稅籍分類版本——這是全新端點，bff-ts 之前沒有轉發過舊版本，這裡不是遷移）。分類來源是 oingg-playwright-py 用 Gemini 解析真實供應鏈關係得出的分類，跟 GET /industries/tree 的財政部稅籍五層分類是完全不同、互不相關的體系。classificationLevel 只有兩層（category「細分類」/coarseGroup「粗分類」），細分類同業數不足時會回退到粗分類（回退時 warnings 會有說明文字，直接顯示給使用者看即可，不用自己解析）。confidence/sampleSize 是「目標股票自己」的分類信心分數（0~1）跟已分類供應鏈邊數量，不是每個同業各自的分數。KY 股（境外註冊公司）不再有結構性缺口——這是相對於稅籍分類版本的改善，KY 股一樣能正常出現在同業清單或作為查詢目標。minPeers/minConfidence/minSampleSize 都選填，省略時套用 analysis-ts 自己的預設值（3/0.6/1），bff-ts 不在本地重複定義這些預設值或做範圍檢查——數值格式不對會轉發 analysis-ts 自己的 400 訊息。查無資料或代號尚未分類時仍回 200，found 為 false，其餘欄位全部是 null、peers/warnings 是空陣列，不會是 404。",
+  tags: ["Stock"],
+  request: { params: symbolParam, query: peerGroupQueryDocSchema },
+  responses: {
+    200: { description: "同業比較結果。", content: { "application/json": { schema: peerGroupResultSchema } } },
+    400: errorResponse("minPeers/minConfidence/minSampleSize 格式不是合法數字。"),
     502: unauthorized502,
   },
 });
