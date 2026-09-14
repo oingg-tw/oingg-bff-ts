@@ -5,6 +5,7 @@ import { parseBody } from "@/shared/validation.js";
 import {
   getBeta,
   getCapitalStockHistory,
+  getCompanyBadges,
   getCompanyList,
   getCompanyProfile,
   getDailyPriceHistory,
@@ -139,6 +140,12 @@ stockRouter.get("/:symbol/beta", async (req, res) => {
   const { symbol } = req.params;
   const beta = await getBeta(symbol);
   res.json(beta);
+});
+
+stockRouter.get("/:symbol/badges", async (req, res) => {
+  const { symbol } = req.params;
+  const badges = await getCompanyBadges(symbol);
+  res.json(badges);
 });
 
 stockRouter.get("/:symbol/capital-stock-history", async (req, res) => {

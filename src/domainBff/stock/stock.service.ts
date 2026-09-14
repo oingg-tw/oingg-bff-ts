@@ -1,6 +1,8 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { fetchBeta } from "@/domainBff/stock/beta.client.js";
 import type { BetaResult } from "@/domainBff/stock/beta.types.js";
+import { fetchCompanyBadges } from "@/domainBff/stock/companyBadges.client.js";
+import type { CompanyBadgesResult } from "@/domainBff/stock/companyBadges.types.js";
 import { fetchCompanyList } from "@/domainBff/stock/companyList.client.js";
 import type { CompanyListResult } from "@/domainBff/stock/companyList.types.js";
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
@@ -83,6 +85,11 @@ export async function getCompanyProfile(symbol: string): Promise<CompanyProfile 
 /** Beta coefficient across all 3 fixed windows (1Y_1D/2Y_1W/5Y_1M) — GET /stocks/:symbol/beta. */
 export async function getBeta(symbol: string): Promise<BetaResult> {
   return fetchBeta(symbol);
+}
+
+/** Evaluated "guru badges" (value + pass/fail per badge) for one symbol — GET /stocks/:symbol/badges. */
+export async function getCompanyBadges(symbol: string): Promise<CompanyBadgesResult> {
+  return fetchCompanyBadges(symbol);
 }
 
 /** Historical paid-in-capital/shares changes — GET /stocks/:symbol/capital-stock-history. */

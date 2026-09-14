@@ -197,6 +197,56 @@ registry.registerPath({
   },
 });
 
+const companyBadgeEntrySchema = z.object({
+  metricCode: z.string(),
+  name: z.string(),
+  nameEn: z.string(),
+  timeframe: z.string(),
+  value: z.number().nullable(),
+  nullReason: z.string().nullable(),
+  passed: z.boolean().nullable(),
+});
+
+const companyBadgeCategorySchema = z.object({
+  categoryKey: z.string(),
+  categoryDisplayName: z.string(),
+  badges: z.array(companyBadgeEntrySchema),
+});
+
+const companyBadgesResultSchema = z
+  .object({
+    symbol: z.string(),
+    categories: z.array(companyBadgeCategorySchema),
+  })
+  .openapi("CompanyBadgesResult", {
+    example: {
+      symbol: "2330",
+      categories: [
+        {
+          categoryKey: "resilience",
+          categoryDisplayName: "財務韌性",
+          badges: [
+            { metricCode: "altmanZScore", name: "Altman Z-Score", nameEn: "Altman Z-Score", timeframe: "TTM", value: 15.51, nullReason: null, passed: true },
+          ],
+        },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/badges",
+  summary: "查詢個股在各項「達人門檻」徽章上的實際數值與是否達成",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/badges——跟 GET /metrics 每個指標底下的 badge 欄位是兩回事：那邊是徽章本身的定義（名稱/門檻/方法論，全市場通用不分公司），這支才是「這家公司」在這個徽章上算出來的實際數值跟是否達成（passed）。passed 是唯一真相來源，前端／bff-ts 都不應該自己拿 value 去跟 GET /metrics 的 badge.threshold 比較重新算一次——不同徽章的門檻比較邏輯不一致，也沒處理產業排除等 null 情境，analysis-ts 就是為了避免這個問題才做這支端點。查無資料或代號不存在時仍回 200，每個徽章的 value/nullReason/passed 全部是 null，不會是 404。",
+  tags: ["Stock"],
+  request: { params: symbolParam },
+  responses: {
+    200: { description: "依分類分組的徽章清單。", content: { "application/json": { schema: companyBadgesResultSchema } } },
+    502: unauthorized502,
+  },
+});
+
 registry.registerPath({
   method: "get",
   path: "/stocks/{symbol}/profile",

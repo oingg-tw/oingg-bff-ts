@@ -3,6 +3,7 @@ export {
   assertSymbolExists,
   getBeta,
   getCapitalStockHistory,
+  getCompanyBadges,
   getCompanyList,
   getCompanyProfile,
   getDailyPriceHistory,
@@ -28,6 +29,11 @@ export type { StockPrice, StockQuote, StockValuation } from "@/domainBff/stock/s
 export type { CompanyListEntry, CompanyListResult } from "@/domainBff/stock/companyList.types.js";
 export type { CompanyProfile, CompanyProfileMarket } from "@/domainBff/stock/companyProfile.types.js";
 export type { BetaResult, BetaTimeframe, BetaWindow } from "@/domainBff/stock/beta.types.js";
+export type {
+  CompanyBadgeCategory,
+  CompanyBadgeEntry,
+  CompanyBadgesResult,
+} from "@/domainBff/stock/companyBadges.types.js";
 export type {
   CapitalStockChangeSource,
   CapitalStockHistoryEntry,
