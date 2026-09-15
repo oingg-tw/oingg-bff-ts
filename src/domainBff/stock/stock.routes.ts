@@ -319,14 +319,14 @@ stockRouter.get("/:symbol/piotroski-breakdown", async (req, res) => {
   res.json(breakdown);
 });
 
-// Pilot scope: started at sue/chowderNumber/roe, expanded 2026-09-11 to add
-// accrualsRatio/dividendPayoutRatio/altmanZScore — zod-validated on analysis-ts's own side too, see
-// metricProvenance.client.ts.
+// Not a fixed enum — analysis-ts's own supported metricCode set for this endpoint keeps growing (started
+// at 3, now 112+, see GET /metrics' hasProvenance field) and validates itself; a bad value here is relayed
+// as analysis-ts's own 400 message (see metricProvenance.client.ts) rather than guessed at locally. A
+// hardcoded enum here used to silently block newly-added metricCodes until this file caught up — see
+// metricProvenance.types.ts's MetricProvenanceMetricCode.
 export const metricProvenanceQuerySchema = z
   .object({
-    metricCode: z.enum(["sue", "chowderNumber", "roe", "accrualsRatio", "dividendPayoutRatio", "altmanZScore"], {
-      error: '"metricCode" must be "sue", "chowderNumber", "roe", "accrualsRatio", "dividendPayoutRatio", or "altmanZScore"',
-    }),
+    metricCode: z.string({ error: '"metricCode" is required' }).trim().min(1, '"metricCode" is required'),
     year: z.string().trim().min(1, '"year" must be a non-empty string').optional(),
     season: z.string().trim().min(1, '"season" must be a non-empty string').optional(),
   })

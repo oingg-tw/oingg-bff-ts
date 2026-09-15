@@ -164,4 +164,37 @@ describe("fetchMetricProvenance", () => {
 
     await expect(fetchMetricProvenance("2330", "roe")).rejects.toMatchObject({ statusCode: 502 });
   });
+
+  // Regression coverage for 2026-09-15: bff-ts used to hardcode the allowed metricCode set and never
+  // even called analysis-ts for anything outside it (caught when hasProvenance already listed 112
+  // metricCodes but this endpoint only accepted 6). Validation is now analysis-ts's own — confirmed live
+  // its 400 is a nested zod error tree, not the flat {message} shape most other clients relay, so the
+  // useful detail (the actual supported-metricCode list) must be dug out of errors.metricCode._errors.
+  it("relays analysis-ts's nested 400 field error for an unsupported metricCode", async () => {
+    mockFetchOnce({
+      ok: false,
+      status: 400,
+      body: {
+        message: "Invalid query parameters.",
+        errors: {
+          _errors: [],
+          metricCode: { _errors: ['metricCode is required, 目前僅支援 sue/chowderNumber/roe。'] },
+        },
+      },
+    });
+
+    await expect(fetchMetricProvenance("2330", "totallyBogusMetric")).rejects.toMatchObject({
+      statusCode: 400,
+      message: "metricCode is required, 目前僅支援 sue/chowderNumber/roe。",
+    });
+  });
+
+  it("falls back to the top-level message when there's no nested metricCode field error", async () => {
+    mockFetchOnce({ ok: false, status: 400, body: { message: "Some other validation error." } });
+
+    await expect(fetchMetricProvenance("2330", "roe")).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Some other validation error.",
+    });
+  });
 });

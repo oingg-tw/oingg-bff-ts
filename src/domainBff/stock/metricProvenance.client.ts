@@ -48,9 +48,10 @@ function isMetricProvenanceResponse(body: unknown): body is Record<string, unkno
 /**
  * Fetches the raw-filing provenance trail behind one metric's computed value from analysis-ts's GET
  * /companies/{symbol}/metric-provenance — backs web-nuxt's "trace this badge's number back to the raw
- * filing" feature. Pilot scope started at 3 metricCodes (sue/chowderNumber/roe), expanded 2026-09-11 to 6
- * (added accrualsRatio/dividendPayoutRatio/altmanZScore, analysis-ts commit fd0416a) — zod-validated on
- * both sides. Pure pass-through, zero computation (see [[feedback_proxy_apis_no_transformation]]). Unlike
+ * filing" feature. Pilot scope started at 3 metricCodes (sue/chowderNumber/roe) and has since grown to
+ * 112+ (see GET /metrics' hasProvenance field) — analysis-ts validates metricCode itself now (see
+ * metricProvenance.types.ts's MetricProvenanceMetricCode; bff-ts stopped hardcoding the allowed set
+ * 2026-09-15). Pure pass-through, zero computation (see [[feedback_proxy_apis_no_transformation]]). Unlike
  * bff-ts's other analysis-ts calls, symbol is a PATH segment on analysis-ts's own endpoint too (not a
  * query param) — confirmed live, 2026-09-10 — so it's interpolated into the path here instead of added
  * to searchParams.
@@ -79,6 +80,24 @@ export async function fetchMetricProvenance(
 
   const url = buildAnalysisServiceUrl(`/companies/${encodeURIComponent(symbol)}/metric-provenance`, searchParams);
   const response = await fetchAnalysisService(url);
+
+  if (response.status === 400) {
+    const body: unknown = await response.json().catch(() => null);
+    // analysis-ts's 400 here is a nested zod error tree (e.g. { message: "Invalid query parameters.",
+    // errors: { metricCode: { _errors: ["metricCode is required, ..."] } } }), not the flat { message }
+    // shape most of this codebase's other analysis-ts clients relay — the useful detail (e.g. the full
+    // list of currently-supported metricCodes) lives in errors.metricCode._errors[0], not the top-level
+    // message, so dig for it rather than surfacing the generic "Invalid query parameters." wrapper.
+    const fieldError = (
+      body as { errors?: { metricCode?: { _errors?: unknown[] } } } | null
+    )?.errors?.metricCode?._errors?.[0];
+    const topLevelMessage = (body as { message?: unknown } | null)?.message;
+    const message = typeof fieldError === "string" ? fieldError : topLevelMessage;
+    if (typeof message !== "string") {
+      logger.error({ url: url.toString() }, "Invalid metric provenance request, no message in response body");
+    }
+    throw new AppError(typeof message === "string" ? message : "Invalid metric provenance request", 400);
+  }
   assertAnalysisServiceOk(response, url, "Metric provenance endpoint");
 
   const body: unknown = await response.json();

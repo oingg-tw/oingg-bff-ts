@@ -1,4 +1,14 @@
-export type MetricProvenanceMetricCode = "sue" | "chowderNumber" | "roe" | "accrualsRatio" | "dividendPayoutRatio" | "altmanZScore";
+/**
+ * Not a fixed enum — analysis-ts's supported metricCode set for this endpoint has grown from an initial
+ * pilot of 3 (sue/chowderNumber/roe) to 112+ and keeps expanding (same growing-allowlist pattern as GET
+ * /metrics' hasProvenance field, which flags which metricCodes support this endpoint — see
+ * metricCatalog.types.ts). bff-ts used to hardcode the allowed set here and reject anything else with its
+ * own 400 before ever calling analysis-ts, which meant every expansion on their side required a matching
+ * code change here before it actually worked — caught 2026-09-15 when hasProvenance already listed 112
+ * metricCodes but this endpoint only accepted 6. Validation is now analysis-ts's own — an unsupported
+ * value gets analysis-ts's own 400 message relayed as-is (see metricProvenance.client.ts).
+ */
+export type MetricProvenanceMetricCode = string;
 
 export interface MetricProvenanceEntry {
   /** Chinese label describing what this entry is for the computation (e.g. "TTM 淨利（第 1/4 季）"). */
@@ -23,9 +33,10 @@ export interface MetricProvenanceEntry {
 
 /**
  * The raw-filing provenance trail behind one metric's computed value — backs web-nuxt's "trace this
- * badge's number back to the raw filing" feature. Pilot scope is exactly 3 metricCodes (sue/
- * chowderNumber/roe), zod-validated on both this side and analysis-ts's. Confirmed with analysis-ts
- * directly (2026-09-10) via real 2330 examples for all 3.
+ * badge's number back to the raw filing" feature. Validated by analysis-ts itself, not by a fixed enum on
+ * this side (see MetricProvenanceMetricCode) — check GET /metrics' hasProvenance field for which
+ * metricCodes currently support this. Confirmed with analysis-ts directly (2026-09-10) via real 2330
+ * examples for the initial pilot set.
  */
 export interface MetricProvenanceResult {
   symbol: string;
