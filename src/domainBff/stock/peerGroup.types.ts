@@ -1,4 +1,20 @@
-export type PeerGroupClassificationLevel = "category" | "coarseGroup";
+/**
+ * Which level of the supply-chain drill-down tree (GET /industries/chain-tree, same underlying data
+ * source) this comparison actually used — replaced PeerGroupClassificationLevel (category/coarseGroup)
+ * 2026-09-15 when analysis-ts switched the peer-selection algorithm to prefer the tree's finest leaf level
+ * first, falling back toward the root only when there aren't enough peers (see PeerGroupResult).
+ */
+export type PeerGroupLevel = "coarse_group" | "category" | "segment";
+
+/**
+ * Why `found` is false — added 2026-09-15 alongside the peer-selection algorithm rewrite, distinguishing
+ * two previously-conflated cases: "not_classified" (the symbol isn't in the supply-chain tree at all) vs.
+ * "insufficient_peers" (it IS classified, but even falling all the way back to the tree's root level still
+ * doesn't reach `minPeers`) — the old behavior silently returned a coarseGroup-level result regardless of
+ * whether it actually met minPeers; now an unmet minPeers at every level is a genuine `found: false`
+ * rather than a forced result.
+ */
+export type PeerGroupNotFoundReason = "not_classified" | "insufficient_peers";
 
 /**
  * How this symbol's classification was determined — replaced confidence/sampleSize 2026-09-15 when
@@ -19,28 +35,40 @@ export interface PeerGroupCompany {
  * Supply-chain-derived peer comparison for one symbol, from analysis-ts's GET /companies/peer-group
  * (added 2026-09-14, replacing an earlier gov-ts-tax-registry-based version — a breaking change on their
  * side, but bff-ts never had a proxy for the old version, so there was nothing to migrate here). Industry
- * classification comes from oingg-playwright-py's Gemini-parsed real supply-chain relationships, not the
- * Ministry of Finance's tax-registration scheme (see industries.client.ts's GET /industries/tree, a
- * completely separate, unrelated classification this endpoint does not touch).
+ * classification comes from oingg-playwright-py's real supply-chain relationships, not the Ministry of
+ * Finance's tax-registration scheme (see industries.client.ts's GET /industries/tree, a completely
+ * separate, unrelated classification this endpoint does not touch).
  *
- * `classificationLevel` has only 2 tiers (category/coarseGroup), unlike the 4-level gov-ts scheme —
- * analysis-ts falls back from category to coarseGroup when there aren't enough peers at the finer level.
- * `source` describes the TARGET symbol's own classification method — see PeerGroupClassificationSource.
- * `confidence`/`sampleSize` fields existed briefly (2026-09-14) and were replaced by `source` the next day
- * when playwright-py changed methodology. `warnings` carries human-readable Traditional Chinese
- * explanations (e.g. a fallback-level notice) meant to be shown to the user as-is, not parsed.
+ * Peer-selection algorithm rewritten 2026-09-15: previously drew from a flat ~33-category scheme that
+ * mixed unrelated business models under one label (e.g. "資訊設備" lumped notebook ODMs, brand owners,
+ * thermal-component makers, and server makers together, 113 companies deep). Now draws from GET
+ * /industries/chain-tree's finer drill-down leaves first — `peerGroupLevel`/`peerGroupNodeId`/
+ * `peerGroupLabel` describe whichever tree level actually got used for THIS comparison (falling back
+ * toward the tree's root only when there aren't enough peers at a finer level; `warnings` explains a
+ * fallback in Traditional Chinese, meant to be shown to the user as-is, not parsed). `peerGroupNodeId` is
+ * NOT a stable id — same instability as GET /industries/chain-tree's own nodeId; never cache, bookmark, or
+ * share-link it.
  *
- * `found: false` (unknown/not-yet-classified symbol) still returns 200 with every other field null and
- * empty peers/warnings arrays, not a 404 — confirmed live, same convention as this domain's other
- * per-symbol endpoints.
+ * `category`/`coarseGroup`/`source`/`updatedAt` are carried over from the OLD flat scheme and downgraded
+ * to a purely informational "industry tag" display value — they no longer describe the level this
+ * comparison's peers were drawn from (that's `peerGroupLevel` now).
+ *
+ * `found: false` no longer means simply "unclassified" — see `notFoundReason` (added the same day) for the
+ * two distinct cases. Still always 200, never a 404, same convention as this domain's other per-symbol
+ * endpoints; every other field is null and peers/warnings are empty arrays when `found` is false.
  */
 export interface PeerGroupResult {
   symbol: string;
   companyName: string | null;
   found: boolean;
-  classificationLevel: PeerGroupClassificationLevel | null;
-  industryCode: string | null;
-  industryName: string | null;
+  notFoundReason: PeerGroupNotFoundReason | null;
+  peerGroupLevel: PeerGroupLevel | null;
+  peerGroupNodeId: string | null;
+  peerGroupLabel: string | null;
+  /** Informational "industry tag" only as of 2026-09-15 — does NOT describe the level peers were drawn from; see peerGroupLevel for that. */
+  category: string | null;
+  /** Informational "industry tag" only as of 2026-09-15 — see category. */
+  coarseGroup: string | null;
   source: PeerGroupClassificationSource | null;
   updatedAt: string | null;
   peers: PeerGroupCompany[];

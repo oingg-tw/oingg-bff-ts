@@ -25,14 +25,19 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// Real shape given directly by analysis-ts (2026-09-15: confidence/sampleSize replaced by source).
+// Real shape given directly by analysis-ts (2026-09-15: peer-selection algorithm rewrite —
+// classificationLevel/industryCode/industryName replaced by peerGroupLevel/peerGroupNodeId/
+// peerGroupLabel + notFoundReason; category/coarseGroup demoted to informational tags).
 const RAW_BODY = {
   symbol: "2330",
   companyName: "台積電",
   found: true,
-  classificationLevel: "category",
-  industryCode: "積體電路",
-  industryName: "積體電路",
+  notFoundReason: null,
+  peerGroupLevel: "segment",
+  peerGroupNodeId: "電子零組件與半導體/積體電路/0/0",
+  peerGroupLabel: "晶圓代工與主流封測",
+  category: "積體電路",
+  coarseGroup: "電子零組件與半導體",
   source: "gemini",
   updatedAt: "2026-09-14",
   peers: [
@@ -56,27 +61,42 @@ describe("fetchPeerGroup", () => {
   it("includes minPeers when given", async () => {
     mockFetchOnce({ ok: true, body: RAW_BODY });
 
-    await fetchPeerGroup("2330", { minPeers: 5 });
+    await fetchPeerGroup("2330", { minPeers: 50 });
 
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(url.toString()).toBe("http://filters.test/companies/peer-group?symbol=2330&minPeers=5");
+    expect(url.toString()).toBe("http://filters.test/companies/peer-group?symbol=2330&minPeers=50");
   });
 
-  // Confirmed live: falling back from category to coarseGroup carries an explanatory warning.
-  it("passes through warnings and a coarseGroup fallback level", async () => {
+  // Confirmed live: minPeers=50 falls back from segment to category level, with an explanatory warning.
+  it("passes through warnings and a category-level fallback", async () => {
     mockFetchOnce({
       ok: true,
       body: {
         ...RAW_BODY,
-        classificationLevel: "coarseGroup",
-        warnings: ["同業數在較細的分類下不足，已回退到更粗的分類層級。"],
+        peerGroupLevel: "category",
+        peerGroupNodeId: "電子零組件與半導體/積體電路",
+        peerGroupLabel: "積體電路",
+        warnings: ["同業數在產業內區隔層級不足 50 家，已回退到整個產業層級（積體電路），同業裡可能包含上下游位置不同的公司，請自行判斷比較的參考價值。"],
       },
     });
 
+    const result = await fetchPeerGroup("2330", { minPeers: 50 });
+
+    expect(result.peerGroupLevel).toBe("category");
+    expect(result.peerGroupLabel).toBe("積體電路");
+    expect(result.warnings).toHaveLength(1);
+  });
+
+  // category/coarseGroup are downgraded to purely informational tags as of 2026-09-15 — must still pass
+  // through even when they differ from the level actually used for this comparison (peerGroupLevel).
+  it("passes through category/coarseGroup as informational tags independent of peerGroupLevel", async () => {
+    mockFetchOnce({ ok: true, body: RAW_BODY });
+
     const result = await fetchPeerGroup("2330");
 
-    expect(result.classificationLevel).toBe("coarseGroup");
-    expect(result.warnings).toEqual(["同業數在較細的分類下不足，已回退到更粗的分類層級。"]);
+    expect(result.category).toBe("積體電路");
+    expect(result.coarseGroup).toBe("電子零組件與半導體");
+    expect(result.peerGroupLevel).toBe("segment");
   });
 
   // source replaced confidence/sampleSize 2026-09-15 — must survive normalization as-is.
@@ -88,17 +108,20 @@ describe("fetchPeerGroup", () => {
     expect(result.source).toBe("keyword");
   });
 
-  // Confirmed live: an unknown/not-yet-classified symbol is still a 200, found:false, everything else null/empty.
-  it("returns found:false with null fields and empty arrays for an unknown symbol, without throwing", async () => {
+  // Confirmed live: an unclassified symbol is still a 200, found:false, notFoundReason:"not_classified".
+  it("returns found:false with notFoundReason:not_classified for an unknown symbol, without throwing", async () => {
     mockFetchOnce({
       ok: true,
       body: {
         symbol: "NOPE9999",
         companyName: null,
         found: false,
-        classificationLevel: null,
-        industryCode: null,
-        industryName: null,
+        notFoundReason: "not_classified",
+        peerGroupLevel: null,
+        peerGroupNodeId: null,
+        peerGroupLabel: null,
+        category: null,
+        coarseGroup: null,
         source: null,
         updatedAt: null,
         peers: [],
@@ -112,14 +135,47 @@ describe("fetchPeerGroup", () => {
       symbol: "NOPE9999",
       companyName: null,
       found: false,
-      classificationLevel: null,
-      industryCode: null,
-      industryName: null,
+      notFoundReason: "not_classified",
+      peerGroupLevel: null,
+      peerGroupNodeId: null,
+      peerGroupLabel: null,
+      category: null,
+      coarseGroup: null,
       source: null,
       updatedAt: null,
       peers: [],
       warnings: [],
     });
+  });
+
+  // A classified symbol can still fail minPeers even at the tree's root — this is a genuine found:false
+  // now (2026-09-15 rewrite), not a forced coarse-level result like before.
+  it("returns found:false with notFoundReason:insufficient_peers when even the root level can't meet minPeers", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        symbol: "1234",
+        companyName: "冷門公司",
+        found: false,
+        notFoundReason: "insufficient_peers",
+        peerGroupLevel: null,
+        peerGroupNodeId: null,
+        peerGroupLabel: null,
+        category: "某冷門分類",
+        coarseGroup: "某粗分類",
+        source: "gemini",
+        updatedAt: "2026-09-14",
+        peers: [],
+        warnings: [],
+      },
+    });
+
+    const result = await fetchPeerGroup("1234", { minPeers: 999 });
+
+    expect(result.found).toBe(false);
+    expect(result.notFoundReason).toBe("insufficient_peers");
+    // Informational tags can still be present even when found is false for this reason.
+    expect(result.category).toBe("某冷門分類");
   });
 
   it("relays analysis-ts's 400 message for an invalid query param", async () => {
