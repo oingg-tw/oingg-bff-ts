@@ -138,11 +138,11 @@ export interface ChainCluster {
   label: string;
   /**
    * A coarser "browse group" label rolling up the fine-grained clusters (added by analysis-ts 2026-09-15,
-   * same instability caveat as clusterId/subClusterId). KNOWN DATA BUG as of 2026-09-15, confirmed live and
-   * reported by analysis-ts: playwright-py's grouping logic is currently lumping the large majority of
-   * clusters (270 of 326) into a single metaGroup value regardless of actual industry (tourism/textiles/
-   * biotech/finance/construction all mixed together) — do not build a "20-group filter" UI on this field
-   * until playwright-py confirms the grouping logic is fixed.
+   * same instability caveat as clusterId/subClusterId). An earlier rollout (326 clusters) had a real data
+   * bug — a hub-node-isolation fix's side effect lumped 270/326 clusters into one bogus metaGroup value —
+   * since fixed by playwright-py (re-clustered to 233 clusters, confirmed live: a skewed but genuine
+   * distribution across 17 groups, e.g. 177 clusters legitimately share "積體電路為主的跨產業樞紐群" since
+   * the underlying supply-chain graph really is centered on Taiwan's electronics supply chain).
    */
   metaGroup: string | null;
   /** Populated only for top-level clusters small enough (<=100 nodes) to skip sub-clustering entirely — otherwise empty and members live under subClusters instead. */
