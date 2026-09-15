@@ -4,6 +4,7 @@ import { parseBody } from "@/shared/validation.js";
 import {
   getChainClassification,
   getChainClusters,
+  getChainTree,
   getIndustryFlatList,
   getIndustryTree,
   getSecuritiesSectors,
@@ -38,5 +39,10 @@ industriesRouter.get("/chain-classification", async (_req, res) => {
 
 industriesRouter.get("/chain-clusters", async (_req, res) => {
   const tree = await getChainClusters();
+  res.json(tree);
+});
+
+industriesRouter.get("/chain-tree", async (_req, res) => {
+  const tree = await getChainTree();
   res.json(tree);
 });

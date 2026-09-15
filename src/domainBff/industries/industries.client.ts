@@ -10,6 +10,10 @@ import type {
   ChainClusterMember,
   ChainClusterTree,
   ChainSubCluster,
+  ChainTree,
+  ChainTreeCompany,
+  ChainTreeNode,
+  ChainTreeNodeType,
   IndustryFlatCompany,
   IndustryFlatList,
   IndustryLevel,
@@ -241,4 +245,56 @@ export async function fetchChainClusters(): Promise<ChainClusterTree> {
   }
 
   return { clusters: clusters.map(normalizeChainCluster) };
+}
+
+const VALID_CHAIN_TREE_NODE_TYPES: ChainTreeNodeType[] = ["coarse_group", "category", "segment", "misc"];
+
+function isChainTreeNodeType(value: unknown): value is ChainTreeNodeType {
+  return typeof value === "string" && (VALID_CHAIN_TREE_NODE_TYPES as string[]).includes(value);
+}
+
+function normalizeChainTreeCompany(raw: unknown): ChainTreeCompany {
+  const r = raw as Record<string, unknown>;
+  return { symbol: String(r.symbol), companyName: String(r.companyName) };
+}
+
+function normalizeChainTreeNode(raw: unknown): ChainTreeNode {
+  const r = raw as Record<string, unknown>;
+  if (!isChainTreeNodeType(r.nodeType)) {
+    throw new AppError(`Chain tree node has an unrecognized nodeType: ${String(r.nodeType)}`, 502);
+  }
+  return {
+    nodeId: String(r.nodeId),
+    nodeType: r.nodeType,
+    label: String(r.label),
+    depth: Number(r.depth),
+    size: Number(r.size),
+    children: Array.isArray(r.children) ? r.children.map(normalizeChainTreeNode) : [],
+    members: Array.isArray(r.members) ? r.members.map(normalizeChainTreeCompany) : [],
+  };
+}
+
+/**
+ * Fetches the drill-down browsing tree from analysis-ts's GET /industries/chain-tree — added 2026-09-15, a
+ * third independent view of the same supply-chain classification data alongside fetchChainClassification
+ * (flat category/coarseGroup) and fetchChainClusters (cluster grouping); none of the three replaces
+ * another. `nodeId` is NOT stable across requests (rebuilding the tree reshuffles it, same caveat as
+ * ChainCluster.clusterId) — never persist it. `members` is populated only on leaf nodes (empty
+ * `children`); every member is TWSE/TPEx-listed, unlike ChainCluster's members which include non-listed
+ * international nodes. No query params — always the full tree (11 top-level roots, 273 total nodes, 208
+ * leaves as of 2026-09-15).
+ */
+export async function fetchChainTree(): Promise<ChainTree> {
+  const url = buildAnalysisServiceUrl("/industries/chain-tree");
+  const response = await fetchAnalysisService(url);
+  assertAnalysisServiceOk(response, url, "Chain tree endpoint");
+
+  const body: unknown = await response.json();
+  const roots = (body as { roots?: unknown } | null)?.roots;
+  if (!Array.isArray(roots)) {
+    logger.error({ url: url.toString() }, "Chain tree endpoint response is missing a roots array");
+    throw new AppError("Chain tree endpoint response is missing a roots array", 502);
+  }
+
+  return { roots: roots.map(normalizeChainTreeNode) };
 }

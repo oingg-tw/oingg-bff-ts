@@ -161,3 +161,42 @@ export interface ChainClusterTree {
   clusters: ChainCluster[];
 }
 
+export type ChainTreeNodeType = "coarse_group" | "category" | "segment" | "misc";
+
+export interface ChainTreeCompany {
+  symbol: string;
+  companyName: string;
+}
+
+export interface ChainTreeNode {
+  /** NOT a stable id — same instability caveat as ChainCluster.clusterId/ChainSubCluster.subClusterId: rebuilding the tree reshuffles these. Never cache, bookmark, or share-link. */
+  nodeId: string;
+  nodeType: ChainTreeNodeType;
+  label: string;
+  /** 0-based depth from the root. */
+  depth: number;
+  /** Company count under this node (including descendants), independent of `children`/`members` being populated. */
+  size: number;
+  children: ChainTreeNode[];
+  /**
+   * Only populated on a leaf node (children is empty) — a coarse_group/category/segment node with
+   * children instead has an empty members array. Every entry is a TWSE/TPEx-listed company (unlike
+   * ChainCluster's members, this tree doesn't include non-listed international supply-chain nodes, so
+   * there's no isListed flag to check here).
+   */
+  members: ChainTreeCompany[];
+}
+
+/**
+ * A drill-down browsing tree (coarse group -> category -> segment(s) -> leaf, 11 top-level roots / 273
+ * total nodes / 208 leaves as of 2026-09-15) from analysis-ts's GET /industries/chain-tree — a third,
+ * independent view of the same underlying supply-chain classification data, alongside (not replacing)
+ * ChainClassificationList's flat category/coarseGroup listing and ChainClusterTree's cluster grouping.
+ * GET /industries/chain-classification and its company_category_summary data source remain the one used
+ * for GET /companies/peer-group and each company's own displayed industry tag — this tree is purely an
+ * additional, more granular browsing UI data source.
+ */
+export interface ChainTree {
+  roots: ChainTreeNode[];
+}
+

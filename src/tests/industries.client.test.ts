@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchChainClassification,
   fetchChainClusters,
+  fetchChainTree,
   fetchIndustryFlatList,
   fetchIndustryTree,
   fetchSecuritiesSectors,
@@ -388,6 +389,96 @@ describe("fetchChainClusters", () => {
     mockFetchOnce({ ok: true, body: { oops: true } });
 
     await expect(fetchChainClusters()).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+// Real shape given directly by analysis-ts (2026-09-15).
+const CHAIN_TREE_RESPONSE = {
+  roots: [
+    {
+      nodeId: "電子零組件與半導體",
+      nodeType: "coarse_group",
+      label: "電子零組件與半導體",
+      depth: 0,
+      size: 406,
+      children: [
+        {
+          nodeId: "電子零組件與半導體/積體電路",
+          nodeType: "category",
+          label: "積體電路",
+          depth: 1,
+          size: 152,
+          children: [],
+          members: [
+            { symbol: "2330", companyName: "台積電" },
+            { symbol: "2303", companyName: "聯電" },
+          ],
+        },
+      ],
+      members: [],
+    },
+    {
+      nodeId: "其他",
+      nodeType: "misc",
+      label: "其他",
+      depth: 0,
+      size: 1,
+      children: [],
+      members: [{ symbol: "9999", companyName: "測試公司" }],
+    },
+  ],
+};
+
+describe("fetchChainTree", () => {
+  it("requests /industries/chain-tree with no query params and normalizes the full tree", async () => {
+    mockFetchOnce({ ok: true, body: CHAIN_TREE_RESPONSE });
+
+    const result = await fetchChainTree();
+
+    expect(result).toEqual(CHAIN_TREE_RESPONSE);
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(calledUrl.toString()).toBe("http://filters.test/industries/chain-tree");
+  });
+
+  // members is only meaningful on a leaf node (empty children) — a non-leaf node's members must survive
+  // as an empty array, not be dropped or coerced to null.
+  it("keeps an empty members array on a non-leaf node and populates it on a leaf node", async () => {
+    mockFetchOnce({ ok: true, body: CHAIN_TREE_RESPONSE });
+
+    const result = await fetchChainTree();
+
+    expect(result.roots[0]?.members).toEqual([]);
+    expect(result.roots[0]?.children[0]?.members).toEqual([
+      { symbol: "2330", companyName: "台積電" },
+      { symbol: "2303", companyName: "聯電" },
+    ]);
+  });
+
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchChainTree()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError for a non-2xx status", async () => {
+    mockFetchOnce({ ok: false, status: 500, body: {} });
+
+    await expect(fetchChainTree()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it('throws a 502 AppError when the response is missing a "roots" array', async () => {
+    mockFetchOnce({ ok: true, body: { oops: true } });
+
+    await expect(fetchChainTree()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when a node has an unrecognized nodeType", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { roots: [{ nodeId: "x", nodeType: "not-a-real-type", label: "x", depth: 0, size: 1, children: [], members: [] }] },
+    });
+
+    await expect(fetchChainTree()).rejects.toMatchObject({ statusCode: 502 });
   });
 });
 

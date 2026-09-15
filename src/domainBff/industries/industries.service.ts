@@ -1,6 +1,7 @@
 import {
   fetchChainClassification,
   fetchChainClusters,
+  fetchChainTree,
   fetchIndustryFlatList,
   fetchIndustryTree,
   fetchSecuritiesSectors,
@@ -8,6 +9,7 @@ import {
 import type {
   ChainClassificationList,
   ChainClusterTree,
+  ChainTree,
   IndustryFlatList,
   IndustryTree,
   SecuritiesSectorList,
@@ -36,4 +38,9 @@ export async function getChainClassification(): Promise<ChainClassificationList>
 /** Full supply-chain cluster tree — GET /industries/chain-clusters. clusterId/subClusterId are NOT stable across requests. */
 export async function getChainClusters(): Promise<ChainClusterTree> {
   return fetchChainClusters();
+}
+
+/** Supply-chain drill-down browsing tree — GET /industries/chain-tree. nodeId is NOT stable across requests. */
+export async function getChainTree(): Promise<ChainTree> {
+  return fetchChainTree();
 }

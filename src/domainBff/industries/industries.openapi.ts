@@ -204,6 +204,73 @@ registry.registerPath({
   },
 });
 
+const chainTreeCompanySchema = z.object({ symbol: z.string(), companyName: z.string() });
+
+const chainTreeNodeTypeSchema = z.enum(["coarse_group", "category", "segment", "misc"]);
+
+const chainTreeNodeSchema: z.ZodType<{
+  nodeId: string;
+  nodeType: "coarse_group" | "category" | "segment" | "misc";
+  label: string;
+  depth: number;
+  size: number;
+  children: unknown[];
+  members: { symbol: string; companyName: string }[];
+}> = z.lazy(() =>
+  z
+    .object({
+      nodeId: z.string(),
+      nodeType: chainTreeNodeTypeSchema,
+      label: z.string(),
+      depth: z.number(),
+      size: z.number(),
+      children: z.array(chainTreeNodeSchema),
+      members: z.array(chainTreeCompanySchema),
+    })
+    .openapi("ChainTreeNode"),
+);
+
+const chainTreeSchema = z
+  .object({ roots: z.array(chainTreeNodeSchema) })
+  .openapi("ChainTree", {
+    example: {
+      roots: [
+        {
+          nodeId: "電子零組件與半導體",
+          nodeType: "coarse_group",
+          label: "電子零組件與半導體",
+          depth: 0,
+          size: 406,
+          children: [
+            {
+              nodeId: "電子零組件與半導體/積體電路",
+              nodeType: "category",
+              label: "積體電路",
+              depth: 1,
+              size: 152,
+              children: [],
+              members: [],
+            },
+          ],
+          members: [],
+        },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/industries/chain-tree",
+  summary: "供應鏈逐層瀏覽樹（粗分組→細分類→區段，11 個頂層根節點/273 個節點/208 個葉節點）——跟聚落樹、扁平分類是第三套獨立瀏覽方式",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /industries/chain-tree（2026-09-15 新增，playwright-py 重建）。跟 GET /industries/chain-classification（扁平 category/coarseGroup）、GET /industries/chain-clusters（聚落分群）是同一份底層供應鏈分類資料的第三種、完全獨立的瀏覽視角，三支並存，互不取代——GET /companies/peer-group 的同業比較、每家公司自己顯示的產業標籤，資料來源仍然是 chain-classification 那份，不會因為這支上線而改變。**nodeId 不是穩定 id**——樹重建後會洗牌，跟 chain-clusters 的 clusterId 同一種限制，前端不能把它放進 URL 參數、收藏、分享連結、或任何形式的快取，只能當「這次查詢當下」使用。members 只有葉節點（children 為空陣列）才會有值，其餘節點 members 固定是空陣列；跟 chain-clusters 不同，這棵樹只含台股上市櫃公司，不含蘋果/NVIDIA 這類國際節點，所以沒有 isListed 欄位。nodeType 有 4 種：coarse_group（粗分組）/category（細分類）/segment（區段，可能巢狀多層）/misc（其他，未能細分的節點）。size 是這個節點底下（含子孫）的公司數，不受 children/members 是否展開影響。沒有查詢參數，一次回傳整棵樹。",
+  tags: ["Industries"],
+  responses: {
+    200: { description: "完整供應鏈瀏覽樹。", content: { "application/json": { schema: chainTreeSchema } } },
+    502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
+  },
+});
+
 registry.registerPath({
   method: "get",
   path: "/industries/flat",
