@@ -161,6 +161,7 @@ const chainSubClusterSchema = z.object({
 const chainClusterSchema = z.object({
   clusterId: z.number(),
   label: z.string(),
+  metaGroup: z.string().nullable(),
   directMembers: z.array(chainClusterMemberSchema),
   subClusters: z.array(chainSubClusterSchema),
 });
@@ -173,6 +174,7 @@ const chainClusterTreeSchema = z
         {
           clusterId: 0,
           label: "證券金融與資安雲端",
+          metaGroup: "金融服務",
           directMembers: [],
           subClusters: [
             {
@@ -194,7 +196,7 @@ registry.registerPath({
   path: "/industries/chain-clusters",
   summary: "供應鏈聚落樹（113 個頂層聚落＋475 個子聚落，含國際供應鏈節點）——跟扁平分類是完全獨立的兩套分群概念",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /industries/chain-clusters（2026-09-14 新增）。跟 GET /industries/chain-classification 的扁平 category/coarseGroup 分類是完全獨立的兩套分群概念，並存服務不同的瀏覽方式，不是取代關係。**兩個必須遵守的限制**：(1) clusterId/subClusterId **不是穩定 id**——playwright-py 重新跑分群演算法後，同一個 id 可能對應到完全不同的一群公司，編號會整個洗牌；前端不能把這兩個 id 放進 URL 參數、收藏、分享連結、或任何形式的快取，只能當「這次查詢當下」使用，每次都要重新呼叫這支端點取得最新的樹。(2) 成員的 code 不是只有台股代號——供應鏈圖包含蘋果/NVIDIA 這類國際客戶/供應商節點（約 7,566 個節點中 1,912 個是上市櫃、5,654 個是外部公司），isListed:false 代表這是外部節點，沒有對應的個股詳情頁可以連結，點擊行為要先判斷這個欄位。directMembers 只有節點數 <=100、沒有再往下分子聚落的頂層聚落才會有內容，其餘頂層聚落的成員都在 subClusters 底下。沒有查詢參數，一次回傳整棵樹。",
+    "資料來自 oingg-analysis-ts 的 GET /industries/chain-clusters（2026-09-14 新增）。跟 GET /industries/chain-classification 的扁平 category/coarseGroup 分類是完全獨立的兩套分群概念，並存服務不同的瀏覽方式，不是取代關係。**兩個必須遵守的限制**：(1) clusterId/subClusterId/metaGroup 底層的分群結果**都不是穩定的**——playwright-py 重新跑分群演算法後，同一個 id 可能對應到完全不同的一群公司，編號會整個洗牌；前端不能把這些值放進 URL 參數、收藏、分享連結、或任何形式的快取，只能當「這次查詢當下」使用，每次都要重新呼叫這支端點取得最新的樹。(2) 成員的 code 不是只有台股代號——供應鏈圖包含蘋果/NVIDIA 這類國際客戶/供應商節點（約 7,566 個節點中 1,912 個是上市櫃、5,654 個是外部公司），isListed:false 代表這是外部節點，沒有對應的個股詳情頁可以連結，點擊行為要先判斷這個欄位。metaGroup（2026-09-15 新增）是把細聚落再收斂成給人類瀏覽用的粗分組標籤——**目前已知資料異常，暫時不要拿來做「分組篩選」之類的功能驗收或展示**：playwright-py 抓到上一輪修復高連結度樞紐節點時調整的分群參數有副作用，導致絕大多數聚落被錯誤收斂成同一個 metaGroup 值，正在重跑整條 pipeline 修正，之後會有進一步通知才能正式使用。directMembers 只有節點數 <=100、沒有再往下分子聚落的頂層聚落才會有內容，其餘頂層聚落的成員都在 subClusters 底下。沒有查詢參數，一次回傳整棵樹。",
   tags: ["Industries"],
   responses: {
     200: { description: "完整供應鏈聚落樹。", content: { "application/json": { schema: chainClusterTreeSchema } } },

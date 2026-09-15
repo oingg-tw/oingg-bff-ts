@@ -136,6 +136,15 @@ export interface ChainCluster {
   /** NOT a stable id — see ChainSubCluster.subClusterId's note; the same instability applies here. */
   clusterId: number;
   label: string;
+  /**
+   * A coarser "browse group" label rolling up the fine-grained clusters (added by analysis-ts 2026-09-15,
+   * same instability caveat as clusterId/subClusterId). KNOWN DATA BUG as of 2026-09-15, confirmed live and
+   * reported by analysis-ts: playwright-py's grouping logic is currently lumping the large majority of
+   * clusters (270 of 326) into a single metaGroup value regardless of actual industry (tourism/textiles/
+   * biotech/finance/construction all mixed together) — do not build a "20-group filter" UI on this field
+   * until playwright-py confirms the grouping logic is fixed.
+   */
+  metaGroup: string | null;
   /** Populated only for top-level clusters small enough (<=100 nodes) to skip sub-clustering entirely — otherwise empty and members live under subClusters instead. */
   directMembers: ChainClusterMember[];
   subClusters: ChainSubCluster[];

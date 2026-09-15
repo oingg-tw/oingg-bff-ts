@@ -215,6 +215,7 @@ function normalizeChainCluster(raw: unknown): ChainCluster {
   return {
     clusterId: Number(r.clusterId),
     label: String(r.label),
+    metaGroup: typeof r.metaGroup === "string" ? r.metaGroup : null,
     directMembers: Array.isArray(r.directMembers) ? r.directMembers.map(normalizeChainClusterMember) : [],
     subClusters: Array.isArray(r.subClusters) ? r.subClusters.map(normalizeChainSubCluster) : [],
   };

@@ -298,6 +298,7 @@ const CHAIN_CLUSTERS_RESPONSE = {
     {
       clusterId: 0,
       label: "證券金融與資安雲端",
+      metaGroup: "金融服務",
       directMembers: [],
       subClusters: [
         {
@@ -313,6 +314,7 @@ const CHAIN_CLUSTERS_RESPONSE = {
     {
       clusterId: 1,
       label: "小型獨立聚落",
+      metaGroup: null,
       directMembers: [{ code: "9999", name: "測試公司", isListed: true }],
       subClusters: [],
     },
@@ -354,9 +356,20 @@ describe("fetchChainClusters", () => {
     expect(result.clusters[1]).toEqual({
       clusterId: 1,
       label: "小型獨立聚落",
+      metaGroup: null,
       directMembers: [{ code: "9999", name: "測試公司", isListed: true }],
       subClusters: [],
     });
+  });
+
+  // metaGroup added 2026-09-15 — must survive normalization, both present and null.
+  it("passes through metaGroup, present or null", async () => {
+    mockFetchOnce({ ok: true, body: CHAIN_CLUSTERS_RESPONSE });
+
+    const result = await fetchChainClusters();
+
+    expect(result.clusters[0]?.metaGroup).toBe("金融服務");
+    expect(result.clusters[1]?.metaGroup).toBeNull();
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
