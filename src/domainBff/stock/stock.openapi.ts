@@ -160,7 +160,7 @@ const companyProfileSchema = z
   });
 
 const betaWindowSchema = z.object({
-  timeframe: z.enum(["1Y_1D", "2Y_1W", "5Y_1M"]),
+  timeframe: z.enum(["1Y_1D", "2Y_1W", "3Y_1W", "5Y_1M"]),
   value: z.number().nullable(),
   nullReason: z.string().nullable(),
   tradeDate: z.string().nullable(),
@@ -179,6 +179,7 @@ const betaResultSchema = z
       windows: [
         { timeframe: "1Y_1D", value: 1.0839, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
         { timeframe: "2Y_1W", value: 1.0953, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
+        { timeframe: "3Y_1W", value: 1.2036, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
         { timeframe: "5Y_1M", value: 1.2215, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
       ],
     },
@@ -187,9 +188,9 @@ const betaResultSchema = z
 registry.registerPath({
   method: "get",
   path: "/stocks/{symbol}/beta",
-  summary: "查詢個股 Beta 係數（三個固定期間窗口）",
+  summary: "查詢個股 Beta 係數（四個固定期間窗口）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/beta。windows 固定是 1Y_1D／2Y_1W／5Y_1M 三個窗口、固定這個順序（不是分頁的時間序列）。查無資料或代號不存在時仍回 200，三個窗口的 value/nullReason/tradeDate/knowledgeDate/knowledgeDateIsFallback 全部是 null，不會是 404。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/beta。windows 固定是 1Y_1D／2Y_1W／3Y_1W／5Y_1M 四個窗口、固定這個順序（不是分頁的時間序列；3Y_1W 為 2026-09-16 新增）。查無資料或代號不存在時仍回 200，四個窗口的 value/nullReason/tradeDate/knowledgeDate/knowledgeDateIsFallback 全部是 null，不會是 404。",
   tags: ["Stock"],
   request: { params: symbolParam },
   responses: {

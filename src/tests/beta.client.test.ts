@@ -25,19 +25,21 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// Real shape given directly by analysis-ts (2026-09-14): fixed 3 windows, 1Y_1D/2Y_1W/5Y_1M order.
+// Real shape given directly by analysis-ts: fixed 4 windows, 1Y_1D/2Y_1W/3Y_1W/5Y_1M order
+// (3Y_1W added 2026-09-16, caught live when it started 502ing bff-ts's strict timeframe validation).
 const RAW_BODY = {
   symbol: "2330",
   metricCode: "beta",
   windows: [
     { timeframe: "1Y_1D", value: 1.0839, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
     { timeframe: "2Y_1W", value: 1.0953, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
+    { timeframe: "3Y_1W", value: 1.2036, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
     { timeframe: "5Y_1M", value: 1.2215, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
   ],
 };
 
 describe("fetchBeta", () => {
-  it("requests /companies/beta?symbol= and normalizes all 3 windows", async () => {
+  it("requests /companies/beta?symbol= and normalizes all 4 windows", async () => {
     mockFetchOnce({ ok: true, body: RAW_BODY });
 
     const result = await fetchBeta("2330");
@@ -47,6 +49,7 @@ describe("fetchBeta", () => {
       windows: [
         { timeframe: "1Y_1D", value: 1.0839, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
         { timeframe: "2Y_1W", value: 1.0953, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
+        { timeframe: "3Y_1W", value: 1.2036, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
         { timeframe: "5Y_1M", value: 1.2215, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false },
       ],
     });
@@ -64,6 +67,7 @@ describe("fetchBeta", () => {
         windows: [
           { timeframe: "1Y_1D", value: null, nullReason: null, tradeDate: null, knowledgeDate: null, knowledgeDateIsFallback: null },
           { timeframe: "2Y_1W", value: null, nullReason: null, tradeDate: null, knowledgeDate: null, knowledgeDateIsFallback: null },
+          { timeframe: "3Y_1W", value: null, nullReason: null, tradeDate: null, knowledgeDate: null, knowledgeDateIsFallback: null },
           { timeframe: "5Y_1M", value: null, nullReason: null, tradeDate: null, knowledgeDate: null, knowledgeDateIsFallback: null },
         ],
       },
