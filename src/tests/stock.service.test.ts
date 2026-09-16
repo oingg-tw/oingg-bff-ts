@@ -392,7 +392,7 @@ describe("getDailyPriceHistory", () => {
   });
 
   it("forwards undefined limit through when omitted (analysis-ts defaults to 250)", async () => {
-    vi.mocked(fetchDailyPriceHistory).mockResolvedValue({ symbol: "2330", entries: [] });
+    vi.mocked(fetchDailyPriceHistory).mockResolvedValue({ symbol: "2330", entries: [], earliestAvailableTradeDate: null });
 
     await getDailyPriceHistory("2330");
 

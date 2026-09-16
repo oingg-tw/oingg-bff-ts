@@ -1182,6 +1182,7 @@ const dailyPriceHistorySchema = z
   .object({
     symbol: z.string(),
     entries: z.array(dailyPriceHistoryEntrySchema),
+    earliestAvailableTradeDate: z.string().nullable(),
   })
   .openapi("DailyPriceHistory", {
     example: {
@@ -1190,6 +1191,7 @@ const dailyPriceHistorySchema = z
         { tradeDate: "2026-09-07", open: 2435, high: 2460, low: 2430, close: 2460, volume: 26898329 },
         { tradeDate: "2026-09-08", open: 2465, high: 2505, low: 2460, close: 2470, volume: 28931697 },
       ],
+      earliestAvailableTradeDate: "2020-11-02",
     },
   });
 
@@ -1198,7 +1200,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/daily-price-history",
   summary: "查詢每日 OHLCV 股價歷史（股價走勢圖用）",
   description:
-    "資料來自 oingg-analysis-ts 自己的 GET /stocks/:symbol/daily-price-history（2026-09-10 新增，跟 foreign-shareholding-history 同樣是 /stocks/:symbol/... 路徑形狀，不是 /companies/xxx-history?symbol=）。entries 是「舊到新」排序——注意跟 foreign-shareholding-history 的「新到舊」相反，不要因為路徑慣例相同就假設排序也相同。limit 是 1-2000，不給 limit 預設只回 250 筆，不是全部（實測 2330 不給 limit 回溯到 2025-08-28，共 250 筆）。這支端點沒有 total/hasMore 欄位，跟 foreign-shareholding-history 一樣。查無資料（代號不存在）回傳空陣列，不是 404。",
+    "資料來自 oingg-analysis-ts 自己的 GET /stocks/:symbol/daily-price-history（2026-09-10 新增，跟 foreign-shareholding-history 同樣是 /stocks/:symbol/... 路徑形狀，不是 /companies/xxx-history?symbol=）。entries 是「舊到新」排序——注意跟 foreign-shareholding-history 的「新到舊」相反，不要因為路徑慣例相同就假設排序也相同。limit 是 1-2000，不給 limit 預設只回 250 筆，不是全部（實測 2330 不給 limit 回溯到 2025-08-28，共 250 筆）。這支端點沒有 total/hasMore 欄位，跟 foreign-shareholding-history 一樣。查無資料（代號不存在）回傳空陣列，不是 404。earliestAvailableTradeDate（2026-09-16 新增）是這檔股票資料庫裡最早的交易日，不受這次查詢的 limit 影響（實測 2330：不管 limit 怎麼設，這個欄位都固定回傳 2020-11-02）——設計目的是讓「大盤連動程度」這類多年區間切換圖表能精確算出某檔股票（例如近期上市公司）有沒有足夠的歷史資料，不用再用「250 交易日≈1 年」概估。查無任何價格資料時是 null。",
   tags: ["Stock"],
   request: {
     params: symbolParam,

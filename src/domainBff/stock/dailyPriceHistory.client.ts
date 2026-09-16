@@ -26,7 +26,9 @@ function isDailyPriceHistoryResponse(body: unknown): body is { entries: unknown[
  * not "everything" — confirmed: no-limit for 2330 returned exactly 250 entries reaching back to
  * 2025-08-28. Entries are oldest-to-newest (opposite of foreign-shareholding-history — confirmed live, do
  * not assume the two share ordering just because they share the path convention). An unknown symbol
- * returns `entries: []`, not a 404.
+ * returns `entries: []`, not a 404. `earliestAvailableTradeDate` (added 2026-09-16) is NOT affected by
+ * `limit` — it's the symbol's true earliest trade date on file, confirmed live to stay put (2020-11-02 for
+ * 2330) regardless of how the `entries` page is truncated.
  */
 export async function fetchDailyPriceHistory(symbol: string, limit?: number): Promise<DailyPriceHistoryResult> {
   const searchParams: Record<string, string> = {};
@@ -53,5 +55,10 @@ export async function fetchDailyPriceHistory(symbol: string, limit?: number): Pr
     throw new AppError("Daily price history endpoint response is missing an entries array", 502);
   }
 
-  return { symbol, entries: body.entries.map(normalizeEntry) };
+  const earliestAvailableTradeDate = (body as { earliestAvailableTradeDate?: unknown }).earliestAvailableTradeDate;
+  return {
+    symbol,
+    entries: body.entries.map(normalizeEntry),
+    earliestAvailableTradeDate: typeof earliestAvailableTradeDate === "string" ? earliestAvailableTradeDate : null,
+  };
 }

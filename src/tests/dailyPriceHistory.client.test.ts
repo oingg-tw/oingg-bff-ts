@@ -27,12 +27,14 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
 
 // Real entries given directly by analysis-ts (2026-09-10) — note oldest-to-newest ordering, the opposite
 // of foreign-shareholding-history despite sharing the same /stocks/:symbol/... path convention.
+// earliestAvailableTradeDate added 2026-09-16.
 const RAW_BODY = {
   symbol: "2330",
   entries: [
     { tradeDate: "2026-09-07", open: 2435, high: 2460, low: 2430, close: 2460, volume: 26898329 },
     { tradeDate: "2026-09-08", open: 2465, high: 2505, low: 2460, close: 2470, volume: 28931697 },
   ],
+  earliestAvailableTradeDate: "2020-11-02",
 };
 
 describe("fetchDailyPriceHistory", () => {
@@ -56,9 +58,24 @@ describe("fetchDailyPriceHistory", () => {
   });
 
   it("returns an empty entries array for an unknown symbol, without throwing", async () => {
-    mockFetchOnce({ ok: true, body: { symbol: "NOPE", entries: [] } });
+    mockFetchOnce({ ok: true, body: { symbol: "NOPE", entries: [], earliestAvailableTradeDate: null } });
 
-    await expect(fetchDailyPriceHistory("NOPE")).resolves.toEqual({ symbol: "NOPE", entries: [] });
+    await expect(fetchDailyPriceHistory("NOPE")).resolves.toEqual({
+      symbol: "NOPE",
+      entries: [],
+      earliestAvailableTradeDate: null,
+    });
+  });
+
+  // earliestAvailableTradeDate reflects the symbol's whole history, not just this page — confirmed live it
+  // stays put regardless of how `entries` gets truncated by limit.
+  it("passes through earliestAvailableTradeDate independent of the entries page/limit", async () => {
+    mockFetchOnce({ ok: true, body: { ...RAW_BODY, entries: [RAW_BODY.entries[1]] } });
+
+    const result = await fetchDailyPriceHistory("2330", 1);
+
+    expect(result.entries).toHaveLength(1);
+    expect(result.earliestAvailableTradeDate).toBe("2020-11-02");
   });
 
   // analysis-ts validates limit bounds (1-2000) itself and returns a 400 with a clear message — relayed
