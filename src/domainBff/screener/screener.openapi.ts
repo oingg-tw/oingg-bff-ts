@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
-import { rankingQuerySchema, screenerRequestSchema, screenerValuesRequestSchema } from "@/domainBff/screener/screener.routes.js";
+import {
+  companyRankQuerySchema,
+  rankingQuerySchema,
+  screenerRequestSchema,
+  screenerValuesRequestSchema,
+} from "@/domainBff/screener/screener.routes.js";
 
 const upstream502 = errorResponse("analysis-ts 服務無法連線或回應格式異常。");
 
@@ -144,6 +149,42 @@ registry.registerPath({
       content: { "application/json": { schema: rankingResultSchema } },
     },
     400: errorResponse("缺少 field，field 不存在於 filterCatalog，或 direction/limit/columns 格式錯誤。"),
+    502: upstream502,
+  },
+});
+
+const companyRankQueryDocSchema = companyRankQuerySchema.openapi("CompanyRankQuery", {
+  example: { symbol: "2330", field: "dividendYield.EOD", direction: "desc" },
+});
+
+const companyRankResultSchema = z
+  .object({
+    symbol: z.string(),
+    field: z.string(),
+    found: z.boolean(),
+    value: z.number().nullable(),
+    rank: z.number().nullable(),
+    totalCount: z.number().nullable(),
+    topPercent: z.number().nullable(),
+  })
+  .openapi("CompanyRankResult", {
+    example: { symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPercent: 72.8 },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/screener/company-rank",
+  summary: "查單一公司在全市場某個欄位的排名/百分位——跟 ranking 互補（ranking 是「前幾名是誰」，這支是「這家公司排第幾」）",
+  description:
+    "不需要登入。symbol/field/direction 三者都必填，沒有預設值（跟 GET /screener/ranking 的 direction 有預設不同，這支省略 direction 會回 400）。field 格式跟其他 screener 端點一致（\"<metricCode>.<token>\"）。rank 是 1-based，並列數值共用同一個名次（RANK() 語意，所以下一個名次可能不連續）。totalCount 只計入這個欄位有值（非 null）的公司數。topPercent = rank÷totalCount×100（四捨五入到小數點後一位）——數字越小代表排名越前面（例如 5 代表排在全市場前 5%），跟一般認知的「百分位」方向相反，不要混淆。查無資料（這個欄位對這家公司從沒算過，或算出來是 null，或代號不存在）時 found 為 false，value/rank/totalCount/topPercent 全部是 null，仍是 200，不是 404。",
+  tags: ["Screener"],
+  request: { query: companyRankQueryDocSchema },
+  responses: {
+    200: {
+      description: "這家公司在該欄位的排名結果，查無資料時 found 為 false、其餘欄位皆為 null。",
+      content: { "application/json": { schema: companyRankResultSchema } },
+    },
+    400: errorResponse("缺少 symbol/field/direction 任一個，或 field 不存在於 filterCatalog。"),
     502: upstream502,
   },
 });

@@ -4,6 +4,7 @@ vi.mock("@/domainBff/screener/analysisScreenerClient.js", () => ({
   fetchScreenerResults: vi.fn(),
   fetchScreenerRanking: vi.fn(),
   fetchScreenerValues: vi.fn(),
+  fetchCompanyRank: vi.fn(),
 }));
 
 vi.mock("@/domainBusiness/metricCatalog/index.js", () => ({
@@ -18,11 +19,11 @@ vi.mock("@/domainBff/screener/valuationRanking.client.js", () => ({
   fetchValuationRanking: vi.fn(),
 }));
 
-import { fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domainBff/screener/analysisScreenerClient.js";
+import { fetchCompanyRank, fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domainBff/screener/analysisScreenerClient.js";
 import { findMetricFields } from "@/domainBusiness/metricCatalog/index.js";
 import { getLatestClosePrices } from "@/domainBff/stock/index.js";
 import { fetchValuationRanking } from "@/domainBff/screener/valuationRanking.client.js";
-import { runRanking, runScreener, runScreenerValues } from "@/domainBff/screener/screener.service.js";
+import { runCompanyRank, runRanking, runScreener, runScreenerValues } from "@/domainBff/screener/screener.service.js";
 import type { Pagination } from "@/domainBff/screener/pagination.js";
 
 const DEFAULT_PAGINATION: Pagination = { page: 1, pageSize: 50 };
@@ -82,6 +83,7 @@ beforeEach(() => {
   );
   vi.mocked(getLatestClosePrices).mockReset();
   vi.mocked(fetchValuationRanking).mockReset();
+  vi.mocked(fetchCompanyRank).mockReset();
 });
 
 describe("runScreener", () => {
@@ -625,5 +627,43 @@ describe("runScreenerValues", () => {
     const result = await runScreenerValues(["2330"], [{ field: "roe.roeTtmPct" }]);
 
     expect(result.results[0]?.name).toBe("台積電");
+  });
+});
+
+describe("runCompanyRank", () => {
+  it("delegates to fetchCompanyRank with symbol/field/direction and passes the result through unchanged", async () => {
+    const upstreamResult = {
+      symbol: "2330",
+      field: "dividendYield.EOD",
+      found: true,
+      value: 0.92,
+      rank: 1152,
+      totalCount: 1583,
+      topPercent: 72.8,
+    };
+    vi.mocked(fetchCompanyRank).mockResolvedValue(upstreamResult);
+
+    const result = await runCompanyRank("2330", "dividendYield.EOD", "desc");
+
+    expect(fetchCompanyRank).toHaveBeenCalledWith("2330", "dividendYield.EOD", "desc");
+    expect(result).toEqual(upstreamResult);
+  });
+
+  it("passes a found:false result through unchanged, without local catalog validation", async () => {
+    const upstreamResult = {
+      symbol: "NOPE9999",
+      field: "dividendYield.EOD",
+      found: false,
+      value: null,
+      rank: null,
+      totalCount: null,
+      topPercent: null,
+    };
+    vi.mocked(fetchCompanyRank).mockResolvedValue(upstreamResult);
+
+    const result = await runCompanyRank("NOPE9999", "dividendYield.EOD", "asc");
+
+    expect(fetchCompanyRank).toHaveBeenCalledWith("NOPE9999", "dividendYield.EOD", "asc");
+    expect(result).toEqual(upstreamResult);
   });
 });

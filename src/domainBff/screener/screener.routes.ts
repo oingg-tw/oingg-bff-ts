@@ -4,7 +4,7 @@ import { UUID_PATTERN } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { optionalAuth } from "@/domainBusiness/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import { runRanking, runScreener, runScreenerValues } from "@/domainBff/screener/screener.service.js";
+import { runCompanyRank, runRanking, runScreener, runScreenerValues } from "@/domainBff/screener/screener.service.js";
 import { resolveScreenerColumns } from "@/domainBusiness/screener/columnPresets.service.js";
 import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/domainBff/screener/pagination.js";
 import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/domainBff/screener/screenerFilterInput.js";
@@ -137,5 +137,19 @@ screenerRouter.get("/ranking", async (req, res) => {
   const sectorCodes = parseSectorCodes(query.sectorCodes);
 
   const result = await runRanking(query.field, direction, limit, columns, sectorCodes);
+  res.json(result);
+});
+
+// `direction` is required with no default here (unlike GET /screener/ranking's optional-defaults-to-desc)
+// — matches analysis-ts's own GET /screener/company-rank, which 400s if it's omitted (confirmed live).
+export const companyRankQuerySchema = z.object({
+  symbol: z.string({ error: '"symbol" query parameter is required' }).trim().min(1, '"symbol" query parameter is required'),
+  field: z.string({ error: '"field" query parameter is required' }).trim().min(1, '"field" query parameter is required'),
+  direction: z.enum(["asc", "desc"], { error: '"direction" query parameter is required and must be "asc" or "desc"' }),
+});
+
+screenerRouter.get("/company-rank", async (req, res) => {
+  const query = parseBody(companyRankQuerySchema, req.query);
+  const result = await runCompanyRank(query.symbol, query.field, query.direction);
   res.json(result);
 });

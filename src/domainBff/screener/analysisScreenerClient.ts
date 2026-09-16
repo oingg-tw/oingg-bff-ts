@@ -31,6 +31,16 @@ export interface AnalysisScreenerValuesResult {
   results: AnalysisScreenerResultRow[];
 }
 
+export interface AnalysisCompanyRankResult {
+  symbol: string;
+  field: string;
+  found: boolean;
+  value: number | null;
+  rank: number | null;
+  totalCount: number | null;
+  topPercent: number | null;
+}
+
 /**
  * analysis-ts sends ratio/percentage `value`s as JSON numbers (their real, existing convention for
  * Decimal-backed fields — confirmed with them directly, see stockQuote.client.ts's normalizeStockQuote
@@ -202,4 +212,41 @@ export async function fetchScreenerValues(
   }
 
   return { results: normalizeRows(b.results) };
+}
+
+/**
+ * Fetches one company's rank/percentile against the whole market for a single field, from analysis-ts's
+ * GET /screener/company-rank — added 2026-09-16, complementing GET /screener/ranking ("who's in the top
+ * N") with the reverse question ("where does THIS company rank") without the caller having to fetch a
+ * full ranking list and count through it themselves.
+ *
+ * `rank` is 1-based and RANK()-style (ties share a rank, so a following rank can skip numbers). `direction`
+ * is required upstream (no default — confirmed live, omitting it 400s) — desc means higher values rank
+ * better. `totalCount` only counts companies with a non-null value for this field. `topPercent` =
+ * rank÷totalCount×100, rounded to 1 decimal — a SMALLER topPercent means a BETTER rank (e.g. 5 means "top
+ * 5% of the market"), the opposite direction from an ordinary percentile. `found: false` (the field has no
+ * data for this symbol, or the symbol itself doesn't exist) still returns 200 with value/rank/totalCount/
+ * topPercent all null, not a 404 — confirmed live, same convention as this domain's other per-symbol calls.
+ */
+export async function fetchCompanyRank(
+  symbol: string,
+  field: string,
+  direction: "asc" | "desc",
+): Promise<AnalysisCompanyRankResult> {
+  const body = await getJson("/screener/company-rank", { symbol, field, direction });
+
+  const b = body as { symbol?: unknown; field?: unknown; found?: unknown; value?: unknown; rank?: unknown; totalCount?: unknown; topPercent?: unknown };
+  if (typeof b.symbol !== "string" || typeof b.field !== "string" || typeof b.found !== "boolean") {
+    throw new AppError("Company rank endpoint response is missing symbol/field/found", 502);
+  }
+
+  return {
+    symbol: b.symbol,
+    field: b.field,
+    found: b.found,
+    value: typeof b.value === "number" ? b.value : null,
+    rank: typeof b.rank === "number" ? b.rank : null,
+    totalCount: typeof b.totalCount === "number" ? b.totalCount : null,
+    topPercent: typeof b.topPercent === "number" ? b.topPercent : null,
+  };
 }

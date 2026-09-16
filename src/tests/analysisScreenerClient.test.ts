@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domainBff/screener/analysisScreenerClient.js";
+import { fetchCompanyRank, fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domainBff/screener/analysisScreenerClient.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
@@ -319,5 +319,54 @@ describe("fetchScreenerValues", () => {
     await expect(fetchScreenerValues(["2330"], [{ field: "roe.roeTtmPct" }])).rejects.toMatchObject({
       statusCode: 502,
     });
+  });
+});
+
+// Real shape given directly by analysis-ts (2026-09-16).
+describe("fetchCompanyRank", () => {
+  it("requests /screener/company-rank with symbol/field/direction and normalizes the result", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPercent: 72.8 },
+    });
+
+    const result = await fetchCompanyRank("2330", "dividendYield.EOD", "desc");
+
+    expect(result).toEqual({ symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPercent: 72.8 });
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/screener/company-rank?symbol=2330&field=dividendYield.EOD&direction=desc");
+  });
+
+  // Confirmed live: an unknown symbol, or a field with no data for this symbol, is still a 200.
+  it("returns found:false with every numeric field null, without throwing", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { symbol: "NOPE9999", field: "dividendYield.EOD", found: false, value: null, rank: null, totalCount: null, topPercent: null },
+    });
+
+    const result = await fetchCompanyRank("NOPE9999", "dividendYield.EOD", "desc");
+
+    expect(result).toEqual({ symbol: "NOPE9999", field: "dividendYield.EOD", found: false, value: null, rank: null, totalCount: null, topPercent: null });
+  });
+
+  it("relays analysis-ts's 400 message for an unknown field", async () => {
+    mockFetchOnce({ ok: false, status: 400, body: { message: '"nope.nope" 不是可查詢的欄位' } });
+
+    await expect(fetchCompanyRank("2330", "nope.nope", "desc")).rejects.toMatchObject({
+      statusCode: 400,
+      message: '"nope.nope" 不是可查詢的欄位',
+    });
+  });
+
+  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
+
+    await expect(fetchCompanyRank("2330", "dividendYield.EOD", "desc")).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("throws a 502 AppError when the response is missing symbol/field/found", async () => {
+    mockFetchOnce({ ok: true, body: {} });
+
+    await expect(fetchCompanyRank("2330", "dividendYield.EOD", "desc")).rejects.toMatchObject({ statusCode: 502 });
   });
 });

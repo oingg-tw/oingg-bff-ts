@@ -3,6 +3,7 @@ import { getLatestClosePrices } from "@/domainBff/stock/index.js";
 import { AppError } from "@/shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
 import {
+  fetchCompanyRank,
   fetchScreenerRanking,
   fetchScreenerResults,
   fetchScreenerValues,
@@ -11,6 +12,7 @@ import {
 import { SPECIAL_COLUMNS } from "@/domainBusiness/screener/columnField.js";
 import type { Pagination } from "@/domainBff/screener/pagination.js";
 import type {
+  CompanyRankResult,
   ScreenerColumnRef,
   ScreenerFilter,
   ScreenerResult,
@@ -359,4 +361,16 @@ async function runValuationRanking(
   }
 
   return { field, direction, columns: resultColumns, results };
+}
+
+/**
+ * One company's rank/percentile against the whole market for a single field — GET /screener/company-rank.
+ * Complements runRanking's "top N" with the reverse question. Delegates field validation to analysis-ts
+ * itself — this response has no display column (metricName/fieldName), so there's nothing to resolve
+ * against the local catalog for, unlike runScreener/runRanking. Not routed through the valuation-ranking
+ * special case (exchangePeRatio.EOD/exchangePbRatio.EOD/dividendYield.EOD) — analysis-ts's own
+ * /screener/company-rank covers the whole catalog uniformly, unlike GET /screener/ranking's split.
+ */
+export async function runCompanyRank(symbol: string, field: string, direction: "asc" | "desc"): Promise<CompanyRankResult> {
+  return fetchCompanyRank(symbol, field, direction);
 }
