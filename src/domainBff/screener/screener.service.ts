@@ -4,6 +4,7 @@ import { AppError } from "@/shared/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
 import {
   fetchCompanyRank,
+  fetchDistribution,
   fetchScreenerRanking,
   fetchScreenerResults,
   fetchScreenerValues,
@@ -13,6 +14,7 @@ import { SPECIAL_COLUMNS } from "@/domainBusiness/screener/columnField.js";
 import type { Pagination } from "@/domainBff/screener/pagination.js";
 import type {
   CompanyRankResult,
+  DistributionResult,
   ScreenerColumnRef,
   ScreenerFilter,
   ScreenerResult,
@@ -373,4 +375,12 @@ async function runValuationRanking(
  */
 export async function runCompanyRank(symbol: string, field: string, direction: "asc" | "desc"): Promise<CompanyRankResult> {
   return fetchCompanyRank(symbol, field, direction);
+}
+
+/**
+ * The whole market's distribution for a single field — GET /screener/distribution. Same pure pass-through
+ * convention as runCompanyRank: field/bins validation is delegated to analysis-ts itself.
+ */
+export async function runDistribution(field: string, bins: number | undefined): Promise<DistributionResult> {
+  return fetchDistribution(field, bins);
 }

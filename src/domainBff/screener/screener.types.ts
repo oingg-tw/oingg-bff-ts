@@ -92,3 +92,28 @@ export interface CompanyRankResult {
   totalCount: number | null;
   topPercent: number | null;
 }
+
+/** One bucket of a DistributionResult's `bins` array — see DistributionResult. */
+export interface DistributionBin {
+  min: number;
+  max: number;
+  count: number;
+}
+
+/**
+ * The whole market's distribution for a single field — GET /screener/distribution, added 2026-09-18 for a
+ * market-wide histogram (e.g. 現金殖利率的市場排名 on a stock-detail card). `trueMin`/`trueMax` are the
+ * actual min/max across every company with a non-null value for this field; `clippedMin`/`clippedMax` are
+ * the range the `bins` actually cover (analysis-ts may clip outliers before bucketing — see their own
+ * endpoint for the exact rule). `totalCount` only counts companies with a non-null value for this field,
+ * same convention as CompanyRankResult.
+ */
+export interface DistributionResult {
+  field: string;
+  totalCount: number;
+  trueMin: number;
+  trueMax: number;
+  clippedMin: number;
+  clippedMax: number;
+  bins: DistributionBin[];
+}

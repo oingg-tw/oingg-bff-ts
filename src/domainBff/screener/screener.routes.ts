@@ -4,7 +4,7 @@ import { UUID_PATTERN } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { optionalAuth } from "@/domainBusiness/auth/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import { runCompanyRank, runRanking, runScreener, runScreenerValues } from "@/domainBff/screener/screener.service.js";
+import { runCompanyRank, runDistribution, runRanking, runScreener, runScreenerValues } from "@/domainBff/screener/screener.service.js";
 import { resolveScreenerColumns } from "@/domainBusiness/screener/columnPresets.service.js";
 import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/domainBff/screener/pagination.js";
 import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/domainBff/screener/screenerFilterInput.js";
@@ -151,5 +151,22 @@ export const companyRankQuerySchema = z.object({
 screenerRouter.get("/company-rank", async (req, res) => {
   const query = parseBody(companyRankQuerySchema, req.query);
   const result = await runCompanyRank(query.symbol, query.field, query.direction);
+  res.json(result);
+});
+
+export const distributionQuerySchema = z.object({
+  field: z.string({ error: '"field" query parameter is required' }).trim().min(1, '"field" query parameter is required'),
+  bins: z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : v),
+    z
+      .coerce.number({ error: '"bins" must be a positive integer' })
+      .refine((n) => Number.isInteger(n) && n > 0, { message: '"bins" must be a positive integer' })
+      .optional(),
+  ),
+});
+
+screenerRouter.get("/distribution", async (req, res) => {
+  const query = parseBody(distributionQuerySchema, req.query);
+  const result = await runDistribution(query.field, query.bins);
   res.json(result);
 });

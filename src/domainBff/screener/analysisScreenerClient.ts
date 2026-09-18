@@ -41,6 +41,22 @@ export interface AnalysisCompanyRankResult {
   topPercent: number | null;
 }
 
+export interface AnalysisDistributionBin {
+  min: number;
+  max: number;
+  count: number;
+}
+
+export interface AnalysisDistributionResult {
+  field: string;
+  totalCount: number;
+  trueMin: number;
+  trueMax: number;
+  clippedMin: number;
+  clippedMax: number;
+  bins: AnalysisDistributionBin[];
+}
+
 /**
  * analysis-ts sends ratio/percentage `value`s as JSON numbers (their real, existing convention for
  * Decimal-backed fields — confirmed with them directly, see stockQuote.client.ts's normalizeStockQuote
@@ -248,5 +264,52 @@ export async function fetchCompanyRank(
     rank: typeof b.rank === "number" ? b.rank : null,
     totalCount: typeof b.totalCount === "number" ? b.totalCount : null,
     topPercent: typeof b.topPercent === "number" ? b.topPercent : null,
+  };
+}
+
+/**
+ * Fetches the whole market's distribution for a single field, from analysis-ts's GET /screener/distribution
+ * — added 2026-09-18 for a market-wide histogram (e.g. 現金殖利率的市場排名 on a stock-detail card). Pure
+ * pass-through, same convention as fetchCompanyRank: field validation is delegated to analysis-ts itself,
+ * this client only shape-checks the response.
+ */
+export async function fetchDistribution(field: string, bins: number | undefined): Promise<AnalysisDistributionResult> {
+  const body = await getJson("/screener/distribution", { field, ...(bins !== undefined ? { bins: String(bins) } : {}) });
+
+  const b = body as {
+    field?: unknown;
+    totalCount?: unknown;
+    trueMin?: unknown;
+    trueMax?: unknown;
+    clippedMin?: unknown;
+    clippedMax?: unknown;
+    bins?: unknown;
+  };
+  if (
+    typeof b.field !== "string" ||
+    typeof b.totalCount !== "number" ||
+    typeof b.trueMin !== "number" ||
+    typeof b.trueMax !== "number" ||
+    typeof b.clippedMin !== "number" ||
+    typeof b.clippedMax !== "number" ||
+    !Array.isArray(b.bins)
+  ) {
+    throw new AppError("Distribution endpoint response is missing field/totalCount/trueMin/trueMax/clippedMin/clippedMax/bins", 502);
+  }
+
+  return {
+    field: b.field,
+    totalCount: b.totalCount,
+    trueMin: b.trueMin,
+    trueMax: b.trueMax,
+    clippedMin: b.clippedMin,
+    clippedMax: b.clippedMax,
+    bins: b.bins.map((bin) => {
+      const raw = bin as { min?: unknown; max?: unknown; count?: unknown };
+      if (typeof raw.min !== "number" || typeof raw.max !== "number" || typeof raw.count !== "number") {
+        throw new AppError("Distribution endpoint response has a bin missing min/max/count", 502);
+      }
+      return { min: raw.min, max: raw.max, count: raw.count };
+    }),
   };
 }

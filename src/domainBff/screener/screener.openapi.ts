@@ -2,6 +2,7 @@ import { z } from "zod";
 import { errorResponse, registry } from "@/adapters/swagger/registry.js";
 import {
   companyRankQuerySchema,
+  distributionQuerySchema,
   rankingQuerySchema,
   screenerRequestSchema,
   screenerValuesRequestSchema,
@@ -185,6 +186,59 @@ registry.registerPath({
       content: { "application/json": { schema: companyRankResultSchema } },
     },
     400: errorResponse("缺少 symbol/field/direction 任一個，或 field 不存在於 filterCatalog。"),
+    502: upstream502,
+  },
+});
+
+const distributionQueryDocSchema = distributionQuerySchema.openapi("DistributionQuery", {
+  example: { field: "dividendYield.EOD", bins: 20 },
+});
+
+const distributionBinSchema = z.object({
+  min: z.number(),
+  max: z.number(),
+  count: z.number(),
+});
+
+const distributionResultSchema = z
+  .object({
+    field: z.string(),
+    totalCount: z.number(),
+    trueMin: z.number(),
+    trueMax: z.number(),
+    clippedMin: z.number(),
+    clippedMax: z.number(),
+    bins: z.array(distributionBinSchema),
+  })
+  .openapi("DistributionResult", {
+    example: {
+      field: "dividendYield.EOD",
+      totalCount: 1583,
+      trueMin: 0,
+      trueMax: 18.2,
+      clippedMin: 0,
+      clippedMax: 12,
+      bins: [
+        { min: 0, max: 0.6, count: 214 },
+        { min: 0.6, max: 1.2, count: 358 },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/screener/distribution",
+  summary: "查單一欄位在全市場的分布直方圖——給股票詳情頁的市場排名圖表用（例如現金殖利率的市場排名）",
+  description:
+    "不需要登入。field 格式跟其他 screener 端點一致（\"<metricCode>.<token>\"），欄位驗證交給 analysis-ts。bins 是選填的分桶數量（正整數），省略時用 analysis-ts 自己的預設值。totalCount 只計入這個欄位有值（非 null）的公司數。trueMin/trueMax 是全市場這個欄位實際的最小/最大值；clippedMin/clippedMax 是 bins 實際涵蓋的範圍（analysis-ts 可能會先裁掉極端離群值再分桶，詳細規則以他們的端點為準）。bins 陣列每一格是 { min, max, count }。",
+  tags: ["Screener"],
+  request: { query: distributionQueryDocSchema },
+  responses: {
+    200: {
+      description: "這個欄位在全市場的分布直方圖。",
+      content: { "application/json": { schema: distributionResultSchema } },
+    },
+    400: errorResponse("缺少 field，field 不存在於 filterCatalog，或 bins 格式錯誤。"),
     502: upstream502,
   },
 });
