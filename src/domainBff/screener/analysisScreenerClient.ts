@@ -273,8 +273,16 @@ export async function fetchCompanyRank(
  * pass-through, same convention as fetchCompanyRank: field validation is delegated to analysis-ts itself,
  * this client only shape-checks the response.
  */
-export async function fetchDistribution(field: string, bins: number | undefined): Promise<AnalysisDistributionResult> {
-  const body = await getJson("/screener/distribution", { field, ...(bins !== undefined ? { bins: String(bins) } : {}) });
+export async function fetchDistribution(
+  field: string,
+  bins: number | undefined,
+  excludeZero: boolean | undefined,
+): Promise<AnalysisDistributionResult> {
+  const body = await getJson("/screener/distribution", {
+    field,
+    ...(bins !== undefined ? { bins: String(bins) } : {}),
+    ...(excludeZero !== undefined ? { excludeZero: String(excludeZero) } : {}),
+  });
 
   const b = body as {
     field?: unknown;

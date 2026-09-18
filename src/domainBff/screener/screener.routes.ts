@@ -163,10 +163,14 @@ export const distributionQuerySchema = z.object({
       .refine((n) => Number.isInteger(n) && n > 0, { message: '"bins" must be a positive integer' })
       .optional(),
   ),
+  excludeZero: z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : v),
+    z.enum(["true", "false"], { error: '"excludeZero" must be "true" or "false"' }).transform((v) => v === "true").optional(),
+  ),
 });
 
 screenerRouter.get("/distribution", async (req, res) => {
   const query = parseBody(distributionQuerySchema, req.query);
-  const result = await runDistribution(query.field, query.bins);
+  const result = await runDistribution(query.field, query.bins, query.excludeZero);
   res.json(result);
 });

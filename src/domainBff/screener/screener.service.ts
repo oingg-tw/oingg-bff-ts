@@ -381,6 +381,10 @@ export async function runCompanyRank(symbol: string, field: string, direction: "
  * The whole market's distribution for a single field — GET /screener/distribution. Same pure pass-through
  * convention as runCompanyRank: field/bins validation is delegated to analysis-ts itself.
  */
-export async function runDistribution(field: string, bins: number | undefined): Promise<DistributionResult> {
-  return fetchDistribution(field, bins);
+export async function runDistribution(
+  field: string,
+  bins: number | undefined,
+  excludeZero: boolean | undefined,
+): Promise<DistributionResult> {
+  return fetchDistribution(field, bins, excludeZero);
 }

@@ -191,7 +191,7 @@ registry.registerPath({
 });
 
 const distributionQueryDocSchema = distributionQuerySchema.openapi("DistributionQuery", {
-  example: { field: "dividendYield.EOD", bins: 20 },
+  example: { field: "dividendYield.EOD", bins: 20, excludeZero: true },
 });
 
 const distributionBinSchema = z.object({
@@ -230,7 +230,7 @@ registry.registerPath({
   path: "/screener/distribution",
   summary: "查單一欄位在全市場的分布直方圖——給股票詳情頁的市場排名圖表用（例如現金殖利率的市場排名）",
   description:
-    "不需要登入。field 格式跟其他 screener 端點一致（\"<metricCode>.<token>\"），欄位驗證交給 analysis-ts。bins 是選填的分桶數量（正整數），省略時用 analysis-ts 自己的預設值。totalCount 只計入這個欄位有值（非 null）的公司數。trueMin/trueMax 是全市場這個欄位實際的最小/最大值；clippedMin/clippedMax 是 bins 實際涵蓋的範圍（analysis-ts 可能會先裁掉極端離群值再分桶，詳細規則以他們的端點為準）。bins 陣列每一格是 { min, max, count }。",
+    "不需要登入。field 格式跟其他 screener 端點一致（\"<metricCode>.<token>\"），欄位驗證交給 analysis-ts。bins 是選填的分桶數量（正整數），省略時用 analysis-ts 自己的預設值。excludeZero 是選填的布林值（\"true\"/\"false\"，2026-09-18 由 analysis-ts 新增），true 時會在分桶前先排除該欄位剛好等於 0 的資料列，省略時等同 false。totalCount 只計入這個欄位有值（非 null，且未被 excludeZero 排除）的公司數。trueMin/trueMax 是全市場這個欄位實際的最小/最大值；clippedMin/clippedMax 是 bins 實際涵蓋的範圍（analysis-ts 可能會先裁掉極端離群值再分桶，詳細規則以他們的端點為準）。bins 陣列每一格是 { min, max, count }。",
   tags: ["Screener"],
   request: { query: distributionQueryDocSchema },
   responses: {
@@ -238,7 +238,7 @@ registry.registerPath({
       description: "這個欄位在全市場的分布直方圖。",
       content: { "application/json": { schema: distributionResultSchema } },
     },
-    400: errorResponse("缺少 field，field 不存在於 filterCatalog，或 bins 格式錯誤。"),
+    400: errorResponse("缺少 field，field 不存在於 filterCatalog，或 bins/excludeZero 格式錯誤。"),
     502: upstream502,
   },
 });
