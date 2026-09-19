@@ -471,7 +471,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/financial-statement",
   summary: "查詢一季完整的財報原始科目金額（會計模式用，非比率指標）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/financial-statement。三種 statementType 各自的科目欄位不同（balanceSheet/incomeStatement/cashFlowStatement），欄位為 camelCase，金額一律序列化成字串（bigint 避免精度問題），incomeStatement 的 eps/epsDiluted 原始資料就是字串（非序列化所致）。欄位值為 null 代表財報本來就沒揭露該科目或為零，不代表查詢失敗。不給 year/season 會查最新一季；查無資料（代號不存在，或指定的 year/season 沒有申報資料）回應 found:false、statement:null，仍是 200，不是 404。dataType/subsidiaryCompanyId 是 analysis-ts 內部欄位原樣轉發，語意未正式核對過。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/financial-statement。三種 statementType 各自的科目欄位不同（balanceSheet/incomeStatement/cashFlowStatement），欄位為 camelCase，金額一律序列化成字串（bigint 避免精度問題），incomeStatement 的 eps/epsDiluted 原始資料就是字串（非序列化所致）。金額欄位（eps/epsDiluted 除外）單位是新台幣千元——這點 analysis-ts 沒有在回應裡明講，2026-09-19 用 2330 實際數字反推確認（例如單季 revenue 約 1.27 兆元對應原始數字 1,270,380,250，assets 約 9.4 兆元對應 9,375,654,727，量級都對得上），跟 monthly-revenue-history 端點的新台幣千元慣例一致；eps/epsDiluted 本身就是每股金額（元），不是千元。欄位值為 null 代表財報本來就沒揭露該科目或為零，不代表查詢失敗。不給 year/season 會查最新一季；查無資料（代號不存在，或指定的 year/season 沒有申報資料）回應 found:false、statement:null，仍是 200，不是 404。dataType/subsidiaryCompanyId 是 analysis-ts 內部欄位原樣轉發，語意未正式核對過。",
   tags: ["Stock"],
   request: {
     params: symbolParam,
