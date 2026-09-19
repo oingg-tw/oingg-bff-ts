@@ -49,6 +49,12 @@ interface RawPitMetric {
   validTimeframes: string[];
   /** Absent entirely (not an empty string) for metrics without a documented formula yet — pilot rollout, 2026-09-10. */
   formulaLatex?: string;
+  /** Metric-level tooltip text — added 2026-09-19 alongside limitations/misreadings, present on the ~35 badge metrics first. */
+  description?: string;
+  /** What this metric can't tell you — added 2026-09-19, same badge-metrics-first coverage as description. */
+  limitations?: string;
+  /** Common ways this metric gets misread/misapplied — added 2026-09-19, same badge-metrics-first coverage as description. */
+  misreadings?: string;
   /** Absent entirely (not an empty string) for metrics without a documented reference link yet, 2026-09-10. */
   referenceUrl?: string;
   /** Present only on the ~13 metrics with a documented academic paper source, 2026-09-10. */
@@ -91,6 +97,9 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
             Array.isArray((m as RawPitMetric).validTimeframes) &&
             (m as RawPitMetric).validTimeframes.every((t) => typeof t === "string") &&
             ((m as RawPitMetric).formulaLatex === undefined || typeof (m as RawPitMetric).formulaLatex === "string") &&
+            ((m as RawPitMetric).description === undefined || typeof (m as RawPitMetric).description === "string") &&
+            ((m as RawPitMetric).limitations === undefined || typeof (m as RawPitMetric).limitations === "string") &&
+            ((m as RawPitMetric).misreadings === undefined || typeof (m as RawPitMetric).misreadings === "string") &&
             ((m as RawPitMetric).referenceUrl === undefined || typeof (m as RawPitMetric).referenceUrl === "string") &&
             ((m as RawPitMetric).academicSourceUrl === undefined || typeof (m as RawPitMetric).academicSourceUrl === "string") &&
             ((m as RawPitMetric).badge === undefined || isRawBadge((m as RawPitMetric).badge)) &&
@@ -160,6 +169,13 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
  * metric (added 2026-09-10, a fixed 9-label vocabulary), not a "not every metric has one yet" field, so
  * it's validated as required here (missing/wrong-shape fails the whole sync, same as displayName/unit/
  * validTokens) rather than defaulted to null/undefined.
+ *
+ * `description` (metric-level tooltip text) started actually being sent by analysis-ts 2026-09-19 — this
+ * field existed on MetricDefinition/the DB schema since the start (for a future "analysis-ts starts
+ * sending it" case), but was hardcoded to `null` here until now because analysis-ts never populated it.
+ * `limitations`/`misreadings` are genuinely new fields, added the same day, same sparse ~35-badge-metrics-
+ * first coverage as badge/formulaLatex/referenceUrl when they first landed — undefined (not empty string)
+ * on every other metric until analysis-ts documents more.
  */
 function toMetricCategories(raw: RawPitCategory[]): MetricCategory[] {
   return raw.map((category, categoryIndex) => ({
@@ -170,8 +186,10 @@ function toMetricCategories(raw: RawPitCategory[]): MetricCategory[] {
       key: metric.metricCode,
       name: metric.name,
       path: metric.metricCode,
-      description: null,
+      description: metric.description ?? null,
       source: null,
+      limitations: metric.limitations ?? null,
+      misreadings: metric.misreadings ?? null,
       unit: metric.unit,
       formulaLatex: metric.formulaLatex ?? null,
       referenceUrl: metric.referenceUrl ?? null,

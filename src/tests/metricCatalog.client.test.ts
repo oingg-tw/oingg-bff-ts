@@ -57,6 +57,8 @@ describe("fetchMetricCatalog", () => {
             path: "roe",
             description: null,
             source: null,
+            limitations: null,
+            misreadings: null,
             unit: "%",
             formulaLatex: null,
             referenceUrl: null,
@@ -257,6 +259,63 @@ describe("fetchMetricCatalog", () => {
             categoryKey: "profitability",
             categoryDisplayName: "獲利能力",
             metrics: [{ metricCode: "roe", name: "ROE", unit: "%", validTimeframes: ["TTM"], formulaLatex: 123 }],
+          },
+        ],
+      },
+    });
+
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  // description/limitations/misreadings (2026-09-19): description already existed on MetricDefinition
+  // but was hardcoded to null here until analysis-ts actually started sending it this same day, alongside
+  // the two genuinely new fields — same absent-entirely-until-documented convention as formulaLatex.
+  it("passes through description/limitations/misreadings when present, and defaults to null when absent", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              {
+                metricCode: "roe",
+                name: "股東權益報酬率 (ROE)",
+                unit: "%",
+                validTimeframes: ["TTM"],
+                description: "衡量股東投入資本的獲利效率。",
+                limitations: "不反映槓桿程度，高 ROE 可能來自高負債而非高獲利能力。",
+                misreadings: "不能只看單期數字，需搭配趨勢與同業比較。",
+                sources: ["公開發行公司資產負債表（XBRL）"],
+                hasProvenance: true,
+              },
+              { metricCode: "roa", name: "資產報酬率 (ROA)", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchMetricCatalog();
+
+    expect(result[0]?.metrics[0]?.description).toBe("衡量股東投入資本的獲利效率。");
+    expect(result[0]?.metrics[0]?.limitations).toBe("不反映槓桿程度，高 ROE 可能來自高負債而非高獲利能力。");
+    expect(result[0]?.metrics[0]?.misreadings).toBe("不能只看單期數字，需搭配趨勢與同業比較。");
+    expect(result[0]?.metrics[1]?.description).toBeNull();
+    expect(result[0]?.metrics[1]?.limitations).toBeNull();
+    expect(result[0]?.metrics[1]?.misreadings).toBeNull();
+  });
+
+  it("throws a 502 AppError when limitations is present but not a string", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [{ metricCode: "roe", name: "ROE", unit: "%", validTimeframes: ["TTM"], limitations: 123 }],
           },
         ],
       },

@@ -75,10 +75,18 @@ model MetricDefinition {
   categoryKey String                    @map("category_key")
   name        String
   path        String
-  /// Definition tooltip text for this metric — nullable until oingg-analysis-ts's /metrics starts sending it.
+  /// Definition tooltip text for this metric — analysis-ts started actually sending this 2026-09-19 (the
+  /// column existed since launch but was always null before that — they never populated the field).
   description String?
   /// Data-source tooltip text for this metric — nullable until oingg-analysis-ts's /metrics starts sending it.
   source      String?
+  /// What this metric can't tell you (e.g. sample-size caveats, survivorship bias) — added by analysis-ts
+  /// 2026-09-19, alongside description/misreadings. Present on the ~35 badge-bearing metrics at launch;
+  /// null on the rest until analysis-ts documents more.
+  limitations String?
+  /// Common ways this metric gets misread/misapplied — added by analysis-ts 2026-09-19, same badge-
+  /// metrics-first coverage as limitations.
+  misreadings String?
   /// Display unit for this metric's values (e.g. "percent", "currency", "times", "ratio") — a field's own
   /// unit (below) overrides this when set, same fallback convention as description/source.
   unit        String?

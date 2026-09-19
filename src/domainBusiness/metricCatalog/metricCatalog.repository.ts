@@ -76,6 +76,8 @@ export async function listMetricCatalog(): Promise<MetricCategory[]> {
       path: metric.path,
       description: metric.description,
       source: metric.source,
+      limitations: metric.limitations,
+      misreadings: metric.misreadings,
       unit: metric.unit,
       formulaLatex: metric.formulaLatex,
       referenceUrl: metric.referenceUrl,
@@ -141,6 +143,8 @@ export async function replaceMetricCatalog(categories: MetricCategory[]): Promis
       path: metric.path,
       description: metric.description ?? null,
       source: metric.source ?? null,
+      limitations: metric.limitations ?? null,
+      misreadings: metric.misreadings ?? null,
       unit: metric.unit ?? null,
       formulaLatex: metric.formulaLatex ?? null,
       referenceUrl: metric.referenceUrl ?? null,
@@ -178,16 +182,17 @@ export async function replaceMetricCatalog(categories: MetricCategory[]): Promis
 
     if (metricRows.length > 0) {
       await tx.$executeRaw`
-        INSERT INTO metric_definition (key, category_key, name, path, description, source, unit, formula_latex, reference_url, academic_source_url, badge, sources, has_provenance, position)
+        INSERT INTO metric_definition (key, category_key, name, path, description, source, limitations, misreadings, unit, formula_latex, reference_url, academic_source_url, badge, sources, has_provenance, position)
         VALUES ${Prisma.join(
           metricRows.map(
             (m) =>
-              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.academicSourceUrl}, ${m.badge}::jsonb, ${m.sources}, ${m.hasProvenance}, ${m.position})`,
+              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.limitations}, ${m.misreadings}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.academicSourceUrl}, ${m.badge}::jsonb, ${m.sources}, ${m.hasProvenance}, ${m.position})`,
           ),
         )}
         ON CONFLICT (key) DO UPDATE SET
           category_key = EXCLUDED.category_key, name = EXCLUDED.name, path = EXCLUDED.path,
-          description = EXCLUDED.description, source = EXCLUDED.source, unit = EXCLUDED.unit,
+          description = EXCLUDED.description, source = EXCLUDED.source,
+          limitations = EXCLUDED.limitations, misreadings = EXCLUDED.misreadings, unit = EXCLUDED.unit,
           formula_latex = EXCLUDED.formula_latex, reference_url = EXCLUDED.reference_url,
           academic_source_url = EXCLUDED.academic_source_url, badge = EXCLUDED.badge,
           sources = EXCLUDED.sources, has_provenance = EXCLUDED.has_provenance, position = EXCLUDED.position

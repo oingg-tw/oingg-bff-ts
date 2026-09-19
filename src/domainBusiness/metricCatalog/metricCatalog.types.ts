@@ -69,6 +69,17 @@ export interface MetricDefinition {
   path: string;
   /** Metric-level definition, same tooltip purpose as MetricField.description but for the metric as a whole. */
   description?: string | null;
+  /**
+   * What this metric can't tell you (e.g. sample-size caveats, survivorship bias) — added by analysis-ts
+   * 2026-09-19, alongside description/misreadings. Present on the ~35 metrics that have a badge (see
+   * `badge` below) as of launch; undefined on the rest until analysis-ts documents more.
+   */
+  limitations?: string | null;
+  /**
+   * Common ways this metric gets misread/misapplied (e.g. "a high score doesn't mean the stock will go
+   * up") — added by analysis-ts 2026-09-19, same badge-metrics-first coverage as limitations.
+   */
+  misreadings?: string | null;
   /** Metric-level data source, same tooltip purpose as MetricField.source but for the metric as a whole. */
   source?: string | null;
   /** Metric-level display unit — the default for every field under it, unless a field overrides it (see MetricField.unit). */
