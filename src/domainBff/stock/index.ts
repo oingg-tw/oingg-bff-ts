@@ -7,6 +7,7 @@ export {
   getCompanyList,
   getCompanyProfile,
   getDailyPriceHistory,
+  getDividendHistory,
   getDupontHistory,
   getExDividendCalendar,
   getExDividendNotices,
@@ -47,6 +48,11 @@ export type {
   CapitalStockHistoryEntry,
   CapitalStockHistoryResult,
 } from "@/domainBff/stock/capitalStockHistory.types.js";
+export type {
+  DividendEvent,
+  DividendHistoryEntry,
+  DividendHistoryResult,
+} from "@/domainBff/stock/dividendHistory.types.js";
 export type { ExDividendNoticeEntry, ExDividendType } from "@/domainBff/stock/exDividendNotices.types.js";
 export type { ExDividendCalendarEntry, ExDividendCalendarResult } from "@/domainBff/stock/exDividendCalendar.types.js";
 export type { FinancialStatementResult, FinancialStatementType } from "@/domainBff/stock/financialStatement.types.js";

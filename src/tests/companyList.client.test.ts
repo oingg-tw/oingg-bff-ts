@@ -26,13 +26,14 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
 }
 
 // Real shape given directly by analysis-ts (2026-09-11): companyName, not name, on the wire.
+// market/sectorCode/sectorName added 2026-09-19.
 const RAW_BODY = {
   count: 2650,
   limit: 200,
   offset: 0,
   entries: [
-    { symbol: "000700", companyName: "兆豐證券" },
-    { symbol: "2330", companyName: "台積電" },
+    { symbol: "000700", companyName: "兆豐證券", market: "TWSE", sectorCode: null, sectorName: null },
+    { symbol: "2330", companyName: "台積電", market: "TWSE", sectorCode: "24", sectorName: "半導體業" },
   ],
 };
 
@@ -47,8 +48,8 @@ describe("fetchCompanyList", () => {
       limit: 200,
       offset: 0,
       entries: [
-        { symbol: "000700", name: "兆豐證券" },
-        { symbol: "2330", name: "台積電" },
+        { symbol: "000700", name: "兆豐證券", market: "TWSE", sectorCode: null, sectorName: null },
+        { symbol: "2330", name: "台積電", market: "TWSE", sectorCode: "24", sectorName: "半導體業" },
       ],
     });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;

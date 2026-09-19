@@ -5,7 +5,13 @@ import type { CompanyListEntry, CompanyListResult } from "@/domainBff/stock/comp
 
 function normalizeEntry(raw: unknown): CompanyListEntry {
   const r = raw as Record<string, unknown>;
-  return { symbol: String(r.symbol), name: String(r.companyName) };
+  return {
+    symbol: String(r.symbol),
+    name: String(r.companyName),
+    market: String(r.market),
+    sectorCode: typeof r.sectorCode === "string" ? r.sectorCode : null,
+    sectorName: typeof r.sectorName === "string" ? r.sectorName : null,
+  };
 }
 
 function isCompanyListResponse(body: unknown): body is { count: unknown; limit: unknown; offset: unknown; entries: unknown[] } {

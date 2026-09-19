@@ -9,6 +9,7 @@ import {
   getCompanyList,
   getCompanyProfile,
   getDailyPriceHistory,
+  getDividendHistory,
   getDupontHistory,
   getExDividendCalendar,
   getExDividendNotices,
@@ -168,6 +169,12 @@ stockRouter.get("/:symbol/peer-group", async (req, res) => {
 stockRouter.get("/:symbol/capital-stock-history", async (req, res) => {
   const { symbol } = req.params;
   const history = await getCapitalStockHistory(symbol);
+  res.json(history);
+});
+
+stockRouter.get("/:symbol/dividend-history", async (req, res) => {
+  const { symbol } = req.params;
+  const history = await getDividendHistory(symbol);
   res.json(history);
 });
 

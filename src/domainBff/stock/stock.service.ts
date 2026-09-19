@@ -9,6 +9,8 @@ import type { PeerGroupResult } from "@/domainBff/stock/peerGroup.types.js";
 import type { CompanyListResult } from "@/domainBff/stock/companyList.types.js";
 import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
 import type { CapitalStockHistoryResult } from "@/domainBff/stock/capitalStockHistory.types.js";
+import { fetchDividendHistory } from "@/domainBff/stock/dividendHistory.client.js";
+import type { DividendHistoryResult } from "@/domainBff/stock/dividendHistory.types.js";
 import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
 import type { CompanyProfile } from "@/domainBff/stock/companyProfile.types.js";
 import { fetchExDividendCalendar } from "@/domainBff/stock/exDividendCalendar.client.js";
@@ -102,6 +104,11 @@ export async function getPeerGroup(symbol: string, params: PeerGroupParams): Pro
 /** Historical paid-in-capital/shares changes — GET /stocks/:symbol/capital-stock-history. */
 export async function getCapitalStockHistory(symbol: string): Promise<CapitalStockHistoryResult> {
   return fetchCapitalStockHistory(symbol);
+}
+
+/** Fiscal-year dividend history — GET /stocks/:symbol/dividend-history. */
+export async function getDividendHistory(symbol: string): Promise<DividendHistoryResult> {
+  return fetchDividendHistory(symbol);
 }
 
 /** Batched upcoming ex-dividend/ex-rights lookup — GET /stocks/ex-dividend-notices. */

@@ -40,7 +40,15 @@ const companyListSchema = z
     count: z.number(),
     limit: z.number(),
     offset: z.number(),
-    entries: z.array(z.object({ symbol: z.string(), name: z.string() })),
+    entries: z.array(
+      z.object({
+        symbol: z.string(),
+        name: z.string(),
+        market: z.string(),
+        sectorCode: z.string().nullable(),
+        sectorName: z.string().nullable(),
+      }),
+    ),
   })
   .openapi("CompanyList");
 
@@ -49,7 +57,7 @@ registry.registerPath({
   path: "/stocks",
   summary: "全市場上市／上櫃公司代號與名稱清單（全站搜尋股票用的資料來源）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies，來源是 twse-ts/tpex-ts 各自的 company_profile 表（代號衝突時以上市優先去重）。目前約 2650 檔，需要分頁：limit 1-1000（預設 200），offset 預設 0，offset 超過 count 時回傳空的 entries 陣列（不是錯誤）。前端要拿到全市場清單需要自己依 count 迴圈呼叫多次，這支端點單純原樣轉發 analysis-ts 的分頁參數，不會在 bff-ts 這邊多次呼叫組成單一大回應。沒有市場別（上市/上櫃）欄位——analysis-ts 這支端點目前沒有提供，如果之後有實際需求再加。",
+    "資料來自 oingg-analysis-ts 的 GET /companies，來源是 twse-ts/tpex-ts 各自的 company_profile 表（代號衝突時以上市優先去重）。目前約 2650 檔，需要分頁：limit 1-1000（預設 200），offset 預設 0，offset 超過 count 時回傳空的 entries 陣列（不是錯誤）。前端要拿到全市場清單需要自己依 count 迴圈呼叫多次，這支端點單純原樣轉發 analysis-ts 的分頁參數，不會在 bff-ts 這邊多次呼叫組成單一大回應。market 是 \"TWSE\"（上市）或 \"TPEx\"（上櫃），sectorCode/sectorName 是證交所類股代碼／名稱（見 GET /industries/securities-sectors），三者都是 2026-09-19 新增，analysis-ts 尚未分類的公司 sectorCode/sectorName 會是 null。",
   tags: ["Stock"],
   request: { query: companyListQuerySchema.openapi("CompanyListQuery", { example: { limit: 200, offset: 0 } }) },
   responses: {
@@ -364,6 +372,59 @@ registry.registerPath({
     200: {
       description: "股本歷史，查無資料時 entries 為空陣列。",
       content: { "application/json": { schema: capitalStockHistorySchema } },
+    },
+    502: unauthorized502,
+  },
+});
+
+const dividendEventSchema = z.object({
+  fiscalQuarter: z.number().nullable(),
+  cashDividend: z.number(),
+  stockDividend: z.number(),
+  exDividendDate: z.string().nullable(),
+  exRightsDate: z.string().nullable(),
+  paymentDate: z.string().nullable(),
+  announcementDate: z.string(),
+  closeAtExDate: z.number().nullable(),
+  yieldAtExDate: z.number().nullable(),
+});
+
+const dividendHistorySchema = z
+  .object({
+    symbol: z.string(),
+    entries: z.array(
+      z.object({
+        fiscalYear: z.number(),
+        rocFiscalYear: z.number(),
+        cashDividend: z.number(),
+        stockDividend: z.number(),
+        totalDividend: z.number(),
+        distributionCount: z.number(),
+        exDividendDate: z.string().nullable(),
+        exRightsDate: z.string().nullable(),
+        paymentDate: z.string().nullable(),
+        eps: z.number().nullable(),
+        payoutRatio: z.number().nullable(),
+        yieldAtExDate: z.number().nullable(),
+        knowledgeDate: z.string(),
+        events: z.array(dividendEventSchema),
+      }),
+    ),
+  })
+  .openapi("DividendHistory");
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/dividend-history",
+  summary: "查詢歷年股利發放紀錄（含現金股利、股票股利，一個年度可能分多次發放）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/dividend-history，2026-09-19 新增。entries 由舊到新排序（跟 capital-stock-history 的新到舊相反）。每個 entries[] 是一個「所屬年度」的彙總（cashDividend/stockDividend/totalDividend/exDividendDate/exRightsDate/paymentDate 是該年度的總計或最後一次發放的日期），events[] 再把同一年度拆成個別發放次數（distributionCount 決定 events 長度；只發放一次時 fiscalQuarter 為 null）。eps/payoutRatio 要等該年度全年財報公告後才會有值（例如目前最新年度可能仍是 null，愈往前的年度愈完整）。yieldAtExDate/closeAtExDate 要等除息日當天收盤價確定才會有值，未來或剛公告的除息日會是 null。查無資料回傳空陣列，不是 404。",
+  tags: ["Stock"],
+  request: { params: symbolParam },
+  responses: {
+    200: {
+      description: "歷年股利發放紀錄，查無資料時 entries 為空陣列。",
+      content: { "application/json": { schema: dividendHistorySchema } },
     },
     502: unauthorized502,
   },
