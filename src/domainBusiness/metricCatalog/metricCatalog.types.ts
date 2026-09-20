@@ -61,6 +61,16 @@ export interface MetricBadge {
    */
   timeframe?: string;
   threshold: MetricBadgeThreshold;
+  /**
+   * A public page where the threshold/formula can actually be verified — added by analysis-ts 2026-09-20
+   * (commit 2fc57f6b) after a user report that clicking a badge showed no formula/threshold (the badge had
+   * no source link of its own; the frontend was substituting the metric's own `referenceUrl` as a
+   * stand-in). 21 of 23 badge-bearing metrics have it as of launch (each URL manually opened and verified
+   * to actually show the content); grossMargin/netProfitMargin are deliberately left without one — their
+   * threshold comes from a physical book with no legitimate free full-text source. Absent (not empty
+   * string) when not yet documented, same convention as MetricDefinition.referenceUrl/formulaLatex.
+   */
+  sourceUrl?: string;
 }
 
 export interface MetricDefinition {

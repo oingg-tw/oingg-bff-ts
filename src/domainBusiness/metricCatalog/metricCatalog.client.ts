@@ -36,6 +36,7 @@ function isRawBadge(value: unknown): value is MetricBadge {
     typeof b.summary === "string" &&
     typeof b.detail === "string" &&
     (b.timeframe === undefined || typeof b.timeframe === "string") &&
+    (b.sourceUrl === undefined || typeof b.sourceUrl === "string") &&
     isRawBadgeThreshold(b.threshold)
   );
 }
