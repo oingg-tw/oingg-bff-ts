@@ -11,7 +11,7 @@
 export type MetricProvenanceMetricCode = string;
 
 export interface MetricProvenanceEntry {
-  /** Chinese label describing what this entry is for the computation (e.g. "TTM 淨利（第 1/4 季）"). */
+  /** Chinese label describing what this entry is for the computation (e.g. "近四季 淨利（第 1/4 季）" — wording updated by analysis-ts 2026-09-21, "TTM" -> "近四季" across all 68 metrics, pure string content, no shape change). */
   role: string;
   fiscalYear: number | null;
   fiscalQuarter: number | null;
