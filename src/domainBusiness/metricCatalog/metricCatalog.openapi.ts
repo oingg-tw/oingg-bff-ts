@@ -40,7 +40,7 @@ const metricBadgeThresholdSchema: z.ZodType<MetricBadgeThresholdDoc> = z.lazy(()
       valueMax: z.number().optional(),
       compareAgainstFieldId: z.string().optional(),
       allPositiveFieldIds: z.array(z.string()).optional(),
-      /** A secondary, stricter "danger zone" threshold — same shape as the threshold it's nested in. Absent on every badge except piotroskiFScore as of launch. */
+      /** A secondary, stricter "danger zone" threshold. Absent on every badge except piotroskiFScore as of launch. Reuses the full threshold type for simplicity, but analysis-ts confirmed its real shape is narrower: only description/thresholdLatex/note/comparator ('gt'|'lt'|'gte'|'lte' only)/value — no denominator/valueMin/valueMax/compareAgainstFieldId/allPositiveFieldIds. */
       warning: metricBadgeThresholdSchema.optional(),
     })
     .openapi("MetricBadgeThreshold"),

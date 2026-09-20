@@ -46,8 +46,13 @@ export interface MetricBadgeThreshold {
   /**
    * A secondary "danger zone" threshold, stricter than the main pass/fail line — added 2026-09-20, so far
    * only present on piotroskiFScore (main threshold ≥8 "high score"; warning ≤2 "low score", per Piotroski
-   * 2000's own definition). Same shape as the threshold it's nested in (comparator/value/description/etc.)
-   * — this is a genuinely separate line, not a restatement of the main one. Absent on every other badge.
+   * 2000's own definition) — a genuinely separate line, not a restatement of the main one. Absent on every
+   * other badge. Typed as the full MetricBadgeThreshold for reuse, but analysis-ts confirmed (2026-09-20)
+   * its real shape is narrower than a top-level threshold: only description/thresholdLatex/note?/
+   * comparator ('gt'|'lt'|'gte'|'lte' only, never abs_lt/in_range)/value — no denominator, valueMin/
+   * valueMax, compareAgainstFieldId, or allPositiveFieldIds. Every field beyond description is already
+   * optional here, so this narrower shape validates fine without a separate type — don't add fields to a
+   * warning object that aren't in that confirmed list even if the top-level threshold type allows them.
    */
   warning?: MetricBadgeThreshold;
 }
