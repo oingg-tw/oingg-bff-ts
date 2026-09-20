@@ -21,10 +21,19 @@
  * for the first time with no filters chosen yet — same isDefault convention as
  * ColumnPresetTemplate/prisma/seedColumnPresetTemplates.ts, but a frontend discoverability signal only
  * (bff-ts does not auto-apply this filter server-side — POST /screener still requires at least one
- * explicit filter). "股利穩健" (Dividend Stability) was picked by the user as the default: the most
- * broadly familiar/accepted strategy among Taiwanese retail investors (存股領息), unlike the more
- * specialist/niche distress-scoring or higher-risk turnaround templates. Enforced by an assertion in main()
- * before writing anything, not just by convention.
+ * explicit filter). "股利連續性" (originally named "股利穩健" until a 2026-09-20 compliance rename, see
+ * below) was picked by the user as the default: the most broadly familiar/accepted strategy among
+ * Taiwanese retail investors (存股領息), unlike the more specialist/niche distress-scoring or higher-risk
+ * turnaround templates. Enforced by an assertion in main() before writing anything, not just by convention.
+ *
+ * 2026-09-20: web-nuxt flagged two strings against their public-finance-site compliance wording rules
+ * (no investment-performance claims) — "股利穩健"'s name (implies a performance judgment: "sound/stable")
+ * and "價值型"'s description ("...股價偏低的公司", implies a valuation judgment: "underpriced"). Both
+ * updated in place against the live DB (PresetTemplate.name is the upsert key, so the rename was applied
+ * directly rather than via re-seed, which would have inserted a duplicate row under the new name and left
+ * the old one orphaned) and mirrored here so future re-seeds stay consistent: "股利穩健" -> "股利連續性"
+ * (name only, category/filters/isDefault unchanged), and the value template's description now states the
+ * factual threshold ("葛拉漢數字低於 22.5 的公司") instead of the evaluative "股價偏低".
  *
  * Run with: pnpm run seed:preset-templates
  */
@@ -48,7 +57,7 @@ const TEMPLATES: TemplateSeed[] = [
     name: "價值型",
     category: "大師策略",
     description:
-      "葛拉漢數字（Graham Number）< 22.5——Benjamin Graham 設定的本益比 15 倍 × 股價淨值比 1.5 倍上限（15 × 1.5 = 22.5），用來篩選相對於獲利與帳面資產而言股價偏低的公司。",
+      "葛拉漢數字（Graham Number）< 22.5——Benjamin Graham 設定的本益比 15 倍 × 股價淨值比 1.5 倍上限（15 × 1.5 = 22.5），用來篩選葛拉漢數字低於 22.5 的公司。",
     tier: "FREE",
     status: "AVAILABLE",
     pendingReason: null,
@@ -67,7 +76,7 @@ const TEMPLATES: TemplateSeed[] = [
     isDefault: false,
   },
   {
-    name: "股利穩健",
+    name: "股利連續性",
     category: "存股主題",
     description:
       "股利發放率介於 40%–60%——出自 Fidelity Investments 2013 年投資人教育報告《Payout Ratio: The Most Influential Management Decision a Company Can Make?》劃定的最適區間，兼顧資本配置紀律與股利永續性，不是「越低越安全」的單邊門檻。",
