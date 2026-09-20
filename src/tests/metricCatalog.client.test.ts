@@ -587,6 +587,47 @@ describe("fetchMetricCatalog", () => {
     expect(result[0]?.metrics[0]?.badge?.threshold).toMatchObject({ comparator: "in_range", valueMin: 40, valueMax: 60 });
   });
 
+  // Regression (2026-09-20): a real sync outage. piotroskiFScore's badge.threshold gained a nested
+  // `warning` threshold with (a) comparator "lte", not in the previously-hardcoded allowlist, and
+  // (b) no `denominator` at all (inherits the parent's rather than repeating it) — both together made
+  // isRawBadgeThreshold reject the whole category array, failing the entire sync, not just this one badge.
+  it("passes through a nested threshold.warning using comparator 'lte' with no denominator of its own", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "resilience",
+            categoryDisplayName: "財務韌性",
+            metrics: [
+              {
+                metricCode: "piotroskiFScore",
+                name: "Piotroski F-Score",
+                unit: "分",
+                validTimeframes: ["Q"],
+                sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true,
+                badge: {
+                  ...SAMPLE_BADGE,
+                  threshold: {
+                    description: "≥ 8",
+                    denominator: 9,
+                    comparator: "gte" as const,
+                    value: 8,
+                    warning: { description: "≤ 2", comparator: "lte" as const, value: 2 },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchMetricCatalog();
+
+    expect(result[0]?.metrics[0]?.badge?.threshold?.warning).toEqual({ description: "≤ 2", comparator: "lte", value: 2 });
+  });
+
   // sources (2026-09-10): unlike formulaLatex/referenceUrl/badge, analysis-ts guarantees this is always
   // present and non-empty — required here, not defaulted to null/undefined when absent.
   it("passes through sources", async () => {

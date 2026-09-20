@@ -3,7 +3,7 @@ import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService 
 import { logger } from "@/shared/logger.js";
 import type { MetricBadge, MetricBadgeThreshold, MetricCategory } from "@/domainBusiness/metricCatalog/metricCatalog.types.js";
 
-const BADGE_COMPARATORS = ["gt", "lt", "gte", "abs_lt", "in_range"] as const;
+const BADGE_COMPARATORS = ["gt", "lt", "gte", "lte", "abs_lt", "in_range"] as const;
 
 function isRawBadgeThreshold(value: unknown): value is MetricBadgeThreshold {
   if (typeof value !== "object" || value === null) {
@@ -12,7 +12,7 @@ function isRawBadgeThreshold(value: unknown): value is MetricBadgeThreshold {
   const t = value as MetricBadgeThreshold;
   return (
     typeof t.description === "string" &&
-    typeof t.denominator === "number" &&
+    (t.denominator === undefined || typeof t.denominator === "number") &&
     (t.comparator === undefined || (BADGE_COMPARATORS as readonly string[]).includes(t.comparator)) &&
     (t.value === undefined || typeof t.value === "number") &&
     (t.valueMin === undefined || typeof t.valueMin === "number") &&

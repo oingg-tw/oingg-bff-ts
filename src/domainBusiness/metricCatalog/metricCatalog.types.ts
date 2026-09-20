@@ -18,10 +18,19 @@ export interface MetricField {
 
 export interface MetricBadgeThreshold {
   description: string;
-  denominator: number;
+  /**
+   * Required on a badge's top-level threshold. On a nested `warning` threshold (see below), analysis-ts
+   * omits it entirely rather than repeating the parent's value (confirmed live, 2026-09-20:
+   * piotroskiFScore.badge.threshold.warning has no denominator field at all, not even the same 9) — same
+   * denominator as the threshold it's nested in, not a separate one.
+   */
+  denominator?: number;
   /** "in_range" (2026-09-10, dividendPayoutRatio's Fidelity-range correction) pairs with valueMin/valueMax
-   * instead of value — met when the metric's value falls between the two, inclusive on both ends. */
-  comparator?: "gt" | "lt" | "gte" | "abs_lt" | "in_range";
+   * instead of value — met when the metric's value falls between the two, inclusive on both ends. "lte"
+   * (2026-09-20, first seen on piotroskiFScore's nested `warning` threshold) is the inclusive counterpart
+   * to the pre-existing "lt" — "gte" already existed as gt's inclusive counterpart, "lte" had just never
+   * been used until this threshold needed a ≤ comparison. */
+  comparator?: "gt" | "lt" | "gte" | "lte" | "abs_lt" | "in_range";
   value?: number;
   /** Only set (and only meaningful) when comparator is "in_range" — the inclusive lower/upper bounds. */
   valueMin?: number;
