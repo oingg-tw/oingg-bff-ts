@@ -1,14 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { parseBody } from "@/shared/validation.js";
-import {
-  getChainClassification,
-  getChainClusters,
-  getChainTree,
-  getIndustryFlatList,
-  getIndustryTree,
-  getSecuritiesSectors,
-} from "@/domainBff/industries/industries.service.js";
+import { getIndustryFlatList, getIndustryTree, getSecuritiesSectors } from "@/domainBff/industries/industries.service.js";
 
 export const industriesRouter = Router();
 
@@ -30,19 +23,4 @@ industriesRouter.get("/flat", async (_req, res) => {
 industriesRouter.get("/securities-sectors", async (_req, res) => {
   const list = await getSecuritiesSectors();
   res.json(list);
-});
-
-industriesRouter.get("/chain-classification", async (_req, res) => {
-  const list = await getChainClassification();
-  res.json(list);
-});
-
-industriesRouter.get("/chain-clusters", async (_req, res) => {
-  const tree = await getChainClusters();
-  res.json(tree);
-});
-
-industriesRouter.get("/chain-tree", async (_req, res) => {
-  const tree = await getChainTree();
-  res.json(tree);
 });

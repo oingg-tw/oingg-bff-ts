@@ -11,7 +11,6 @@ import {
   metricProvenanceQuerySchema,
   metricsHistoryQuerySchema,
   monthlyRevenueHistoryQuerySchema,
-  peerGroupQuerySchema,
   piotroskiBreakdownQuerySchema,
   preferredStocksQuerySchema,
   roeRoaHistoryQuerySchema,
@@ -255,67 +254,6 @@ registry.registerPath({
   request: { params: symbolParam },
   responses: {
     200: { description: "依分類分組的徽章清單。", content: { "application/json": { schema: companyBadgesResultSchema } } },
-    502: unauthorized502,
-  },
-});
-
-const peerGroupCompanySchema = z.object({
-  symbol: z.string(),
-  companyName: z.string().nullable(),
-});
-
-const peerGroupResultSchema = z
-  .object({
-    symbol: z.string(),
-    companyName: z.string().nullable(),
-    found: z.boolean(),
-    notFoundReason: z.enum(["not_classified", "insufficient_peers"]).nullable(),
-    peerGroupLevel: z.enum(["coarse_group", "category", "segment"]).nullable(),
-    peerGroupNodeId: z.string().nullable(),
-    peerGroupLabel: z.string().nullable(),
-    category: z.string().nullable(),
-    coarseGroup: z.string().nullable(),
-    source: z.enum(["keyword", "gemini"]).nullable(),
-    updatedAt: z.string().nullable(),
-    peers: z.array(peerGroupCompanySchema),
-    warnings: z.array(z.string()),
-  })
-  .openapi("PeerGroupResult", {
-    example: {
-      symbol: "2330",
-      companyName: "台積電",
-      found: true,
-      notFoundReason: null,
-      peerGroupLevel: "segment",
-      peerGroupNodeId: "電子零組件與半導體/積體電路/0/0",
-      peerGroupLabel: "晶圓代工與主流封測",
-      category: "積體電路",
-      coarseGroup: "電子零組件與半導體",
-      source: "gemini",
-      updatedAt: "2026-09-14",
-      peers: [
-        { symbol: "2330", companyName: "台積電" },
-        { symbol: "2454", companyName: "聯發科" },
-      ],
-      warnings: [],
-    },
-  });
-
-const peerGroupQueryDocSchema = peerGroupQuerySchema.openapi("PeerGroupQuery", {
-  example: { minPeers: 5 },
-});
-
-registry.registerPath({
-  method: "get",
-  path: "/stocks/{symbol}/peer-group",
-  summary: "查詢個股的同業比較清單（供應鏈關係分類，非財政部稅籍分類）",
-  description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/peer-group（2026-09-14 上線，取代先前財政部稅籍分類版本——這是全新端點，bff-ts 之前沒有轉發過舊版本，這裡不是遷移）。分類來源是 oingg-playwright-py 解析真實供應鏈關係得出的分類，跟 GET /industries/tree 的財政部稅籍五層分類是完全不同、互不相關的體系。**2026-09-15 同業選取演算法重新設計**：原本用一組較寬的扁平分類（例如「資訊設備」113 家混了筆電代工/品牌/散熱件/工業電腦/伺服器完全不同商業模式的公司），改成優先用 GET /industries/chain-tree（同一份底層資料）的最細葉節點層級當同業，不夠再沿樹往上退一層。peerGroupLevel（'coarse_group'|'category'|'segment'）/peerGroupNodeId/peerGroupLabel 描述這次比較實際用的是哪一層（peerGroupNodeId 不是穩定 id，跟 chain-tree 的 nodeId 同一種不穩定性質，不能快取/收藏/分享連結）；回退時 warnings 會有說明文字，直接顯示給使用者看即可，不用自己解析。category/coarseGroup（原本是這次比較層級的依據）現在**只是純資訊性的產業標籤顯示用途**，不再代表這次比較用的層級——那個角色已經交給 peerGroupLevel。source（2026-09-15 取代 confidence/sampleSize）標示「目標股票自己」的分類判定方式：keyword 只用免費關鍵字規則、gemini 額外經 Gemini 語意驗證/修正，實測約 99% 是 gemini，當成單一品質等級看待即可，不用再自己做門檻篩選。KY 股（境外註冊公司）不再有結構性缺口——這是相對於稅籍分類版本的改善，KY 股一樣能正常出現在同業清單或作為查詢目標。minPeers 選填，省略時套用 analysis-ts 自己的預設值（2026-09-15 從 3 調高到 5），bff-ts 不在本地重複定義這個預設值或做範圍檢查——數值格式不對會轉發 analysis-ts 自己的 400 訊息。查無資料或代號尚未分類時仍回 200，found 為 false，其餘欄位全部是 null、peers/warnings 是空陣列，不會是 404；notFoundReason（2026-09-15 新增）區分兩種 found:false 情境：not_classified（這家公司完全不在供應鏈樹裡）vs. insufficient_peers（有分類，但退到樹根層級都湊不到 minPeers——以前這種情況會硬回傳粗分類層級的結果，現在改成老實回報湊不到）。",
-  tags: ["Stock"],
-  request: { params: symbolParam, query: peerGroupQueryDocSchema },
-  responses: {
-    200: { description: "同業比較結果。", content: { "application/json": { schema: peerGroupResultSchema } } },
-    400: errorResponse("minPeers 格式不是合法數字。"),
     502: unauthorized502,
   },
 });

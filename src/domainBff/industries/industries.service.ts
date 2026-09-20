@@ -1,19 +1,9 @@
 import {
-  fetchChainClassification,
-  fetchChainClusters,
-  fetchChainTree,
   fetchIndustryFlatList,
   fetchIndustryTree,
   fetchSecuritiesSectors,
 } from "@/domainBff/industries/industries.client.js";
-import type {
-  ChainClassificationList,
-  ChainClusterTree,
-  ChainTree,
-  IndustryFlatList,
-  IndustryTree,
-  SecuritiesSectorList,
-} from "@/domainBff/industries/industries.types.js";
+import type { IndustryFlatList, IndustryTree, SecuritiesSectorList } from "@/domainBff/industries/industries.types.js";
 
 /** Node of the industry classification tree — GET /industries/tree. */
 export async function getIndustryTree(code?: string): Promise<IndustryTree> {
@@ -28,19 +18,4 @@ export async function getIndustryFlatList(): Promise<IndustryFlatList> {
 /** TWSE/TPEx securities-sector list (證交所類股), for the screener's sectorCodes filter — GET /industries/securities-sectors. */
 export async function getSecuritiesSectors(): Promise<SecuritiesSectorList> {
   return fetchSecuritiesSectors();
-}
-
-/** Supply-chain-derived classification listing (companies + coarse-group rollup) — GET /industries/chain-classification. */
-export async function getChainClassification(): Promise<ChainClassificationList> {
-  return fetchChainClassification();
-}
-
-/** Full supply-chain cluster tree — GET /industries/chain-clusters. clusterId/subClusterId are NOT stable across requests. */
-export async function getChainClusters(): Promise<ChainClusterTree> {
-  return fetchChainClusters();
-}
-
-/** Supply-chain drill-down browsing tree — GET /industries/chain-tree. nodeId is NOT stable across requests. */
-export async function getChainTree(): Promise<ChainTree> {
-  return fetchChainTree();
 }
