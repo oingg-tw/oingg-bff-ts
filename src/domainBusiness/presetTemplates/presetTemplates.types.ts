@@ -11,6 +11,14 @@ export interface PresetTemplateFilter {
 export interface PresetTemplate {
   id: string;
   name: string;
+  /**
+   * Stable, URL-safe identifier decoupled from `name` — added 2026-09-20 after a `name` rename ("股利穩健"
+   * -> "股利連續性") silently broke web-nuxt's /screener/{slug} routing (they had been keying off `name`,
+   * the only string identifier available at the time). web-nuxt's own SCREENER_TEMPLATE_SLUGS is the
+   * authoritative source for these values. `name`/`description` can be revised freely without notice now
+   * that routing doesn't depend on them; changing `slug` itself is still a breaking change for web-nuxt.
+   */
+  slug: string;
   category: string;
   description: string;
   tier: PresetTemplateTier;

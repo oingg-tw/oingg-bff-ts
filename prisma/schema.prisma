@@ -32,6 +32,13 @@ enum PresetTemplateStatus {
 model PresetTemplate {
   id            String               @id @default(uuid()) @db.Uuid
   name          String               @unique
+  /// Stable, URL-safe identifier decoupled from the editorial `name` above — added 2026-09-20 after
+  /// renaming "股利穩健" -> "股利連續性" broke web-nuxt's routing (they were keying /screener/{slug} pages
+  /// off `name`, the only string identifier available at the time). web-nuxt's own SCREENER_TEMPLATE_SLUGS
+  /// is the authoritative source for these values — seeded to match exactly, not chosen independently.
+  /// `name`/`description` can be revised freely now without notice; changing `slug` itself is still a
+  /// breaking change for them and needs the same advance-notice treatment renaming `name` used to.
+  slug          String               @unique
   category      String
   description   String
   tier          PresetTemplateTier

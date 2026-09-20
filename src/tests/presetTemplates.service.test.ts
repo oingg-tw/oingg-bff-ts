@@ -23,6 +23,7 @@ import {
 const AVAILABLE_TEMPLATE = {
   id: "aaaaaaaa-0000-4000-8000-000000000001",
   name: "巴菲特護城河",
+  slug: "buffett-moat",
   category: "大師策略",
   description: "test",
   tier: "FREE" as const,

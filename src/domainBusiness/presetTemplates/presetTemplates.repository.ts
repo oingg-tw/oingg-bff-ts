@@ -6,6 +6,7 @@ function toPresetTemplate(row: PresetTemplateRow): PresetTemplate {
   return {
     id: row.id,
     name: row.name,
+    slug: row.slug,
     category: row.category,
     description: row.description,
     tier: row.tier,
