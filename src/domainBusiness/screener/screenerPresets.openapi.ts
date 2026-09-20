@@ -20,6 +20,8 @@ export const presetSchema = z
     name: z.string(),
     filters: z.array(presetFilterViewSchema),
     sectorCodes: z.array(z.string()),
+    /** Symmetric with sectorCodes — added 2026-09-20, mutually exclusive with it. */
+    excludeSectorCodes: z.array(z.string()),
     lastColumnPresetId: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -55,7 +57,7 @@ registry.registerPath({
   path: "/screener/presets",
   summary: "儲存一組新的篩選組合",
   description:
-    "沒有 name 參數——新建立的組合一律取名「未命名」（撞名的話依序改成「未命名 2」「未命名 3」...，跟電腦新增檔案一樣不會報錯），前端請之後再用 PATCH /screener/presets/{id} 改名。格式跟 POST /screener 完全一樣，filters 可以是空陣列——此時會預設套用 ROE > 30（roe.TTM），之後可再用 PATCH 覆蓋條件。sectorCodes 是選填的證交所類股代碼陣列（見 GET /industries/securities-sectors），會跟著這組 preset 一起持久化——之後每次用 GET /screener/presets/{id}/run 執行都會自動帶上，不用每次呼叫端再重複傳。省略或空陣列代表不限類股。無效／已停用的代碼在儲存當下不會被擋下來（analysis-ts 是唯一的驗證權威，這裡沒有本地類股字典可比對），要等實際執行（run）時才會知道。",
+    "沒有 name 參數——新建立的組合一律取名「未命名」（撞名的話依序改成「未命名 2」「未命名 3」...，跟電腦新增檔案一樣不會報錯），前端請之後再用 PATCH /screener/presets/{id} 改名。格式跟 POST /screener 完全一樣，filters 可以是空陣列——此時會預設套用 ROE > 30（roe.TTM），之後可再用 PATCH 覆蓋條件。sectorCodes 是選填的證交所類股代碼陣列（見 GET /industries/securities-sectors），會跟著這組 preset 一起持久化——之後每次用 GET /screener/presets/{id}/run 執行都會自動帶上，不用每次呼叫端再重複傳。excludeSectorCodes（2026-09-20 新增）跟 sectorCodes 對稱、同樣會持久化，兩者互斥（都給且都非空會 400）；未分類公司（目前約 51 家沒有證交所類股代碼）在 sectorCodes 下會被排除、在 excludeSectorCodes 下會被保留，語意細節見 POST /screener 文件。兩者省略或空陣列都代表不限類股。無效／已停用的代碼在儲存當下不會被擋下來（analysis-ts 是唯一的驗證權威，這裡沒有本地類股字典可比對），要等實際執行（run）時才會知道。",
   tags: ["Screener"],
   security: [{ bearerAuth: [] }],
   request: {
@@ -69,7 +71,7 @@ registry.registerPath({
       description: "新增成功的篩選組合（name 固定是「未命名」或其變體）。",
       content: { "application/json": { schema: z.object({ preset: presetSchema }) } },
     },
-    400: errorResponse("缺少 filters，或有 field 不存在於 filterCatalog。"),
+    400: errorResponse("缺少 filters，有 field 不存在於 filterCatalog，或 sectorCodes 和 excludeSectorCodes 同時給了。"),
     401: unauthorized,
   },
 });
@@ -116,7 +118,7 @@ registry.registerPath({
   path: "/screener/presets/{id}",
   summary: "更新篩選組合的名稱和／或條件",
   description:
-    "filters 有給的話是整組覆蓋（不是增量），跟 PATCH /screener/column-presets/{id} 的 columns 同樣邏輯。sectorCodes 同樣是整組覆蓋，省略代表不變、空陣列代表清空限制。",
+    "filters 有給的話是整組覆蓋（不是增量），跟 PATCH /screener/column-presets/{id} 的 columns 同樣邏輯。sectorCodes/excludeSectorCodes 同樣是整組覆蓋，省略代表該欄位不變、空陣列代表清空限制；兩者在同一次請求裡都非空會 400。**只改其中一個時會自動清空另一個**——例如目前存的是 sectorCodes:[\"24\"]，這次只傳 excludeSectorCodes:[\"10\"]（不提 sectorCodes），結果會是 sectorCodes:[]、excludeSectorCodes:[\"10\"]，不會兩個同時非空：因為 PATCH 本身只送有異動的欄位，光看這次請求看不出舊資料庫狀態，所以這個「設一個就清另一個」的規則由伺服器端強制套用，前端不需要（也不應該）自己先查舊值再手動清空。",
   tags: ["Screener"],
   security: [{ bearerAuth: [] }],
   request: {
@@ -125,7 +127,7 @@ registry.registerPath({
   },
   responses: {
     200: { description: "更新後的篩選組合。", content: { "application/json": { schema: z.object({ preset: presetSchema }) } } },
-    400: errorResponse("有 field 不存在於 filterCatalog。"),
+    400: errorResponse("有 field 不存在於 filterCatalog，或 sectorCodes 和 excludeSectorCodes 同時給了。"),
     401: unauthorized,
     404: notFound,
     409: errorResponse("已經有同名的篩選組合。"),

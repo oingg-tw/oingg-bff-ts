@@ -44,6 +44,10 @@ export const screenerRequestSchema = z
       .optional(),
     sortOrder: z.enum(["asc", "desc"], { error: '"sortOrder" must be "asc" or "desc"' }).optional(),
     sectorCodes: z.array(z.string().trim().min(1)).optional(),
+    // Symmetric with sectorCodes, added 2026-09-20 for "everything except these sectors" — mutually
+    // exclusive with it (see the refine below), matching analysis-ts's own POST /screener rule (a real
+    // NOT IN in their query engine, not a reverse-computed sectorCodes — see analysisScreenerClient.ts).
+    excludeSectorCodes: z.array(z.string().trim().min(1)).optional(),
   })
   .refine((data) => (data.sortField === undefined) === (data.sortOrder === undefined), {
     message: '"sortField" and "sortOrder" must be given together, or not at all',
@@ -52,6 +56,10 @@ export const screenerRequestSchema = z
   .refine((data) => data.columnPresetId === undefined || data.columnPresetId === null || data.columns === undefined, {
     message: '"columnPresetId" and "columns" can\'t both be given — pick one way to choose display columns',
     path: ["columns"],
+  })
+  .refine((data) => !(data.sectorCodes && data.sectorCodes.length > 0 && data.excludeSectorCodes && data.excludeSectorCodes.length > 0), {
+    message: '"sectorCodes" and "excludeSectorCodes" can\'t both be given — pick one',
+    path: ["excludeSectorCodes"],
   });
 
 screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
@@ -70,7 +78,7 @@ screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
     ({ columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, body.columnPresetId ?? undefined));
   }
 
-  const result = await runScreener(filters, columns, pagination, sort, body.sectorCodes);
+  const result = await runScreener(filters, columns, pagination, sort, body.sectorCodes, body.excludeSectorCodes);
   res.json({ ...result, columnPresetId });
 });
 
@@ -106,28 +114,39 @@ function parseSectorCodes(raw: string | undefined): string[] {
     .filter(Boolean);
 }
 
-export const rankingQuerySchema = z.object({
-  field: z.string({ error: '"field" query parameter is required' }).trim().min(1, '"field" query parameter is required'),
-  direction: z.enum(["asc", "desc"], { error: '"direction" must be "asc" or "desc"' }).optional(),
-  limit: z.preprocess(
-    (v) => (v === undefined || v === "" ? undefined : v),
-    z
-      .coerce.number({ error: '"limit" must be a positive integer' })
-      .refine((n) => Number.isInteger(n) && n > 0, { message: '"limit" must be a positive integer' })
-      .refine((n) => n <= MAX_RANKING_LIMIT, { message: `"limit" must be at most ${MAX_RANKING_LIMIT}` })
+export const rankingQuerySchema = z
+  .object({
+    field: z.string({ error: '"field" query parameter is required' }).trim().min(1, '"field" query parameter is required'),
+    direction: z.enum(["asc", "desc"], { error: '"direction" must be "asc" or "desc"' }).optional(),
+    limit: z.preprocess(
+      (v) => (v === undefined || v === "" ? undefined : v),
+      z
+        .coerce.number({ error: '"limit" must be a positive integer' })
+        .refine((n) => Number.isInteger(n) && n > 0, { message: '"limit" must be a positive integer' })
+        .refine((n) => n <= MAX_RANKING_LIMIT, { message: `"limit" must be at most ${MAX_RANKING_LIMIT}` })
+        .optional(),
+    ),
+    columns: z
+      .string({ error: '"columns" must be a comma-separated string of fields' })
+      .trim()
+      .min(1, '"columns" must be a comma-separated string of fields')
       .optional(),
-  ),
-  columns: z
-    .string({ error: '"columns" must be a comma-separated string of fields' })
-    .trim()
-    .min(1, '"columns" must be a comma-separated string of fields')
-    .optional(),
-  sectorCodes: z
-    .string({ error: '"sectorCodes" must be a comma-separated string of sector codes' })
-    .trim()
-    .min(1, '"sectorCodes" must be a comma-separated string of sector codes')
-    .optional(),
-});
+    sectorCodes: z
+      .string({ error: '"sectorCodes" must be a comma-separated string of sector codes' })
+      .trim()
+      .min(1, '"sectorCodes" must be a comma-separated string of sector codes')
+      .optional(),
+    // Symmetric with sectorCodes, added 2026-09-20 — see screenerRequestSchema's excludeSectorCodes.
+    excludeSectorCodes: z
+      .string({ error: '"excludeSectorCodes" must be a comma-separated string of sector codes' })
+      .trim()
+      .min(1, '"excludeSectorCodes" must be a comma-separated string of sector codes')
+      .optional(),
+  })
+  .refine((data) => !(data.sectorCodes && data.excludeSectorCodes), {
+    message: '"sectorCodes" and "excludeSectorCodes" can\'t both be given — pick one',
+    path: ["excludeSectorCodes"],
+  });
 
 screenerRouter.get("/ranking", async (req, res) => {
   const query = parseBody(rankingQuerySchema, req.query);
@@ -135,8 +154,9 @@ screenerRouter.get("/ranking", async (req, res) => {
   const limit = query.limit ?? DEFAULT_RANKING_LIMIT;
   const columns = parseRankingColumns(query.columns);
   const sectorCodes = parseSectorCodes(query.sectorCodes);
+  const excludeSectorCodes = parseSectorCodes(query.excludeSectorCodes);
 
-  const result = await runRanking(query.field, direction, limit, columns, sectorCodes);
+  const result = await runRanking(query.field, direction, limit, columns, sectorCodes, excludeSectorCodes);
   res.json(result);
 });
 

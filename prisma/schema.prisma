@@ -392,6 +392,11 @@ model ScreenerPreset {
   /// /screener/presets/:id/run calls analysis-ts's POST /screener), not at save time. Empty array means
   /// no sector restriction.
   sectorCodes Json     @default("[]") @map("sector_codes")
+  /// Symmetric with sectorCodes above ("every sector except these"), added 2026-09-20 — same plain-JSON,
+  /// analysis-ts-is-sole-authority convention. Mutually exclusive with sectorCodes at the API layer (not
+  /// a DB constraint) — enforced in screenerPresets.service.ts, not here, same as every other cross-field
+  /// validation in this codebase.
+  excludeSectorCodes Json @default("[]") @map("exclude_sector_codes")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 

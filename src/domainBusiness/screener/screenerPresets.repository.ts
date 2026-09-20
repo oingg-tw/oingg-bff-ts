@@ -13,6 +13,7 @@ export interface PresetRow {
   name: string;
   filters: PresetFilterRow[];
   sectorCodes: string[];
+  excludeSectorCodes: string[];
   lastColumnPresetId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -39,6 +40,7 @@ function toPresetRow(preset: {
   id: string;
   name: string;
   sectorCodes: unknown;
+  excludeSectorCodes: unknown;
   lastColumnPresetId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -48,6 +50,7 @@ function toPresetRow(preset: {
     id: preset.id,
     name: preset.name,
     sectorCodes: normalizeSectorCodes(preset.sectorCodes),
+    excludeSectorCodes: normalizeSectorCodes(preset.excludeSectorCodes),
     lastColumnPresetId: preset.lastColumnPresetId,
     createdAt: preset.createdAt.toISOString(),
     updatedAt: preset.updatedAt.toISOString(),
@@ -86,6 +89,7 @@ export async function createPreset(
   name: string,
   filters: PresetFilterInput[],
   sectorCodes: string[] = [],
+  excludeSectorCodes: string[] = [],
 ): Promise<PresetRow> {
   const prisma = getPrismaClient();
   return prisma.$transaction(async (tx) => {
@@ -98,6 +102,7 @@ export async function createPreset(
         name,
         position,
         sectorCodes,
+        excludeSectorCodes,
         filters: {
           create: filters.map((f, filterPosition) => ({
             metricKey: f.metricKey,
@@ -119,6 +124,7 @@ export interface PresetUpdate {
   name?: string;
   filters?: PresetFilterInput[];
   sectorCodes?: string[];
+  excludeSectorCodes?: string[];
 }
 
 /** Updates the name and/or replaces the whole filter set (not incremental) for a preset the user owns. */
@@ -135,12 +141,13 @@ export async function updatePreset(
       return null;
     }
 
-    if (update.name !== undefined || update.sectorCodes !== undefined) {
+    if (update.name !== undefined || update.sectorCodes !== undefined || update.excludeSectorCodes !== undefined) {
       await tx.screenerPreset.update({
         where: { id },
         data: {
           ...(update.name !== undefined ? { name: update.name } : {}),
           ...(update.sectorCodes !== undefined ? { sectorCodes: update.sectorCodes } : {}),
+          ...(update.excludeSectorCodes !== undefined ? { excludeSectorCodes: update.excludeSectorCodes } : {}),
         },
       });
     } else {

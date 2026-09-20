@@ -26,6 +26,7 @@ const SAMPLE_ROW = {
   id: SAMPLE_ID,
   name: "績優股",
   sectorCodes: [] as string[],
+  excludeSectorCodes: [] as string[],
   lastColumnPresetId: null,
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
@@ -83,6 +84,7 @@ describe("runPreset", () => {
       DEFAULT_PAGINATION,
       undefined,
       [],
+      [],
     );
     expect(result.preset.name).toBe("績優股");
     expect(result.columnPresetId).toBeNull();
@@ -123,6 +125,7 @@ describe("runPreset", () => {
       expect.anything(),
       { page: 2, pageSize: 10 },
       undefined,
+      [],
       [],
     );
   });

@@ -33,6 +33,7 @@ export interface PresetView {
   name: string;
   filters: PresetFilterView[];
   sectorCodes: string[];
+  excludeSectorCodes: string[];
   lastColumnPresetId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +50,7 @@ function toView(row: PresetRow): PresetView {
       exclude: f.exclude,
     })),
     sectorCodes: row.sectorCodes,
+    excludeSectorCodes: row.excludeSectorCodes,
     lastColumnPresetId: row.lastColumnPresetId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -148,9 +150,16 @@ export async function addPreset(
   firebaseUid: string,
   filters: ScreenerFilter[],
   sectorCodes: string[] = [],
+  excludeSectorCodes: string[] = [],
 ): Promise<PresetView> {
   const resolved = await resolveFilters(filters.length > 0 ? filters : DEFAULT_PRESET_FILTERS);
-  return createPresetWithAvailableName(firebaseUid, DEFAULT_PRESET_NAME, resolved, normalizeSectorCodes(sectorCodes) ?? []);
+  return createPresetWithAvailableName(
+    firebaseUid,
+    DEFAULT_PRESET_NAME,
+    resolved,
+    normalizeSectorCodes(sectorCodes) ?? [],
+    normalizeSectorCodes(excludeSectorCodes) ?? [],
+  );
 }
 
 /**
@@ -173,11 +182,12 @@ async function createPresetWithAvailableName(
   baseName: string,
   resolvedFilters: PresetFilterInput[],
   sectorCodes: string[],
+  excludeSectorCodes: string[] = [],
 ): Promise<PresetView> {
   for (let attempt = 0; attempt < MAX_NAME_SUFFIX_ATTEMPTS; attempt++) {
     const candidateName = await pickAvailableName(firebaseUid, baseName);
     try {
-      const row = await createPreset(firebaseUid, candidateName, resolvedFilters, sectorCodes);
+      const row = await createPreset(firebaseUid, candidateName, resolvedFilters, sectorCodes, excludeSectorCodes);
       return toView(row);
     } catch (error) {
       if (!isUniqueViolation(error)) {
@@ -191,15 +201,26 @@ async function createPresetWithAvailableName(
 export async function editPreset(
   firebaseUid: string,
   id: string,
-  update: { name?: string; filters?: ScreenerFilter[]; sectorCodes?: string[] },
+  update: { name?: string; filters?: ScreenerFilter[]; sectorCodes?: string[]; excludeSectorCodes?: string[] },
 ): Promise<PresetView> {
   const resolvedFilters = update.filters !== undefined ? await resolveFilters(update.filters) : undefined;
+
+  const sectorCodes = normalizeSectorCodes(update.sectorCodes);
+  const excludeSectorCodes = normalizeSectorCodes(update.excludeSectorCodes);
+  // A PATCH only sends the field(s) actually changing — the route schema's mutual-exclusivity refine only
+  // sees this request's own body, not the row's existing state. Setting one of these to a non-empty value
+  // implicitly clears the other (rather than requiring the caller to explicitly zero it out every time),
+  // so a partial update can never leave both non-empty at once — same "these two are one choice" intent
+  // POST /screener enforces up front, just applied across a PATCH's partial-update semantics instead.
+  const clearSectorCodes = excludeSectorCodes !== undefined && excludeSectorCodes.length > 0;
+  const clearExcludeSectorCodes = sectorCodes !== undefined && sectorCodes.length > 0;
 
   try {
     const row = await updatePreset(firebaseUid, id, {
       name: update.name,
       filters: resolvedFilters,
-      sectorCodes: normalizeSectorCodes(update.sectorCodes),
+      sectorCodes: clearSectorCodes ? [] : sectorCodes,
+      excludeSectorCodes: clearExcludeSectorCodes ? [] : excludeSectorCodes,
     });
     if (!row) {
       throw new AppError(`Screener preset ${id} not found`, 404);

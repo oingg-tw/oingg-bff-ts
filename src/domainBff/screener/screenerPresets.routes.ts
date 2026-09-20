@@ -34,24 +34,41 @@ function parseId(raw: string): string {
 
 const sectorCodesSchema = z.array(z.string().trim().min(1)).optional();
 
-export const createScreenerPresetSchema = z.object({
-  filters: screenerFiltersArraySchema,
-  sectorCodes: sectorCodesSchema,
-});
+function notBothSectorCodesGiven(data: { sectorCodes?: string[]; excludeSectorCodes?: string[] }): boolean {
+  return !(data.sectorCodes && data.sectorCodes.length > 0 && data.excludeSectorCodes && data.excludeSectorCodes.length > 0);
+}
+
+const MUTUALLY_EXCLUSIVE_SECTOR_CODES_ISSUE = {
+  message: '"sectorCodes" and "excludeSectorCodes" can\'t both be given — pick one',
+  path: ["excludeSectorCodes"] as string[],
+};
+
+export const createScreenerPresetSchema = z
+  .object({
+    filters: screenerFiltersArraySchema,
+    sectorCodes: sectorCodesSchema,
+    // Symmetric with sectorCodes ("every sector except these"), added 2026-09-20 alongside POST /screener's
+    // own excludeSectorCodes — see screener.routes.ts. Mutually exclusive with sectorCodes.
+    excludeSectorCodes: sectorCodesSchema,
+  })
+  .refine(notBothSectorCodesGiven, MUTUALLY_EXCLUSIVE_SECTOR_CODES_ISSUE);
 
 export const reorderScreenerPresetsSchema = z.object({
   ids: z.array(z.string().regex(UUID_PATTERN)).min(1, '"ids" must be a non-empty array of UUIDs'),
 });
 
-export const updateScreenerPresetSchema = z.object({
-  name: z
-    .string({ error: '"name" must be a non-empty string' })
-    .trim()
-    .min(1, '"name" must be a non-empty string')
-    .optional(),
-  filters: screenerFiltersArraySchema.optional(),
-  sectorCodes: sectorCodesSchema,
-});
+export const updateScreenerPresetSchema = z
+  .object({
+    name: z
+      .string({ error: '"name" must be a non-empty string' })
+      .trim()
+      .min(1, '"name" must be a non-empty string')
+      .optional(),
+    filters: screenerFiltersArraySchema.optional(),
+    sectorCodes: sectorCodesSchema,
+    excludeSectorCodes: sectorCodesSchema,
+  })
+  .refine(notBothSectorCodesGiven, MUTUALLY_EXCLUSIVE_SECTOR_CODES_ISSUE);
 
 screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
@@ -63,7 +80,7 @@ screenerPresetsRouter.post("/", async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const body = parseBody(createScreenerPresetSchema, req.body);
 
-  const preset = await addPreset(firebaseUid, normalizeScreenerFilters(body.filters), body.sectorCodes);
+  const preset = await addPreset(firebaseUid, normalizeScreenerFilters(body.filters), body.sectorCodes, body.excludeSectorCodes);
   res.status(201).json({ preset });
 });
 
@@ -92,6 +109,7 @@ screenerPresetsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
     name: body.name,
     filters: body.filters === undefined ? undefined : normalizeScreenerFilters(body.filters),
     sectorCodes: body.sectorCodes,
+    excludeSectorCodes: body.excludeSectorCodes,
   });
   res.json({ preset });
 });

@@ -156,6 +156,7 @@ export async function fetchScreenerResults(
   pagination: Pagination,
   sort?: ScreenerSort,
   sectorCodes?: string[],
+  excludeSectorCodes?: string[],
 ): Promise<AnalysisScreenerResult> {
   const body = await postJson("/screener", {
     filters,
@@ -164,6 +165,7 @@ export async function fetchScreenerResults(
     pageSize: pagination.pageSize,
     ...(sort ? { sortField: sort.field, sortOrder: sort.order } : {}),
     ...(sectorCodes && sectorCodes.length > 0 ? { sectorCodes } : {}),
+    ...(excludeSectorCodes && excludeSectorCodes.length > 0 ? { excludeSectorCodes } : {}),
   });
 
   const b = body as { count?: unknown; page?: unknown; pageSize?: unknown; totalPages?: unknown; results?: unknown };
@@ -192,6 +194,7 @@ export async function fetchScreenerRanking(
   limit: number,
   extraColumns: ScreenerColumnInput[],
   sectorCodes?: string[],
+  excludeSectorCodes?: string[],
 ): Promise<AnalysisRankingResult> {
   const body = await getJson("/screener/ranking", {
     field,
@@ -199,6 +202,7 @@ export async function fetchScreenerRanking(
     limit: String(limit),
     ...(extraColumns.length > 0 ? { columns: extraColumns.map((c) => c.field).join(",") } : {}),
     ...(sectorCodes && sectorCodes.length > 0 ? { sectorCodes: sectorCodes.join(",") } : {}),
+    ...(excludeSectorCodes && excludeSectorCodes.length > 0 ? { excludeSectorCodes: excludeSectorCodes.join(",") } : {}),
   });
 
   const b = body as { results?: unknown };

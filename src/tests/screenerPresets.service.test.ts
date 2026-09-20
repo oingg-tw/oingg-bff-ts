@@ -71,6 +71,7 @@ const SAMPLE_ROW = {
   id: SAMPLE_ID,
   name: "績優股",
   sectorCodes: [] as string[],
+  excludeSectorCodes: [] as string[],
   lastColumnPresetId: null,
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
@@ -113,6 +114,7 @@ describe("addPreset", () => {
       "未命名",
       [{ metricKey: "roe", fieldKey: "TTM", min: 30, max: null, exclude: false }],
       [],
+      [],
     );
   });
 
@@ -138,6 +140,7 @@ describe("addPreset", () => {
         { metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false },
         { metricKey: "grossMargin", fieldKey: "grossMarginTtm", min: 60, max: null, exclude: false },
       ],
+      [],
       [],
     );
   });
@@ -170,6 +173,7 @@ describe("addPreset", () => {
       "未命名 2",
       [{ metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false }],
       [],
+      [],
     );
     expect(result.name).toBe("未命名 2");
   });
@@ -183,7 +187,7 @@ describe("addPreset", () => {
 
     await addPreset("uid1", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]);
 
-    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名 3", expect.anything(), expect.anything());
+    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名 3", expect.anything(), expect.anything(), expect.anything());
   });
 
   // Regression: a stale name-availability check (checked once, then inserted) could still race with a
@@ -226,12 +230,59 @@ describe("editPreset", () => {
 
     await editPreset("uid1", SAMPLE_ID, { filters: [] });
 
-    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, { name: undefined, filters: [], sectorCodes: undefined });
+    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
+      name: undefined,
+      filters: [],
+      sectorCodes: undefined,
+      excludeSectorCodes: undefined,
+    });
   });
 
   it("throws 404 when the repository finds no matching row", async () => {
     vi.mocked(updatePreset).mockResolvedValue(null);
     await expect(editPreset("uid1", "missing-uuid", { name: "x" })).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  // Regression: a PATCH only sends the field(s) actually changing, so the route schema's mutual-
+  // exclusivity refine can't see the row's existing sectorCodes — editPreset itself must clear the other
+  // field when one is set to non-empty, or a partial update could leave both non-empty in the DB.
+  it("clears sectorCodes when excludeSectorCodes is set to a non-empty array", async () => {
+    vi.mocked(updatePreset).mockResolvedValue({ ...SAMPLE_ROW, excludeSectorCodes: ["24"] });
+
+    await editPreset("uid1", SAMPLE_ID, { excludeSectorCodes: ["24"] });
+
+    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
+      name: undefined,
+      filters: undefined,
+      sectorCodes: [],
+      excludeSectorCodes: ["24"],
+    });
+  });
+
+  it("clears excludeSectorCodes when sectorCodes is set to a non-empty array", async () => {
+    vi.mocked(updatePreset).mockResolvedValue({ ...SAMPLE_ROW, sectorCodes: ["24"] });
+
+    await editPreset("uid1", SAMPLE_ID, { sectorCodes: ["24"] });
+
+    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
+      name: undefined,
+      filters: undefined,
+      sectorCodes: ["24"],
+      excludeSectorCodes: [],
+    });
+  });
+
+  it("leaves both untouched when neither sectorCodes nor excludeSectorCodes is given", async () => {
+    vi.mocked(updatePreset).mockResolvedValue(SAMPLE_ROW);
+
+    await editPreset("uid1", SAMPLE_ID, { name: "renamed" });
+
+    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
+      name: "renamed",
+      filters: undefined,
+      sectorCodes: undefined,
+      excludeSectorCodes: undefined,
+    });
   });
 
   it("turns a duplicate name conflict into 409", async () => {
