@@ -15,6 +15,7 @@ function normalizeBadgeEntry(raw: unknown): CompanyBadgeEntry {
     knowledgeDate: typeof r.knowledgeDate === "string" ? r.knowledgeDate : null,
     knowledgeDateIsFallback: typeof r.knowledgeDateIsFallback === "boolean" ? r.knowledgeDateIsFallback : null,
     passed: typeof r.passed === "boolean" ? r.passed : null,
+    warning: typeof r.warning === "boolean" ? r.warning : null,
   };
 }
 

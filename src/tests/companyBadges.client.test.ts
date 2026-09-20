@@ -25,7 +25,9 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// Real shape given directly by analysis-ts (2026-09-14; knowledgeDate/knowledgeDateIsFallback added same day, commit 7bf2ff7).
+// Real shape given directly by analysis-ts (2026-09-14; knowledgeDate/knowledgeDateIsFallback added same
+// day, commit 7bf2ff7; warning added 2026-09-20 — null on every non-piotroskiFScore badge even with a
+// real passed value, confirmed live, not just when value itself is null).
 const RAW_BODY = {
   symbol: "2330",
   categories: [
@@ -43,6 +45,7 @@ const RAW_BODY = {
           knowledgeDate: "2026-09-11",
           knowledgeDateIsFallback: false,
           passed: true,
+          warning: null,
         },
         {
           metricCode: "altmanZDoublePrimeScore",
@@ -54,6 +57,7 @@ const RAW_BODY = {
           knowledgeDate: null,
           knowledgeDateIsFallback: null,
           passed: null,
+          warning: null,
         },
       ],
     },
@@ -88,7 +92,33 @@ describe("fetchCompanyBadges", () => {
       knowledgeDate: null,
       knowledgeDateIsFallback: null,
       passed: null,
+      warning: null,
     });
+  });
+
+  // warning is null for every badge without a defined danger-zone threshold, even when passed has a real
+  // value (confirmed live: only piotroskiFScore's badge defines one as of 2026-09-20) — must not collapse
+  // to false just because the sibling `passed` field is non-null.
+  it("passes through warning:true/false for a badge with a defined danger-zone threshold (piotroskiFScore)", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        symbol: "2454",
+        categories: [
+          {
+            categoryKey: "resilience",
+            categoryDisplayName: "財務韌性",
+            badges: [
+              { metricCode: "piotroskiFScore", name: "Piotroski F-Score", nameEn: "Piotroski F-Score", timeframe: "Q", value: 2, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, passed: false, warning: true },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchCompanyBadges("2454");
+
+    expect(result.categories[0]?.badges[0]?.warning).toBe(true);
   });
 
   it("passes through knowledgeDate/knowledgeDateIsFallback for a badge with data", async () => {

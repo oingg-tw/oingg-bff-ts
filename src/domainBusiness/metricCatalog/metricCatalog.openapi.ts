@@ -11,17 +11,39 @@ const metricFieldSchema = z.object({
   sort: z.number(),
 });
 
-const metricBadgeThresholdSchema = z.object({
-  description: z.string(),
-  denominator: z.number(),
-  comparator: z.enum(["gt", "lt", "gte", "abs_lt", "in_range"]).optional(),
-  value: z.number().optional(),
-  /** Only set (and only meaningful) when comparator is "in_range" — inclusive lower/upper bounds. */
-  valueMin: z.number().optional(),
-  valueMax: z.number().optional(),
-  compareAgainstFieldId: z.string().optional(),
-  allPositiveFieldIds: z.array(z.string()).optional(),
-});
+interface MetricBadgeThresholdDoc {
+  description: string;
+  denominator: number;
+  comparator?: "gt" | "lt" | "gte" | "abs_lt" | "in_range";
+  value?: number;
+  valueMin?: number;
+  valueMax?: number;
+  compareAgainstFieldId?: string;
+  allPositiveFieldIds?: string[];
+  warning?: MetricBadgeThresholdDoc;
+}
+
+// z.lazy for the self-referencing `warning` field (a threshold can nest one "danger zone" threshold of
+// its own shape, added 2026-09-20 — so far only piotroskiFScore has one). Registered with .openapi(...) —
+// without a name, zod-to-openapi tries to fully expand the self-reference and recurses infinitely (see
+// chainTreeNodeSchema's now-removed precedent in industries.openapi.ts, which needed the same fix).
+const metricBadgeThresholdSchema: z.ZodType<MetricBadgeThresholdDoc> = z.lazy(() =>
+  z
+    .object({
+      description: z.string(),
+      denominator: z.number(),
+      comparator: z.enum(["gt", "lt", "gte", "abs_lt", "in_range"]).optional(),
+      value: z.number().optional(),
+      /** Only set (and only meaningful) when comparator is "in_range" — inclusive lower/upper bounds. */
+      valueMin: z.number().optional(),
+      valueMax: z.number().optional(),
+      compareAgainstFieldId: z.string().optional(),
+      allPositiveFieldIds: z.array(z.string()).optional(),
+      /** A secondary, stricter "danger zone" threshold — same shape as the threshold it's nested in. Absent on every badge except piotroskiFScore as of launch. */
+      warning: metricBadgeThresholdSchema.optional(),
+    })
+    .openapi("MetricBadgeThreshold"),
+);
 
 const metricBadgeSchema = z.object({
   id: z.string(),

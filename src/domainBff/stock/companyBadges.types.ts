@@ -21,6 +21,17 @@ export interface CompanyBadgeEntry {
   knowledgeDateIsFallback: boolean | null;
   /** Null exactly when value is null (nothing to evaluate) — never re-derive this from value + threshold. */
   passed: boolean | null;
+  /**
+   * Whether this company falls in the badge's stricter "danger zone" threshold (see MetricBadgeThreshold.
+   * warning in metricCatalog.types.ts) — added 2026-09-20, so far only defined for piotroskiFScore's
+   * badge. Null both when value is null (nothing to evaluate, same as `passed`) AND when this badge has
+   * no warning-zone threshold defined at all (confirmed live: every non-piotroskiFScore badge is
+   * warning:null even with a real passed value) — don't treat null here as "false". Not the logical
+   * inverse of `passed` either — a badge can be passed:false without being in the warning zone (a
+   * middling score that's neither "high" nor "low" by the methodology's own definition), confirmed live
+   * (2317 piotroskiFScore: passed:false, warning:false; 2454 piotroskiFScore: passed:false, warning:true).
+   */
+  warning: boolean | null;
 }
 
 export interface CompanyBadgeCategory {

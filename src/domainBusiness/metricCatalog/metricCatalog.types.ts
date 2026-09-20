@@ -34,6 +34,13 @@ export interface MetricBadgeThreshold {
   thresholdLatex?: string;
   /** Free-text annotation about where/why this specific threshold value was chosen — added 2026-09-13. */
   note?: string;
+  /**
+   * A secondary "danger zone" threshold, stricter than the main pass/fail line — added 2026-09-20, so far
+   * only present on piotroskiFScore (main threshold ≥8 "high score"; warning ≤2 "low score", per Piotroski
+   * 2000's own definition). Same shape as the threshold it's nested in (comparator/value/description/etc.)
+   * — this is a genuinely separate line, not a restatement of the main one. Absent on every other badge.
+   */
+  warning?: MetricBadgeThreshold;
 }
 
 /**

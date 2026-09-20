@@ -19,7 +19,8 @@ function isRawBadgeThreshold(value: unknown): value is MetricBadgeThreshold {
     (t.valueMax === undefined || typeof t.valueMax === "number") &&
     (t.compareAgainstFieldId === undefined || typeof t.compareAgainstFieldId === "string") &&
     (t.allPositiveFieldIds === undefined ||
-      (Array.isArray(t.allPositiveFieldIds) && t.allPositiveFieldIds.every((f) => typeof f === "string")))
+      (Array.isArray(t.allPositiveFieldIds) && t.allPositiveFieldIds.every((f) => typeof f === "string"))) &&
+    (t.warning === undefined || isRawBadgeThreshold(t.warning))
   );
 }
 
