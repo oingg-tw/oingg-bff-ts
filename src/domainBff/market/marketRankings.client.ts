@@ -26,6 +26,7 @@ import type {
   RevenueRankingMetric,
   RevenueRankingResult,
   TaiexDailyPriceEntry,
+  TaiexDailyPriceInterval,
   TaiexDailyPriceResult,
   VolumeTop20Entry,
   VolumeTop20Result,
@@ -474,8 +475,13 @@ export async function fetchEtfRanking(
  * `limit` bounds 1-2000, default 250 on analysis-ts's side (mirrored in market.service.ts's
  * getTaiexDailyPrice for a fast local 400, same convention as this file's other endpoints).
  */
-export async function fetchTaiexDailyPrice(limit: number): Promise<TaiexDailyPriceResult> {
-  const body = (await getJson("/market/taiex-daily-price", { limit: String(limit) })) as { entries?: unknown };
+export async function fetchTaiexDailyPrice(limit: number, interval?: TaiexDailyPriceInterval): Promise<TaiexDailyPriceResult> {
+  // `interval` is only sent when given, so a caller that omits it keeps the exact upstream request (and
+  // byte-identical response) it had before the param existed — see TaiexDailyPriceInterval.
+  const body = (await getJson("/market/taiex-daily-price", {
+    limit: String(limit),
+    ...(interval !== undefined ? { interval } : {}),
+  })) as { entries?: unknown };
 
   if (!Array.isArray(body.entries)) {
     throw new AppError("TAIEX daily price response is missing an entries array", 502);

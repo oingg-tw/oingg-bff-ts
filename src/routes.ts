@@ -9,6 +9,7 @@ import { etfScreenerRouter } from "@/domainBff/etfScreener/index.js";
 import { metricCatalogRouter } from "@/domainBusiness/metricCatalog/index.js";
 import { holdingsRouter } from "@/domainBusiness/holdings/index.js";
 import { industriesRouter } from "@/domainBff/industries/index.js";
+import { macroRouter } from "@/domainBff/macro/index.js";
 import { marketRouter } from "@/domainBff/market/index.js";
 import { screenerRoutes } from "@/domainBff/screener/index.js";
 import { securitiesRouter } from "@/domainBff/securities/index.js";
@@ -67,6 +68,7 @@ routes.use("/transactions", transactionsRouter); // GET/POST /transactions, GET/
 routes.use("/screener", screenerRoutes);
 routes.use("/metrics", metricCatalogRouter); // GET /metrics, POST /metrics/sync
 routes.use("/market", marketRouter); // GET /market/margin-short-ratio-ranking, ...
+routes.use("/macro", macroRouter); // GET /macro/cbc-policy-rate
 routes.use("/etf-screener", etfScreenerRouter); // GET /etf-screener/filters, POST /etf-screener
 routes.use("/industries", industriesRouter); // GET /industries/tree
 routes.use("/securities", securitiesRouter); // GET /securities

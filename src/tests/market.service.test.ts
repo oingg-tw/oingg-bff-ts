@@ -310,7 +310,7 @@ describe("getTaiexDailyPrice", () => {
 
     await getTaiexDailyPrice(250);
 
-    expect(fetchTaiexDailyPrice).toHaveBeenCalledWith(250);
+    expect(fetchTaiexDailyPrice).toHaveBeenCalledWith(250, undefined);
   });
 
   // Bounds match analysis-ts's own validation (verified live: 1-2000).
@@ -323,5 +323,20 @@ describe("getTaiexDailyPrice", () => {
     vi.mocked(fetchTaiexDailyPrice).mockResolvedValue({ entries: [] });
 
     await expect(getTaiexDailyPrice(value)).resolves.toBeDefined();
+  });
+
+  // interval (2026-09-21): validated locally against the daily/weekly/monthly enum for a fast 400, then
+  // forwarded as-is — analysis-ts enforces the same set.
+  it.each(["daily", "weekly", "monthly"])("forwards a valid interval (%s)", async (interval) => {
+    vi.mocked(fetchTaiexDailyPrice).mockResolvedValue({ entries: [] });
+
+    await getTaiexDailyPrice(2000, interval);
+
+    expect(fetchTaiexDailyPrice).toHaveBeenCalledWith(2000, interval);
+  });
+
+  it("rejects an unknown interval without calling analysis-ts", async () => {
+    await expect(getTaiexDailyPrice(250, "yearly")).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchTaiexDailyPrice).not.toHaveBeenCalled();
   });
 });

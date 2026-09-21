@@ -100,6 +100,7 @@ marketRouter.get("/etf-ranking", async (req, res) => {
 
 marketRouter.get("/taiex-daily-price", async (req, res) => {
   const limit = parseIntQueryParam(req.query.limit, "limit", DEFAULT_TAIEX_DAILY_PRICE_LIMIT);
-  const result = await getTaiexDailyPrice(limit);
+  const interval = typeof req.query.interval === "string" && req.query.interval.length > 0 ? req.query.interval : undefined;
+  const result = await getTaiexDailyPrice(limit, interval);
   res.json(result);
 });

@@ -466,18 +466,19 @@ const taiexDailyPriceResultSchema = z
 registry.registerPath({
   method: "get",
   path: "/market/taiex-daily-price",
-  summary: "台股加權股價指數（TAIEX）逐日收盤序列——給個股 vs 大盤對照走勢圖用",
+  summary: "台股加權股價指數（TAIEX）收盤序列（日／週／月）——給個股 vs 大盤對照走勢圖、大盤疊加央行利率事件圖用",
   description:
-    "資料來自 twse-ts 的 daily_taiex_index（1999-01-05 起至今）。舊到新排序（跟這個 domain 其他幾支端點慣例相反，注意不要照舊假設）。limit 1~2000，預設 250。close 可能是 null（查無當天收盤資料）。",
+    "資料來自 twse-ts 的 daily_taiex_index（1999-01-05 起至今）。舊到新排序（跟這個 domain 其他幾支端點慣例相反，注意不要照舊假設）。limit 1~2000，預設 250。close 是字串（Decimal 序列化，跟這個 domain 其他數值欄位一致，不是意外），可能是 null（查無當天收盤資料）。interval（2026-09-21 新增）選填 daily／weekly／monthly，預設 daily——省略時回應跟以前逐 byte 相同；weekly／monthly 每個區間取最後一個交易日那筆，tradeDate 仍是實際交易日，回應形狀不變。用途是在 2000 筆上限內用粒度換深度：daily 最多回到約 2018 年中，weekly 約 1,427 筆、monthly 約 333 筆都能回到 1999-01，配合 GET /macro/cbc-policy-rate（利率事件回到 1989）做長期疊加圖時請用 monthly。",
   tags: ["Market"],
   request: {
     query: z.object({
       limit: z.coerce.number().int().optional().openapi({ default: 250, minimum: 1, maximum: 2000 }),
+      interval: z.enum(["daily", "weekly", "monthly"]).optional().openapi({ default: "daily" }),
     }),
   },
   responses: {
-    200: { description: "TAIEX 逐日收盤序列。", content: { "application/json": { schema: taiexDailyPriceResultSchema } } },
-    400: badRequest("limit 不是 1~2000 之間的整數。"),
+    200: { description: "TAIEX 收盤序列（依 interval 取樣）。", content: { "application/json": { schema: taiexDailyPriceResultSchema } } },
+    400: badRequest("limit 不是 1~2000 之間的整數，或 interval 不是 daily／weekly／monthly。"),
     502: upstream502,
   },
 });

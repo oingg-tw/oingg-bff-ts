@@ -18,6 +18,7 @@ import "@/domainBusiness/holdings/holdings.openapi.js";
 import "@/domainBusiness/transactions/transactions.openapi.js";
 import "@/domainBusiness/metricCatalog/metricCatalog.openapi.js";
 import "@/domainBff/market/market.openapi.js";
+import "@/domainBff/macro/macro.openapi.js";
 import "@/domainBff/etfScreener/etfScreener.openapi.js";
 import "@/domainBff/industries/industries.openapi.js";
 import "@/domainBff/securities/securities.openapi.js";
@@ -52,6 +53,7 @@ function generateDocument() {
       { name: "Transactions", description: "交易日誌（買進／賣出交易紀錄）CRUD" },
       { name: "Screener", description: "依 metricCatalog 指標篩選個股，並依使用者設定的欄位偏好回傳結果" },
       { name: "Market", description: "市場排行/清單（外資持股、券資比、注意股、處置股、成交量、漲跌幅、ETF 排行等）" },
+      { name: "Macro", description: "總體經濟事件序列（央行政策利率調整等）" },
       { name: "ETF Screener", description: "ETF 篩選" },
       { name: "Industries", description: "產業分類樹（財政部稅籍五層分類）" },
       { name: "Securities", description: "統一搜尋索引（普通股＋TWSE 特別股＋全部 ETF）" },

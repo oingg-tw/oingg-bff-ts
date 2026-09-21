@@ -832,6 +832,27 @@ describe("fetchTaiexDailyPrice", () => {
     expect(url.toString()).toBe("http://filters.test/market/taiex-daily-price?limit=250");
   });
 
+  // Regression (2026-09-21): analysis-ts added `interval` (daily/weekly/monthly) and this proxy silently
+  // dropped it — web-nuxt saw byte-identical daily output for ?interval=monthly. It must be forwarded when
+  // given, and NOT sent at all when omitted (so pre-existing callers keep the exact upstream request).
+  it("forwards interval to analysis-ts when given", async () => {
+    mockFetchOnce({ ok: true, body: { entries: [] } });
+
+    await fetchTaiexDailyPrice(2000, "monthly");
+
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/market/taiex-daily-price?limit=2000&interval=monthly");
+  });
+
+  it("omits interval from the upstream request entirely when not given", async () => {
+    mockFetchOnce({ ok: true, body: { entries: [] } });
+
+    await fetchTaiexDailyPrice(250);
+
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.searchParams.has("interval")).toBe(false);
+  });
+
   it("normalizes a null close (no data that day) to null, not a stringified 'null'", async () => {
     mockFetchOnce({ ok: true, body: { entries: [{ tradeDate: "2026-09-12", close: null }] } });
 

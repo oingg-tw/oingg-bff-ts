@@ -23,6 +23,7 @@ import type {
   RankingOrder,
   RevenueRankingMetric,
   RevenueRankingResult,
+  TaiexDailyPriceInterval,
   TaiexDailyPriceResult,
   VolumeTop20Result,
 } from "@/domainBff/market/market.types.js";
@@ -191,8 +192,10 @@ export async function getEtfRanking(metric: string, order: string, limit: number
   return fetchEtfRanking(metric as EtfRankingMetric, order as RankingOrder, limit);
 }
 
+export const TAIEX_DAILY_PRICE_INTERVALS: readonly TaiexDailyPriceInterval[] = ["daily", "weekly", "monthly"];
+
 /** Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400. */
-export async function getTaiexDailyPrice(limit: number): Promise<TaiexDailyPriceResult> {
+export async function getTaiexDailyPrice(limit: number, interval?: string): Promise<TaiexDailyPriceResult> {
   if (
     !Number.isInteger(limit) ||
     limit < MIN_TAIEX_DAILY_PRICE_LIMIT ||
@@ -203,5 +206,8 @@ export async function getTaiexDailyPrice(limit: number): Promise<TaiexDailyPrice
       400,
     );
   }
-  return fetchTaiexDailyPrice(limit);
+  if (interval !== undefined && !TAIEX_DAILY_PRICE_INTERVALS.includes(interval as TaiexDailyPriceInterval)) {
+    throw new AppError(`"interval" must be one of ${TAIEX_DAILY_PRICE_INTERVALS.join(", ")}`, 400);
+  }
+  return fetchTaiexDailyPrice(limit, interval as TaiexDailyPriceInterval | undefined);
 }
