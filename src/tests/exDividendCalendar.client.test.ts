@@ -25,12 +25,17 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// Real entries given directly by analysis-ts (2026-09-10).
+// Real entries given directly by analysis-ts (2026-09-10; status/paymentDate/fiscalYear added 2026-09-22,
+// cf1b752e — an "announced" TWSE notice vs. a "realized" MOPS distribution, which is the only kind that
+// carries paymentDate/fiscalYear).
 const RAW_BODY = {
   entries: [
     {
       symbol: "00939",
       companyName: null,
+      status: "announced",
+      paymentDate: null,
+      fiscalYear: null,
       exDate: "2026-09-01",
       exType: "息",
       stockDividendRatio: null,
@@ -43,14 +48,17 @@ const RAW_BODY = {
       stockHoldingRatio: null,
     },
     {
-      symbol: "1732",
-      companyName: "毛寶",
-      exDate: "2026-09-01",
+      symbol: "1465",
+      companyName: "偉全",
+      status: "realized",
+      paymentDate: "2026-08-28",
+      fiscalYear: 2025,
+      exDate: "2026-08-03",
       exType: "息",
       stockDividendRatio: null,
       subscriptionRatio: null,
       subscriptionPricePerShare: null,
-      cashDividend: 0.6,
+      cashDividend: 0.3,
       sharesOffered: null,
       sharesEmpOwner: null,
       sharesholderOwner: null,
@@ -78,6 +86,23 @@ describe("fetchExDividendCalendar", () => {
 
     expect(result.entries[0]?.symbol).toBe("00939");
     expect(result.entries[0]?.companyName).toBeNull();
+  });
+
+  // status/paymentDate/fiscalYear (2026-09-22): a field-by-field normalizer silently drops fields it
+  // doesn't know about, so this guards the pass-through of all three for both statuses.
+  it("passes through status, and paymentDate/fiscalYear only populated on realized rows", async () => {
+    mockFetchOnce({ ok: true, body: RAW_BODY });
+
+    const result = await fetchExDividendCalendar("2026-09");
+
+    expect(result.entries[0]).toMatchObject({ status: "announced", paymentDate: null, fiscalYear: null });
+    expect(result.entries[1]).toMatchObject({ status: "realized", paymentDate: "2026-08-28", fiscalYear: 2025 });
+  });
+
+  it("throws a 502 AppError when an entry has an unrecognized status", async () => {
+    mockFetchOnce({ ok: true, body: { entries: [{ ...RAW_BODY.entries[0], status: "pending" }] } });
+
+    await expect(fetchExDividendCalendar("2026-09")).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("returns an empty entries array for a month with no data, without throwing", async () => {

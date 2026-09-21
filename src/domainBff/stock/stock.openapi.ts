@@ -782,6 +782,12 @@ registry.registerPath({
 const exDividendCalendarEntrySchema = exDividendNoticeEntrySchema.extend({
   symbol: z.string(),
   companyName: z.string().nullable(),
+  /** announced = TWSE/TPEx advance notice (ex-date >= today); realized = MOPS distribution record (ex-date < today). Added 2026-09-22. */
+  status: z.enum(["announced", "realized"]),
+  /** "YYYY-MM-DD" — realized rows only, null on announced. */
+  paymentDate: z.string().nullable(),
+  /** Dividend fiscal year (西元) — realized rows only, null on announced. */
+  fiscalYear: z.number().int().nullable(),
 });
 
 registry.registerPath({
@@ -789,7 +795,7 @@ registry.registerPath({
   path: "/stocks/ex-dividend-calendar",
   summary: "查詢整月全市場的除息/除權事件（股利行事曆用，不限單一代號）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /stocks/ex-dividend-calendar（2026-09-10 新增）。跟 ex-dividend-notices 的差別：這支是攤平的全市場清單（一次回傳整個月所有代號的事件，不用先知道代號），不是照代號分組，也沒有「只顯示未來事件」的過濾——查歷史月份或未來月份都會照實回傳當月真實發生（或已排定）的事件。month 格式必須是 \"YYYY-MM\"（例如 \"2026-09\"），格式錯誤或缺少會 400。每筆 entry 除了跟 ex-dividend-notices 一樣的欄位（exDate/exType/stockDividendRatio 等）外，多了 symbol 跟 companyName——companyName 可能是 null（ETF 不在 analysis-ts 的公司名稱對照表裡，例如 00939/00984D）。查無資料的月份（例如太久遠或太未來）回傳空陣列，不是錯誤。",
+    "資料來自 oingg-analysis-ts 的 GET /stocks/ex-dividend-calendar（2026-09-10 新增）。跟 ex-dividend-notices 的差別：這支是攤平的全市場清單（一次回傳整個月所有代號的事件，不用先知道代號），不是照代號分組，也沒有「只顯示未來事件」的過濾——查歷史月份或未來月份都會照實回傳當月真實發生（或已排定）的事件。month 格式必須是 \"YYYY-MM\"（例如 \"2026-09\"），格式錯誤或缺少會 400。每筆 entry 除了跟 ex-dividend-notices 一樣的欄位（exDate/exType/stockDividendRatio 等）外，多了 symbol 跟 companyName——companyName 可能是 null（ETF 不在 analysis-ts 的公司名稱對照表裡，例如 00939/00984D）。**status／paymentDate／fiscalYear（2026-09-22 新增，三個都必填）**：status 是 announced（除息日 >= 今天的證交所／櫃買中心預告）或 realized（除息日 < 今天的公開資訊觀測站股利分派公告），兩種來源不同、欄位也不同——paymentDate（\"YYYY-MM-DD\" 發放日）跟 fiscalYear（股利所屬年度，西元）只有 realized 列有值，announced 一律 null；反過來 realized 列的認購／增資相關欄位（subscriptionRatio、subscriptionPricePerShare、sharesOffered、sharesEmpOwner、sharesholderOwner、stockHoldingRatio）一律 null，因為公告來源不帶這些。這次擴張同時讓過去月份開始有資料（例如 2026-08 回 268 筆、含上櫃），之前歷史月份會是空的。查無資料的月份（例如太久遠或太未來）回傳空陣列，不是錯誤。",
   tags: ["Stock"],
   request: {
     query: exDividendCalendarQuerySchema.openapi("ExDividendCalendarQuery", { example: { month: "2026-09" } }),

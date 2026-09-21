@@ -1,7 +1,11 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
-import type { ExDividendCalendarEntry, ExDividendCalendarResult } from "@/domainBff/stock/exDividendCalendar.types.js";
+import type {
+  ExDividendCalendarEntry,
+  ExDividendCalendarResult,
+  ExDividendCalendarStatus,
+} from "@/domainBff/stock/exDividendCalendar.types.js";
 import type { ExDividendType } from "@/domainBff/stock/exDividendNotices.types.js";
 
 function toNumberOrNull(value: unknown): number | null {
@@ -12,15 +16,25 @@ function isExDividendType(value: unknown): value is ExDividendType {
   return value === "息" || value === "權" || value === "權息";
 }
 
+function isCalendarStatus(value: unknown): value is ExDividendCalendarStatus {
+  return value === "announced" || value === "realized";
+}
+
 function normalizeEntry(raw: unknown): ExDividendCalendarEntry {
   const r = raw as Record<string, unknown>;
   const symbol = String(r.symbol);
   if (!isExDividendType(r.exType)) {
     throw new AppError(`Ex-dividend calendar entry for "${symbol}" has an unrecognized exType`, 502);
   }
+  if (!isCalendarStatus(r.status)) {
+    throw new AppError(`Ex-dividend calendar entry for "${symbol}" has an unrecognized status`, 502);
+  }
   return {
     symbol,
     companyName: typeof r.companyName === "string" ? r.companyName : null,
+    status: r.status,
+    paymentDate: typeof r.paymentDate === "string" ? r.paymentDate : null,
+    fiscalYear: toNumberOrNull(r.fiscalYear),
     exDate: String(r.exDate),
     exType: r.exType,
     stockDividendRatio: toNumberOrNull(r.stockDividendRatio),
