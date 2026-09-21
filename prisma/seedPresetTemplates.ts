@@ -44,6 +44,14 @@
  * now be revised freely without notice; changing `slug` itself is still a breaking change for web-nuxt and
  * needs the same advance-notice treatment renaming `name` used to require.
  *
+ * 2026-09-21: web-nuxt had NOT yet cut over to reading `slug` (deliberately held off after the previous
+ * rename incident — see their message), so "財務韌性" -> "安全韌性" (a site-wide terminology change,
+ * matching analysis-ts's own `resilience` category rename in GET /metrics the same day — coincidentally
+ * the same Chinese wording, not an actual dependency between the two tables) still needed the advance-
+ * notice handshake: notified web-nuxt first, they pushed their key-mapping update, then this rename was
+ * applied. `slug` stays "financial-resilience" unchanged (same page/URL, just a label swap, same treatment
+ * as the "股利穩健"->"股利連續性" rename's `dividend-stability` slug).
+ *
  * Run with: pnpm run seed:preset-templates
  */
 import "dotenv/config";
@@ -100,7 +108,7 @@ const TEMPLATES: TemplateSeed[] = [
     isDefault: true,
   },
   {
-    name: "財務韌性",
+    name: "安全韌性",
     slug: "financial-resilience",
     category: "大師策略",
     description:
