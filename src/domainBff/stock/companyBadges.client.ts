@@ -16,6 +16,9 @@ function normalizeBadgeEntry(raw: unknown): CompanyBadgeEntry {
     knowledgeDateIsFallback: typeof r.knowledgeDateIsFallback === "boolean" ? r.knowledgeDateIsFallback : null,
     passed: typeof r.passed === "boolean" ? r.passed : null,
     warning: typeof r.warning === "boolean" ? r.warning : null,
+    percentile: typeof r.percentile === "number" ? r.percentile : null,
+    rank: typeof r.rank === "number" ? r.rank : null,
+    totalCount: typeof r.totalCount === "number" ? r.totalCount : null,
   };
 }
 

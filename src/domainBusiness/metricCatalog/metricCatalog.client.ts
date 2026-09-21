@@ -1,9 +1,29 @@
 import { AppError } from "@/shared/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
-import type { MetricBadge, MetricBadgeThreshold, MetricCategory } from "@/domainBusiness/metricCatalog/metricCatalog.types.js";
+import type {
+  MetricBadge,
+  MetricBadgePercentileRank,
+  MetricBadgeThreshold,
+  MetricCategory,
+} from "@/domainBusiness/metricCatalog/metricCatalog.types.js";
 
 const BADGE_COMPARATORS = ["gt", "lt", "gte", "lte", "abs_lt", "in_range"] as const;
+const PERCENTILE_RANK_SCOPES = ["market", "sector"] as const;
+const PERCENTILE_RANK_DIRECTIONS = ["asc", "desc"] as const;
+
+function isRawPercentileRank(value: unknown): value is MetricBadgePercentileRank {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const p = value as MetricBadgePercentileRank;
+  return (
+    (PERCENTILE_RANK_SCOPES as readonly string[]).includes(p.scope) &&
+    (PERCENTILE_RANK_DIRECTIONS as readonly string[]).includes(p.direction) &&
+    typeof p.topPercent === "number" &&
+    (p.excludeZero === undefined || typeof p.excludeZero === "boolean")
+  );
+}
 
 function isRawBadgeThreshold(value: unknown): value is MetricBadgeThreshold {
   if (typeof value !== "object" || value === null) {
@@ -20,7 +40,8 @@ function isRawBadgeThreshold(value: unknown): value is MetricBadgeThreshold {
     (t.compareAgainstFieldId === undefined || typeof t.compareAgainstFieldId === "string") &&
     (t.allPositiveFieldIds === undefined ||
       (Array.isArray(t.allPositiveFieldIds) && t.allPositiveFieldIds.every((f) => typeof f === "string"))) &&
-    (t.warning === undefined || isRawBadgeThreshold(t.warning))
+    (t.warning === undefined || isRawBadgeThreshold(t.warning)) &&
+    (t.percentileRank === undefined || isRawPercentileRank(t.percentileRank))
   );
 }
 

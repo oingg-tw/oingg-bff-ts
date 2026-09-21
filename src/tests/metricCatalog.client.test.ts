@@ -628,6 +628,79 @@ describe("fetchMetricCatalog", () => {
     expect(result[0]?.metrics[0]?.badge?.threshold?.warning).toEqual({ description: "≤ 2", comparator: "lte", value: 2 });
   });
 
+  // percentileRank (2026-09-21): a cross-sectional ranking threshold shape, alternative to the fixed-value
+  // comparator/value fields — mutually exclusive with them per analysis-ts, but not enforced by this
+  // client (passed through as given either way). First metric: novyMarxGpToAssets.
+  it("passes through a threshold's percentileRank sub-object", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "growth",
+            categoryDisplayName: "成長動能",
+            metrics: [
+              {
+                metricCode: "novyMarxGpToAssets",
+                name: "毛利資產比五分位",
+                unit: "分位",
+                validTimeframes: ["TTM"],
+                sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true,
+                badge: {
+                  ...SAMPLE_BADGE,
+                  author: "Robert Novy-Marx",
+                  threshold: {
+                    description: "全市場前 20%",
+                    percentileRank: { scope: "market" as const, direction: "desc" as const, topPercent: 20 },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchMetricCatalog();
+
+    expect(result[0]?.metrics[0]?.badge?.threshold?.percentileRank).toEqual({
+      scope: "market",
+      direction: "desc",
+      topPercent: 20,
+    });
+  });
+
+  it("throws a 502 AppError when threshold.percentileRank.scope is not 'market' or 'sector'", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "growth",
+            categoryDisplayName: "成長動能",
+            metrics: [
+              {
+                metricCode: "novyMarxGpToAssets",
+                name: "毛利資產比五分位",
+                unit: "分位",
+                validTimeframes: ["TTM"],
+                badge: {
+                  ...SAMPLE_BADGE,
+                  threshold: {
+                    description: "全市場前 20%",
+                    percentileRank: { scope: "industry", direction: "desc", topPercent: 20 },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    await expect(fetchMetricCatalog()).rejects.toMatchObject({ statusCode: 502 });
+  });
+
   // sources (2026-09-10): unlike formulaLatex/referenceUrl/badge, analysis-ts guarantees this is always
   // present and non-empty — required here, not defaulted to null/undefined when absent.
   it("passes through sources", async () => {

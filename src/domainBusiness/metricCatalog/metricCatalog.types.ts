@@ -55,6 +55,22 @@ export interface MetricBadgeThreshold {
    * warning object that aren't in that confirmed list even if the top-level threshold type allows them.
    */
   warning?: MetricBadgeThreshold;
+  /**
+   * A cross-sectional ranking threshold ("top 20% of the market/sector") — added 2026-09-21, alternative
+   * to the fixed-value comparator/value(Min/Max)/compareAgainstFieldId/allPositiveFieldIds fields above
+   * (analysis-ts's convention: mutually exclusive with those, a threshold has either a fixed-value shape
+   * or this one, never both — not enforced here, just passed through as-is either way). First metric:
+   * novyMarxGpToAssets (scope: market, topPercent 20).
+   */
+  percentileRank?: MetricBadgePercentileRank;
+}
+
+export interface MetricBadgePercentileRank {
+  scope: "market" | "sector";
+  direction: "asc" | "desc";
+  topPercent: number;
+  /** Whether zero-value rows are excluded from the ranking population before computing the percentile — optional, absent means not excluded. */
+  excludeZero?: boolean;
 }
 
 /**

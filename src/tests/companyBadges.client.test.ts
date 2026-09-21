@@ -27,7 +27,9 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
 
 // Real shape given directly by analysis-ts (2026-09-14; knowledgeDate/knowledgeDateIsFallback added same
 // day, commit 7bf2ff7; warning added 2026-09-20 — null on every non-piotroskiFScore badge even with a
-// real passed value, confirmed live, not just when value itself is null).
+// real passed value, confirmed live, not just when value itself is null; percentile/rank/totalCount added
+// 2026-09-21, always present but only non-null for a percentileRank-threshold badge — see
+// metricCatalog.types.ts's MetricBadgePercentileRank).
 const RAW_BODY = {
   symbol: "2330",
   categories: [
@@ -46,6 +48,9 @@ const RAW_BODY = {
           knowledgeDateIsFallback: false,
           passed: true,
           warning: null,
+          percentile: null,
+          rank: null,
+          totalCount: null,
         },
         {
           metricCode: "altmanZDoublePrimeScore",
@@ -58,6 +63,9 @@ const RAW_BODY = {
           knowledgeDateIsFallback: null,
           passed: null,
           warning: null,
+          percentile: null,
+          rank: null,
+          totalCount: null,
         },
       ],
     },
@@ -93,6 +101,9 @@ describe("fetchCompanyBadges", () => {
       knowledgeDateIsFallback: null,
       passed: null,
       warning: null,
+      percentile: null,
+      rank: null,
+      totalCount: null,
     });
   });
 
@@ -119,6 +130,44 @@ describe("fetchCompanyBadges", () => {
     const result = await fetchCompanyBadges("2454");
 
     expect(result.categories[0]?.badges[0]?.warning).toBe(true);
+  });
+
+  // percentile/rank/totalCount (2026-09-21): non-null only for a badge whose threshold is a
+  // percentileRank (cross-sectional ranking) shape, e.g. novyMarxGpToAssets's "top 20% of the market".
+  it("passes through percentile/rank/totalCount for a badge with a percentileRank threshold", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        symbol: "2330",
+        categories: [
+          {
+            categoryKey: "growth",
+            categoryDisplayName: "成長動能",
+            badges: [
+              {
+                metricCode: "novyMarxGpToAssets",
+                name: "毛利資產比五分位",
+                nameEn: "Novy-Marx Gross Profitability",
+                timeframe: "TTM",
+                value: 0.42,
+                nullReason: null,
+                knowledgeDate: "2026-08-11",
+                knowledgeDateIsFallback: false,
+                passed: true,
+                warning: null,
+                percentile: 92.5,
+                rank: 118,
+                totalCount: 1583,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchCompanyBadges("2330");
+
+    expect(result.categories[0]?.badges[0]).toMatchObject({ percentile: 92.5, rank: 118, totalCount: 1583 });
   });
 
   it("passes through knowledgeDate/knowledgeDateIsFallback for a badge with data", async () => {

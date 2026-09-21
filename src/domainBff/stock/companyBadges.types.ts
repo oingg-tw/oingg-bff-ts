@@ -32,6 +32,19 @@ export interface CompanyBadgeEntry {
    * (2317 piotroskiFScore: passed:false, warning:false; 2454 piotroskiFScore: passed:false, warning:true).
    */
   warning: boolean | null;
+  /**
+   * This company's percentile within the ranking population (0-100, higher is better within whatever
+   * `direction` the badge's threshold specifies) — added 2026-09-21, alongside `rank`/`totalCount`. Always
+   * present on every badge entry (not just new ones), but only non-null for badges whose threshold uses
+   * MetricDefinition.badge.threshold.percentileRank (a cross-sectional ranking threshold, e.g. "top 20% of
+   * the market") — every other badge (fixed-value threshold) has this null, same as `warning`'s "null
+   * means not applicable to this badge" convention, not "false"/zero.
+   */
+  percentile: number | null;
+  /** This company's raw rank within the population (1-based) — null under the same condition as `percentile`. */
+  rank: number | null;
+  /** Size of the ranking population `rank`/`percentile` are computed against — null under the same condition as `percentile`. */
+  totalCount: number | null;
 }
 
 export interface CompanyBadgeCategory {
