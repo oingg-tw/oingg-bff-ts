@@ -76,7 +76,8 @@ export const MAX_ETF_RANKING_LIMIT = 50;
 
 export const DEFAULT_TAIEX_DAILY_PRICE_LIMIT = 250;
 export const MIN_TAIEX_DAILY_PRICE_LIMIT = 1;
-export const MAX_TAIEX_DAILY_PRICE_LIMIT = 2000;
+// 2000 → 8000 on 2026-09-22 (analysis-ts 113dd818) so interval=daily can cover the full 1999-onward series (~6,900 rows).
+export const MAX_TAIEX_DAILY_PRICE_LIMIT = 8000;
 
 /** Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400. */
 export async function getMarginShortRatioRanking(limit: number): Promise<MarginShortRatioRankingResult> {

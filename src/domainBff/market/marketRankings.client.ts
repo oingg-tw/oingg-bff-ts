@@ -472,7 +472,7 @@ export async function fetchEtfRanking(
 /**
  * TAIEX (加權股價指數) daily closing series from analysis-ts's GET /market/taiex-daily-price — added
  * 2026-09-14 for web-nuxt's Beta card "個股 vs 大盤" comparison chart. Oldest to newest (confirmed live),
- * `limit` bounds 1-2000, default 250 on analysis-ts's side (mirrored in market.service.ts's
+ * `limit` bounds 1-8000, default 250 on analysis-ts's side (mirrored in market.service.ts's
  * getTaiexDailyPrice for a fast local 400, same convention as this file's other endpoints).
  */
 export async function fetchTaiexDailyPrice(limit: number, interval?: TaiexDailyPriceInterval): Promise<TaiexDailyPriceResult> {

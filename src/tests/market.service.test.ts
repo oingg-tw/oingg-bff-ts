@@ -313,13 +313,14 @@ describe("getTaiexDailyPrice", () => {
     expect(fetchTaiexDailyPrice).toHaveBeenCalledWith(250, undefined);
   });
 
-  // Bounds match analysis-ts's own validation (verified live: 1-2000).
-  it.each([0, -1, 2001, 2.5])("rejects an out-of-range limit (%s) without calling analysis-ts", async (value) => {
+  // Bounds match analysis-ts's own validation (verified live 2026-09-22: 1-8000, raised from 2000 in 113dd818).
+  it.each([0, -1, 8001, 2.5])("rejects an out-of-range limit (%s) without calling analysis-ts", async (value) => {
     await expect(getTaiexDailyPrice(value)).rejects.toMatchObject({ statusCode: 400 });
     expect(fetchTaiexDailyPrice).not.toHaveBeenCalled();
   });
 
-  it.each([1, 2000])("accepts a boundary limit (%s)", async (value) => {
+  // 2001 was the old first-rejected value — must now pass through so daily can reach 1999.
+  it.each([1, 2001, 8000])("accepts a boundary limit (%s)", async (value) => {
     vi.mocked(fetchTaiexDailyPrice).mockResolvedValue({ entries: [] });
 
     await expect(getTaiexDailyPrice(value)).resolves.toBeDefined();

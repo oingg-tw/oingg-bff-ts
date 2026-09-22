@@ -299,7 +299,9 @@ export interface TaiexDailyPriceEntry {
 /**
  * Sampling interval for GET /market/taiex-daily-price — added by analysis-ts 2026-09-21 so a long-horizon
  * overlay chart (web-nuxt's TAIEX vs. CBC policy-rate events, which go back to 1989) can trade granularity
- * for depth within the fixed 2000-row limit: daily caps out around 2018, monthly (333 rows) reaches 1999.
+ * for depth within what was then a 2000-row limit (daily capped out around 2018; monthly's 333 rows reached
+ * 1999). The cap was raised to 8000 on 2026-09-22 so daily now covers 1999 too; the interval stays useful
+ * for callers that want a lighter payload.
  * "weekly"/"monthly" take the last trading day of each period; `tradeDate` stays the real trading date.
  * Default "daily" — omitting the param leaves the upstream response byte-identical to before.
  */
