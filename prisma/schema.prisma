@@ -132,6 +132,11 @@ model MetricDefinition {
   /// Read off this field rather than hardcoding the list, since analysis-ts said coverage will keep
   /// expanding. Defaults to false for any metric predating this field (there is no "unknown" state).
   hasProvenance Boolean                 @default(false) @map("has_provenance")
+  /// The metric's current formula version, mirrored from analysis-ts's GET /metrics (added 2026-09-22) —
+  /// the same integer stamped on every metric_values row they compute, so consumers can detect when a
+  /// metric's numbers changed meaning. Defaults to 1 only for rows predating the column; the sync always
+  /// writes the real value (missing/non-integer upstream fails validation at the client layer).
+  formulaVersion Int                    @default(1) @map("formula_version")
   position    Int
   category    MetricCategory            @relation(fields: [categoryKey], references: [key], onDelete: Cascade)
   fields      MetricDefinitionField[]

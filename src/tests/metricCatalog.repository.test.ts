@@ -31,6 +31,7 @@ const SAMPLE_CATALOG: MetricCategory[] = [
         path: "/profitability/eps",
         sources: ["公開發行公司損益表（XBRL）"],
         hasProvenance: false,
+        formulaVersion: 1,
         sort: 0,
         fields: [
           { key: "epsQuarterly", name: "EPS (quarterly)", period: "quarterly", sort: 0 },
@@ -50,6 +51,7 @@ const SAMPLE_CATALOG: MetricCategory[] = [
         path: "/guru/graham-number",
         sources: ["公開發行公司資產負債表（XBRL）", "公開發行公司損益表（XBRL）"],
         hasProvenance: true,
+        formulaVersion: 1,
         sort: 0,
         fields: [{ key: "grahamNumber", name: "Graham Number", period: "ttm", sort: 0 }],
       },
@@ -317,6 +319,7 @@ describe("replaceMetricCatalog", () => {
         path: `/category${categoryIndex}/metric${metricIndex}`,
         sources: [],
         hasProvenance: false,
+        formulaVersion: 1,
         sort: metricIndex,
         fields: Array.from({ length: 3 }, (_, fieldIndex) => ({
           key: `field${fieldIndex}`,

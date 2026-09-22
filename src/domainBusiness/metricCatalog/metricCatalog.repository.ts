@@ -85,6 +85,7 @@ export async function listMetricCatalog(): Promise<MetricCategory[]> {
       badge: metric.badge as unknown as MetricBadge | null,
       sources: metric.sources,
       hasProvenance: metric.hasProvenance,
+      formulaVersion: metric.formulaVersion,
       sort: metric.position,
       // oingg-analysis-ts fills description/source/unit at the metric level only (the different period
       // variants of one metric — quarterly/TTM/etc — share the same definition/source/unit, so it
@@ -152,6 +153,7 @@ export async function replaceMetricCatalog(categories: MetricCategory[]): Promis
       badge: metric.badge ? JSON.stringify(metric.badge) : null,
       sources: metric.sources,
       hasProvenance: metric.hasProvenance,
+      formulaVersion: metric.formulaVersion,
       position,
     })),
   );
@@ -182,11 +184,11 @@ export async function replaceMetricCatalog(categories: MetricCategory[]): Promis
 
     if (metricRows.length > 0) {
       await tx.$executeRaw`
-        INSERT INTO metric_definition (key, category_key, name, path, description, source, limitations, misreadings, unit, formula_latex, reference_url, academic_source_url, badge, sources, has_provenance, position)
+        INSERT INTO metric_definition (key, category_key, name, path, description, source, limitations, misreadings, unit, formula_latex, reference_url, academic_source_url, badge, sources, has_provenance, formula_version, position)
         VALUES ${Prisma.join(
           metricRows.map(
             (m) =>
-              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.limitations}, ${m.misreadings}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.academicSourceUrl}, ${m.badge}::jsonb, ${m.sources}, ${m.hasProvenance}, ${m.position})`,
+              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.limitations}, ${m.misreadings}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.academicSourceUrl}, ${m.badge}::jsonb, ${m.sources}, ${m.hasProvenance}, ${m.formulaVersion}, ${m.position})`,
           ),
         )}
         ON CONFLICT (key) DO UPDATE SET
@@ -195,7 +197,8 @@ export async function replaceMetricCatalog(categories: MetricCategory[]): Promis
           limitations = EXCLUDED.limitations, misreadings = EXCLUDED.misreadings, unit = EXCLUDED.unit,
           formula_latex = EXCLUDED.formula_latex, reference_url = EXCLUDED.reference_url,
           academic_source_url = EXCLUDED.academic_source_url, badge = EXCLUDED.badge,
-          sources = EXCLUDED.sources, has_provenance = EXCLUDED.has_provenance, position = EXCLUDED.position
+          sources = EXCLUDED.sources, has_provenance = EXCLUDED.has_provenance,
+          formula_version = EXCLUDED.formula_version, position = EXCLUDED.position
       `;
     }
 

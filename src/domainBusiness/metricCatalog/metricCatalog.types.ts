@@ -178,6 +178,14 @@ export interface MetricDefinition {
    * rather than hardcoded, since coverage is expected to expand over time.
    */
   hasProvenance: boolean;
+  /**
+   * The metric's current formula version — the same integer analysis-ts stamps on the metric_values rows
+   * it computes, so a consumer can tell when the numbers behind a metric changed meaning (e.g. sue → 3
+   * after dropping its drift term; roe/roa/assetTurnover/equityMultiplier/dupont-family/sgr/netDebtToEbitda → 2
+   * with the period-average denominator; everything else 1 as of 2026-09-22). Added by analysis-ts
+   * 2026-09-22 (5785a6d2) as web-nuxt's "re-read the metric copy" signal. Present on every metric.
+   */
+  formulaVersion: number;
   /** Display order among sibling metrics under the same category (0-based) — see MetricField.sort. */
   sort: number;
   fields: MetricField[];

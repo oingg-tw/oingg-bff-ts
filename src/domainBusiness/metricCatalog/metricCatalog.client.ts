@@ -92,6 +92,13 @@ interface RawPitMetric {
    * referenceUrl/badge. A growing allowlist (12 metrics at launch) — read off this field, never hardcoded.
    */
   hasProvenance: boolean;
+  /**
+   * The metric's current formula version — the same integer analysis-ts stamps on every metric_values row
+   * it computes (added 2026-09-22, present on every metric). Bumps when the computation changes (e.g. sue's
+   * drift-term removal → 3, the period-average-denominator batch → 2); web-nuxt uses it as a "re-read the
+   * copy" signal. Required like hasProvenance, not a sparse field.
+   */
+  formulaVersion: number;
 }
 
 interface RawPitCategory {
@@ -128,7 +135,8 @@ function isRawPitCategoryArray(value: unknown): value is RawPitCategory[] {
             ((m as RawPitMetric).badge === undefined || isRawBadge((m as RawPitMetric).badge)) &&
             Array.isArray((m as RawPitMetric).sources) &&
             (m as RawPitMetric).sources.every((s) => typeof s === "string") &&
-            typeof (m as RawPitMetric).hasProvenance === "boolean",
+            typeof (m as RawPitMetric).hasProvenance === "boolean" &&
+            Number.isInteger((m as RawPitMetric).formulaVersion),
         ),
     )
   );
@@ -220,6 +228,7 @@ function toMetricCategories(raw: RawPitCategory[]): MetricCategory[] {
       badge: metric.badge ?? null,
       sources: metric.sources,
       hasProvenance: metric.hasProvenance,
+      formulaVersion: metric.formulaVersion,
       sort: metricIndex,
       fields: metric.validTimeframes.map((token, tokenIndex) => ({
         key: token,
