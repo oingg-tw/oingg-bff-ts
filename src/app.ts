@@ -1,6 +1,6 @@
 import express from "ultimate-express";
 import { routes } from "@/routes.js";
-import { errorHandler, notFoundHandler } from "@/shared/errorHandler.js";
+import { errorHandler, jsonBodyErrorHandler, notFoundHandler } from "@/shared/errorHandler.js";
 import { requestLogger } from "@/shared/requestLogger.js";
 
 export function createApp() {
@@ -16,6 +16,8 @@ export function createApp() {
   app.use(requestLogger);
 
   app.use(express.json());
+  // Must sit here, directly behind the parser — see jsonBodyErrorHandler for why it can't live in errorHandler.
+  app.use(jsonBodyErrorHandler);
 
   app.use(routes);
 

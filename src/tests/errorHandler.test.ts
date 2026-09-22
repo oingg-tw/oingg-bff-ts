@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NextFunction, Request, Response } from "ultimate-express";
-import { AppError, errorHandler, notFoundHandler } from "@/shared/errorHandler.js";
+import { AppError, errorHandler, jsonBodyErrorHandler, notFoundHandler } from "@/shared/errorHandler.js";
 
 function createMockResponse() {
   const res = {} as Response;
@@ -36,6 +36,31 @@ describe("notFoundHandler", () => {
     expect(error).toBeInstanceOf(AppError);
     expect(error.statusCode).toBe(404);
     expect(error.message).toBe("Route not found: GET /nope");
+  });
+});
+
+describe("jsonBodyErrorHandler", () => {
+  // Mounted right behind express.json(), so a SyntaxError there can only be a malformed request body —
+  // which used to fall through to a 500 ("Internal server error" on POST /screener, found 2026-09-22).
+  it("converts a body-parser SyntaxError into a 400", () => {
+    const next = vi.fn();
+
+    jsonBodyErrorHandler(new SyntaxError('Unexpected token \',\' is not valid JSON'), {} as Request, createMockResponse(), next as NextFunction);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    const error = next.mock.calls[0]?.[0] as unknown as AppError;
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.statusCode).toBe(400);
+    expect(error.message).toBe("Request body is not valid JSON");
+  });
+
+  it("passes any other error through untouched so its own status survives", () => {
+    const next = vi.fn();
+    const upstream = new AppError("Screener endpoint returned 503", 502);
+
+    jsonBodyErrorHandler(upstream, {} as Request, createMockResponse(), next as NextFunction);
+
+    expect(next).toHaveBeenCalledWith(upstream);
   });
 });
 
