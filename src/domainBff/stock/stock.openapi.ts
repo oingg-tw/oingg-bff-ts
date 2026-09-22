@@ -1078,7 +1078,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/dupont-history",
   summary: "查詢 ROE 杜邦分析（3 因子＋5 因子拆解）的季度歷史數列",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/dupont-history。跟 metric-history/roe-history/roa-history 不同，這支端點每季回傳的是拆解後的多個數字，不是單一 value：3 因子（netProfitMarginPct×assetTurnover×equityMultiplier=decomposedRoePct）以及 5 因子擴展版（dupontTaxBurdenPct×dupontInterestBurdenPct×dupontEbitMarginPct×assetTurnover×equityMultiplier=dupontExtendedRoePct，2026-09-07 新增，同一個回應內，不需要額外參數）。5 因子有自己獨立的 dupontExtendedRoeNullReason，跟 3 因子的 nullReason 是分開的兩個欄位——5 因子的完整性檢查比 3 因子嚴格，可能 3 因子都有值但 5 因子還是 null。basis 只允許 Q、TTM，沒有 Q_ANN（跟 roe/roa-history 不同）。equityMultiplier 實測在 basis=TTM 時常是 null、basis=Q 時才有值，還沒跟 analysis-ts 正式確認原因，不要假設所有 TTM 資料都一定沒有這個欄位。limit 預設 20、最大 40。total/hasMore 意義同 metric-history。查無資料回傳空陣列，不是 404。entries 由舊到新排序。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/dupont-history。跟 metric-history/roe-history/roa-history 不同，這支端點每季回傳的是拆解後的多個數字，不是單一 value：3 因子（netProfitMarginPct×assetTurnover×equityMultiplier=decomposedRoePct）以及 5 因子擴展版（dupontTaxBurdenPct×dupontInterestBurdenPct×dupontEbitMarginPct×assetTurnover×equityMultiplier=dupontExtendedRoePct，2026-09-07 新增，同一個回應內，不需要額外參數）。5 因子有自己獨立的 dupontExtendedRoeNullReason，跟 3 因子的 nullReason 是分開的兩個欄位——5 因子的完整性檢查比 3 因子嚴格，可能 3 因子都有值但 5 因子還是 null。basis 只允許 Q、TTM，沒有 Q_ANN（跟 roe/roa-history 不同）。equityMultiplier 在 basis=TTM 時曾經一律是 null（2026-09-07 觀察）——原因是當時這支指標只有 Q 一種 timeframe；2026-09-22 analysis-ts（7df73c14）把分母改為期間平均（formulaVersion 2）並補上 TTM 後，TTM 也有值了（實測 2330 2026Q2 TTM = 1.4575）。limit 預設 20、最大 40。total/hasMore 意義同 metric-history。查無資料回傳空陣列，不是 404。entries 由舊到新排序。",
   tags: ["Stock"],
   request: {
     params: symbolParam,
