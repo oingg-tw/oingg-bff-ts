@@ -229,6 +229,8 @@ const companyBadgeEntrySchema = z.object({
   rank: z.number().nullable(),
   /** Size of the ranking population — null under the same condition as percentile. */
   totalCount: z.number().nullable(),
+  /** The metric value at the percentileRank cutoff, same unit as value — added 2026-09-22; null under the same condition as percentile. Can be a real 0. */
+  thresholdValue: z.number().nullable(),
 });
 
 const companyBadgeCategorySchema = z.object({
@@ -264,6 +266,7 @@ const companyBadgesResultSchema = z
               percentile: null,
               rank: null,
               totalCount: null,
+              thresholdValue: null,
             },
           ],
         },
@@ -276,7 +279,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/badges",
   summary: "查詢個股在各項「達人門檻」徽章上的實際數值與是否達成",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/badges——跟 GET /metrics 每個指標底下的 badge 欄位是兩回事：那邊是徽章本身的定義（名稱/門檻/方法論，全市場通用不分公司），這支才是「這家公司」在這個徽章上算出來的實際數值跟是否達成（passed）。passed 是唯一真相來源，前端／bff-ts 都不應該自己拿 value 去跟 GET /metrics 的 badge.threshold 比較重新算一次——不同徽章的門檻比較邏輯不一致，也沒處理產業排除等 null 情境，analysis-ts 就是為了避免這個問題才做這支端點。查無資料或代號不存在時仍回 200，每個徽章的 value/nullReason/knowledgeDate/knowledgeDateIsFallback/passed/warning/percentile/rank/totalCount 全部是 null，不會是 404。knowledgeDate/knowledgeDateIsFallback（2026-09-14 新增）跟 metrics-history/piotroski-breakdown 既有語意一致，knowledgeDateIsFallback 為 true 代表用財報期末日頂替，不是真實公告日。warning（2026-09-20 新增）標示這家公司是否落在該徽章更嚴格的「危險區」門檻（見 GET /metrics 每個指標 badge.threshold.warning）——null 有兩種情況：value 本身是 null（沒東西可評估，跟 passed 同一個情境），或這個徽章根本沒有定義危險區門檻（目前只有 piotroskiFScore 有，其餘徽章實測皆為 warning:null，就算 passed 有真實值也一樣，不要把 null 當成 false）。也不是 passed 的邏輯反面——passed:false 不代表 warning 一定是 true（例如分數不上不下、既非高分也非低分的情況）。percentile/rank/totalCount（2026-09-21 新增）是這家公司在橫斷面排名裡的位置——每一筆徽章回應永遠都有這 3 個欄位（不是選填），但只有門檻本身是「排名型」（GET /metrics 的 badge.threshold.percentileRank，例如 novyMarxGpToAssets 的「全市場前 20%」）才會有實際數值，其餘固定值型門檻的徽章這 3 個欄位一律是 null，不是缺資料。percentile 是 0-100 的百分位，rank 是 1-based 原始名次，totalCount 是排名母體總數。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/badges——跟 GET /metrics 每個指標底下的 badge 欄位是兩回事：那邊是徽章本身的定義（名稱/門檻/方法論，全市場通用不分公司），這支才是「這家公司」在這個徽章上算出來的實際數值跟是否達成（passed）。passed 是唯一真相來源，前端／bff-ts 都不應該自己拿 value 去跟 GET /metrics 的 badge.threshold 比較重新算一次——不同徽章的門檻比較邏輯不一致，也沒處理產業排除等 null 情境，analysis-ts 就是為了避免這個問題才做這支端點。查無資料或代號不存在時仍回 200，每個徽章的 value/nullReason/knowledgeDate/knowledgeDateIsFallback/passed/warning/percentile/rank/totalCount/thresholdValue 全部是 null，不會是 404。knowledgeDate/knowledgeDateIsFallback（2026-09-14 新增）跟 metrics-history/piotroski-breakdown 既有語意一致，knowledgeDateIsFallback 為 true 代表用財報期末日頂替，不是真實公告日。warning（2026-09-20 新增）標示這家公司是否落在該徽章更嚴格的「危險區」門檻（見 GET /metrics 每個指標 badge.threshold.warning）——null 有兩種情況：value 本身是 null（沒東西可評估，跟 passed 同一個情境），或這個徽章根本沒有定義危險區門檻（目前只有 piotroskiFScore 有，其餘徽章實測皆為 warning:null，就算 passed 有真實值也一樣，不要把 null 當成 false）。也不是 passed 的邏輯反面——passed:false 不代表 warning 一定是 true（例如分數不上不下、既非高分也非低分的情況）。percentile/rank/totalCount（2026-09-21 新增）是這家公司在橫斷面排名裡的位置——每一筆徽章回應永遠都有這 3 個欄位（不是選填），但只有門檻本身是「排名型」（GET /metrics 的 badge.threshold.percentileRank，例如 novyMarxGpToAssets 的「全市場前 20%」）才會有實際數值，其餘固定值型門檻的徽章這 3 個欄位一律是 null，不是缺資料。percentile 是 0-100 的百分位，rank 是 1-based 原始名次，totalCount 是排名母體總數。thresholdValue（2026-09-22 新增）是排名分界線對應的指標值——也就是 value 要達到多少才剛好站在「前 N%」的邊界上，單位跟 value 相同，讓前端能顯示「你的值是 42.61，門檻是 17.73」；null 的條件跟 percentile 完全一樣（非排名型徽章一律 null）。注意它可以是真實的 0（例如 2330 的 shareholderYield：thresholdValue 0、percentile 88.6），不要把 0 當成缺資料。",
   tags: ["Stock"],
   request: { params: symbolParam },
   responses: {

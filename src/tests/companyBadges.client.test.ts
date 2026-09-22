@@ -29,7 +29,8 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
 // day, commit 7bf2ff7; warning added 2026-09-20 — null on every non-piotroskiFScore badge even with a
 // real passed value, confirmed live, not just when value itself is null; percentile/rank/totalCount added
 // 2026-09-21, always present but only non-null for a percentileRank-threshold badge — see
-// metricCatalog.types.ts's MetricBadgePercentileRank).
+// metricCatalog.types.ts's MetricBadgePercentileRank; thresholdValue added 2026-09-22 (9b51128f), null
+// under the same condition as percentile).
 const RAW_BODY = {
   symbol: "2330",
   categories: [
@@ -51,6 +52,7 @@ const RAW_BODY = {
           percentile: null,
           rank: null,
           totalCount: null,
+          thresholdValue: null,
         },
         {
           metricCode: "altmanZDoublePrimeScore",
@@ -66,6 +68,7 @@ const RAW_BODY = {
           percentile: null,
           rank: null,
           totalCount: null,
+          thresholdValue: null,
         },
       ],
     },
@@ -104,6 +107,7 @@ describe("fetchCompanyBadges", () => {
       percentile: null,
       rank: null,
       totalCount: null,
+      thresholdValue: null,
     });
   });
 
@@ -158,6 +162,7 @@ describe("fetchCompanyBadges", () => {
                 percentile: 92.5,
                 rank: 118,
                 totalCount: 1583,
+                thresholdValue: 23.78,
               },
             ],
           },
@@ -167,7 +172,31 @@ describe("fetchCompanyBadges", () => {
 
     const result = await fetchCompanyBadges("2330");
 
-    expect(result.categories[0]?.badges[0]).toMatchObject({ percentile: 92.5, rank: 118, totalCount: 1583 });
+    expect(result.categories[0]?.badges[0]).toMatchObject({ percentile: 92.5, rank: 118, totalCount: 1583, thresholdValue: 23.78 });
+  });
+
+  // thresholdValue (2026-09-22) can legitimately be 0 (live: 2330 shareholderYield thresholdValue 0,
+  // percentile 88.6) — a falsy-check normalizer would silently turn a real cutoff into "missing".
+  it("preserves a thresholdValue of exactly 0", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        symbol: "2330",
+        categories: [
+          {
+            categoryKey: "shareholder",
+            categoryDisplayName: "股東回報",
+            badges: [
+              { metricCode: "shareholderYield", name: "股東收益率", nameEn: "Shareholder Yield", timeframe: "TTM", value: 0.85, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, passed: true, warning: null, percentile: 88.6, rank: 180, totalCount: 1583, thresholdValue: 0 },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await fetchCompanyBadges("2330");
+
+    expect(result.categories[0]?.badges[0]?.thresholdValue).toBe(0);
   });
 
   it("passes through knowledgeDate/knowledgeDateIsFallback for a badge with data", async () => {

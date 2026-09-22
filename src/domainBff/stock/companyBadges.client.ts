@@ -19,6 +19,7 @@ function normalizeBadgeEntry(raw: unknown): CompanyBadgeEntry {
     percentile: typeof r.percentile === "number" ? r.percentile : null,
     rank: typeof r.rank === "number" ? r.rank : null,
     totalCount: typeof r.totalCount === "number" ? r.totalCount : null,
+    thresholdValue: typeof r.thresholdValue === "number" ? r.thresholdValue : null,
   };
 }
 

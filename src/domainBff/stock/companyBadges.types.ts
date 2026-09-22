@@ -45,6 +45,14 @@ export interface CompanyBadgeEntry {
   rank: number | null;
   /** Size of the ranking population `rank`/`percentile` are computed against — null under the same condition as `percentile`. */
   totalCount: number | null;
+  /**
+   * The metric value at the percentileRank cutoff (i.e. what `value` would have to reach to sit exactly on
+   * the "top N%" boundary), in the same unit as `value` — added by analysis-ts 2026-09-22 (9b51128f) at
+   * web-nuxt's request so the UI can show "you're at 42.61, the bar is 17.73". Null under the same condition
+   * as `percentile` (non-percentileRank badges), confirmed live across all 30 badges. Can legitimately be
+   * 0 (2330 shareholderYield: thresholdValue 0, percentile 88.6) — never treat 0 as "missing".
+   */
+  thresholdValue: number | null;
 }
 
 export interface CompanyBadgeCategory {
