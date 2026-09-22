@@ -8,9 +8,17 @@ function toStringOrNull(value: unknown): string | null {
   return value === null || value === undefined ? null : String(value);
 }
 
+function isMetricDataType(value: unknown): value is "1" | "2" {
+  return value === "1" || value === "2";
+}
+
 function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
+  if (!isMetricDataType(raw.metricDataType)) {
+    throw new AppError(`Company profile for "${String(raw.symbol)}" has an unrecognized metricDataType`, 502);
+  }
   return {
     symbol: String(raw.symbol),
+    metricDataType: raw.metricDataType,
     market: raw.market === "TPEx" ? "TPEx" : "TWSE",
     reportDate: String(raw.reportDate),
     name: String(raw.name),

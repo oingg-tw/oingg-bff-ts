@@ -48,8 +48,11 @@ const RAW_PROFILE = {
   paidInCapital: "259323700670",
   privatePlacementShares: "0",
   preferredStockShares: "0",
+  // financialReportType "1" = 合併 (exchange code), metricDataType "2" = 合併 (MOPS dataType) — opposite
+  // numbering, both correct for 2330. Label corrected by analysis-ts 2026-09-22 (was "個別財報").
   financialReportType: "1",
-  financialReportTypeName: "個別財報",
+  financialReportTypeName: "合併財報",
+  metricDataType: "2",
   stockTransferAgency: "中國信託商業銀行 代理部",
   transferAgencyPhone: "02-6636-5566",
   transferAgencyAddress: "台北市重慶南路一段83號5樓",
@@ -110,6 +113,21 @@ describe("fetchCompanyProfile", () => {
 
   it("throws a 502 AppError when the response is missing symbol", async () => {
     mockFetchOnce({ ok: true, body: { name: "台積電" } });
+
+    await expect(fetchCompanyProfile("2330")).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  // metricDataType (2026-09-22) is a required two-value enum upstream — an individual-only filer is "1".
+  it("passes through metricDataType '1' for an individual-statement-only filer", async () => {
+    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, symbol: "2816", financialReportType: "2", financialReportTypeName: "個別財報", metricDataType: "1" } });
+
+    const result = await fetchCompanyProfile("2816");
+
+    expect(result?.metricDataType).toBe("1");
+  });
+
+  it("throws a 502 AppError when metricDataType is missing or not '1'/'2'", async () => {
+    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, metricDataType: "3" } });
 
     await expect(fetchCompanyProfile("2330")).rejects.toMatchObject({ statusCode: 502 });
   });

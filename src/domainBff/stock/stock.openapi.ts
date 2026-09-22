@@ -110,8 +110,12 @@ const companyProfileSchema = z
     paidInCapital: z.string().nullable(),
     privatePlacementShares: z.string().nullable(),
     preferredStockShares: z.string().nullable(),
+    /** Exchange 編製財務報告類型 code — "1" = 合併, "2" = 個別. Opposite numbering from metricDataType. */
     financialReportType: z.string().nullable(),
+    /** Label for financialReportType — mapping corrected 2026-09-22 (was backwards; 2330 is 合併財報). */
     financialReportTypeName: z.string().nullable(),
+    /** Statement basis analysis-ts actually uses for this company's metrics, MOPS dataType numbering: "2" = 合併報表, "1" = 個體報表 (~249 individual-only filers). Added 2026-09-22. */
+    metricDataType: z.enum(["1", "2"]),
     stockTransferAgency: z.string().nullable(),
     transferAgencyPhone: z.string().nullable(),
     transferAgencyAddress: z.string().nullable(),
@@ -150,7 +154,8 @@ const companyProfileSchema = z
       privatePlacementShares: null,
       preferredStockShares: null,
       financialReportType: "1",
-      financialReportTypeName: "個別財報",
+      financialReportTypeName: "合併財報",
+      metricDataType: "2",
       stockTransferAgency: null,
       transferAgencyPhone: null,
       transferAgencyAddress: null,

@@ -32,9 +32,22 @@ export interface CompanyProfile {
   paidInCapital: string | null;
   privatePlacementShares: string | null;
   preferredStockShares: string | null;
+  /** The exchange's raw 編製財務報告類型 code: "1" = 合併 (consolidated), "2" = 個別 (individual). Note this is the OPPOSITE numbering from `metricDataType` below. */
   financialReportType: string | null;
-  /** Human-readable label for `financialReportType` ("1" -> "個別財報", "2" -> "合併財報"), confirmed by analysis-ts against mops-ts's own definition. Added 2026-09-02. */
+  /**
+   * Human-readable label for `financialReportType`. Corrected by analysis-ts 2026-09-22 (21fdd2d4): the
+   * mapping was originally written backwards ("1" -> 個別), because the exchange's code and MOPS's dataType
+   * number the two report types in opposite directions — 2330 (code "1") is now correctly "合併財報".
+   */
   financialReportTypeName: string | null;
+  /**
+   * Which financial-statement basis analysis-ts actually uses for this company's metrics — MOPS dataType
+   * numbering: "2" = 合併報表 (consolidated), "1" = 個體報表 (individual). Added 2026-09-22 (21fdd2d4). Most
+   * companies are "2"; ~249 that only file individual statements (mostly 興櫃, plus e.g. 2816/2820/2836/
+   * 2849/2851/5863) are "1" and only began getting metric values with this change. Deliberately typed as a
+   * closed union since analysis-ts declares it as a two-value enum.
+   */
+  metricDataType: "1" | "2";
   stockTransferAgency: string | null;
   transferAgencyPhone: string | null;
   transferAgencyAddress: string | null;
