@@ -386,7 +386,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/dividend-history",
   summary: "查詢歷年股利發放紀錄（含現金股利、股票股利，一個年度可能分多次發放）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/dividend-history，2026-09-19 新增。entries 由舊到新排序（跟 capital-stock-history 的新到舊相反）。每個 entries[] 是一個「所屬年度」的彙總（cashDividend/stockDividend/totalDividend/exDividendDate/exRightsDate/paymentDate 是該年度的總計或最後一次發放的日期），events[] 再把同一年度拆成個別發放次數（distributionCount 決定 events 長度；只發放一次時 fiscalQuarter 為 null）。eps/payoutRatio 要等該年度全年財報公告後才會有值（例如目前最新年度可能仍是 null，愈往前的年度愈完整）。yieldAtExDate/closeAtExDate 要等除息日當天收盤價確定才會有值，未來或剛公告的除息日會是 null。查無資料回傳空陣列，不是 404。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/dividend-history，2026-09-19 新增。entries 由舊到新排序（跟 capital-stock-history 的新到舊相反）。每個 entries[] 是一個「所屬年度」的彙總（cashDividend/stockDividend/totalDividend/exDividendDate/exRightsDate/paymentDate 是該年度的總計或最後一次發放的日期），events[] 再把同一年度拆成個別發放次數（distributionCount 決定 events 長度；只發放一次時 fiscalQuarter 為 null）。eps/payoutRatio 要等該年度全年財報公告後才會有值（例如目前最新年度可能仍是 null，愈往前的年度愈完整）。yieldAtExDate/closeAtExDate 要等除息日當天收盤價確定才會有值，未來或剛公告的除息日會是 null。查無資料回傳空陣列，不是 404。**不要拿這支端點去驗證 GET /metrics 的 consecutiveDividendYears，兩者資料源不同、深度也不同**（同 exchangePeRatio vs peRatio 的關係）：這支來自 mops 的股利分派公告（export.dividend_distribution），連續配息年數則來自現金流量表的「發放股利」（XBRL dividends_paid_financing）。2026-09-22 實測：股利公告表 2025 年度有 1,469 家，更早的年度全市場只有 30~47 家，所以多數公司目前只查得到 1 個年度；反過來 consecutiveDividendYears 因為 XBRL 從民國 110 年才全面鋪開而普遍是 5（889 家並列，數字等於上限時語意是「至少 N 年」）。兩邊對同一家公司給出不同年數是正常的，不是任一邊算錯。mops-ts 已排定股利分派 10 年全市場回補（1,985 家、民國 106~115），跑完這支會變深，但 consecutiveDividendYears 不會跟著變。",
   tags: ["Stock"],
   request: { params: symbolParam },
   responses: {
