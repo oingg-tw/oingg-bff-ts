@@ -33,7 +33,10 @@ export interface ScreenerValue {
   knowledgeDate: string | null;
   /**
    * Why `value` is null — one of missing_input/zero_or_negative_denominator/not_applicable_industry/
-   * insufficient_history (same convention as metric-history's nullReason), or null when `value` is
+   * insufficient_history (same convention as metric-history's nullReason). A null `value` WITH a reason
+   * means "the data is there, this metric just can't be computed from it" — a fact about the company, not
+   * absent data; a null value with no reason is the actual "we don't have a number" case. Consumers must
+   * word these differently (web-nuxt shipped "尚無資料" for both and had to fix it, 2026-09-22). Also null when `value` is
    * present, or when the underlying source doesn't classify the reason (e.g. stock.price, or the
    * exchangePeRatio/exchangePbRatio/dividendYield valuation-ranking path — see screener.service.ts's
    * runValuationRanking, which constructs this value directly rather than getting it from analysis-ts's
