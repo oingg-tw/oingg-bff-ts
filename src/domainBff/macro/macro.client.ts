@@ -17,6 +17,8 @@ import type {
   GovBondYield10yResult,
   MonetaryAggregateEntry,
   MonetaryAggregateResult,
+  StockMarketSummaryEntry,
+  StockMarketSummaryResult,
   UsdTwdRateEntry,
   UsdTwdRateInterval,
   UsdTwdRateResult,
@@ -169,6 +171,32 @@ export async function fetchGovBondYield10y(): Promise<GovBondYield10yResult> {
     fieldStatuses,
     warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
   };
+}
+
+function normalizeStockMarketSummaryEntry(raw: unknown): StockMarketSummaryEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    period: String(r.period),
+    year: Number(r.year),
+    month: Number(r.month),
+    listedCompanies: toNumberOrNull(r.listedCompanies),
+    totalParValue: toNumberOrNull(r.totalParValue),
+    totalMarketValue: toNumberOrNull(r.totalMarketValue),
+    totalTradingValue: toNumberOrNull(r.totalTradingValue),
+    avgDailyTradingValue: toNumberOrNull(r.avgDailyTradingValue),
+    avgTaiex: toNumberOrNull(r.avgTaiex),
+    avgTaiexYoyPercent: toNumberOrNull(r.avgTaiexYoyPercent),
+  };
+}
+
+/**
+ * CBC 集中市場 monthly summary from 1987-05 — GET /macro/stock-market-summary. Pure pass-through: no
+ * resampling and no merging with the daily TAIEX series — `avgTaiex` is a monthly AVERAGE, not a
+ * month-end close, so it must never be stitched onto GET /market/taiex-daily-price's closes as one line.
+ */
+export async function fetchStockMarketSummary(from?: string): Promise<StockMarketSummaryResult> {
+  const { entries } = await getEntriesBody("/macro/stock-market-summary", { from }, "Stock market summary endpoint");
+  return { entries: entries.map(normalizeStockMarketSummaryEntry) };
 }
 
 /** 10-year 公債殖利率 monthly history — GET /macro/gov-bond-yield-10y-history. */

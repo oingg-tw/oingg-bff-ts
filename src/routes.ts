@@ -69,7 +69,7 @@ routes.use("/screener", screenerRoutes);
 routes.use("/metrics", metricCatalogRouter); // GET /metrics, POST /metrics/sync
 routes.use("/market", marketRouter); // GET /market/margin-short-ratio-ranking, ...
 // GET /macro/cbc-policy-rate, /macro/business-cycle-indicator, /macro/monetary-aggregate,
-// /macro/gov-bond-yield-10y, /macro/gov-bond-yield-10y-history, /macro/usd-twd-rate, /macro/cpi, /macro/gdp
+// /macro/gov-bond-yield-10y, /macro/gov-bond-yield-10y-history, /macro/stock-market-summary, /macro/usd-twd-rate, /macro/cpi, /macro/gdp
 routes.use("/macro", macroRouter);
 routes.use("/etf-screener", etfScreenerRouter); // GET /etf-screener/filters, POST /etf-screener
 routes.use("/industries", industriesRouter); // GET /industries/tree

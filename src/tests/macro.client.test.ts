@@ -7,6 +7,7 @@ import {
   fetchGovBondYield10y,
   fetchGovBondYield10yHistory,
   fetchMonetaryAggregate,
+  fetchStockMarketSummary,
   fetchUsdTwdRate,
 } from "@/domainBff/macro/macro.client.js";
 
@@ -102,11 +103,12 @@ function calledUrl(): URL {
   return vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
 }
 
-describe("monthly series (business-cycle-indicator / monetary-aggregate / gov-bond-yield-10y-history)", () => {
+describe("monthly series (business-cycle-indicator / monetary-aggregate / gov-bond-yield-10y-history / stock-market-summary)", () => {
   it.each([
     ["business-cycle-indicator", fetchBusinessCycleIndicator],
     ["monetary-aggregate", fetchMonetaryAggregate],
     ["gov-bond-yield-10y-history", fetchGovBondYield10yHistory],
+    ["stock-market-summary", fetchStockMarketSummary],
   ] as const)("%s forwards from when given and omits it when not", async (path, fetcher) => {
     mockFetchOnce({ ok: true, body: { entries: [] } });
     await fetcher("2020-01");
@@ -139,6 +141,22 @@ describe("monthly series (business-cycle-indicator / monetary-aggregate / gov-bo
 
     expect(result.entries[0]).toMatchObject({ signalScore: 41, signalLight: "紅", leadingIndexDetrended: 104.6337 });
     expect(result.entries[1]).toMatchObject({ leadingIndexComposite: null, signalScore: null, signalLight: null });
+  });
+
+  // Real shape (2026-09-22). avgTaiex is a monthly average, passed through untouched — no resampling.
+  it("stock-market-summary passes all seven numeric fields through, nulls preserved", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { entries: [
+        { period: "2026-07", year: 2026, month: 7, listedCompanies: 1083, totalParValue: 7910895, totalMarketValue: 140848179, totalTradingValue: 20732353, avgDailyTradingValue: 942380, avgTaiex: 44366.29, avgTaiexYoyPercent: 93.208 },
+        { period: "1987-05", year: 1987, month: 5, listedCompanies: 130, avgTaiex: 1500.2, avgTaiexYoyPercent: null },
+      ] },
+    });
+
+    const result = await fetchStockMarketSummary();
+
+    expect(result.entries[0]).toMatchObject({ listedCompanies: 1083, avgTaiex: 44366.29, avgTaiexYoyPercent: 93.208 });
+    expect(result.entries[1]).toMatchObject({ avgTaiexYoyPercent: null, totalParValue: null });
   });
 
   it("gov-bond-yield-10y-history normalizes entries", async () => {

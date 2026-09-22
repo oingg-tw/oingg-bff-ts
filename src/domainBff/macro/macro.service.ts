@@ -6,6 +6,7 @@ import {
   fetchGovBondYield10y,
   fetchGovBondYield10yHistory,
   fetchMonetaryAggregate,
+  fetchStockMarketSummary,
   fetchUsdTwdRate,
 } from "@/domainBff/macro/macro.client.js";
 import type {
@@ -18,6 +19,7 @@ import type {
   GovBondYield10yHistoryResult,
   GovBondYield10yResult,
   MonetaryAggregateResult,
+  StockMarketSummaryResult,
   UsdTwdRateInterval,
   UsdTwdRateResult,
 } from "@/domainBff/macro/macro.types.js";
@@ -48,6 +50,11 @@ export async function getGovBondYield10y(): Promise<GovBondYield10yResult> {
 /** 10-year 公債殖利率 monthly history — GET /macro/gov-bond-yield-10y-history. */
 export async function getGovBondYield10yHistory(from?: string): Promise<GovBondYield10yHistoryResult> {
   return fetchGovBondYield10yHistory(from);
+}
+
+/** CBC 集中市場 monthly summary (1987-05 onward) — GET /macro/stock-market-summary. */
+export async function getStockMarketSummary(from?: string): Promise<StockMarketSummaryResult> {
+  return fetchStockMarketSummary(from);
 }
 
 /** USD/TWD daily/weekly/monthly series — GET /macro/usd-twd-rate. */

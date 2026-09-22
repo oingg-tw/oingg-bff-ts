@@ -7,6 +7,7 @@ export {
   getGovBondYield10y,
   getGovBondYield10yHistory,
   getMonetaryAggregate,
+  getStockMarketSummary,
   getUsdTwdRate,
 } from "@/domainBff/macro/macro.service.js";
 export type {
@@ -25,6 +26,8 @@ export type {
   GovBondYield10yResult,
   MonetaryAggregateEntry,
   MonetaryAggregateResult,
+  StockMarketSummaryEntry,
+  StockMarketSummaryResult,
   UsdTwdRateEntry,
   UsdTwdRateInterval,
   UsdTwdRateResult,

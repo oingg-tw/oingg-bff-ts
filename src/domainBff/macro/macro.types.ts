@@ -93,6 +93,29 @@ export interface GovBondYield10yHistoryResult {
   entries: GovBondYield10yHistoryEntry[];
 }
 
+/**
+ * One month of the CBC's 集中市場 monthly summary (via gov-ts) — listed-company count, total par/market
+ * value, trading value (total and average daily), and the month's average TAIEX with its YoY %. Monetary
+ * figures are NT$ million. Full history from 1987-05 (471 rows as of 2026-09-22). Added for web-nuxt's
+ * 大事件年表 page.
+ */
+export interface StockMarketSummaryEntry {
+  period: string;
+  year: number;
+  month: number;
+  listedCompanies: number | null;
+  totalParValue: number | null;
+  totalMarketValue: number | null;
+  totalTradingValue: number | null;
+  avgDailyTradingValue: number | null;
+  avgTaiex: number | null;
+  avgTaiexYoyPercent: number | null;
+}
+
+export interface StockMarketSummaryResult {
+  entries: StockMarketSummaryEntry[];
+}
+
 /** Same sampling semantics as market.types.ts's TaiexDailyPriceInterval — last trading day of each period, `tradeDate` stays the real date. */
 export type UsdTwdRateInterval = "daily" | "weekly" | "monthly";
 

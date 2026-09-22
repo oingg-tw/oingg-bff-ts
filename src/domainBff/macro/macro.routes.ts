@@ -9,6 +9,7 @@ import {
   getGovBondYield10y,
   getGovBondYield10yHistory,
   getMonetaryAggregate,
+  getStockMarketSummary,
   getUsdTwdRate,
 } from "@/domainBff/macro/macro.service.js";
 
@@ -41,6 +42,7 @@ const fromMonthQuerySchema = z.object({
 export const businessCycleIndicatorQuerySchema = fromMonthQuerySchema;
 export const monetaryAggregateQuerySchema = fromMonthQuerySchema;
 export const govBondYield10yHistoryQuerySchema = fromMonthQuerySchema;
+export const stockMarketSummaryQuerySchema = fromMonthQuerySchema;
 
 export const USD_TWD_RATE_MAX_LIMIT = 2000;
 
@@ -111,6 +113,11 @@ macroRouter.get("/gov-bond-yield-10y", async (_req, res) => {
 macroRouter.get("/gov-bond-yield-10y-history", async (req, res) => {
   const query = parseBody(govBondYield10yHistoryQuerySchema, req.query);
   res.json(await getGovBondYield10yHistory(query.from));
+});
+
+macroRouter.get("/stock-market-summary", async (req, res) => {
+  const query = parseBody(stockMarketSummaryQuerySchema, req.query);
+  res.json(await getStockMarketSummary(query.from));
 });
 
 macroRouter.get("/usd-twd-rate", async (req, res) => {
