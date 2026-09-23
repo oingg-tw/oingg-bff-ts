@@ -12,7 +12,14 @@ import type { BillingTier, QuotaResource } from "@/application/billing/billing.t
  * **What may appear in this table is constrained by 投信投顧法, not by product taste.** Only three
  * dimensions may ever differ between tiers:
  *   1. 查詢廣度   — how many things a user may save or track (this table)
- *   2. 歷史深度   — whether an extra data dimension exists at all (not the precision of a shown number)
+ *   2. 歷史深度   — whether an extra data dimension exists at all (not the precision of a shown number).
+ *                   **目前這個維度幾乎無貨可賣，訂方案前先看這裡**（2026-09-24 實測）：季度指標
+ *                   （metric-history／roe／roa／dupont）上游一律只有 24 季（2020Q3→2026Q2），
+ *                   月營收 60 個月，對免費與付費是同一個天花板——沒有「更深的歷史」可以解鎖。
+ *                   股利歷史更不平均：大型股 7–9 年，但全市場隨機抽 20 家平均只有 1.9 年、多數 0–1 年。
+ *                   所以「解鎖更長歷史」這種賣點目前對多數個股是空的，硬寫進結帳頁等於不實陳述
+ *                   （web-nuxt 的 persona 訪談裡，retiree-03 明說若實際深度不符會七天內退費並公開講，
+ *                   而七天無條件退費是我們已經承諾的）。要賣這個維度，得先等上游把歷史補深。
  *   3. 匯出/推播  — CSV/Excel/PDF export, alerts, scheduled reports
  *
  * Anything that changes the *analysis a user sees about a company they already chose* is forbidden:
