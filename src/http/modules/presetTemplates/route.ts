@@ -3,9 +3,12 @@ import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
 import { requireAuth } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
-import { applyPresetTemplate, getPresetTemplateOrThrow, getPresetTemplates } from "@/application/presetTemplates/presetTemplates.service.js";
-
-export const presetTemplatesRouter = Router();
+import {
+  applyPresetTemplate,
+  getPresetTemplateOrThrow,
+  getPresetTemplates,
+  type PresetTemplatesDeps,
+} from "@/application/presetTemplates/presetTemplates.service.js";
 
 function requireUser(req: AuthenticatedRequest): string {
   if (!req.user) {
@@ -18,20 +21,27 @@ function parseId(raw: string): string {
   return parseUuidParam(raw, "preset template");
 }
 
-presetTemplatesRouter.get("/", async (_req, res) => {
-  const templates = await getPresetTemplates();
-  res.json({ templates });
-});
+/** 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。 */
+export function createPresetTemplatesRouter(deps: PresetTemplatesDeps): Router {
+  const presetTemplatesRouter = Router();
 
-presetTemplatesRouter.get("/:id", async (req, res) => {
-  const id = parseId(req.params.id ?? "");
-  const template = await getPresetTemplateOrThrow(id);
-  res.json({ template });
-});
+  presetTemplatesRouter.get("/", async (_req, res) => {
+    const templates = await getPresetTemplates(deps);
+    res.json({ templates });
+  });
 
-presetTemplatesRouter.post("/:id/apply", requireAuth, async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  const preset = await applyPresetTemplate(firebaseUid, id);
-  res.status(201).json({ preset });
-});
+  presetTemplatesRouter.get("/:id", async (req, res) => {
+    const id = parseId(req.params.id ?? "");
+    const template = await getPresetTemplateOrThrow(id, deps);
+    res.json({ template });
+  });
+
+  presetTemplatesRouter.post("/:id/apply", requireAuth, async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    const preset = await applyPresetTemplate(firebaseUid, id, deps);
+    res.status(201).json({ preset });
+  });
+
+  return presetTemplatesRouter;
+}

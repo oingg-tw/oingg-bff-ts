@@ -1,6 +1,7 @@
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import { Prisma } from "@/generated/prisma/client.js";
 import type { ColumnPresetTemplate as ColumnPresetTemplateRow } from "@/generated/prisma/client.js";
+import type { ColumnPresetTemplatesPort } from "@/application/ports/columnPresetTemplates.js";
 import type { ColumnPresetTemplate } from "@/application/columnPresetTemplates/columnPresetTemplates.types.js";
 
 function toView(row: ColumnPresetTemplateRow): ColumnPresetTemplate {
@@ -29,8 +30,7 @@ export async function findColumnPresetTemplate(key: string): Promise<ColumnPrese
  * The neutral "overview" template (see ColumnPresetTemplate.isDefault) — used by
  * columnPresets.service.ts's resolveScreenerColumns as the screener's own default column set, the
  * curated replacement for the hardcoded SYSTEM_DEFAULT_COLUMNS array that used to live there. Returns
- * null if analysis-ts hasn't sent one yet (e.g. sync hasn't run), in which case the caller falls back to
- * no columns rather than crashing.
+ * null if the seed hasn't run yet, in which case the caller falls back to no columns rather than crashing.
  */
 export async function findDefaultColumnPresetTemplate(): Promise<ColumnPresetTemplate | null> {
   const prisma = getPrismaClient();
@@ -74,3 +74,16 @@ export async function replaceColumnPresetTemplates(templates: ColumnPresetTempla
     await tx.columnPresetTemplate.deleteMany({ where: { key: { notIn: rows.map((r) => r.key) } } });
   });
 }
+
+/**
+ * ColumnPresetTemplatesPort 的 Prisma 實作——唯讀，理由同 prismaPresetTemplates。
+ *
+ * replaceColumnPresetTemplates 刻意不在 port 上：它只有種子腳本（prisma/seedColumnPresetTemplates.ts）
+ * 用得到，而種子腳本是獨立的一次性程式，不是 use case。為了它在 port 開一個 API 永遠不會呼叫的寫入
+ * 方法，只會讓每個拿到 AppDeps 的人型別上都摸得到「整批覆寫策展範本」。
+ */
+export const prismaColumnPresetTemplates: ColumnPresetTemplatesPort = {
+  list: listColumnPresetTemplates,
+  find: findColumnPresetTemplate,
+  findDefault: findDefaultColumnPresetTemplate,
+};

@@ -1,12 +1,13 @@
+import { Prisma } from "@/generated/prisma/client.js";
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
+import type { ColumnPresetsPort } from "@/application/ports/columnPresets.js";
+import type { ColumnPresetRow, ColumnPresetUpdate } from "@/application/screener/columnPresets.types.js";
 
-export interface ColumnPresetRow {
-  id: string;
-  name: string;
-  isDefault: boolean;
-  columns: string[];
-  createdAt: string;
-  updatedAt: string;
+/** Prisma's code for a unique constraint violation (wraps Postgres's own 23505). */
+const UNIQUE_CONSTRAINT_VIOLATION = "P2002";
+
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_CONSTRAINT_VIOLATION;
 }
 
 const COLUMNS_ORDER = { position: "asc" as const };
@@ -86,12 +87,6 @@ export async function createColumnPreset(
     });
     return toRow(preset);
   });
-}
-
-export interface ColumnPresetUpdate {
-  name?: string;
-  columns?: string[];
-  isDefault?: boolean;
 }
 
 /** Updates name/isDefault and/or replaces the whole column set (not incremental) for a preset the user owns. */
@@ -183,3 +178,37 @@ export async function countColumnPresets(firebaseUid: string): Promise<number> {
   const prisma = getPrismaClient();
   return prisma.columnPreset.count({ where: { firebaseUid } });
 }
+
+/**
+ * ColumnPresetsPort 的 Prisma 實作——跟 prismaScreenerPresets 對稱，同樣的理由（見該處說明）：
+ * P2002 與「沒有這一列」都在這裡翻譯成值，application 不必認得任何一個資料庫的錯誤分類。
+ */
+export const prismaColumnPresets: ColumnPresetsPort = {
+  list: listColumnPresets,
+  find: findColumnPreset,
+  findDefault: findDefaultColumnPreset,
+  async create(firebaseUid, name, columns, isDefault) {
+    try {
+      return { ok: true, row: await createColumnPreset(firebaseUid, name, columns, isDefault) };
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return { ok: false, reason: "duplicate" };
+      }
+      throw error;
+    }
+  },
+  async update(firebaseUid, id, update) {
+    try {
+      const row = await updateColumnPreset(firebaseUid, id, update);
+      return row ? { ok: true, row } : { ok: false, reason: "not-found" };
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return { ok: false, reason: "duplicate" };
+      }
+      throw error;
+    }
+  },
+  remove: deleteColumnPreset,
+  reorder: reorderColumnPresets,
+  count: countColumnPresets,
+};

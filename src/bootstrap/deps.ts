@@ -1,6 +1,10 @@
 import type { AppDeps } from "@/application/deps.js";
 import { analysisMacroGateway } from "@/infrastructure/analysisApi/macro/macro.client.js";
+import { prismaColumnPresets } from "@/infrastructure/prisma/repositories/columnPresets.repository.js";
+import { prismaColumnPresetTemplates } from "@/infrastructure/prisma/repositories/columnPresetTemplates.repository.js";
 import { prismaHoldings } from "@/infrastructure/prisma/repositories/holdings.repository.js";
+import { prismaPresetTemplates } from "@/infrastructure/prisma/repositories/presetTemplates.repository.js";
+import { prismaScreenerPresets } from "@/infrastructure/prisma/repositories/screenerPresets.repository.js";
 import { prismaTransactions } from "@/infrastructure/prisma/repositories/transactions.repository.js";
 import { prismaUser } from "@/infrastructure/prisma/repositories/user.repository.js";
 import { prismaUserPreferences } from "@/infrastructure/prisma/repositories/userPreferences.repository.js";
@@ -22,6 +26,10 @@ export function createAppDeps(): AppDeps {
     transactions: prismaTransactions,
     user: prismaUser,
     userPreferences: prismaUserPreferences,
+    screenerPresets: prismaScreenerPresets,
+    columnPresets: prismaColumnPresets,
+    presetTemplates: prismaPresetTemplates,
+    columnPresetTemplates: prismaColumnPresetTemplates,
     macroGateway: analysisMacroGateway,
   };
 }

@@ -87,6 +87,16 @@ module.exports = {
       to: { path: "^src/domainBff/" },
     },
     {
+      name: "not-to-unresolvable",
+      severity: "error",
+      comment:
+        "import 指向不存在的模組。加這條是因為 2026-09-23 的分層搬移把 prisma/ 底下兩支 seed 腳本的 import " +
+        "全部指到已經不存在的路徑，而它們既不在 tsconfig 的 include 裡、當時也不在 depcruise 的掃描範圍內—— " +
+        "兩道防線同時沒蓋到，壞了好幾個 commit 都沒人發現。所以掃描範圍現在含 prisma/，規則也明講「解析不到就是錯」。",
+      from: {},
+      to: { couldNotResolve: true },
+    },
+    {
       name: "no-orphans",
       severity: "warn",
       comment: "沒有任何人 import 的檔案——搬移過程中忘了刪的舊檔會在這裡現形。",

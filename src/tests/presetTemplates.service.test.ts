@@ -1,19 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/infrastructure/prisma/repositories/presetTemplates.repository.js", () => ({
-  findPresetTemplate: vi.fn(),
-  listPresetTemplates: vi.fn(),
+vi.mock("@/application/metricCatalog/index.js", () => ({
+  findMetricFields: vi.fn(),
 }));
 
-vi.mock("@/application/screener/screenerPresets.service.js", () => ({
-  addPresetWithName: vi.fn(),
-}));
-
-import { addPresetWithName } from "@/application/screener/screenerPresets.service.js";
-import {
-  findPresetTemplate,
-  listPresetTemplates,
-} from "@/infrastructure/prisma/repositories/presetTemplates.repository.js";
+import { findMetricFields } from "@/application/metricCatalog/index.js";
+import { fakePresetTemplates } from "@/tests/fakes/presetTemplates.js";
+import { fakeScreenerPresets } from "@/tests/fakes/screenerPresets.js";
 import {
   applyPresetTemplate,
   getPresetTemplateOrThrow,
@@ -44,58 +37,101 @@ const PENDING_TEMPLATE = {
   filters: [],
 };
 
+const CREATED_ROW = {
+  id: "bbbbbbbb-0000-4000-8000-000000000001",
+  name: AVAILABLE_TEMPLATE.name,
+  filters: [{ metricKey: "roe", fieldKey: "roeTtmPct", min: 15, max: null, exclude: false }],
+  sectorCodes: [] as string[],
+  excludeSectorCodes: [] as string[],
+  lastColumnPresetId: null,
+  createdAt: "2026-08-30T00:00:00.000Z",
+  updatedAt: "2026-08-30T00:00:00.000Z",
+};
+
 beforeEach(() => {
-  vi.mocked(listPresetTemplates).mockReset();
-  vi.mocked(findPresetTemplate).mockReset();
-  vi.mocked(addPresetWithName).mockReset();
+  vi.mocked(findMetricFields).mockReset();
+  vi.mocked(findMetricFields).mockResolvedValue([
+    {
+      categoryKey: "profitability",
+      metricKey: "roe",
+      metricName: "ROE",
+      fieldKey: "roeTtmPct",
+      fieldName: "ROE (TTM)",
+      period: "ttm",
+      unit: "percent",
+    },
+  ]);
 });
 
 describe("getPresetTemplates", () => {
-  it("returns whatever the repository lists, unfiltered by tier", async () => {
-    vi.mocked(listPresetTemplates).mockResolvedValue([AVAILABLE_TEMPLATE, PENDING_TEMPLATE]);
-    await expect(getPresetTemplates()).resolves.toEqual([AVAILABLE_TEMPLATE, PENDING_TEMPLATE]);
+  it("returns whatever the port lists, unfiltered by tier", async () => {
+    const presetTemplates = fakePresetTemplates({
+      list: vi.fn().mockResolvedValue([AVAILABLE_TEMPLATE, PENDING_TEMPLATE]),
+    });
+
+    await expect(getPresetTemplates({ presetTemplates, screenerPresets: fakeScreenerPresets() })).resolves.toEqual([
+      AVAILABLE_TEMPLATE,
+      PENDING_TEMPLATE,
+    ]);
   });
 });
 
 describe("getPresetTemplateOrThrow", () => {
   it("throws 404 when not found", async () => {
-    vi.mocked(findPresetTemplate).mockResolvedValue(null);
-    await expect(getPresetTemplateOrThrow("missing-uuid")).rejects.toMatchObject({ statusCode: 404 });
+    const deps = { presetTemplates: fakePresetTemplates(), screenerPresets: fakeScreenerPresets() };
+    await expect(getPresetTemplateOrThrow("missing-uuid", deps)).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("returns the template when found", async () => {
-    vi.mocked(findPresetTemplate).mockResolvedValue(AVAILABLE_TEMPLATE);
-    await expect(getPresetTemplateOrThrow(AVAILABLE_TEMPLATE.id)).resolves.toEqual(AVAILABLE_TEMPLATE);
+    const deps = {
+      presetTemplates: fakePresetTemplates({ find: vi.fn().mockResolvedValue(AVAILABLE_TEMPLATE) }),
+      screenerPresets: fakeScreenerPresets(),
+    };
+    await expect(getPresetTemplateOrThrow(AVAILABLE_TEMPLATE.id, deps)).resolves.toEqual(AVAILABLE_TEMPLATE);
   });
 });
 
 describe("applyPresetTemplate", () => {
   it("throws 404 when the template doesn't exist", async () => {
-    vi.mocked(findPresetTemplate).mockResolvedValue(null);
-    await expect(applyPresetTemplate("uid1", "missing-uuid")).rejects.toMatchObject({ statusCode: 404 });
-    expect(addPresetWithName).not.toHaveBeenCalled();
+    const screenerPresets = fakeScreenerPresets();
+
+    await expect(
+      applyPresetTemplate("uid1", "missing-uuid", { presetTemplates: fakePresetTemplates(), screenerPresets }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(screenerPresets.create).not.toHaveBeenCalled();
   });
 
   // Regression-shaped test: a PENDING template has no real filters (see seedPresetTemplates.ts) — cloning
   // it would silently create either an empty preset or one referencing a metric this ecosystem doesn't
   // compute, so applying it must be rejected instead of quietly "succeeding" with something broken.
   it("rejects applying a PENDING template with a 409 that includes the pendingReason", async () => {
-    vi.mocked(findPresetTemplate).mockResolvedValue(PENDING_TEMPLATE);
-    await expect(applyPresetTemplate("uid1", PENDING_TEMPLATE.id)).rejects.toMatchObject({
+    const screenerPresets = fakeScreenerPresets();
+    const presetTemplates = fakePresetTemplates({ find: vi.fn().mockResolvedValue(PENDING_TEMPLATE) });
+
+    await expect(
+      applyPresetTemplate("uid1", PENDING_TEMPLATE.id, { presetTemplates, screenerPresets }),
+    ).rejects.toMatchObject({
       statusCode: 409,
       message: expect.stringContaining(PENDING_TEMPLATE.pendingReason),
     });
-    expect(addPresetWithName).not.toHaveBeenCalled();
+    expect(screenerPresets.create).not.toHaveBeenCalled();
   });
 
+  // Goes through the real addPresetWithName rather than stubbing it out: what matters is that applying a
+  // template ends up *storing a preset named after the template*, which is only visible at the port.
   it("clones an AVAILABLE template's filters into a new preset named after the template", async () => {
-    vi.mocked(findPresetTemplate).mockResolvedValue(AVAILABLE_TEMPLATE);
-    const created = { id: "new-preset-id", name: AVAILABLE_TEMPLATE.name } as never;
-    vi.mocked(addPresetWithName).mockResolvedValue(created);
+    const screenerPresets = fakeScreenerPresets({ create: vi.fn().mockResolvedValue({ ok: true, row: CREATED_ROW }) });
+    const presetTemplates = fakePresetTemplates({ find: vi.fn().mockResolvedValue(AVAILABLE_TEMPLATE) });
 
-    const result = await applyPresetTemplate("uid1", AVAILABLE_TEMPLATE.id);
+    const result = await applyPresetTemplate("uid1", AVAILABLE_TEMPLATE.id, { presetTemplates, screenerPresets });
 
-    expect(addPresetWithName).toHaveBeenCalledWith("uid1", AVAILABLE_TEMPLATE.name, AVAILABLE_TEMPLATE.filters);
-    expect(result).toBe(created);
+    expect(screenerPresets.create).toHaveBeenCalledWith(
+      "uid1",
+      AVAILABLE_TEMPLATE.name,
+      [{ metricKey: "roe", fieldKey: "roeTtmPct", min: 15, max: null, exclude: false }],
+      [],
+      [],
+    );
+    expect(result.name).toBe(AVAILABLE_TEMPLATE.name);
   });
 });

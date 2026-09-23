@@ -29,9 +29,9 @@
  * Run with: pnpm run seed:column-preset-templates
  */
 import "dotenv/config";
-import { closePrismaClient } from "../src/adapters/neon/prismaClient.js";
-import { replaceColumnPresetTemplates } from "../src/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js";
-import type { ColumnPresetTemplate } from "../src/domainBusiness/columnPresetTemplates/columnPresetTemplates.types.js";
+import { closePrismaClient } from "../src/infrastructure/prisma/prismaClient.js";
+import { replaceColumnPresetTemplates } from "../src/infrastructure/prisma/repositories/columnPresetTemplates.repository.js";
+import type { ColumnPresetTemplate } from "../src/application/columnPresetTemplates/columnPresetTemplates.types.js";
 
 const TEMPLATES: ColumnPresetTemplate[] = [
   {

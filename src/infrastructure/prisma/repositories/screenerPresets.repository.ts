@@ -1,33 +1,20 @@
+import { Prisma } from "@/generated/prisma/client.js";
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
+import type { ScreenerPresetsPort } from "@/application/ports/screenerPresets.js";
+import type {
+  PresetFilterInput,
+  PresetRow,
+  PresetUpdate,
+} from "@/application/screener/screenerPresets.types.js";
 
-export interface PresetFilterRow {
-  metricKey: string;
-  fieldKey: string;
-  min: number | null;
-  max: number | null;
-  exclude: boolean;
-}
+/** Prisma's code for a unique constraint violation (wraps Postgres's own 23505). */
+const UNIQUE_CONSTRAINT_VIOLATION = "P2002";
 
-export interface PresetRow {
-  id: string;
-  name: string;
-  filters: PresetFilterRow[];
-  sectorCodes: string[];
-  excludeSectorCodes: string[];
-  lastColumnPresetId: string | null;
-  createdAt: string;
-  updatedAt: string;
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_CONSTRAINT_VIOLATION;
 }
 
 const PRESETS_ORDER = { position: "asc" as const };
-
-export interface PresetFilterInput {
-  metricKey: string;
-  fieldKey: string;
-  min: number | null;
-  max: number | null;
-  exclude: boolean;
-}
 
 const FILTERS_ORDER = { position: "asc" as const };
 
@@ -118,13 +105,6 @@ export async function createPreset(
     });
     return toPresetRow(preset);
   });
-}
-
-export interface PresetUpdate {
-  name?: string;
-  filters?: PresetFilterInput[];
-  sectorCodes?: string[];
-  excludeSectorCodes?: string[];
 }
 
 /** Updates the name and/or replaces the whole filter set (not incremental) for a preset the user owns. */
@@ -232,3 +212,45 @@ export async function countPresets(firebaseUid: string): Promise<number> {
   const prisma = getPrismaClient();
   return prisma.screenerPreset.count({ where: { firebaseUid } });
 }
+
+/**
+ * ScreenerPresetsPort 的 Prisma 實作。
+ *
+ * create/update 在這裡把 Prisma 的 unique violation（P2002，包住 Postgres 的 23505）翻譯成
+ * `{ ok: false, reason: "duplicate" }`——重構前這兩個 catch 住在 service 層，等於 application 知道自己被
+ * Prisma 實作；換掉驅動時那個 catch 會安靜地失效，撞名重試變成直接噴 500 而且沒有測試會紅。翻譯是
+ * 這一層的責任。
+ *
+ * update 還多做一件翻譯：repository 函式用 null 表示「這一列不是你的或不存在」，port 則把它跟 duplicate
+ * 並列成同一個 discriminated union，讓 use case 用一個 `if (!result.ok)` 同時處理 404 與 409，不必記得
+ * 「null 是一回事、丟出來的錯誤是另一回事」。
+ */
+export const prismaScreenerPresets: ScreenerPresetsPort = {
+  list: listPresets,
+  find: findPreset,
+  async create(firebaseUid, name, filters, sectorCodes, excludeSectorCodes) {
+    try {
+      return { ok: true, row: await createPreset(firebaseUid, name, filters, sectorCodes, excludeSectorCodes) };
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return { ok: false, reason: "duplicate" };
+      }
+      throw error;
+    }
+  },
+  async update(firebaseUid, id, update) {
+    try {
+      const row = await updatePreset(firebaseUid, id, update);
+      return row ? { ok: true, row } : { ok: false, reason: "not-found" };
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        return { ok: false, reason: "duplicate" };
+      }
+      throw error;
+    }
+  },
+  remove: deletePreset,
+  reorder: reorderPresets,
+  setLastColumnPreset,
+  count: countPresets,
+};

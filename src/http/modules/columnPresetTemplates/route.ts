@@ -6,9 +6,8 @@ import {
   applyColumnPresetTemplate,
   getColumnPresetTemplateOrThrow,
   getColumnPresetTemplates,
+  type ColumnPresetTemplatesDeps,
 } from "@/application/columnPresetTemplates/columnPresetTemplates.service.js";
-
-export const columnPresetTemplatesRouter = Router();
 
 function requireUser(req: AuthenticatedRequest): string {
   if (!req.user) {
@@ -17,18 +16,25 @@ function requireUser(req: AuthenticatedRequest): string {
   return req.user.uid;
 }
 
-columnPresetTemplatesRouter.get("/", async (_req, res) => {
-  const templates = await getColumnPresetTemplates();
-  res.json({ templates });
-});
+/** 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。 */
+export function createColumnPresetTemplatesRouter(deps: ColumnPresetTemplatesDeps): Router {
+  const columnPresetTemplatesRouter = Router();
 
-columnPresetTemplatesRouter.get("/:key", async (req, res) => {
-  const template = await getColumnPresetTemplateOrThrow(req.params.key ?? "");
-  res.json({ template });
-});
+  columnPresetTemplatesRouter.get("/", async (_req, res) => {
+    const templates = await getColumnPresetTemplates(deps);
+    res.json({ templates });
+  });
 
-columnPresetTemplatesRouter.post("/:key/apply", requireAuth, async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const preset = await applyColumnPresetTemplate(firebaseUid, req.params.key ?? "");
-  res.status(201).json({ preset });
-});
+  columnPresetTemplatesRouter.get("/:key", async (req, res) => {
+    const template = await getColumnPresetTemplateOrThrow(req.params.key ?? "", deps);
+    res.json({ template });
+  });
+
+  columnPresetTemplatesRouter.post("/:key/apply", requireAuth, async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const preset = await applyColumnPresetTemplate(firebaseUid, req.params.key ?? "", deps);
+    res.status(201).json({ preset });
+  });
+
+  return columnPresetTemplatesRouter;
+}

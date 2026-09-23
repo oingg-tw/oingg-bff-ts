@@ -1,5 +1,9 @@
 import type { ScreenerSort } from "@/infrastructure/analysisApi/screener/analysisScreenerClient.js";
-import { resolveScreenerColumns, type ResolvedScreenerColumns } from "@/application/screener/columnPresets.service.js";
+import {
+  resolveScreenerColumns,
+  type ColumnPresetsDeps,
+  type ResolvedScreenerColumns,
+} from "@/application/screener/columnPresets.service.js";
 import type { Pagination } from "@/application/proxy/screener/pagination.js";
 import { runScreener } from "@/application/proxy/screener/screener.service.js";
 import type { ScreenerResult } from "@/application/proxy/screener/screener.types.js";
@@ -7,7 +11,15 @@ import {
   getPresetOrThrow,
   updateLastColumnPreset,
   type PresetView,
+  type ScreenerPresetsDeps,
 } from "@/application/screener/screenerPresets.service.js";
+
+/**
+ * Both business slices' deps, because this is the one function allowed to depend on both sides (see
+ * below): it reads a saved ScreenerPreset and resolves that user's display columns before handing the
+ * whole thing to the proxy's query engine.
+ */
+export type RunPresetDeps = ScreenerPresetsDeps & ColumnPresetsDeps;
 
 /**
  * Re-runs a saved preset's filters and returns both the filter definition and the matching stocks.
@@ -34,24 +46,25 @@ export async function runPreset(
   firebaseUid: string,
   id: string,
   pagination: Pagination,
-  columnPresetId?: string,
-  sort?: ScreenerSort,
+  columnPresetId: string | undefined,
+  sort: ScreenerSort | undefined,
+  deps: RunPresetDeps,
 ): Promise<{ preset: PresetView; screener: ScreenerResult; columnPresetId: string | null }> {
   let preset: PresetView;
   let resolved: ResolvedScreenerColumns;
 
   if (columnPresetId !== undefined) {
     [preset, resolved] = await Promise.all([
-      getPresetOrThrow(firebaseUid, id),
-      resolveScreenerColumns(firebaseUid, columnPresetId),
+      getPresetOrThrow(firebaseUid, id, deps),
+      resolveScreenerColumns(firebaseUid, columnPresetId, deps),
     ]);
   } else {
-    preset = await getPresetOrThrow(firebaseUid, id);
-    resolved = await resolveScreenerColumns(firebaseUid, preset.lastColumnPresetId ?? undefined);
+    preset = await getPresetOrThrow(firebaseUid, id, deps);
+    resolved = await resolveScreenerColumns(firebaseUid, preset.lastColumnPresetId ?? undefined, deps);
   }
 
   if (columnPresetId !== undefined && resolved.columnPresetId !== preset.lastColumnPresetId) {
-    await updateLastColumnPreset(firebaseUid, id, resolved.columnPresetId ?? columnPresetId);
+    await updateLastColumnPreset(firebaseUid, id, resolved.columnPresetId ?? columnPresetId, deps);
   }
 
   const screener = await runScreener(preset.filters, resolved.columns, pagination, sort, preset.sectorCodes, preset.excludeSectorCodes);

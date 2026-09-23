@@ -1,15 +1,10 @@
-export interface ScreenerFilter {
-  /** "<metricKey>.<fieldKey>", e.g. "margins.grossMarginTtm" */
-  field: string;
-  min: number | null;
-  max: number | null;
-  /** false (default): keep rows within [min, max]. true: keep rows OUTSIDE [min, max] instead. */
-  exclude: boolean;
-}
-
-export interface ScreenerColumnRef {
-  field: string;
-}
+/**
+ * Re-exported, not defined here: ScreenerFilter/ScreenerColumnRef moved to `domain/screenerCriteria.ts`
+ * (2026-09-23) because the saved-preset services store exactly these shapes, and a 業務中台 slice must
+ * not import the BFF proxy layer to describe its own rows — see that file for the full reasoning. The
+ * names stay available from here so the proxy's own client and response types don't move.
+ */
+export type { ScreenerColumnRef, ScreenerFilter } from "@/domain/screenerCriteria.js";
 
 export interface ScreenerResultColumn {
   field: string;

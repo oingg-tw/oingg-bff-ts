@@ -1,5 +1,9 @@
+import type { ColumnPresetsPort } from "@/application/ports/columnPresets.js";
+import type { ColumnPresetTemplatesPort } from "@/application/ports/columnPresetTemplates.js";
 import type { HoldingsPort } from "@/application/ports/holdings.js";
 import type { MacroGatewayPort } from "@/application/ports/macroGateway.js";
+import type { PresetTemplatesPort } from "@/application/ports/presetTemplates.js";
+import type { ScreenerPresetsPort } from "@/application/ports/screenerPresets.js";
 import type { TransactionsPort } from "@/application/ports/transactions.js";
 import type { UserPort } from "@/application/ports/user.js";
 import type { UserPreferencesPort } from "@/application/ports/userPreferences.js";
@@ -23,6 +27,12 @@ export interface AppDeps {
   user: UserPort;
   /** 五張以 firebaseUid 為鍵的偏好設定表，合成一個 port——為什麼不拆成五個見該檔案的說明。 */
   userPreferences: UserPreferencesPort;
+  /** 使用者自存的篩選條件組合與顯示欄位組合，產品上成對但規則不同，所以是兩個 port。 */
+  screenerPresets: ScreenerPresetsPort;
+  columnPresets: ColumnPresetsPort;
+  /** 兩份策展範本：唯讀、沒有 firebaseUid，「套用」時才會經由上面兩個 port 變成使用者自己的資料。 */
+  presetTemplates: PresetTemplatesPort;
+  columnPresetTemplates: ColumnPresetTemplatesPort;
 
   // --- 代理層：對 analysis-ts 的出站呼叫，一個切片一個 gateway ---
   macroGateway: MacroGatewayPort;

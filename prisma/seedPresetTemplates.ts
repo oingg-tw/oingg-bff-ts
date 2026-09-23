@@ -55,8 +55,8 @@
  * Run with: pnpm run seed:preset-templates
  */
 import "dotenv/config";
-import { getPrismaClient, closePrismaClient } from "../src/adapters/neon/prismaClient.js";
-import type { PresetTemplateFilter } from "../src/domainBusiness/presetTemplates/presetTemplates.types.js";
+import { getPrismaClient, closePrismaClient } from "../src/infrastructure/prisma/prismaClient.js";
+import type { PresetTemplateFilter } from "../src/application/presetTemplates/presetTemplates.types.js";
 
 interface TemplateSeed {
   name: string;

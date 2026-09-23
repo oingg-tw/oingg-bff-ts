@@ -1,22 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/infrastructure/prisma/repositories/screenerPresets.repository.js", () => ({
-  findPreset: vi.fn(),
-  setLastColumnPreset: vi.fn(),
-}));
-
 vi.mock("@/application/proxy/screener/screener.service.js", () => ({
   runScreener: vi.fn(),
 }));
 
+// Still a module mock, not a port fake: resolveScreenerColumns is a *use case* of a neighbouring slice,
+// not a dependency this one owns. runPreset's whole job is the orchestration order around it (what runs
+// concurrently, when the last-used column preset is written back), so these tests need to control what
+// it returns and observe exactly what it was called with. The preset storage below, by contrast, is a
+// port and is faked as one.
 vi.mock("@/application/screener/columnPresets.service.js", () => ({
   resolveScreenerColumns: vi.fn(),
 }));
 
 import { resolveScreenerColumns } from "@/application/screener/columnPresets.service.js";
 import { runPreset } from "@/application/proxy/screener/runPreset.js";
-import { findPreset, setLastColumnPreset } from "@/infrastructure/prisma/repositories/screenerPresets.repository.js";
 import { runScreener } from "@/application/proxy/screener/screener.service.js";
+import { fakeColumnPresets } from "@/tests/fakes/columnPresets.js";
+import { fakeColumnPresetTemplates } from "@/tests/fakes/presetTemplates.js";
+import { fakeScreenerPresets } from "@/tests/fakes/screenerPresets.js";
+import type { ScreenerPresetsPort } from "@/application/ports/screenerPresets.js";
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 const COLUMN_PRESET_ID = "bbbbbbbb-0000-4000-8000-000000000007";
@@ -47,34 +50,38 @@ const SAMPLE_SCREENER_RESULT = {
 
 const DEFAULT_PAGINATION = { page: 1, pageSize: 50 };
 
+/** runPreset needs both business slices' ports (see RunPresetDeps) — only the preset one is ever varied. */
+function depsWith(screenerPresets: ScreenerPresetsPort) {
+  return { screenerPresets, columnPresets: fakeColumnPresets(), columnPresetTemplates: fakeColumnPresetTemplates() };
+}
+
 beforeEach(() => {
-  vi.mocked(findPreset).mockReset();
-  vi.mocked(setLastColumnPreset).mockReset();
   vi.mocked(runScreener).mockReset();
   vi.mocked(resolveScreenerColumns).mockReset();
 });
 
 describe("runPreset", () => {
   it("throws 404 when the preset doesn't exist for this user", async () => {
-    vi.mocked(findPreset).mockResolvedValue(null);
-    await expect(runPreset("uid1", "missing-uuid", DEFAULT_PAGINATION)).rejects.toMatchObject({
+    const deps = depsWith(fakeScreenerPresets({ find: vi.fn().mockResolvedValue(null) }));
+
+    await expect(runPreset("uid1", "missing-uuid", DEFAULT_PAGINATION, undefined, undefined, deps)).rejects.toMatchObject({
       statusCode: 404,
     });
     expect(runScreener).not.toHaveBeenCalled();
   });
 
   it("with no columnPresetId and no last-used one, resolves columns with undefined (falls to user default/system default)", async () => {
-    vi.mocked(findPreset).mockResolvedValue(SAMPLE_ROW);
+    const deps = depsWith(fakeScreenerPresets({ find: vi.fn().mockResolvedValue(SAMPLE_ROW) }));
     vi.mocked(resolveScreenerColumns).mockResolvedValue({
       columnPresetId: null,
       columns: [{ field: "per.peRatio" }],
     });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    const result = await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION);
+    const result = await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION, undefined, undefined, deps);
 
-    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", undefined);
-    expect(setLastColumnPreset).not.toHaveBeenCalled();
+    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", undefined, deps);
+    expect(deps.screenerPresets.setLastColumnPreset).not.toHaveBeenCalled();
     expect(runScreener).toHaveBeenCalledWith(
       [
         { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
@@ -91,34 +98,38 @@ describe("runPreset", () => {
   });
 
   it("with no explicit columnPresetId, falls back to the preset's last-used column preset", async () => {
-    vi.mocked(findPreset).mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID });
+    const deps = depsWith(
+      fakeScreenerPresets({ find: vi.fn().mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID }) }),
+    );
     vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: COLUMN_PRESET_ID, columns: [] });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION);
+    await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION, undefined, undefined, deps);
 
-    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", COLUMN_PRESET_ID);
-    expect(setLastColumnPreset).not.toHaveBeenCalled();
+    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", COLUMN_PRESET_ID, deps);
+    expect(deps.screenerPresets.setLastColumnPreset).not.toHaveBeenCalled();
   });
 
   it("with an explicit columnPresetId, uses it and remembers it as the preset's new last-used column preset", async () => {
-    vi.mocked(findPreset).mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID });
+    const deps = depsWith(
+      fakeScreenerPresets({ find: vi.fn().mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID }) }),
+    );
     vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: OTHER_COLUMN_PRESET_ID, columns: [] });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    const result = await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION, OTHER_COLUMN_PRESET_ID);
+    const result = await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION, OTHER_COLUMN_PRESET_ID, undefined, deps);
 
-    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", OTHER_COLUMN_PRESET_ID);
-    expect(setLastColumnPreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, OTHER_COLUMN_PRESET_ID);
+    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", OTHER_COLUMN_PRESET_ID, deps);
+    expect(deps.screenerPresets.setLastColumnPreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, OTHER_COLUMN_PRESET_ID);
     expect(result.columnPresetId).toBe(OTHER_COLUMN_PRESET_ID);
   });
 
   it("forwards page/pageSize through to runScreener", async () => {
-    vi.mocked(findPreset).mockResolvedValue(SAMPLE_ROW);
+    const deps = depsWith(fakeScreenerPresets({ find: vi.fn().mockResolvedValue(SAMPLE_ROW) }));
     vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: null, columns: [] });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    await runPreset("uid1", SAMPLE_ID, { page: 2, pageSize: 10 });
+    await runPreset("uid1", SAMPLE_ID, { page: 2, pageSize: 10 }, undefined, undefined, deps);
 
     expect(runScreener).toHaveBeenCalledWith(
       expect.anything(),
@@ -134,32 +145,35 @@ describe("runPreset", () => {
   // time (e.g. paging through the same view) used to fire a write that changed nothing. Skip it when the
   // resolved columnPresetId already matches what's on file.
   it("skips setLastColumnPreset when the explicit columnPresetId is already the preset's last-used one", async () => {
-    vi.mocked(findPreset).mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID });
+    const deps = depsWith(
+      fakeScreenerPresets({ find: vi.fn().mockResolvedValue({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID }) }),
+    );
     vi.mocked(resolveScreenerColumns).mockResolvedValue({ columnPresetId: COLUMN_PRESET_ID, columns: [] });
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION, COLUMN_PRESET_ID);
+    await runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION, COLUMN_PRESET_ID, undefined, deps);
 
-    expect(setLastColumnPreset).not.toHaveBeenCalled();
+    expect(deps.screenerPresets.setLastColumnPreset).not.toHaveBeenCalled();
   });
 
   // Perf regression test (2026-09-01): when columnPresetId is given explicitly, resolving it doesn't
   // need the preset's own result (lastColumnPresetId) at all, so the two lookups run concurrently instead
   // of sequentially. Verified by checking both mocks are *called* before either one *resolves*.
-  it("runs findPreset and resolveScreenerColumns concurrently when columnPresetId is given explicitly", async () => {
-    let resolveFindPreset!: (value: Awaited<ReturnType<typeof findPreset>>) => void;
+  it("runs the preset lookup and resolveScreenerColumns concurrently when columnPresetId is given explicitly", async () => {
+    let resolveFind!: (value: unknown) => void;
     let resolveColumns!: (value: Awaited<ReturnType<typeof resolveScreenerColumns>>) => void;
-    vi.mocked(findPreset).mockReturnValue(new Promise((resolve) => (resolveFindPreset = resolve)));
+    const find = vi.fn().mockReturnValue(new Promise((resolve) => (resolveFind = resolve)));
+    const deps = depsWith(fakeScreenerPresets({ find }));
     vi.mocked(resolveScreenerColumns).mockReturnValue(new Promise((resolve) => (resolveColumns = resolve)));
     vi.mocked(runScreener).mockResolvedValue(SAMPLE_SCREENER_RESULT);
 
-    const resultPromise = runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION, COLUMN_PRESET_ID);
+    const resultPromise = runPreset("uid1", SAMPLE_ID, DEFAULT_PAGINATION, COLUMN_PRESET_ID, undefined, deps);
 
     await new Promise((resolve) => setImmediate(resolve));
-    expect(findPreset).toHaveBeenCalled();
-    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", COLUMN_PRESET_ID);
+    expect(find).toHaveBeenCalled();
+    expect(resolveScreenerColumns).toHaveBeenCalledWith("uid1", COLUMN_PRESET_ID, deps);
 
-    resolveFindPreset({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID });
+    resolveFind({ ...SAMPLE_ROW, lastColumnPresetId: COLUMN_PRESET_ID });
     resolveColumns({ columnPresetId: COLUMN_PRESET_ID, columns: [] });
     await resultPromise;
   });

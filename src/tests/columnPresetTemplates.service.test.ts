@@ -1,21 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/infrastructure/prisma/repositories/columnPresetTemplates.repository.js", () => ({
-  findColumnPresetTemplate: vi.fn(),
-  listColumnPresetTemplates: vi.fn(),
-  replaceColumnPresetTemplates: vi.fn(),
+vi.mock("@/application/metricCatalog/index.js", () => ({
+  findMetricFields: vi.fn(),
 }));
 
-vi.mock("@/application/screener/columnPresets.service.js", () => ({
-  addColumnPresetWithName: vi.fn(),
-}));
-
-import { addColumnPresetWithName } from "@/application/screener/columnPresets.service.js";
-import {
-  findColumnPresetTemplate,
-  listColumnPresetTemplates,
-  replaceColumnPresetTemplates,
-} from "@/infrastructure/prisma/repositories/columnPresetTemplates.repository.js";
+import { findMetricFields } from "@/application/metricCatalog/index.js";
+import { fakeColumnPresets } from "@/tests/fakes/columnPresets.js";
+import { fakeColumnPresetTemplates } from "@/tests/fakes/presetTemplates.js";
 import {
   applyColumnPresetTemplate,
   getColumnPresetTemplateOrThrow,
@@ -26,40 +17,62 @@ const PROFITABILITY_QUALITY_TEMPLATE = {
   key: "profitabilityQuality",
   name: "獲利品質拆解",
   description: "杜邦拆解 ROE 的驅動來源，搭配現金流有沒有真的支撐帳面獲利，判斷獲利是不是虛的",
-  fieldKeys: [
-    "dupont.netProfitMarginQuarterly",
-    "dupont.assetTurnoverQuarterly",
-    "dupont.equityMultiplier",
-    "dupont.decomposedRoeQuarterlyPct",
-    "ocfToNetIncome.ocfToNetIncomeQuarterly",
-    "accrualsRatio.accrualsRatioQuarterly",
-  ],
+  fieldKeys: ["dupont.equityMultiplier", "ocfToNetIncome.ocfToNetIncomeQuarterly"],
   isDefault: false,
 };
 
+const CREATED_ROW = {
+  id: "bbbbbbbb-0000-4000-8000-000000000001",
+  name: PROFITABILITY_QUALITY_TEMPLATE.name,
+  isDefault: false,
+  columns: PROFITABILITY_QUALITY_TEMPLATE.fieldKeys,
+  createdAt: "2026-08-30T00:00:00.000Z",
+  updatedAt: "2026-08-30T00:00:00.000Z",
+};
+
 beforeEach(() => {
-  vi.mocked(listColumnPresetTemplates).mockReset();
-  vi.mocked(findColumnPresetTemplate).mockReset();
-  vi.mocked(replaceColumnPresetTemplates).mockReset();
-  vi.mocked(addColumnPresetWithName).mockReset();
+  vi.mocked(findMetricFields).mockReset();
+  // Every field the template references resolves — the "a template references a dropped field" case is
+  // covered in columnPresets.service.test.ts, where the dropping rule actually lives.
+  vi.mocked(findMetricFields).mockImplementation(async (refs) =>
+    refs.map((ref) => ({
+      categoryKey: "profitability",
+      metricKey: ref.metricKey,
+      metricName: ref.metricKey,
+      fieldKey: ref.fieldKey,
+      fieldName: ref.fieldKey,
+      period: "quarterly",
+      unit: null,
+    })),
+  );
 });
 
 describe("getColumnPresetTemplates", () => {
-  it("returns whatever the repository lists", async () => {
-    vi.mocked(listColumnPresetTemplates).mockResolvedValue([PROFITABILITY_QUALITY_TEMPLATE]);
-    await expect(getColumnPresetTemplates()).resolves.toEqual([PROFITABILITY_QUALITY_TEMPLATE]);
+  it("returns whatever the port lists", async () => {
+    const columnPresetTemplates = fakeColumnPresetTemplates({
+      list: vi.fn().mockResolvedValue([PROFITABILITY_QUALITY_TEMPLATE]),
+    });
+
+    await expect(
+      getColumnPresetTemplates({ columnPresetTemplates, columnPresets: fakeColumnPresets() }),
+    ).resolves.toEqual([PROFITABILITY_QUALITY_TEMPLATE]);
   });
 });
 
 describe("getColumnPresetTemplateOrThrow", () => {
   it("throws 404 when not found", async () => {
-    vi.mocked(findColumnPresetTemplate).mockResolvedValue(null);
-    await expect(getColumnPresetTemplateOrThrow("missing")).rejects.toMatchObject({ statusCode: 404 });
+    const deps = { columnPresetTemplates: fakeColumnPresetTemplates(), columnPresets: fakeColumnPresets() };
+    await expect(getColumnPresetTemplateOrThrow("missing", deps)).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("returns the template when found", async () => {
-    vi.mocked(findColumnPresetTemplate).mockResolvedValue(PROFITABILITY_QUALITY_TEMPLATE);
-    await expect(getColumnPresetTemplateOrThrow("profitabilityQuality")).resolves.toEqual(
+    const deps = {
+      columnPresetTemplates: fakeColumnPresetTemplates({
+        find: vi.fn().mockResolvedValue(PROFITABILITY_QUALITY_TEMPLATE),
+      }),
+      columnPresets: fakeColumnPresets(),
+    };
+    await expect(getColumnPresetTemplateOrThrow("profitabilityQuality", deps)).resolves.toEqual(
       PROFITABILITY_QUALITY_TEMPLATE,
     );
   });
@@ -67,23 +80,37 @@ describe("getColumnPresetTemplateOrThrow", () => {
 
 describe("applyColumnPresetTemplate", () => {
   it("throws 404 when the template doesn't exist", async () => {
-    vi.mocked(findColumnPresetTemplate).mockResolvedValue(null);
-    await expect(applyColumnPresetTemplate("uid1", "missing")).rejects.toMatchObject({ statusCode: 404 });
-    expect(addColumnPresetWithName).not.toHaveBeenCalled();
+    const columnPresets = fakeColumnPresets();
+
+    await expect(
+      applyColumnPresetTemplate("uid1", "missing", {
+        columnPresetTemplates: fakeColumnPresetTemplates(),
+        columnPresets,
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(columnPresets.create).not.toHaveBeenCalled();
   });
 
+  // Goes through the real addColumnPresetWithName rather than stubbing it out: what matters is that
+  // applying a template ends up *storing a column preset named after the template*, which is only
+  // visible at the port.
   it("clones a template's fieldKeys into a new column preset named after the template", async () => {
-    vi.mocked(findColumnPresetTemplate).mockResolvedValue(PROFITABILITY_QUALITY_TEMPLATE);
-    const created = { id: "new-preset-id", name: PROFITABILITY_QUALITY_TEMPLATE.name } as never;
-    vi.mocked(addColumnPresetWithName).mockResolvedValue(created);
+    const columnPresets = fakeColumnPresets({ create: vi.fn().mockResolvedValue({ ok: true, row: CREATED_ROW }) });
+    const columnPresetTemplates = fakeColumnPresetTemplates({
+      find: vi.fn().mockResolvedValue(PROFITABILITY_QUALITY_TEMPLATE),
+    });
 
-    const result = await applyColumnPresetTemplate("uid1", "profitabilityQuality");
+    const result = await applyColumnPresetTemplate("uid1", "profitabilityQuality", {
+      columnPresetTemplates,
+      columnPresets,
+    });
 
-    expect(addColumnPresetWithName).toHaveBeenCalledWith(
+    expect(columnPresets.create).toHaveBeenCalledWith(
       "uid1",
       PROFITABILITY_QUALITY_TEMPLATE.name,
       PROFITABILITY_QUALITY_TEMPLATE.fieldKeys,
+      false,
     );
-    expect(result).toBe(created);
+    expect(result.name).toBe(PROFITABILITY_QUALITY_TEMPLATE.name);
   });
 });

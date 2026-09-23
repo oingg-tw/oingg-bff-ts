@@ -14,14 +14,10 @@ import {
   getPresets,
   removePreset,
   reorderPresetsForUser,
+  type ScreenerPresetsDeps,
 } from "@/application/screener/screenerPresets.service.js";
-import { countPresets } from "@/infrastructure/prisma/repositories/screenerPresets.repository.js";
 import { enforceQuota } from "@/http/middleware/quota.middleware.js";
-import { runPreset } from "@/application/proxy/screener/runPreset.js";
-
-export const screenerPresetsRouter = Router();
-
-screenerPresetsRouter.use(requireAuth);
+import { runPreset, type RunPresetDeps } from "@/application/proxy/screener/runPreset.js";
 
 function requireUser(req: AuthenticatedRequest): string {
   if (!req.user) {
@@ -72,59 +68,6 @@ export const updateScreenerPresetSchema = z
   })
   .refine(notBothSectorCodesGiven, MUTUALLY_EXCLUSIVE_SECTOR_CODES_ISSUE);
 
-screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const presets = await getPresets(firebaseUid);
-  res.json({ presets });
-});
-
-// Quota guards creation only — an over-quota user (e.g. one whose reverse trial just ended) keeps every
-// preset they already made; they simply can't add another. See billing/quota.middleware.ts.
-screenerPresetsRouter.post("/", enforceQuota("screenerPresets", countPresets), async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const body = parseBody(createScreenerPresetSchema, req.body);
-
-  const preset = await addPreset(firebaseUid, normalizeScreenerFilters(body.filters), body.sectorCodes, body.excludeSectorCodes);
-  res.status(201).json({ preset });
-});
-
-// Mounted before the "/:id" routes below — though since this is POST and the /:id routes are all
-// GET/PATCH/DELETE, there's no actual method collision either way.
-screenerPresetsRouter.post("/reorder", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const body = parseBody(reorderScreenerPresetsSchema, req.body);
-  const presets = await reorderPresetsForUser(firebaseUid, body.ids);
-  res.json({ presets });
-});
-
-screenerPresetsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  const preset = await getPresetOrThrow(firebaseUid, id);
-  res.json({ preset });
-});
-
-screenerPresetsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  const body = parseBody(updateScreenerPresetSchema, req.body ?? {});
-
-  const preset = await editPreset(firebaseUid, id, {
-    name: body.name,
-    filters: body.filters === undefined ? undefined : normalizeScreenerFilters(body.filters),
-    sectorCodes: body.sectorCodes,
-    excludeSectorCodes: body.excludeSectorCodes,
-  });
-  res.json({ preset });
-});
-
-screenerPresetsRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  await removePreset(firebaseUid, id);
-  res.status(204).end();
-});
-
 export const runPresetQuerySchema = z
   .object({
     columnPresetId: z
@@ -145,12 +88,83 @@ export const runPresetQuerySchema = z
     path: ["sortField"],
   });
 
-screenerPresetsRouter.get("/:id/run", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  const query = parseBody(runPresetQuerySchema, req.query);
-  const pagination = { page: query.page ?? 1, pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE };
-  const sort = query.sortField !== undefined ? { field: query.sortField, order: query.sortOrder! } : undefined;
-  const result = await runPreset(firebaseUid, id, pagination, query.columnPresetId, sort);
-  res.json(result);
-});
+/**
+ * GET /screener/presets/:id/run 同時要用 preset 的儲存與代理層的 runPreset，所以這個路由需要的是
+ * 兩者的聯集（RunPresetDeps 已經包含 ScreenerPresetsDeps）。
+ */
+type ScreenerPresetsRouterDeps = ScreenerPresetsDeps & RunPresetDeps;
+
+/**
+ * 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。
+ * 這裡順便修掉一個同性質的漏洞——額度檢查的 countPresets 以前是直接從 repository import 進來的，
+ * http 層因此認得 Prisma；現在走 deps.screenerPresets.count，跟其他所有存取同一條路。
+ */
+export function createScreenerPresetsRouter(deps: ScreenerPresetsRouterDeps): Router {
+  const screenerPresetsRouter = Router();
+  screenerPresetsRouter.use(requireAuth);
+
+  screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const presets = await getPresets(firebaseUid, deps);
+    res.json({ presets });
+  });
+
+  // Quota guards creation only — an over-quota user (e.g. one whose reverse trial just ended) keeps every
+  // preset they already made; they simply can't add another. See billing/quota.middleware.ts.
+  screenerPresetsRouter.post("/", enforceQuota("screenerPresets", (uid) => deps.screenerPresets.count(uid)), async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = parseBody(createScreenerPresetSchema, req.body);
+
+    const preset = await addPreset(firebaseUid, normalizeScreenerFilters(body.filters), body.sectorCodes, body.excludeSectorCodes, deps);
+    res.status(201).json({ preset });
+  });
+
+  // Mounted before the "/:id" routes below — though since this is POST and the /:id routes are all
+  // GET/PATCH/DELETE, there's no actual method collision either way.
+  screenerPresetsRouter.post("/reorder", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = parseBody(reorderScreenerPresetsSchema, req.body);
+    const presets = await reorderPresetsForUser(firebaseUid, body.ids, deps);
+    res.json({ presets });
+  });
+
+  screenerPresetsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    const preset = await getPresetOrThrow(firebaseUid, id, deps);
+    res.json({ preset });
+  });
+
+  screenerPresetsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    const body = parseBody(updateScreenerPresetSchema, req.body ?? {});
+
+    const preset = await editPreset(firebaseUid, id, {
+      name: body.name,
+      filters: body.filters === undefined ? undefined : normalizeScreenerFilters(body.filters),
+      sectorCodes: body.sectorCodes,
+      excludeSectorCodes: body.excludeSectorCodes,
+    }, deps);
+    res.json({ preset });
+  });
+
+  screenerPresetsRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    await removePreset(firebaseUid, id, deps);
+    res.status(204).end();
+  });
+
+  screenerPresetsRouter.get("/:id/run", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    const query = parseBody(runPresetQuerySchema, req.query);
+    const pagination = { page: query.page ?? 1, pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE };
+    const sort = query.sortField !== undefined ? { field: query.sortField, order: query.sortOrder! } : undefined;
+    const result = await runPreset(firebaseUid, id, pagination, query.columnPresetId, sort, deps);
+    res.json(result);
+  });
+
+  return screenerPresetsRouter;
+}

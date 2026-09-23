@@ -12,7 +12,7 @@ import { createHoldingsRouter } from "@/http/modules/holdings/route.js";
 import { industriesRouter } from "@/http/modules/industries/route.js";
 import { createMacroRouter } from "@/http/modules/macro/route.js";
 import { marketRouter } from "@/http/modules/market/route.js";
-import { screenerRoutes } from "@/http/modules/screener/index.js";
+import { createScreenerRoutes } from "@/http/modules/screener/index.js";
 import { securitiesRouter } from "@/http/modules/securities/route.js";
 import { stockRouter } from "@/http/modules/stock/route.js";
 import { systemRouter } from "@/http/modules/system/route.js";
@@ -71,7 +71,7 @@ export function createRoutes(deps: AppDeps): Router {
   // POST /screener/column-preset-templates/:key/apply;
   // GET/POST /screener/presets, GET/PATCH/DELETE /screener/presets/:id, GET /screener/presets/:id/run;
   // GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply
-  routes.use("/screener", screenerRoutes);
+  routes.use("/screener", createScreenerRoutes(deps));
   routes.use("/metrics", metricCatalogRouter); // GET /metrics, POST /metrics/sync
   routes.use("/market", marketRouter); // GET /market/margin-short-ratio-ranking, ...
   // GET /macro/cbc-policy-rate, /macro/business-cycle-indicator, /macro/monetary-aggregate,

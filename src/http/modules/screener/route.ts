@@ -5,21 +5,13 @@ import { parseBody } from "@/shared/validation.js";
 import { optionalAuth } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
 import { runCompanyRank, runDistribution, runRanking, runScreener, runScreenerValues } from "@/application/proxy/screener/screener.service.js";
-import { resolveScreenerColumns } from "@/application/screener/columnPresets.service.js";
+import { resolveScreenerColumns, type ColumnPresetsDeps } from "@/application/screener/columnPresets.service.js";
 import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/application/proxy/screener/pagination.js";
 import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/application/proxy/screener/screenerFilterInput.js";
 import type { ScreenerColumnRef } from "@/application/proxy/screener/screener.types.js";
 
 const DEFAULT_RANKING_LIMIT = 10;
 const MAX_RANKING_LIMIT = 50;
-
-export const screenerRouter = Router();
-
-// Guests can screen without an account — only saving a filter set as a named preset
-// (POST /screener/presets) requires signing in. A valid token still personalizes the
-// column resolution below (the caller's own default column preset); no token just falls
-// through to the system default columns.
-screenerRouter.use(optionalAuth);
 
 export const screenerRequestSchema = z
   .object({
@@ -62,35 +54,9 @@ export const screenerRequestSchema = z
     path: ["excludeSectorCodes"],
   });
 
-screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = req.user?.uid;
-  const body = parseBody(screenerRequestSchema, req.body);
-  const filters = normalizeScreenerFilters(body.filters);
-  const pagination = { page: body.page ?? 1, pageSize: body.pageSize ?? DEFAULT_PAGE_SIZE };
-  const sort = body.sortField !== undefined ? { field: body.sortField, order: body.sortOrder! } : undefined;
-
-  let columnPresetId: string | null;
-  let columns: ScreenerColumnRef[];
-  if (body.columns !== undefined) {
-    columnPresetId = null;
-    columns = body.columns.map((field) => ({ field }));
-  } else {
-    ({ columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, body.columnPresetId ?? undefined));
-  }
-
-  const result = await runScreener(filters, columns, pagination, sort, body.sectorCodes, body.excludeSectorCodes);
-  res.json({ ...result, columnPresetId });
-});
-
 export const screenerValuesRequestSchema = z.object({
   symbols: z.array(z.string().trim().min(1)).min(1, '"symbols" must be a non-empty array of strings'),
   columns: z.array(z.object({ field: z.string().trim().min(1) })).min(1, '"columns" must be a non-empty array'),
-});
-
-screenerRouter.post("/values", async (req, res) => {
-  const body = parseBody(screenerValuesRequestSchema, req.body);
-  const result = await runScreenerValues(body.symbols, body.columns);
-  res.json(result);
 });
 
 function parseRankingColumns(raw: string | undefined): ScreenerColumnRef[] {
@@ -148,30 +114,12 @@ export const rankingQuerySchema = z
     path: ["excludeSectorCodes"],
   });
 
-screenerRouter.get("/ranking", async (req, res) => {
-  const query = parseBody(rankingQuerySchema, req.query);
-  const direction = query.direction ?? "desc";
-  const limit = query.limit ?? DEFAULT_RANKING_LIMIT;
-  const columns = parseRankingColumns(query.columns);
-  const sectorCodes = parseSectorCodes(query.sectorCodes);
-  const excludeSectorCodes = parseSectorCodes(query.excludeSectorCodes);
-
-  const result = await runRanking(query.field, direction, limit, columns, sectorCodes, excludeSectorCodes);
-  res.json(result);
-});
-
 // `direction` is required with no default here (unlike GET /screener/ranking's optional-defaults-to-desc)
 // — matches analysis-ts's own GET /screener/company-rank, which 400s if it's omitted (confirmed live).
 export const companyRankQuerySchema = z.object({
   symbol: z.string({ error: '"symbol" query parameter is required' }).trim().min(1, '"symbol" query parameter is required'),
   field: z.string({ error: '"field" query parameter is required' }).trim().min(1, '"field" query parameter is required'),
   direction: z.enum(["asc", "desc"], { error: '"direction" query parameter is required and must be "asc" or "desc"' }),
-});
-
-screenerRouter.get("/company-rank", async (req, res) => {
-  const query = parseBody(companyRankQuerySchema, req.query);
-  const result = await runCompanyRank(query.symbol, query.field, query.direction);
-  res.json(result);
 });
 
 export const distributionQuerySchema = z.object({
@@ -189,8 +137,69 @@ export const distributionQuerySchema = z.object({
   ),
 });
 
-screenerRouter.get("/distribution", async (req, res) => {
-  const query = parseBody(distributionQuerySchema, req.query);
-  const result = await runDistribution(query.field, query.bins, query.excludeZero);
-  res.json(result);
-});
+/**
+ * 這支代理路由本身不擁有資料，唯一需要注入的是 resolveScreenerColumns——決定要顯示哪幾欄要讀使用者
+ * 自己的 ColumnPreset 與策展範本，那兩張表屬於業務中台。改成工廠函式純粹是為了把那份依賴傳進去，
+ * 代理邏輯（runScreener/runRanking/...）一行都沒動。
+ */
+export function createScreenerRouter(deps: ColumnPresetsDeps): Router {
+  const screenerRouter = Router();
+
+  // Guests can screen without an account — only saving a filter set as a named preset
+  // (POST /screener/presets) requires signing in. A valid token still personalizes the
+  // column resolution below (the caller's own default column preset); no token just falls
+  // through to the system default columns.
+  screenerRouter.use(optionalAuth);
+
+  screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = req.user?.uid;
+    const body = parseBody(screenerRequestSchema, req.body);
+    const filters = normalizeScreenerFilters(body.filters);
+    const pagination = { page: body.page ?? 1, pageSize: body.pageSize ?? DEFAULT_PAGE_SIZE };
+    const sort = body.sortField !== undefined ? { field: body.sortField, order: body.sortOrder! } : undefined;
+
+    let columnPresetId: string | null;
+    let columns: ScreenerColumnRef[];
+    if (body.columns !== undefined) {
+      columnPresetId = null;
+      columns = body.columns.map((field) => ({ field }));
+    } else {
+      ({ columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, body.columnPresetId ?? undefined, deps));
+    }
+
+    const result = await runScreener(filters, columns, pagination, sort, body.sectorCodes, body.excludeSectorCodes);
+    res.json({ ...result, columnPresetId });
+  });
+
+  screenerRouter.post("/values", async (req, res) => {
+    const body = parseBody(screenerValuesRequestSchema, req.body);
+    const result = await runScreenerValues(body.symbols, body.columns);
+    res.json(result);
+  });
+
+  screenerRouter.get("/ranking", async (req, res) => {
+    const query = parseBody(rankingQuerySchema, req.query);
+    const direction = query.direction ?? "desc";
+    const limit = query.limit ?? DEFAULT_RANKING_LIMIT;
+    const columns = parseRankingColumns(query.columns);
+    const sectorCodes = parseSectorCodes(query.sectorCodes);
+    const excludeSectorCodes = parseSectorCodes(query.excludeSectorCodes);
+
+    const result = await runRanking(query.field, direction, limit, columns, sectorCodes, excludeSectorCodes);
+    res.json(result);
+  });
+
+  screenerRouter.get("/company-rank", async (req, res) => {
+    const query = parseBody(companyRankQuerySchema, req.query);
+    const result = await runCompanyRank(query.symbol, query.field, query.direction);
+    res.json(result);
+  });
+
+  screenerRouter.get("/distribution", async (req, res) => {
+    const query = parseBody(distributionQuerySchema, req.query);
+    const result = await runDistribution(query.field, query.bins, query.excludeZero);
+    res.json(result);
+  });
+
+  return screenerRouter;
+}

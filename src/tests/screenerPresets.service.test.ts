@@ -4,27 +4,8 @@ vi.mock("@/application/metricCatalog/index.js", () => ({
   findMetricFields: vi.fn(),
 }));
 
-vi.mock("@/infrastructure/prisma/repositories/screenerPresets.repository.js", () => ({
-  createPreset: vi.fn(),
-  deletePreset: vi.fn(),
-  findPreset: vi.fn(),
-  listPresets: vi.fn(),
-  reorderPresets: vi.fn(),
-  setLastColumnPreset: vi.fn(),
-  updatePreset: vi.fn(),
-}));
-
-import { Prisma } from "@/generated/prisma/client.js";
 import { findMetricFields } from "@/application/metricCatalog/index.js";
-import {
-  createPreset,
-  deletePreset,
-  findPreset,
-  listPresets,
-  reorderPresets,
-  setLastColumnPreset,
-  updatePreset,
-} from "@/infrastructure/prisma/repositories/screenerPresets.repository.js";
+import { fakeScreenerPresets } from "@/tests/fakes/screenerPresets.js";
 import {
   addPreset,
   editPreset,
@@ -93,23 +74,15 @@ beforeEach(() => {
       })
       .filter((f): f is Lookup => f !== null),
   );
-  vi.mocked(createPreset).mockReset();
-  vi.mocked(updatePreset).mockReset();
-  vi.mocked(findPreset).mockReset();
-  vi.mocked(listPresets).mockReset();
-  vi.mocked(listPresets).mockResolvedValue([]);
-  vi.mocked(deletePreset).mockReset();
-  vi.mocked(reorderPresets).mockReset();
-  vi.mocked(setLastColumnPreset).mockReset();
 });
 
 describe("addPreset", () => {
   it("defaults an empty filter list to ROE > 30", async () => {
-    vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
+    const screenerPresets = fakeScreenerPresets({ create: vi.fn().mockResolvedValue({ ok: true, row: SAMPLE_ROW }) });
 
-    await addPreset("uid1", []);
+    await addPreset("uid1", [], undefined, undefined, { screenerPresets });
 
-    expect(createPreset).toHaveBeenCalledWith(
+    expect(screenerPresets.create).toHaveBeenCalledWith(
       "uid1",
       "未命名",
       [{ metricKey: "roe", fieldKey: "TTM", min: 30, max: null, exclude: false }],
@@ -119,21 +92,31 @@ describe("addPreset", () => {
   });
 
   it("rejects a filter whose field doesn't exist in the catalog", async () => {
+    const screenerPresets = fakeScreenerPresets();
+
     await expect(
-      addPreset("uid1", [{ field: "nope.nope", min: 1, max: null, exclude: false }]),
+      addPreset("uid1", [{ field: "nope.nope", min: 1, max: null, exclude: false }], undefined, undefined, {
+        screenerPresets,
+      }),
     ).rejects.toMatchObject({ statusCode: 400 });
-    expect(createPreset).not.toHaveBeenCalled();
+    expect(screenerPresets.create).not.toHaveBeenCalled();
   });
 
   it("resolves each field to metricKey/fieldKey before saving", async () => {
-    vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
+    const screenerPresets = fakeScreenerPresets({ create: vi.fn().mockResolvedValue({ ok: true, row: SAMPLE_ROW }) });
 
-    await addPreset("uid1", [
-      { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
-      { field: "grossMargin.grossMarginTtm", min: 60, max: null, exclude: false },
-    ]);
+    await addPreset(
+      "uid1",
+      [
+        { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
+        { field: "grossMargin.grossMarginTtm", min: 60, max: null, exclude: false },
+      ],
+      undefined,
+      undefined,
+      { screenerPresets },
+    );
 
-    expect(createPreset).toHaveBeenCalledWith(
+    expect(screenerPresets.create).toHaveBeenCalledWith(
       "uid1",
       "未命名",
       [
@@ -148,12 +131,18 @@ describe("addPreset", () => {
   // Regression test: fields used to be validated one at a time (one query per filter), which multiplied
   // network round trips to the remote app DB by the filter count. Must be a single batched lookup.
   it("validates all filter fields in a single batched lookup, not one query per filter", async () => {
-    vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
+    const screenerPresets = fakeScreenerPresets({ create: vi.fn().mockResolvedValue({ ok: true, row: SAMPLE_ROW }) });
 
-    await addPreset("uid1", [
-      { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
-      { field: "grossMargin.grossMarginTtm", min: 60, max: null, exclude: false },
-    ]);
+    await addPreset(
+      "uid1",
+      [
+        { field: "roe.roeTtmPct", min: 30, max: null, exclude: false },
+        { field: "grossMargin.grossMarginTtm", min: 60, max: null, exclude: false },
+      ],
+      undefined,
+      undefined,
+      { screenerPresets },
+    );
 
     expect(findMetricFields).toHaveBeenCalledTimes(1);
     expect(findMetricFields).toHaveBeenCalledWith([
@@ -163,12 +152,20 @@ describe("addPreset", () => {
   });
 
   it("falls back to '未命名 2' when '未命名' is already taken, instead of erroring", async () => {
-    vi.mocked(listPresets).mockResolvedValue([{ ...SAMPLE_ROW, name: "未命名" }]);
-    vi.mocked(createPreset).mockResolvedValue({ ...SAMPLE_ROW, name: "未命名 2" });
+    const screenerPresets = fakeScreenerPresets({
+      list: vi.fn().mockResolvedValue([{ ...SAMPLE_ROW, name: "未命名" }]),
+      create: vi.fn().mockResolvedValue({ ok: true, row: { ...SAMPLE_ROW, name: "未命名 2" } }),
+    });
 
-    const result = await addPreset("uid1", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]);
+    const result = await addPreset(
+      "uid1",
+      [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }],
+      undefined,
+      undefined,
+      { screenerPresets },
+    );
 
-    expect(createPreset).toHaveBeenCalledWith(
+    expect(screenerPresets.create).toHaveBeenCalledWith(
       "uid1",
       "未命名 2",
       [{ metricKey: "roe", fieldKey: "roeTtmPct", min: 30, max: null, exclude: false }],
@@ -179,33 +176,53 @@ describe("addPreset", () => {
   });
 
   it("keeps incrementing past multiple taken suffixes ('未命名', '未命名 2', ... -> '未命名 3')", async () => {
-    vi.mocked(listPresets).mockResolvedValue([
-      { ...SAMPLE_ROW, name: "未命名" },
-      { ...SAMPLE_ROW, name: "未命名 2" },
-    ]);
-    vi.mocked(createPreset).mockResolvedValue({ ...SAMPLE_ROW, name: "未命名 3" });
+    const screenerPresets = fakeScreenerPresets({
+      list: vi.fn().mockResolvedValue([
+        { ...SAMPLE_ROW, name: "未命名" },
+        { ...SAMPLE_ROW, name: "未命名 2" },
+      ]),
+      create: vi.fn().mockResolvedValue({ ok: true, row: { ...SAMPLE_ROW, name: "未命名 3" } }),
+    });
 
-    await addPreset("uid1", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]);
+    await addPreset(
+      "uid1",
+      [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }],
+      undefined,
+      undefined,
+      { screenerPresets },
+    );
 
-    expect(createPreset).toHaveBeenCalledWith("uid1", "未命名 3", expect.anything(), expect.anything(), expect.anything());
+    expect(screenerPresets.create).toHaveBeenCalledWith(
+      "uid1",
+      "未命名 3",
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
   // Regression: a stale name-availability check (checked once, then inserted) could still race with a
-  // concurrent request grabbing the same name in between. The P2002 from the DB's unique constraint
-  // must trigger a retry, not surface as an error straight to the caller.
-  it("retries with a fresh name pick if the insert itself hits a unique-constraint race (P2002)", async () => {
-    vi.mocked(createPreset)
-      .mockRejectedValueOnce(
-        new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
-          code: "P2002",
-          clientVersion: "test",
-        }),
-      )
-      .mockResolvedValueOnce(SAMPLE_ROW);
+  // concurrent request grabbing the same name in between. The port reporting a duplicate must trigger a
+  // retry, not surface as an error straight to the caller. Before the ports refactor this test had to
+  // construct a PrismaClientKnownRequestError with code "P2002" — it proved the service understood one
+  // driver's error taxonomy rather than proving the retry rule.
+  it("retries with a fresh name pick if the insert itself reports a duplicate", async () => {
+    const screenerPresets = fakeScreenerPresets({
+      create: vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, reason: "duplicate" })
+        .mockResolvedValueOnce({ ok: true, row: SAMPLE_ROW }),
+    });
 
-    const result = await addPreset("uid1", [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }]);
+    const result = await addPreset(
+      "uid1",
+      [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }],
+      undefined,
+      undefined,
+      { screenerPresets },
+    );
 
-    expect(createPreset).toHaveBeenCalledTimes(2);
+    expect(screenerPresets.create).toHaveBeenCalledTimes(2);
     expect(result.name).toBe(SAMPLE_ROW.name);
   });
 
@@ -214,23 +231,25 @@ describe("addPreset", () => {
   // to the default-resolution logic would then never reach already-created users. addPreset must leave
   // column presets alone entirely; the default is only ever resolved live at run time (see
   // resolveScreenerColumns in columnPresets.service.ts).
-  it("never touches column presets — lastColumnPresetId stays whatever the repository returns (usually null)", async () => {
-    vi.mocked(createPreset).mockResolvedValue(SAMPLE_ROW);
+  it("never touches column presets — lastColumnPresetId stays whatever the port returns (usually null)", async () => {
+    const screenerPresets = fakeScreenerPresets({ create: vi.fn().mockResolvedValue({ ok: true, row: SAMPLE_ROW }) });
 
-    const result = await addPreset("uid1", []);
+    const result = await addPreset("uid1", [], undefined, undefined, { screenerPresets });
 
-    expect(setLastColumnPreset).not.toHaveBeenCalled();
+    expect(screenerPresets.setLastColumnPreset).not.toHaveBeenCalled();
     expect(result.lastColumnPresetId).toBe(SAMPLE_ROW.lastColumnPresetId);
   });
 });
 
 describe("editPreset", () => {
   it("allows replacing filters with an empty array", async () => {
-    vi.mocked(updatePreset).mockResolvedValue({ ...SAMPLE_ROW, filters: [] });
+    const screenerPresets = fakeScreenerPresets({
+      update: vi.fn().mockResolvedValue({ ok: true, row: { ...SAMPLE_ROW, filters: [] } }),
+    });
 
-    await editPreset("uid1", SAMPLE_ID, { filters: [] });
+    await editPreset("uid1", SAMPLE_ID, { filters: [] }, { screenerPresets });
 
-    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
+    expect(screenerPresets.update).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
       name: undefined,
       filters: [],
       sectorCodes: undefined,
@@ -238,20 +257,27 @@ describe("editPreset", () => {
     });
   });
 
-  it("throws 404 when the repository finds no matching row", async () => {
-    vi.mocked(updatePreset).mockResolvedValue(null);
-    await expect(editPreset("uid1", "missing-uuid", { name: "x" })).rejects.toMatchObject({ statusCode: 404 });
+  it("throws 404 when the port reports no matching row", async () => {
+    const screenerPresets = fakeScreenerPresets({
+      update: vi.fn().mockResolvedValue({ ok: false, reason: "not-found" }),
+    });
+
+    await expect(editPreset("uid1", "missing-uuid", { name: "x" }, { screenerPresets })).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 
   // Regression: a PATCH only sends the field(s) actually changing, so the route schema's mutual-
   // exclusivity refine can't see the row's existing sectorCodes — editPreset itself must clear the other
   // field when one is set to non-empty, or a partial update could leave both non-empty in the DB.
   it("clears sectorCodes when excludeSectorCodes is set to a non-empty array", async () => {
-    vi.mocked(updatePreset).mockResolvedValue({ ...SAMPLE_ROW, excludeSectorCodes: ["24"] });
+    const screenerPresets = fakeScreenerPresets({
+      update: vi.fn().mockResolvedValue({ ok: true, row: { ...SAMPLE_ROW, excludeSectorCodes: ["24"] } }),
+    });
 
-    await editPreset("uid1", SAMPLE_ID, { excludeSectorCodes: ["24"] });
+    await editPreset("uid1", SAMPLE_ID, { excludeSectorCodes: ["24"] }, { screenerPresets });
 
-    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
+    expect(screenerPresets.update).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
       name: undefined,
       filters: undefined,
       sectorCodes: [],
@@ -260,11 +286,13 @@ describe("editPreset", () => {
   });
 
   it("clears excludeSectorCodes when sectorCodes is set to a non-empty array", async () => {
-    vi.mocked(updatePreset).mockResolvedValue({ ...SAMPLE_ROW, sectorCodes: ["24"] });
+    const screenerPresets = fakeScreenerPresets({
+      update: vi.fn().mockResolvedValue({ ok: true, row: { ...SAMPLE_ROW, sectorCodes: ["24"] } }),
+    });
 
-    await editPreset("uid1", SAMPLE_ID, { sectorCodes: ["24"] });
+    await editPreset("uid1", SAMPLE_ID, { sectorCodes: ["24"] }, { screenerPresets });
 
-    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
+    expect(screenerPresets.update).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
       name: undefined,
       filters: undefined,
       sectorCodes: ["24"],
@@ -273,11 +301,11 @@ describe("editPreset", () => {
   });
 
   it("leaves both untouched when neither sectorCodes nor excludeSectorCodes is given", async () => {
-    vi.mocked(updatePreset).mockResolvedValue(SAMPLE_ROW);
+    const screenerPresets = fakeScreenerPresets({ update: vi.fn().mockResolvedValue({ ok: true, row: SAMPLE_ROW }) });
 
-    await editPreset("uid1", SAMPLE_ID, { name: "renamed" });
+    await editPreset("uid1", SAMPLE_ID, { name: "renamed" }, { screenerPresets });
 
-    expect(updatePreset).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
+    expect(screenerPresets.update).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
       name: "renamed",
       filters: undefined,
       sectorCodes: undefined,
@@ -286,46 +314,52 @@ describe("editPreset", () => {
   });
 
   it("turns a duplicate name conflict into 409", async () => {
-    vi.mocked(updatePreset).mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
-        code: "P2002",
-        clientVersion: "test",
-      }),
-    );
-    await expect(editPreset("uid1", SAMPLE_ID, { name: "重複" })).rejects.toMatchObject({ statusCode: 409 });
+    const screenerPresets = fakeScreenerPresets({
+      update: vi.fn().mockResolvedValue({ ok: false, reason: "duplicate" }),
+    });
+
+    await expect(editPreset("uid1", SAMPLE_ID, { name: "重複" }, { screenerPresets })).rejects.toMatchObject({
+      statusCode: 409,
+    });
   });
 });
 
 describe("getPresetOrThrow / removePreset", () => {
   it("getPresetOrThrow throws 404 when not found", async () => {
-    vi.mocked(findPreset).mockResolvedValue(null);
-    await expect(getPresetOrThrow("uid1", "missing-uuid")).rejects.toMatchObject({ statusCode: 404 });
+    const screenerPresets = fakeScreenerPresets({ find: vi.fn().mockResolvedValue(null) });
+    await expect(getPresetOrThrow("uid1", "missing-uuid", { screenerPresets })).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 
   it("removePreset throws 404 when nothing was deleted", async () => {
-    vi.mocked(deletePreset).mockResolvedValue(false);
-    await expect(removePreset("uid1", "missing-uuid")).rejects.toMatchObject({ statusCode: 404 });
+    const screenerPresets = fakeScreenerPresets({ remove: vi.fn().mockResolvedValue(false) });
+    await expect(removePreset("uid1", "missing-uuid", { screenerPresets })).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 
 describe("reorderPresetsForUser", () => {
-  it("passes the ordered ids straight through to the repository and returns the reordered view", async () => {
-    vi.mocked(reorderPresets).mockResolvedValue([
-      { ...SAMPLE_ROW, id: OTHER_ID, name: "轉機股" },
-      { ...SAMPLE_ROW, id: SAMPLE_ID, name: "績優股" },
-    ]);
+  it("passes the ordered ids straight through to the port and returns the reordered view", async () => {
+    const screenerPresets = fakeScreenerPresets({
+      reorder: vi.fn().mockResolvedValue([
+        { ...SAMPLE_ROW, id: OTHER_ID, name: "轉機股" },
+        { ...SAMPLE_ROW, id: SAMPLE_ID, name: "績優股" },
+      ]),
+    });
 
-    const result = await reorderPresetsForUser("uid1", [OTHER_ID, SAMPLE_ID]);
+    const result = await reorderPresetsForUser("uid1", [OTHER_ID, SAMPLE_ID], { screenerPresets });
 
-    expect(reorderPresets).toHaveBeenCalledWith("uid1", [OTHER_ID, SAMPLE_ID]);
+    expect(screenerPresets.reorder).toHaveBeenCalledWith("uid1", [OTHER_ID, SAMPLE_ID]);
     expect(result.map((r) => r.id)).toEqual([OTHER_ID, SAMPLE_ID]);
   });
 
-  // The repository returns null when `ids` isn't exactly the user's current full set — must surface as
+  // The port returns null when `ids` isn't exactly the user's current full set — must surface as
   // a 400, not a 500 or a silent no-op.
-  it("throws a 400 when the repository reports ids don't match the user's current full set", async () => {
-    vi.mocked(reorderPresets).mockResolvedValue(null);
+  it("throws a 400 when the port reports ids don't match the user's current full set", async () => {
+    const screenerPresets = fakeScreenerPresets({ reorder: vi.fn().mockResolvedValue(null) });
 
-    await expect(reorderPresetsForUser("uid1", [SAMPLE_ID])).rejects.toMatchObject({ statusCode: 400 });
+    await expect(reorderPresetsForUser("uid1", [SAMPLE_ID], { screenerPresets })).rejects.toMatchObject({
+      statusCode: 400,
+    });
   });
 });
