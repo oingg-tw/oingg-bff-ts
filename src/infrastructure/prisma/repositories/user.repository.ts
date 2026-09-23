@@ -13,7 +13,7 @@ function toUserProfile(row: UserRow): UserProfile {
   };
 }
 
-export async function findUserByFirebaseUid(firebaseUid: string): Promise<UserProfile | null> {
+async function findUserByFirebaseUid(firebaseUid: string): Promise<UserProfile | null> {
   const prisma = getPrismaClient();
   const row = await prisma.user.findUnique({ where: { firebaseUid } });
   return row ? toUserProfile(row) : null;
@@ -31,7 +31,7 @@ export async function findUserByFirebaseUid(firebaseUid: string): Promise<UserPr
  * user who changes their email there should not keep a stale copy here. Nothing else on the row is
  * touched, so `createdAt` — the trial anchor — can never be reset by a later login.
  */
-export async function ensureUserProvisioned(
+async function ensureUserProvisioned(
   firebaseUid: string,
   email: string | null,
   displayName: string | null,
@@ -46,10 +46,11 @@ export async function ensureUserProvisioned(
 }
 
 /**
- * UserPort 的 Prisma 實作。
+ * UserPort 的 Prisma 實作，也是這個檔案唯一的對外匯出。
  *
- * 上面那兩個具名函式暫時留著：billing/entitlement.service.ts 還直接 import findUserByFirebaseUid（那個
- * 切片還沒轉成 ports），等它也轉過去之後，這個檔案就只需要匯出這個 adapter。
+ * 上面兩支函式原本是 export 的，因為 billing/entitlement.service.ts 直接 import 了 findUserByFirebaseUid；
+ * 那個切片 2026-09-24 轉成 ports 之後就沒有第二個入口了，所以它們收回成模組內部函式。外面拿得到的只剩
+ * 這個 adapter——「User 這張表只能經由 UserPort 碰」因此是編譯期擋得住的，不是靠慣例。
  */
 export const prismaUser: UserPort = {
   find: findUserByFirebaseUid,

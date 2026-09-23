@@ -3,8 +3,8 @@ import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
-import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import {
   addColumnPreset,
   editColumnPreset,
@@ -14,7 +14,7 @@ import {
   reorderColumnPresetsForUser,
   type ColumnPresetsDeps,
 } from "@/application/screener/columnPresets.service.js";
-import { enforceQuota } from "@/http/middleware/quota.middleware.js";
+import { enforceQuota, type QuotaMiddlewareDeps } from "@/http/middleware/quota.middleware.js";
 
 function requireUser(req: AuthenticatedRequest): string {
   if (!req.user) {
@@ -50,9 +50,11 @@ export const reorderColumnPresetsSchema = z.object({
  * 額度檢查的 countColumnPresets 同樣不再從 repository import，改走 deps.columnPresets.count——
  * 見 screenerPresets/route.ts 的同一段說明。
  */
-export function createColumnPresetsRouter(deps: ColumnPresetsDeps): Router {
+export function createColumnPresetsRouter(
+  deps: ColumnPresetsDeps & AuthMiddlewareDeps & QuotaMiddlewareDeps,
+): Router {
   const columnPresetsRouter = Router();
-  columnPresetsRouter.use(requireAuth);
+  columnPresetsRouter.use(createRequireAuth(deps));
 
   columnPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
@@ -63,7 +65,7 @@ export function createColumnPresetsRouter(deps: ColumnPresetsDeps): Router {
   // Creation only — see the same note on POST /screener/presets.
   columnPresetsRouter.post(
     "/",
-    enforceQuota("columnPresets", (uid) => deps.columnPresets.count(uid)),
+    enforceQuota("columnPresets", (uid) => deps.columnPresets.count(uid), deps),
     async (req: AuthenticatedRequest, res) => {
       const firebaseUid = requireUser(req);
       const body = parseBody(createColumnPresetSchema, req.body);

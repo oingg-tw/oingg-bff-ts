@@ -1,8 +1,11 @@
 import type { BillingTier, Entitlement, QuotaResource } from "@/application/billing/billing.types.js";
-import { getEntitlement } from "@/application/billing/entitlement.service.js";
+import { getEntitlement, type EntitlementDeps } from "@/application/billing/entitlement.service.js";
 import { quotaLimitFor } from "@/application/billing/quota.js";
 
 const QUOTA_RESOURCES: readonly QuotaResource[] = ["watchlistItems", "screenerPresets", "columnPresets"];
+
+/** Nothing of its own beyond what the entitlement ladder reads — the quota table is a local constant. */
+export type BillingDeps = EntitlementDeps;
 
 export interface EntitlementView extends Entitlement {
   /** The caller's own limits, `null` meaning unlimited — the single source the UI reads "3 of 3" from. */
@@ -21,7 +24,10 @@ function quotasFor(tier: BillingTier): Record<QuotaResource, number | null> {
  * it. Returned together on purpose — a UI that fetched the tier and then hardcoded the limits would
  * silently disagree with the server the first time a limit changed.
  */
-export async function getEntitlementView(firebaseUid: string): Promise<EntitlementView> {
-  const entitlement = await getEntitlement(firebaseUid);
+export async function getEntitlementView(
+  firebaseUid: string,
+  deps: BillingDeps,
+): Promise<EntitlementView> {
+  const entitlement = await getEntitlement(firebaseUid, new Date(), deps);
   return { ...entitlement, quotas: quotasFor(entitlement.tier) };
 }

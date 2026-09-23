@@ -4,10 +4,10 @@ import helmet from "helmet";
 import { Router } from "ultimate-express";
 import { requireApiDocsAuth } from "@/http/swagger/apiDocsAuth.js";
 import { swaggerSpec, swaggerUi } from "@/http/swagger/index.js";
-import { authRouter } from "@/http/modules/auth/route.js";
-import { billingRouter } from "@/http/modules/billing/route.js";
+import { createAuthRouter } from "@/http/modules/auth/route.js";
+import { createBillingRouter } from "@/http/modules/billing/route.js";
 import { etfScreenerRouter } from "@/http/modules/etfScreener/route.js";
-import { metricCatalogRouter } from "@/http/modules/metricCatalog/route.js";
+import { createMetricCatalogRouter } from "@/http/modules/metricCatalog/route.js";
 import { createHoldingsRouter } from "@/http/modules/holdings/route.js";
 import { industriesRouter } from "@/http/modules/industries/route.js";
 import { createMacroRouter } from "@/http/modules/macro/route.js";
@@ -15,7 +15,7 @@ import { marketRouter } from "@/http/modules/market/route.js";
 import { createScreenerRoutes } from "@/http/modules/screener/index.js";
 import { securitiesRouter } from "@/http/modules/securities/route.js";
 import { stockRouter } from "@/http/modules/stock/route.js";
-import { systemRouter } from "@/http/modules/system/route.js";
+import { createSystemRouter } from "@/http/modules/system/route.js";
 import { startedAt } from "@/application/system/system.state.js";
 import { createTransactionsRouter } from "@/http/modules/transactions/route.js";
 import { createUserRouter } from "@/http/modules/user/route.js";
@@ -54,9 +54,9 @@ export function createRoutes(deps: AppDeps): Router {
 
   routes.use("/api-docs", requireApiDocsAuth, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-  routes.use("/system", systemRouter); // GET /system/health
-  routes.use("/auth", authRouter); // GET /auth/me
-  routes.use("/billing", billingRouter); // GET /billing/entitlement
+  routes.use("/system", createSystemRouter(deps)); // GET /system/health
+  routes.use("/auth", createAuthRouter(deps)); // GET /auth/me
+  routes.use("/billing", createBillingRouter(deps)); // GET /billing/entitlement
   // GET /users/me; GET /users/me/theme; PUT /users/me/theme/mode, /theme/accent-color,
   // /theme/market-color-convention, /theme/full-width;
   // GET /users/me/screener-display-settings; PUT /users/me/screener-display-settings/show-as-of-date;
@@ -72,7 +72,7 @@ export function createRoutes(deps: AppDeps): Router {
   // GET/POST /screener/presets, GET/PATCH/DELETE /screener/presets/:id, GET /screener/presets/:id/run;
   // GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply
   routes.use("/screener", createScreenerRoutes(deps));
-  routes.use("/metrics", metricCatalogRouter); // GET /metrics, POST /metrics/sync
+  routes.use("/metrics", createMetricCatalogRouter(deps)); // GET /metrics, POST /metrics/sync
   routes.use("/market", marketRouter); // GET /market/margin-short-ratio-ranking, ...
   // GET /macro/cbc-policy-rate, /macro/business-cycle-indicator, /macro/monetary-aggregate,
   // /macro/gov-bond-yield-10y, /macro/gov-bond-yield-10y-history, /macro/stock-market-summary, /macro/usd-twd-rate, /macro/cpi, /macro/gdp

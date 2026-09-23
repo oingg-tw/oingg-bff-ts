@@ -2,8 +2,13 @@ import type { ColumnPresetsPort } from "@/application/ports/columnPresets.js";
 import type { ColumnPresetTemplatesPort } from "@/application/ports/columnPresetTemplates.js";
 import type { HoldingsPort } from "@/application/ports/holdings.js";
 import type { MacroGatewayPort } from "@/application/ports/macroGateway.js";
+import type { MetricCatalogPort } from "@/application/ports/metricCatalog.js";
+import type { MetricCatalogGatewayPort } from "@/application/ports/metricCatalogGateway.js";
 import type { PresetTemplatesPort } from "@/application/ports/presetTemplates.js";
 import type { ScreenerPresetsPort } from "@/application/ports/screenerPresets.js";
+import type { SubscriptionsPort } from "@/application/ports/subscriptions.js";
+import type { SystemHealthPort } from "@/application/ports/systemHealth.js";
+import type { TokenVerifierPort } from "@/application/ports/tokenVerifier.js";
 import type { TransactionsPort } from "@/application/ports/transactions.js";
 import type { UserPort } from "@/application/ports/user.js";
 import type { UserPreferencesPort } from "@/application/ports/userPreferences.js";
@@ -33,7 +38,19 @@ export interface AppDeps {
   /** 兩份策展範本：唯讀、沒有 firebaseUid，「套用」時才會經由上面兩個 port 變成使用者自己的資料。 */
   presetTemplates: PresetTemplatesPort;
   columnPresetTemplates: ColumnPresetTemplatesPort;
+  /** 訂閱列。只有讀——唯一的寫入者會是金流 webhook，見該 port 的說明。 */
+  subscriptions: SubscriptionsPort;
+  /** 從 analysis-ts 同步進來、存在這個服務自己 DB 裡的指標型錄（拉進來的那一端是下面的 gateway）。 */
+  metricCatalog: MetricCatalogPort;
 
   // --- 代理層：對 analysis-ts 的出站呼叫，一個切片一個 gateway ---
   macroGateway: MacroGatewayPort;
+  /** 唯一一個不是「即時轉發」的 gateway：拉回來是為了寫進 metricCatalog，不是為了直接回給前端。 */
+  metricCatalogGateway: MetricCatalogGatewayPort;
+
+  // --- 平台能力：不屬於任何一個業務切片，但同樣是被注入的外部世界 ---
+  /** 身分驗證。把「用 Firebase」壓縮成 bootstrap 的一行，http 與 application 都不再叫得出那個名字。 */
+  tokenVerifier: TokenVerifierPort;
+  /** 健康檢查的探針。只有探測，沒有 client——見該 port 為什麼不交出 PrismaClient。 */
+  systemHealth: SystemHealthPort;
 }

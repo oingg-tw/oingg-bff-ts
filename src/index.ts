@@ -2,13 +2,17 @@ import { createApp } from "@/app.js";
 import { createAppDeps } from "@/bootstrap/deps.js";
 import { initFirebase } from "@/infrastructure/firebase/index.js";
 import { closeNeonPools, closePrismaClient, initNeonPools } from "@/infrastructure/prisma/index.js";
-import { startMetricCatalogSync } from "@/application/metricCatalog/index.js";
+import { startMetricCatalogSync } from "@/application/metricCatalog/metricCatalog.service.js";
 import { env } from "@/shared/env.js";
 import { logger } from "@/shared/logger.js";
 
 async function main(): Promise<void> {
   initFirebase();
   initNeonPools();
+
+  // Composition root runs right after the driver init above, so every port already has a live
+  // connection behind it — both for the startup sync below and for the app itself.
+  const deps = createAppDeps();
 
   // oingg-analysis-ts (數據中台) must never know oingg-bff-ts exists, so there is no push/notify
   // mechanism from their side — bff-ts is the only one who can keep this fresh, by pulling on its own.
@@ -17,10 +21,9 @@ async function main(): Promise<void> {
   // templates used to sync the same way, but analysis-ts dropped that field entirely 2026-09-08 and
   // never brought it back — that table is now purely bff-ts-curated (see prisma/seedColumnPresetTemplates.ts),
   // same as PresetTemplate, with no sync mechanism at all.
-  startMetricCatalogSync();
+  startMetricCatalogSync(deps);
 
-  // Composition root runs after the driver init above, so every port has a live connection behind it.
-  const app = createApp(createAppDeps());
+  const app = createApp(deps);
 
   const server = app.listen(env.port, () => {
     logger.info(`oingg-bff-ts listening on port ${env.port} (${env.nodeEnv})`);

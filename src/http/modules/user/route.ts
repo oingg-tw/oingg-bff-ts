@@ -2,8 +2,8 @@ import { Router } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { parseBody } from "@/shared/validation.js";
-import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { getDashboardCardSettings, updateDashboardCardSettings } from "@/application/user/dashboardCardSettings.service.js";
 import type { DashboardCardSettingsDeps } from "@/application/user/dashboardCardSettings.service.js";
 import {
@@ -38,7 +38,8 @@ type UserRouterDeps = UserDeps &
   ScreenerDisplaySettingsDeps &
   DashboardCardSettingsDeps &
   StockDetailPreferencesDeps &
-  PreferredStocksPreferencesDeps;
+  PreferredStocksPreferencesDeps &
+  AuthMiddlewareDeps;
 
 function requireUser(req: AuthenticatedRequest): string {
   if (!req.user) {
@@ -72,6 +73,8 @@ export const updatePreferredStocksPreferencesSchema = z.object({
  */
 export function createUserRouter(deps: UserRouterDeps): Router {
   const userRouter = Router();
+  // 建一次、十四條路由共用——每條各自 createRequireAuth(deps) 會產生十四個一模一樣的 closure。
+  const requireAuth = createRequireAuth(deps);
 
   // Provisions the row on first contact rather than 404ing a caller Firebase has already vouched for.
   // This is the only place a User row is created, and it's why the frontend should call it on login:

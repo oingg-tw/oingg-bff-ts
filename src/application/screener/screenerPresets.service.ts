@@ -1,7 +1,12 @@
 import { AppError } from "@/domain/appError.js";
 import type { ScreenerFilter } from "@/domain/screenerCriteria.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
-import { findMetricFields } from "@/application/metricCatalog/index.js";
+// findMetricFields still comes straight from the repository: the metricCatalog slice moved to ports
+// 2026-09-24 and its barrel went away with it, but this lookup has no caller inside that slice, so
+// there was nothing to put on MetricCatalogPort yet. Threading it in as a dep means widening this
+// slice's public Deps types (and three neighbouring slices' that call into it) — that's the screener
+// slice's own ports conversion, not this one. Until then this import is an acknowledged violation.
+import { findMetricFields } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
 import type { AppDeps } from "@/application/deps.js";
 import type { PresetFilterInput, PresetRow } from "@/application/screener/screenerPresets.types.js";
 

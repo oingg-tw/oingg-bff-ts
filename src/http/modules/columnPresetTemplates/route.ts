@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { AppError } from "@/domain/appError.js";
-import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import {
   applyColumnPresetTemplate,
   getColumnPresetTemplateOrThrow,
@@ -17,7 +17,9 @@ function requireUser(req: AuthenticatedRequest): string {
 }
 
 /** 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。 */
-export function createColumnPresetTemplatesRouter(deps: ColumnPresetTemplatesDeps): Router {
+export function createColumnPresetTemplatesRouter(
+  deps: ColumnPresetTemplatesDeps & AuthMiddlewareDeps,
+): Router {
   const columnPresetTemplatesRouter = Router();
 
   columnPresetTemplatesRouter.get("/", async (_req, res) => {
@@ -30,7 +32,7 @@ export function createColumnPresetTemplatesRouter(deps: ColumnPresetTemplatesDep
     res.json({ template });
   });
 
-  columnPresetTemplatesRouter.post("/:key/apply", requireAuth, async (req: AuthenticatedRequest, res) => {
+  columnPresetTemplatesRouter.post("/:key/apply", createRequireAuth(deps), async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
     const preset = await applyColumnPresetTemplate(firebaseUid, req.params.key ?? "", deps);
     res.status(201).json({ preset });

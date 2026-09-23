@@ -2,8 +2,8 @@ import { Router } from "ultimate-express";
 import { z } from "zod";
 import { UUID_PATTERN } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
-import { optionalAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { createOptionalAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { runCompanyRank, runDistribution, runRanking, runScreener, runScreenerValues } from "@/application/proxy/screener/screener.service.js";
 import { resolveScreenerColumns, type ColumnPresetsDeps } from "@/application/screener/columnPresets.service.js";
 import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/application/proxy/screener/pagination.js";
@@ -142,14 +142,14 @@ export const distributionQuerySchema = z.object({
  * 自己的 ColumnPreset 與策展範本，那兩張表屬於業務中台。改成工廠函式純粹是為了把那份依賴傳進去，
  * 代理邏輯（runScreener/runRanking/...）一行都沒動。
  */
-export function createScreenerRouter(deps: ColumnPresetsDeps): Router {
+export function createScreenerRouter(deps: ColumnPresetsDeps & AuthMiddlewareDeps): Router {
   const screenerRouter = Router();
 
   // Guests can screen without an account — only saving a filter set as a named preset
   // (POST /screener/presets) requires signing in. A valid token still personalizes the
   // column resolution below (the caller's own default column preset); no token just falls
   // through to the system default columns.
-  screenerRouter.use(optionalAuth);
+  screenerRouter.use(createOptionalAuth(deps));
 
   screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = req.user?.uid;

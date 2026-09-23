@@ -1,9 +1,16 @@
 import { BILLING_PAID_UID_ALLOWLIST, REVERSE_TRIAL_DAYS, REVERSE_TRIAL_TIER } from "@/shared/env.js";
-import { findSubscriptionByFirebaseUid } from "@/infrastructure/prisma/repositories/billing.repository.js";
+import type { AppDeps } from "@/application/deps.js";
 import type { Entitlement } from "@/application/billing/billing.types.js";
-import { findUserByFirebaseUid } from "@/infrastructure/prisma/repositories/user.repository.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Both ports, because the ladder reads both tables: the Subscription row for a paid grant, and the User
+ * row's `createdAt` for the reverse trial. `user` is the same UserPort the user slice uses — billing
+ * gets no private door into that table (the repository's own named exports were withdrawn once this
+ * file stopped importing them).
+ */
+export type EntitlementDeps = Pick<AppDeps, "subscriptions" | "user">;
 
 /**
  * A subscription grants its plan's tier while the period the user paid for is still running.
@@ -39,11 +46,20 @@ function tierForPlan(plan: string): "PRO" | "ADVISOR" {
  * Precedence is subscription → trial → allowlist → free. A paying user must never be demoted by a
  * trial that expired while they were subscribed.
  *
+ * `now` is an explicit parameter rather than a defaulted one: `deps` has to be last (every use case in
+ * this codebase reads that way), and a defaulted parameter in front of a required one can't actually be
+ * omitted. Passing the clock in was always the point anyway — every branch below is a date comparison,
+ * and a hidden `new Date()` is the kind of dependency that makes a paywall rule untestable.
+ *
  * **What this may be used for is legally constrained**: breadth, history depth and export/alerts only.
  * It must never reach the stock-detail assembly path — see quota.ts.
  */
-export async function getEntitlement(firebaseUid: string, now: Date = new Date()): Promise<Entitlement> {
-  const subscription = await findSubscriptionByFirebaseUid(firebaseUid);
+export async function getEntitlement(
+  firebaseUid: string,
+  now: Date,
+  deps: EntitlementDeps,
+): Promise<Entitlement> {
+  const subscription = await deps.subscriptions.find(firebaseUid);
   if (subscription && isWithinPaidPeriod(subscription.status, subscription.currentPeriodEnd, now)) {
     return {
       tier: tierForPlan(subscription.plan),
@@ -56,9 +72,9 @@ export async function getEntitlement(firebaseUid: string, now: Date = new Date()
 
   // Reverse trial: full access for the first N days after signup, no card, no row anywhere — it's
   // derived from the user's own createdAt, which is why provisioning that row matters (see
-  // ensureUserProvisioned). Expiry is a smooth downgrade: the user keeps everything they created,
+  // UserPort.ensureProvisioned). Expiry is a smooth downgrade: the user keeps everything they created,
   // they just stop being able to add more (quota.ts).
-  const user = await findUserByFirebaseUid(firebaseUid);
+  const user = await deps.user.find(firebaseUid);
   if (user) {
     const trialEnds = new Date(new Date(user.createdAt).getTime() + REVERSE_TRIAL_DAYS * DAY_MS);
     if (trialEnds.getTime() > now.getTime()) {

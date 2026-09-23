@@ -1,8 +1,8 @@
 import { Router } from "ultimate-express";
 import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
-import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import {
   applyPresetTemplate,
   getPresetTemplateOrThrow,
@@ -22,7 +22,7 @@ function parseId(raw: string): string {
 }
 
 /** 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。 */
-export function createPresetTemplatesRouter(deps: PresetTemplatesDeps): Router {
+export function createPresetTemplatesRouter(deps: PresetTemplatesDeps & AuthMiddlewareDeps): Router {
   const presetTemplatesRouter = Router();
 
   presetTemplatesRouter.get("/", async (_req, res) => {
@@ -36,7 +36,7 @@ export function createPresetTemplatesRouter(deps: PresetTemplatesDeps): Router {
     res.json({ template });
   });
 
-  presetTemplatesRouter.post("/:id/apply", requireAuth, async (req: AuthenticatedRequest, res) => {
+  presetTemplatesRouter.post("/:id/apply", createRequireAuth(deps), async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
     const id = parseId(req.params.id ?? "");
     const preset = await applyPresetTemplate(firebaseUid, id, deps);

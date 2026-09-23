@@ -1,13 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@/infrastructure/prisma/repositories/billing.repository.js", () => ({
-  findSubscriptionByFirebaseUid: vi.fn(),
-}));
-
-vi.mock("@/infrastructure/prisma/repositories/user.repository.js", () => ({
-  findUserByFirebaseUid: vi.fn(),
-  ensureUserProvisioned: vi.fn(),
-}));
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/shared/env.js", () => ({
   BILLING_PAID_UID_ALLOWLIST: ["allowlisted-uid"],
@@ -15,16 +6,13 @@ vi.mock("@/shared/env.js", () => ({
   REVERSE_TRIAL_TIER: "PRO",
 }));
 
-import { findSubscriptionByFirebaseUid } from "@/infrastructure/prisma/repositories/billing.repository.js";
-import { findUserByFirebaseUid } from "@/infrastructure/prisma/repositories/user.repository.js";
+import type { SubscriptionRecord } from "@/application/billing/billing.types.js";
 import { getEntitlement } from "@/application/billing/entitlement.service.js";
+import { OLD_USER, fakeSubscriptions, fakeUserPort } from "@/tests/fakes/billing.js";
 
 const NOW = new Date("2026-09-23T00:00:00.000Z");
 
-/** Signed up long enough ago that the reverse trial can't be what's granting access. */
-const OLD_USER = { id: "u1", firebaseUid: "uid", email: null, displayName: null, createdAt: "2026-01-01T00:00:00.000Z" };
-
-function subscription(overrides: Record<string, unknown> = {}) {
+function subscription(overrides: Partial<SubscriptionRecord> = {}): SubscriptionRecord {
   return {
     firebaseUid: "uid",
     status: "ACTIVE",
@@ -36,16 +24,26 @@ function subscription(overrides: Record<string, unknown> = {}) {
   };
 }
 
-beforeEach(() => {
-  vi.mocked(findSubscriptionByFirebaseUid).mockResolvedValue(null);
-  vi.mocked(findUserByFirebaseUid).mockResolvedValue(OLD_USER);
-});
+/**
+ * Fake ports instead of `vi.mock` on the two repository modules. Both tables are now reached through
+ * SubscriptionsPort/UserPort, so these tests state the contract the paywall depends on rather than the
+ * shape of whatever is storing it — and `user` being the same UserPort the user slice uses is the point
+ * of the change: billing no longer has a private door into the User table.
+ */
+function deps(overrides: { subscription?: SubscriptionRecord | null; user?: typeof OLD_USER | null } = {}) {
+  return {
+    subscriptions: fakeSubscriptions(
+      overrides.subscription === undefined
+        ? {}
+        : { find: vi.fn().mockResolvedValue(overrides.subscription) },
+    ),
+    user: fakeUserPort(overrides.user === undefined ? {} : { find: vi.fn().mockResolvedValue(overrides.user) }),
+  };
+}
 
 describe("getEntitlement — subscriptions", () => {
   it("grants the plan's tier while the paid period is still running", async () => {
-    vi.mocked(findSubscriptionByFirebaseUid).mockResolvedValue(subscription() as never);
-
-    const result = await getEntitlement("uid", NOW);
+    const result = await getEntitlement("uid", NOW, deps({ subscription: subscription() }));
 
     expect(result).toEqual({
       tier: "PRO",
@@ -57,46 +55,50 @@ describe("getEntitlement — subscriptions", () => {
   });
 
   it("reads ADVISOR from the plan identifier so a new price point needs no migration", async () => {
-    vi.mocked(findSubscriptionByFirebaseUid).mockResolvedValue(subscription({ plan: "advisor-annual" }) as never);
+    const result = getEntitlement("uid", NOW, deps({ subscription: subscription({ plan: "advisor-annual" }) }));
 
-    await expect(getEntitlement("uid", NOW)).resolves.toMatchObject({ tier: "ADVISOR" });
+    await expect(result).resolves.toMatchObject({ tier: "ADVISOR" });
   });
 
   it("falls back to PRO for an unrecognised plan rather than granting the expensive tier", async () => {
-    vi.mocked(findSubscriptionByFirebaseUid).mockResolvedValue(subscription({ plan: "something-new" }) as never);
+    const result = getEntitlement("uid", NOW, deps({ subscription: subscription({ plan: "something-new" }) }));
 
-    await expect(getEntitlement("uid", NOW)).resolves.toMatchObject({ tier: "PRO" });
+    await expect(result).resolves.toMatchObject({ tier: "PRO" });
   });
 
   // A cancellation shouldn't take away time the user already paid for.
   it("keeps access for a CANCELED subscription until its period actually ends", async () => {
-    vi.mocked(findSubscriptionByFirebaseUid).mockResolvedValue(subscription({ status: "CANCELED" }) as never);
+    const result = getEntitlement("uid", NOW, deps({ subscription: subscription({ status: "CANCELED" }) }));
 
-    await expect(getEntitlement("uid", NOW)).resolves.toMatchObject({ tier: "PRO", status: "CANCELED" });
+    await expect(result).resolves.toMatchObject({ tier: "PRO", status: "CANCELED" });
   });
 
   // Fails closed: an ACTIVE row past its period means the renewal webhook never landed. The webhook
   // restores access the moment it arrives; failing open would hand out an unbounded free ride.
   it("drops an ACTIVE subscription whose period has already passed", async () => {
-    vi.mocked(findSubscriptionByFirebaseUid).mockResolvedValue(
-      subscription({ currentPeriodEnd: "2026-09-01T00:00:00.000Z" }) as never,
+    const result = getEntitlement(
+      "uid",
+      NOW,
+      deps({ subscription: subscription({ currentPeriodEnd: "2026-09-01T00:00:00.000Z" }) }),
     );
 
-    await expect(getEntitlement("uid", NOW)).resolves.toMatchObject({ tier: "FREE", source: "subscription" });
+    await expect(result).resolves.toMatchObject({ tier: "FREE", source: "subscription" });
   });
 
   it("grants nothing on PAST_DUE", async () => {
-    vi.mocked(findSubscriptionByFirebaseUid).mockResolvedValue(subscription({ status: "PAST_DUE" }) as never);
+    const result = getEntitlement("uid", NOW, deps({ subscription: subscription({ status: "PAST_DUE" }) }));
 
-    await expect(getEntitlement("uid", NOW)).resolves.toMatchObject({ tier: "FREE" });
+    await expect(result).resolves.toMatchObject({ tier: "FREE" });
   });
 });
 
 describe("getEntitlement — reverse trial", () => {
   it("grants PRO for the first 14 days after signup, with no subscription row at all", async () => {
-    vi.mocked(findUserByFirebaseUid).mockResolvedValue({ ...OLD_USER, createdAt: "2026-09-20T00:00:00.000Z" });
-
-    const result = await getEntitlement("uid", NOW);
+    const result = await getEntitlement(
+      "uid",
+      NOW,
+      deps({ user: { ...OLD_USER, createdAt: "2026-09-20T00:00:00.000Z" } }),
+    );
 
     expect(result).toEqual({
       tier: "PRO",
@@ -108,41 +110,47 @@ describe("getEntitlement — reverse trial", () => {
   });
 
   it("expires to FREE on day 15 — a downgrade, not a lockout (nothing here deletes anything)", async () => {
-    vi.mocked(findUserByFirebaseUid).mockResolvedValue({ ...OLD_USER, createdAt: "2026-09-08T00:00:00.000Z" });
+    const result = getEntitlement(
+      "uid",
+      NOW,
+      deps({ user: { ...OLD_USER, createdAt: "2026-09-08T00:00:00.000Z" } }),
+    );
 
-    await expect(getEntitlement("uid", NOW)).resolves.toMatchObject({ tier: "FREE", trialEndsAt: null });
+    await expect(result).resolves.toMatchObject({ tier: "FREE", trialEndsAt: null });
   });
 
   // Precedence matters: a subscriber whose trial lapsed while they were paying must not be demoted.
   it("prefers an active subscription over an expired trial", async () => {
-    vi.mocked(findUserByFirebaseUid).mockResolvedValue({ ...OLD_USER, createdAt: "2026-01-01T00:00:00.000Z" });
-    vi.mocked(findSubscriptionByFirebaseUid).mockResolvedValue(subscription() as never);
+    const result = getEntitlement(
+      "uid",
+      NOW,
+      deps({ subscription: subscription(), user: { ...OLD_USER, createdAt: "2026-01-01T00:00:00.000Z" } }),
+    );
 
-    await expect(getEntitlement("uid", NOW)).resolves.toMatchObject({ tier: "PRO", source: "subscription" });
+    await expect(result).resolves.toMatchObject({ tier: "PRO", source: "subscription" });
   });
 
   it("treats a user with no row as FREE instead of throwing", async () => {
-    vi.mocked(findUserByFirebaseUid).mockResolvedValue(null);
+    const result = getEntitlement("uid", NOW, deps({ user: null }));
 
-    await expect(getEntitlement("uid", NOW)).resolves.toMatchObject({ tier: "FREE", source: "none" });
+    await expect(result).resolves.toMatchObject({ tier: "FREE", source: "none" });
   });
 });
 
 describe("getEntitlement — Phase 0 allowlist", () => {
   it("grants PRO and reports source:allowlist so a stray production entry is visible", async () => {
-    const result = await getEntitlement("allowlisted-uid", NOW);
+    const result = await getEntitlement("allowlisted-uid", NOW, deps());
 
     expect(result).toMatchObject({ tier: "PRO", source: "allowlist" });
   });
 
   it("does not let the allowlist override a real subscription's tier", async () => {
-    vi.mocked(findSubscriptionByFirebaseUid).mockResolvedValue(
-      subscription({ firebaseUid: "allowlisted-uid", plan: "advisor-annual" }) as never,
+    const result = getEntitlement(
+      "allowlisted-uid",
+      NOW,
+      deps({ subscription: subscription({ firebaseUid: "allowlisted-uid", plan: "advisor-annual" }) }),
     );
 
-    await expect(getEntitlement("allowlisted-uid", NOW)).resolves.toMatchObject({
-      tier: "ADVISOR",
-      source: "subscription",
-    });
+    await expect(result).resolves.toMatchObject({ tier: "ADVISOR", source: "subscription" });
   });
 });

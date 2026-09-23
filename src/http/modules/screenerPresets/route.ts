@@ -3,8 +3,8 @@ import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { UUID_PATTERN, parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
-import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/application/proxy/screener/pagination.js";
 import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/application/proxy/screener/screenerFilterInput.js";
 import {
@@ -16,7 +16,7 @@ import {
   reorderPresetsForUser,
   type ScreenerPresetsDeps,
 } from "@/application/screener/screenerPresets.service.js";
-import { enforceQuota } from "@/http/middleware/quota.middleware.js";
+import { enforceQuota, type QuotaMiddlewareDeps } from "@/http/middleware/quota.middleware.js";
 import { runPreset, type RunPresetDeps } from "@/application/proxy/screener/runPreset.js";
 
 function requireUser(req: AuthenticatedRequest): string {
@@ -92,7 +92,7 @@ export const runPresetQuerySchema = z
  * GET /screener/presets/:id/run 同時要用 preset 的儲存與代理層的 runPreset，所以這個路由需要的是
  * 兩者的聯集（RunPresetDeps 已經包含 ScreenerPresetsDeps）。
  */
-type ScreenerPresetsRouterDeps = ScreenerPresetsDeps & RunPresetDeps;
+type ScreenerPresetsRouterDeps = ScreenerPresetsDeps & RunPresetDeps & AuthMiddlewareDeps & QuotaMiddlewareDeps;
 
 /**
  * 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。
@@ -101,7 +101,7 @@ type ScreenerPresetsRouterDeps = ScreenerPresetsDeps & RunPresetDeps;
  */
 export function createScreenerPresetsRouter(deps: ScreenerPresetsRouterDeps): Router {
   const screenerPresetsRouter = Router();
-  screenerPresetsRouter.use(requireAuth);
+  screenerPresetsRouter.use(createRequireAuth(deps));
 
   screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
@@ -111,7 +111,7 @@ export function createScreenerPresetsRouter(deps: ScreenerPresetsRouterDeps): Ro
 
   // Quota guards creation only — an over-quota user (e.g. one whose reverse trial just ended) keeps every
   // preset they already made; they simply can't add another. See billing/quota.middleware.ts.
-  screenerPresetsRouter.post("/", enforceQuota("screenerPresets", (uid) => deps.screenerPresets.count(uid)), async (req: AuthenticatedRequest, res) => {
+  screenerPresetsRouter.post("/", enforceQuota("screenerPresets", (uid) => deps.screenerPresets.count(uid), deps), async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
     const body = parseBody(createScreenerPresetSchema, req.body);
 

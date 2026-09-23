@@ -1,10 +1,15 @@
 import type { AppDeps } from "@/application/deps.js";
 import { analysisMacroGateway } from "@/infrastructure/analysisApi/macro/macro.client.js";
+import { analysisMetricCatalogGateway } from "@/infrastructure/analysisApi/metricCatalog/metricCatalog.client.js";
+import { firebaseTokenVerifier } from "@/infrastructure/firebase/tokenVerifier.js";
+import { prismaSystemHealth } from "@/infrastructure/prisma/systemHealth.js";
 import { prismaColumnPresets } from "@/infrastructure/prisma/repositories/columnPresets.repository.js";
 import { prismaColumnPresetTemplates } from "@/infrastructure/prisma/repositories/columnPresetTemplates.repository.js";
 import { prismaHoldings } from "@/infrastructure/prisma/repositories/holdings.repository.js";
+import { prismaMetricCatalog } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
 import { prismaPresetTemplates } from "@/infrastructure/prisma/repositories/presetTemplates.repository.js";
 import { prismaScreenerPresets } from "@/infrastructure/prisma/repositories/screenerPresets.repository.js";
+import { prismaSubscriptions } from "@/infrastructure/prisma/repositories/billing.repository.js";
 import { prismaTransactions } from "@/infrastructure/prisma/repositories/transactions.repository.js";
 import { prismaUser } from "@/infrastructure/prisma/repositories/user.repository.js";
 import { prismaUserPreferences } from "@/infrastructure/prisma/repositories/userPreferences.repository.js";
@@ -30,6 +35,12 @@ export function createAppDeps(): AppDeps {
     columnPresets: prismaColumnPresets,
     presetTemplates: prismaPresetTemplates,
     columnPresetTemplates: prismaColumnPresetTemplates,
+    subscriptions: prismaSubscriptions,
+    metricCatalog: prismaMetricCatalog,
     macroGateway: analysisMacroGateway,
+    metricCatalogGateway: analysisMetricCatalogGateway,
+    // 「這個系統用 Firebase 認身分」這件事，現在整個 repo 只有這一行知道。
+    tokenVerifier: firebaseTokenVerifier,
+    systemHealth: prismaSystemHealth,
   };
 }

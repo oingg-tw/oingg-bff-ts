@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/application/metricCatalog/index.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/metricCatalog.repository.js", () => ({
   findMetricFields: vi.fn(),
 }));
 
-import { findMetricFields } from "@/application/metricCatalog/index.js";
+import { findMetricFields } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
 import { fakeScreenerPresets } from "@/tests/fakes/screenerPresets.js";
 import {
   addPreset,

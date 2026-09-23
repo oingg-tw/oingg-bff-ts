@@ -1,6 +1,7 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
+import type { MetricCatalogGatewayPort } from "@/application/ports/metricCatalogGateway.js";
 import type {
   MetricBadge,
   MetricBadgePercentileRank,
@@ -267,3 +268,13 @@ export async function fetchMetricCatalog(): Promise<MetricCategory[]> {
 
   return toMetricCategories(categories);
 }
+
+/**
+ * MetricCatalogGatewayPort 的實作。
+ *
+ * 跟 analysisMacroGateway 一樣只是把 fetchX 對應到 port 的方法名——上面的 fetchMetricCatalog 已經做完
+ * 形狀驗證、502 判定與 pitMetrics -> MetricCategory 的翻譯，所以這裡沒有第二層殼。
+ */
+export const analysisMetricCatalogGateway: MetricCatalogGatewayPort = {
+  fetchCatalog: fetchMetricCatalog,
+};

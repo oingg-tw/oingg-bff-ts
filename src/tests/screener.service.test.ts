@@ -7,7 +7,7 @@ vi.mock("@/infrastructure/analysisApi/screener/analysisScreenerClient.js", () =>
   fetchCompanyRank: vi.fn(),
 }));
 
-vi.mock("@/application/metricCatalog/index.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/metricCatalog.repository.js", () => ({
   findMetricFields: vi.fn(),
 }));
 
@@ -20,7 +20,7 @@ vi.mock("@/infrastructure/analysisApi/screener/valuationRanking.client.js", () =
 }));
 
 import { fetchCompanyRank, fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/infrastructure/analysisApi/screener/analysisScreenerClient.js";
-import { findMetricFields } from "@/application/metricCatalog/index.js";
+import { findMetricFields } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
 import { getLatestClosePrices } from "@/application/proxy/stock/index.js";
 import { fetchValuationRanking } from "@/infrastructure/analysisApi/screener/valuationRanking.client.js";
 import { runCompanyRank, runRanking, runScreener, runScreenerValues } from "@/application/proxy/screener/screener.service.js";

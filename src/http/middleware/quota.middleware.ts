@@ -1,12 +1,15 @@
 import type { NextFunction, Response } from "ultimate-express";
 import { AppError } from "@/domain/appError.js";
-import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
-import { getEntitlement } from "@/application/billing/entitlement.service.js";
+import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
+import { getEntitlement, type EntitlementDeps } from "@/application/billing/entitlement.service.js";
 import type { QuotaResource } from "@/application/billing/billing.types.js";
 import { QUOTA_RESOURCE_LABELS, quotaLimitFor } from "@/application/billing/quota.js";
 
 /** Machine-readable reason the frontend branches on to show an upgrade prompt rather than a generic error. */
 export const QUOTA_EXCEEDED_CODE = "quota_exceeded";
+
+/** 就是 getEntitlement 要的那些 port——額度檢查自己不存取任何資料，計數是呼叫端傳進來的函式。 */
+export type QuotaMiddlewareDeps = EntitlementDeps;
 
 /**
  * Blocks *creating* one more of a metered resource once the caller's tier is full.
@@ -24,12 +27,21 @@ export const QUOTA_EXCEEDED_CODE = "quota_exceeded";
  *    reach by construction. A stock-detail handler can't accidentally branch on entitlement because it
  *    never receives it.
  *
+ * The entitlement ports now arrive the same way, as a third argument, instead of this file importing
+ * the service's own dependencies. That's the same principle as (2) applied one level up: this factory
+ * already existed to let each route supply its own counter, so letting it supply the ports too keeps
+ * "who decides the implementation" in the composition root rather than at the top of this module.
+ *
  * The 403's machine-readable part is just `code`. The numbers behind "you've used 3 of 3" come from
  * GET /billing/entitlement, which returns the caller's whole quota table — duplicating limits into
  * every error body would give the frontend two sources for one fact, and they'd drift. The message
  * still spells the numbers out for logs and for any caller that shows it raw.
  */
-export function enforceQuota(resource: QuotaResource, count: (firebaseUid: string) => Promise<number>) {
+export function enforceQuota(
+  resource: QuotaResource,
+  count: (firebaseUid: string) => Promise<number>,
+  deps: QuotaMiddlewareDeps,
+) {
   return async function quotaGuard(req: AuthenticatedRequest, _res: Response, next: NextFunction): Promise<void> {
     try {
       const firebaseUid = req.user?.uid;
@@ -39,7 +51,7 @@ export function enforceQuota(resource: QuotaResource, count: (firebaseUid: strin
         return;
       }
 
-      const entitlement = await getEntitlement(firebaseUid);
+      const entitlement = await getEntitlement(firebaseUid, new Date(), deps);
       const limit = quotaLimitFor(resource, entitlement.tier);
       if (limit === null) {
         next();
