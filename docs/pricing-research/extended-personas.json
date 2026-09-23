@@ -13,8 +13,14 @@
       "household": "與先生同住，一個小孩念國中",
       "income": {
         "sources": [
-          { "source": "顧問費（每位客戶年費 2–5 萬）", "monthlyTwd": 78000 },
-          { "source": "保險與基金佣金", "monthlyTwd": 40000 }
+          {
+            "source": "顧問費（每位客戶年費 2–5 萬）",
+            "monthlyTwd": 78000
+          },
+          {
+            "source": "保險與基金佣金",
+            "monthlyTwd": 40000
+          }
         ],
         "monthlyLivingExpenseTwd": 70000
       },
@@ -22,44 +28,96 @@
         "investableTwd": 4200000,
         "realEstate": "新北自住，有房貸",
         "portfolio": [
-          { "symbol": "0050", "name": "元大台灣50", "weightPct": 40 },
-          { "symbol": "2330", "name": "台積電", "weightPct": 20 },
-          { "symbol": "CASH", "name": "現金與短債", "weightPct": 40 }
+          {
+            "symbol": "0050",
+            "name": "元大台灣50",
+            "weightPct": 40
+          },
+          {
+            "symbol": "2330",
+            "name": "台積電",
+            "weightPct": 20
+          },
+          {
+            "symbol": "CASH",
+            "name": "現金與短債",
+            "weightPct": 40
+          }
         ]
       },
       "investing": {
         "experienceYears": 18,
         "style": "自己的錢很保守；工作上替客戶做資產配置與再平衡",
-        "goals": ["把每季客戶檢視會議的準備時間壓下來", "報告要有品牌感、客戶願意留著看"],
+        "goals": [
+          "把每季客戶檢視會議的準備時間壓下來",
+          "報告要有品牌感、客戶願意留著看"
+        ],
         "riskTolerance": 2,
         "tradeFrequency": "客戶帳戶每季再平衡，自己的錢幾乎不動",
-        "primaryConcerns": ["資料出錯要負責任", "被客戶問到答不出來", "報告不能出現別家品牌"]
+        "primaryConcerns": [
+          "資料出錯要負責任",
+          "被客戶問到答不出來",
+          "報告不能出現別家品牌"
+        ]
       },
       "digital": {
         "techLiteracy": 4,
-        "devices": ["MacBook Air", "iPhone", "iPad（給客戶看報告用）"],
-        "channels": ["同業 LINE 群", "券商研究報告", "國外顧問社群電子報"],
-        "paymentMethods": ["公司信用卡（要發票報帳）"],
-        "existingSubscriptions": ["財經資料庫（年費約 3 萬）", "電子簽名工具", "Canva"]
+        "devices": [
+          "MacBook Air",
+          "iPhone",
+          "iPad（給客戶看報告用）"
+        ],
+        "channels": [
+          "同業 LINE 群",
+          "券商研究報告",
+          "國外顧問社群電子報"
+        ],
+        "paymentMethods": [
+          "公司信用卡（要發票報帳）"
+        ],
+        "existingSubscriptions": [
+          "財經資料庫（年費約 3 萬）",
+          "電子簽名工具",
+          "Canva"
+        ]
       },
       "currentToolSpend": [
-        { "item": "財經資料庫年費", "monthlyTwd": 2500 },
-        { "item": "報告排版與簽署工具", "monthlyTwd": 800 }
+        {
+          "item": "財經資料庫年費",
+          "monthlyTwd": 2500
+        },
+        {
+          "item": "報告排版與簽署工具",
+          "monthlyTwd": 800
+        }
       ],
       "oinggFit": {
-        "featuresOfInterest": ["多帳戶管理", "白標報告匯出", "自訂因子加權", "財務韌性徽章", "杜邦拆解"],
+        "featuresOfInterest": [
+          "多帳戶管理",
+          "白標報告匯出",
+          "自訂因子加權",
+          "財務韌性徽章",
+          "杜邦拆解"
+        ],
         "painPoints": [
           "28 個客戶的持股要分別整理，每季手動貼 Excel 兩三天",
           "報告上出現別家 logo 很尷尬",
           "客戶問「你憑什麼說這家安全」時拿不出可引用的依據"
         ],
-        "valueDrivers": ["省下的是可計費工時，不是訂閱費", "徽章與方法論出處可以直接引用給客戶看"]
+        "valueDrivers": [
+          "省下的是可計費工時，不是訂閱費",
+          "徽章與方法論出處可以直接引用給客戶看"
+        ]
       },
       "purchaseBehavior": {
         "decisionMaker": "自己，但會算成「每位客戶分攤多少」",
         "preferredBilling": "年繳，必須開統編發票",
         "trialExpectation": "要能拿真實客戶資料試跑一份完整報告",
-        "objections": ["沒有白標就不能用在客戶面前", "客戶數上限如果卡在 30 以下就沒意義", "資料出錯是我要扛責任"]
+        "objections": [
+          "沒有白標就不能用在客戶面前",
+          "客戶數上限如果卡在 30 以下就沒意義",
+          "資料出錯是我要扛責任"
+        ]
       },
       "rolePlayNotes": "專業、語速快，會把價格換算成工時與客戶分攤：「一年一萬五除以 28 個客戶，一個客戶五百多，我一次會議就賺回來了」。但對資料正確性極度敏感，會反覆確認出處。",
       "cognitive": {
@@ -84,8 +142,14 @@
       "household": "與太太、兩個高中生同住，房貸還 8 年",
       "income": {
         "sources": [
-          { "source": "薪資", "monthlyTwd": 145000 },
-          { "source": "年終與分紅（攤成月）", "monthlyTwd": 45000 }
+          {
+            "source": "薪資",
+            "monthlyTwd": 145000
+          },
+          {
+            "source": "年終與分紅（攤成月）",
+            "monthlyTwd": 45000
+          }
         ],
         "monthlyLivingExpenseTwd": 110000
       },
@@ -93,38 +157,95 @@
         "investableTwd": 9800000,
         "realEstate": "新竹自住，房貸餘額約 400 萬",
         "portfolio": [
-          { "symbol": "0050", "name": "元大台灣50", "weightPct": 35 },
-          { "symbol": "006208", "name": "富邦台50", "weightPct": 20 },
-          { "symbol": "2330", "name": "台積電", "weightPct": 25 },
-          { "symbol": "CASH", "name": "現金", "weightPct": 20 }
+          {
+            "symbol": "0050",
+            "name": "元大台灣50",
+            "weightPct": 35
+          },
+          {
+            "symbol": "006208",
+            "name": "富邦台50",
+            "weightPct": 20
+          },
+          {
+            "symbol": "2330",
+            "name": "台積電",
+            "weightPct": 25
+          },
+          {
+            "symbol": "CASH",
+            "name": "現金",
+            "weightPct": 20
+          }
         ]
       },
       "investing": {
         "experienceYears": 16,
         "style": "累積期：每月定期定額，年終加碼，還沒開始領息",
-        "goals": ["60 歲時被動收入能覆蓋生活費", "小孩大學學費"],
+        "goals": [
+          "60 歲時被動收入能覆蓋生活費",
+          "小孩大學學費"
+        ],
         "riskTolerance": 4,
         "tradeFrequency": "每月定期定額，年度再平衡一次",
-        "primaryConcerns": ["現在的配置到退休時夠不夠", "要不要提早轉成高股息"]
+        "primaryConcerns": [
+          "現在的配置到退休時夠不夠",
+          "要不要提早轉成高股息"
+        ]
       },
       "digital": {
         "techLiteracy": 5,
-        "devices": ["Windows 筆電", "iPhone", "公司配的 iPad"],
-        "channels": ["PTT Stock 板", "YouTube 退休試算頻道", "自己做的 Excel 退休模型"],
-        "paymentMethods": ["信用卡", "行動支付"],
-        "existingSubscriptions": ["Netflix", "Spotify", "ChatGPT Plus", "雲端硬碟"]
+        "devices": [
+          "Windows 筆電",
+          "iPhone",
+          "公司配的 iPad"
+        ],
+        "channels": [
+          "PTT Stock 板",
+          "YouTube 退休試算頻道",
+          "自己做的 Excel 退休模型"
+        ],
+        "paymentMethods": [
+          "信用卡",
+          "行動支付"
+        ],
+        "existingSubscriptions": [
+          "Netflix",
+          "Spotify",
+          "ChatGPT Plus",
+          "雲端硬碟"
+        ]
       },
-      "currentToolSpend": [{ "item": "串流與生產力工具", "monthlyTwd": 900 }],
+      "currentToolSpend": [
+        {
+          "item": "串流與生產力工具",
+          "monthlyTwd": 900
+        }
+      ],
       "oinggFit": {
-        "featuresOfInterest": ["三水桶提領試算", "歷史回測深度", "選股範本", "股利連續性"],
-        "painPoints": ["自己的 Excel 退休模型維護很累，改一個假設要動好幾張表", "不知道現在的配置撐不撐得到 90 歲"],
-        "valueDrivers": ["把自製 Excel 換掉", "提早九年開始規劃的安心感"]
+        "featuresOfInterest": [
+          "三水桶提領試算",
+          "歷史回測深度",
+          "選股範本",
+          "股利連續性"
+        ],
+        "painPoints": [
+          "自己的 Excel 退休模型維護很累，改一個假設要動好幾張表",
+          "不知道現在的配置撐不撐得到 90 歲"
+        ],
+        "valueDrivers": [
+          "把自製 Excel 換掉",
+          "提早九年開始規劃的安心感"
+        ]
       },
       "purchaseBehavior": {
         "decisionMaker": "自己，跟太太提一下",
         "preferredBilling": "年繳（月費會被歸到「又一個訂閱」那堆）",
         "trialExpectation": "14 天，要能匯入現有持股試算",
-        "objections": ["我還沒退休，現在就付會不會太早", "我的 Excel 已經能算了"]
+        "objections": [
+          "我還沒退休，現在就付會不會太早",
+          "我的 Excel 已經能算了"
+        ]
       },
       "rolePlayNotes": "邏輯清楚、會拿自己的 Excel 當對照組，常說「這個我自己也算得出來，差別在哪？」。對「現在就開始」的說法有反應，因為他知道複利。",
       "cognitive": {
@@ -148,43 +269,95 @@
       "occupation": "軟體工程師（替母親付費與操作的那個兒子）",
       "household": "與妻子同住台北，母親獨居彰化，每月回去一兩次",
       "income": {
-        "sources": [{ "source": "薪資", "monthlyTwd": 120000 }],
+        "sources": [
+          {
+            "source": "薪資",
+            "monthlyTwd": 120000
+          }
+        ],
         "monthlyLivingExpenseTwd": 85000
       },
       "assets": {
         "investableTwd": 2600000,
         "realEstate": "租屋",
         "portfolio": [
-          { "symbol": "0050", "name": "元大台灣50", "weightPct": 60 },
-          { "symbol": "VT", "name": "海外 ETF", "weightPct": 40 }
+          {
+            "symbol": "0050",
+            "name": "元大台灣50",
+            "weightPct": 60
+          },
+          {
+            "symbol": "VT",
+            "name": "海外 ETF",
+            "weightPct": 40
+          }
         ]
       },
       "investing": {
         "experienceYears": 10,
         "style": "自己是純指數投資，不選股；但母親持有一堆早年買的個股",
-        "goals": ["確認母親的股票沒有問題", "不要讓母親被詐騙群組騙走"],
+        "goals": [
+          "確認母親的股票沒有問題",
+          "不要讓母親被詐騙群組騙走"
+        ],
         "riskTolerance": 3,
         "tradeFrequency": "自己幾乎不交易；母親的帳戶每年幫忙看一兩次",
-        "primaryConcerns": ["母親看不懂又不敢問", "我沒時間每次都從頭查"]
+        "primaryConcerns": [
+          "母親看不懂又不敢問",
+          "我沒時間每次都從頭查"
+        ]
       },
       "digital": {
         "techLiteracy": 5,
-        "devices": ["MacBook", "iPhone"],
-        "channels": ["Hacker News", "PTT", "技術部落格"],
-        "paymentMethods": ["信用卡", "Apple Pay"],
-        "existingSubscriptions": ["GitHub Copilot", "Netflix", "iCloud 家庭方案"]
+        "devices": [
+          "MacBook",
+          "iPhone"
+        ],
+        "channels": [
+          "Hacker News",
+          "PTT",
+          "技術部落格"
+        ],
+        "paymentMethods": [
+          "信用卡",
+          "Apple Pay"
+        ],
+        "existingSubscriptions": [
+          "GitHub Copilot",
+          "Netflix",
+          "iCloud 家庭方案"
+        ]
       },
-      "currentToolSpend": [{ "item": "個人訂閱合計", "monthlyTwd": 1200 }],
+      "currentToolSpend": [
+        {
+          "item": "個人訂閱合計",
+          "monthlyTwd": 1200
+        }
+      ],
       "oinggFit": {
-        "featuresOfInterest": ["大字體／長輩友善介面", "除權息提醒", "持股健檢", "可以分享給家人看的畫面"],
-        "painPoints": ["每次回彰化都要重新解釋一次她的股票狀況", "她會轉傳來路不明的投資訊息問我"],
-        "valueDrivers": ["幫母親看盤這件事可以外包給工具", "她自己看得懂就不會被騙"]
+        "featuresOfInterest": [
+          "大字體／長輩友善介面",
+          "除權息提醒",
+          "持股健檢",
+          "可以分享給家人看的畫面"
+        ],
+        "painPoints": [
+          "每次回彰化都要重新解釋一次她的股票狀況",
+          "她會轉傳來路不明的投資訊息問我"
+        ],
+        "valueDrivers": [
+          "幫母親看盤這件事可以外包給工具",
+          "她自己看得懂就不會被騙"
+        ]
       },
       "purchaseBehavior": {
         "decisionMaker": "自己付，但使用者是母親——他買的是「不用再解釋一次」",
         "preferredBilling": "年繳，綁自己的信用卡，希望一個帳號能給家人共用",
         "trialExpectation": "自己先試，覺得母親用得來才付",
-        "objections": ["介面如果她看不懂，我付了也是白付", "不想每年被自動扣款卻沒人在用"]
+        "objections": [
+          "介面如果她看不懂，我付了也是白付",
+          "不想每年被自動扣款卻沒人在用"
+        ]
       },
       "rolePlayNotes": "務實、講話直接，評估標準是「這能不能減少我要花的時間」。他不會為功能豐富度付錢，只為「母親能自己看懂」付錢。對打親情牌的文案反感。",
       "cognitive": {
@@ -210,8 +383,14 @@
       "household": "與先生同住，子女在外縣市",
       "income": {
         "sources": [
-          { "source": "公教月退", "monthlyTwd": 48000 },
-          { "source": "股利（攤成月）", "monthlyTwd": 12000 }
+          {
+            "source": "公教月退",
+            "monthlyTwd": 48000
+          },
+          {
+            "source": "股利（攤成月）",
+            "monthlyTwd": 12000
+          }
         ],
         "monthlyLivingExpenseTwd": 42000
       },
@@ -219,37 +398,83 @@
         "investableTwd": 3800000,
         "realEstate": "高雄自住，無房貸",
         "portfolio": [
-          { "symbol": "0056", "name": "元大高股息", "weightPct": 40 },
-          { "symbol": "2886", "name": "兆豐金", "weightPct": 30 },
-          { "symbol": "00878", "name": "國泰永續高股息", "weightPct": 30 }
+          {
+            "symbol": "0056",
+            "name": "元大高股息",
+            "weightPct": 40
+          },
+          {
+            "symbol": "2886",
+            "name": "兆豐金",
+            "weightPct": 30
+          },
+          {
+            "symbol": "00878",
+            "name": "國泰永續高股息",
+            "weightPct": 30
+          }
         ]
       },
       "investing": {
         "experienceYears": 10,
         "style": "高股息為主，買了就放",
-        "goals": ["股利補貼生活費"],
+        "goals": [
+          "股利補貼生活費"
+        ],
         "riskTolerance": 2,
         "tradeFrequency": "一年一兩次",
-        "primaryConcerns": ["配息縮水", "換工具很麻煩"]
+        "primaryConcerns": [
+          "配息縮水",
+          "換工具很麻煩"
+        ]
       },
       "digital": {
         "techLiteracy": 3,
-        "devices": ["iPad", "iPhone"],
-        "channels": ["LINE 群組", "YouTube", "Facebook 社團"],
-        "paymentMethods": ["信用卡"],
-        "existingSubscriptions": ["曾訂閱過某台股選股工具，用了 6 個月退訂"]
+        "devices": [
+          "iPad",
+          "iPhone"
+        ],
+        "channels": [
+          "LINE 群組",
+          "YouTube",
+          "Facebook 社團"
+        ],
+        "paymentMethods": [
+          "信用卡"
+        ],
+        "existingSubscriptions": [
+          "曾訂閱過某台股選股工具，用了 6 個月退訂"
+        ]
       },
-      "currentToolSpend": [{ "item": "目前沒有付費工具（已退訂）", "monthlyTwd": 0 }],
+      "currentToolSpend": [
+        {
+          "item": "目前沒有付費工具（已退訂）",
+          "monthlyTwd": 0
+        }
+      ],
       "oinggFit": {
-        "featuresOfInterest": ["除權息行事曆", "股利連續性", "持股健檢"],
-        "painPoints": ["上一個工具功能很多但她只會用兩個", "續訂前沒人提醒，扣款後才發現自己根本沒在用"],
-        "valueDrivers": ["只要真的會用到的那兩三個功能", "不要再有「付了卻沒用」的罪惡感"]
+        "featuresOfInterest": [
+          "除權息行事曆",
+          "股利連續性",
+          "持股健檢"
+        ],
+        "painPoints": [
+          "上一個工具功能很多但她只會用兩個",
+          "續訂前沒人提醒，扣款後才發現自己根本沒在用"
+        ],
+        "valueDrivers": [
+          "只要真的會用到的那兩三個功能",
+          "不要再有「付了卻沒用」的罪惡感"
+        ]
       },
       "purchaseBehavior": {
         "decisionMaker": "自己",
         "preferredBilling": "年繳可以，但一定要到期前提醒；她退訂上一個工具就是因為自動扣款沒通知",
         "trialExpectation": "30 天，而且要有人教她怎麼用",
-        "objections": ["上次也是這樣講，結果我根本沒在用", "功能太多我會怕"]
+        "objections": [
+          "上次也是這樣講，結果我根本沒在用",
+          "功能太多我會怕"
+        ]
       },
       "rolePlayNotes": "客氣但有戒心，會拿上一次的失敗經驗當防線：「我之前訂過一個，後來就沒用了」。對「簡單」「只給你需要的」有反應，對功能清單反感。",
       "cognitive": {
@@ -273,43 +498,89 @@
       "occupation": "餐飲店會計（在職，同時照顧父親）",
       "household": "與父親同住，離婚，一個女兒已就業",
       "income": {
-        "sources": [{ "source": "薪資", "monthlyTwd": 42000 }],
+        "sources": [
+          {
+            "source": "薪資",
+            "monthlyTwd": 42000
+          }
+        ],
         "monthlyLivingExpenseTwd": 38000
       },
       "assets": {
         "investableTwd": 850000,
         "realEstate": "無（租屋）",
         "portfolio": [
-          { "symbol": "00878", "name": "國泰永續高股息", "weightPct": 60 },
-          { "symbol": "CASH", "name": "定存", "weightPct": 40 }
+          {
+            "symbol": "00878",
+            "name": "國泰永續高股息",
+            "weightPct": 60
+          },
+          {
+            "symbol": "CASH",
+            "name": "定存",
+            "weightPct": 40
+          }
         ]
       },
       "investing": {
         "experienceYears": 2,
         "style": "剛開始，只買過高股息 ETF",
-        "goals": ["退休金完全不夠，想補一點"],
+        "goals": [
+          "退休金完全不夠，想補一點"
+        ],
         "riskTolerance": 2,
         "tradeFrequency": "不定期，有閒錢就買",
-        "primaryConcerns": ["會不會賠掉", "看不懂那些名詞"]
+        "primaryConcerns": [
+          "會不會賠掉",
+          "看不懂那些名詞"
+        ]
       },
       "digital": {
         "techLiteracy": 3,
-        "devices": ["Android 手機（幾乎只用手機）"],
-        "channels": ["Google 搜尋", "YouTube", "LINE"],
-        "paymentMethods": ["LINE Pay", "超商代碼"],
-        "existingSubscriptions": ["無"]
+        "devices": [
+          "Android 手機（幾乎只用手機）"
+        ],
+        "channels": [
+          "Google 搜尋",
+          "YouTube",
+          "LINE"
+        ],
+        "paymentMethods": [
+          "LINE Pay",
+          "超商代碼"
+        ],
+        "existingSubscriptions": [
+          "無"
+        ]
       },
-      "currentToolSpend": [{ "item": "無", "monthlyTwd": 0 }],
+      "currentToolSpend": [
+        {
+          "item": "無",
+          "monthlyTwd": 0
+        }
+      ],
       "oinggFit": {
-        "featuresOfInterest": ["高股息 ETF 比較", "名詞解釋", "除權息日曆"],
-        "painPoints": ["搜尋到一堆文章但不知道哪個可信", "術語看不懂就關掉了"],
-        "valueDrivers": ["一頁就看懂這檔 ETF 安不安全"]
+        "featuresOfInterest": [
+          "高股息 ETF 比較",
+          "名詞解釋",
+          "除權息日曆"
+        ],
+        "painPoints": [
+          "搜尋到一堆文章但不知道哪個可信",
+          "術語看不懂就關掉了"
+        ],
+        "valueDrivers": [
+          "一頁就看懂這檔 ETF 安不安全"
+        ]
       },
       "purchaseBehavior": {
         "decisionMaker": "自己，但預算極緊",
         "preferredBilling": "不確定會不會付費；若付只能小額",
         "trialExpectation": "不會特地註冊試用，看得懂就繼續看，看不懂就離開",
-        "objections": ["我又不是什麼大戶", "免費的文章也看得到"]
+        "objections": [
+          "我又不是什麼大戶",
+          "免費的文章也看得到"
+        ]
       },
       "rolePlayNotes": "第一次接觸 oingg，從 Google 搜「高股息 ETF 月月配 安全嗎」進來。停留時間短，注意力容易斷。不會主動探索功能，只回答眼前看到什麼。",
       "cognitive": {
@@ -335,8 +606,14 @@
       "household": "與太太同住，子女在台中",
       "income": {
         "sources": [
-          { "source": "農會月退", "monthlyTwd": 41000 },
-          { "source": "股利（攤成月）", "monthlyTwd": 28000 }
+          {
+            "source": "農會月退",
+            "monthlyTwd": 41000
+          },
+          {
+            "source": "股利（攤成月）",
+            "monthlyTwd": 28000
+          }
         ],
         "monthlyLivingExpenseTwd": 40000
       },
@@ -344,39 +621,97 @@
         "investableTwd": 8200000,
         "realEstate": "彰化透天自住，另有一筆農地",
         "portfolio": [
-          { "symbol": "2886", "name": "兆豐金", "weightPct": 25 },
-          { "symbol": "2884", "name": "玉山金", "weightPct": 25 },
-          { "symbol": "2412", "name": "中華電", "weightPct": 20 },
-          { "symbol": "0056", "name": "元大高股息", "weightPct": 15 },
-          { "symbol": "CASH", "name": "定存", "weightPct": 15 }
+          {
+            "symbol": "2886",
+            "name": "兆豐金",
+            "weightPct": 25
+          },
+          {
+            "symbol": "2884",
+            "name": "玉山金",
+            "weightPct": 25
+          },
+          {
+            "symbol": "2412",
+            "name": "中華電",
+            "weightPct": 20
+          },
+          {
+            "symbol": "0056",
+            "name": "元大高股息",
+            "weightPct": 15
+          },
+          {
+            "symbol": "CASH",
+            "name": "定存",
+            "weightPct": 15
+          }
         ]
       },
       "investing": {
         "experienceYears": 25,
         "style": "金融股存股，看得懂財報但用紙本",
-        "goals": ["股利穩定", "不要出錯"],
+        "goals": [
+          "股利穩定",
+          "不要出錯"
+        ],
         "riskTolerance": 2,
         "tradeFrequency": "一年三四次",
-        "primaryConcerns": ["金融股的獲利品質", "線上付款的安全"]
+        "primaryConcerns": [
+          "金融股的獲利品質",
+          "線上付款的安全"
+        ]
       },
       "digital": {
         "techLiteracy": 2,
-        "devices": ["桌上型電腦（兒子裝的）", "舊款 Android 手機"],
-        "channels": ["報紙財經版", "農會同事", "電視"],
-        "paymentMethods": ["ATM 轉帳", "超商代碼", "臨櫃"],
-        "existingSubscriptions": ["紙本財經雜誌（郵局劃撥續訂）"]
+        "devices": [
+          "桌上型電腦（兒子裝的）",
+          "舊款 Android 手機"
+        ],
+        "channels": [
+          "報紙財經版",
+          "農會同事",
+          "電視"
+        ],
+        "paymentMethods": [
+          "ATM 轉帳",
+          "超商代碼",
+          "臨櫃"
+        ],
+        "existingSubscriptions": [
+          "紙本財經雜誌（郵局劃撥續訂）"
+        ]
       },
-      "currentToolSpend": [{ "item": "紙本財經雜誌年訂", "monthlyTwd": 290 }],
+      "currentToolSpend": [
+        {
+          "item": "紙本財經雜誌年訂",
+          "monthlyTwd": 290
+        }
+      ],
       "oinggFit": {
-        "featuresOfInterest": ["金融股財務韌性", "股利連續性", "除權息行事曆", "可列印的報表"],
-        "painPoints": ["資料都要自己抄到本子上", "線上刷卡不放心"],
-        "valueDrivers": ["不用自己抄", "付款方式跟訂雜誌一樣單純"]
+        "featuresOfInterest": [
+          "金融股財務韌性",
+          "股利連續性",
+          "除權息行事曆",
+          "可列印的報表"
+        ],
+        "painPoints": [
+          "資料都要自己抄到本子上",
+          "線上刷卡不放心"
+        ],
+        "valueDrivers": [
+          "不用自己抄",
+          "付款方式跟訂雜誌一樣單純"
+        ]
       },
       "purchaseBehavior": {
         "decisionMaker": "自己（金融業出身，對數字有自信）",
         "preferredBilling": "年繳，ATM 轉帳或超商代碼，絕不綁信用卡；跟他訂雜誌用劃撥一樣",
         "trialExpectation": "可以先試，但付款一定要有非信用卡的方式",
-        "objections": ["只能刷卡的話就算了", "自動扣款我不接受"]
+        "objections": [
+          "只能刷卡的話就算了",
+          "自動扣款我不接受"
+        ]
       },
       "rolePlayNotes": "沉穩，金融業術語講得準（「逾放比」「資本適足率」），但堅持不在網路上輸入信用卡號。會說「我用轉帳的可以嗎？」",
       "cognitive": {
@@ -389,6 +724,271 @@
       "priceSensitivityHypothesis": {
         "level": "低（付得起）／但付款方式是硬門檻",
         "rationale": "既有 12 人裡偏好現金的（04、08）同時也是不會付費的，所以「付得起、也願意付、但不肯刷卡」這個組合零覆蓋——而那正是 ATM／超商一次性年繳這整條工程分支（MANUAL 續約模式、到期提醒、無自動續約）存在的理由。若這類人比例可觀，那條分支的優先度要往前拉；若他是孤例，就該重新評估要不要現在做。"
+      }
+    },
+    {
+      "id": "ext-07",
+      "name": "邱建昌",
+      "gender": "男",
+      "age": 62,
+      "city": "台中",
+      "formerOccupation": "機械公司業務經理",
+      "retiredForYears": 3,
+      "household": "與太太同住，一個女兒在台北工作",
+      "income": {
+        "sources": [
+          {
+            "source": "勞保年金＋勞退",
+            "monthlyTwd": 38000
+          },
+          {
+            "source": "股利（攤成月）",
+            "monthlyTwd": 23000
+          },
+          {
+            "source": "偶爾接技術顧問案",
+            "monthlyTwd": 15000
+          }
+        ],
+        "monthlyLivingExpenseTwd": 52000
+      },
+      "assets": {
+        "investableTwd": 7100000,
+        "realEstate": "台中自住，無房貸",
+        "portfolio": [
+          {
+            "symbol": "2412",
+            "name": "中華電",
+            "weightPct": 20
+          },
+          {
+            "symbol": "0056",
+            "name": "元大高股息",
+            "weightPct": 25
+          },
+          {
+            "symbol": "2884",
+            "name": "玉山金",
+            "weightPct": 20
+          },
+          {
+            "symbol": "1216",
+            "name": "統一",
+            "weightPct": 15
+          },
+          {
+            "symbol": "CASH",
+            "name": "現金",
+            "weightPct": 20
+          }
+        ]
+      },
+      "investing": {
+        "experienceYears": 14,
+        "style": "存股為主，每季用工具做一次持股健檢",
+        "goals": [
+          "股利覆蓋生活費的比例逐年提高",
+          "汰換掉體質變差的持股"
+        ],
+        "riskTolerance": 3,
+        "tradeFrequency": "每季檢視，一年調整 3–4 次",
+        "primaryConcerns": [
+          "手上有兩檔金融股的獲利品質在下滑",
+          "女兒的帳戶也想一起管但混在一起很亂"
+        ]
+      },
+      "digital": {
+        "techLiteracy": 4,
+        "devices": [
+          "Windows 筆電",
+          "Android 手機",
+          "iPad"
+        ],
+        "channels": [
+          "oingg 本身",
+          "YouTube 財經頻道",
+          "LINE 存股群"
+        ],
+        "paymentMethods": [
+          "信用卡（已綁定自動續扣）"
+        ],
+        "existingSubscriptions": [
+          "oingg Pro 年繳（第 2 年，即將到期）",
+          "Netflix",
+          "YouTube Premium"
+        ]
+      },
+      "currentToolSpend": [
+        {
+          "item": "oingg Pro 年繳（攤成月）",
+          "monthlyTwd": 333
+        }
+      ],
+      "oinggFit": {
+        "featuresOfInterest": [
+          "持股健檢",
+          "財務韌性徽章",
+          "股利連續性",
+          "多帳戶管理（想加女兒的）",
+          "匯出報表"
+        ],
+        "painPoints": [
+          "女兒的持股想分開管，現在只能全部混在同一個清單",
+          "每季檢視完想存成檔案留底，但匯出是付費功能裡他沒買到的那一層",
+          "觀察清單已經放到上限，每次要加新的就得先刪一檔"
+        ],
+        "valueDrivers": [
+          "兩年下來已經習慣了，換工具要重建全部設定",
+          "健檢真的讓他汰掉一檔後來大跌的股票"
+        ]
+      },
+      "purchaseBehavior": {
+        "decisionMaker": "自己",
+        "preferredBilling": "年繳自動續扣（已經在扣了）",
+        "trialExpectation": "不適用——他已經是用戶；要升級的話希望能先用一個月試多帳戶",
+        "objections": [
+          "Advisor 一年 14,900 是 Pro 的近四倍，我又不是顧問",
+          "我只要多帳戶跟匯出，其他專業功能用不到",
+          "如果漲價我會認真想要不要續"
+        ]
+      },
+      "rolePlayNotes": "務實、講話帶業務口吻，會主動比較「我付這個值不值」。對產品有感情但不盲目：「這兩年確實有幫到，但你叫我一次跳四倍我要想一下」。續約時的心態跟當初購買完全不同——當初問「值不值得試」，現在問「值不值得繼續」。",
+      "cognitive": {
+        "type": "ESTJ",
+        "dominant": "Te",
+        "inferior": "Fi",
+        "underPressure": "漲價或方案調整時會從「這工具不錯」切換成「你是不是在算計我」，用累積的付費紀錄當道德籌碼：「我都付兩年了」",
+        "evidence": "以每季固定流程使用工具、用結果（汰掉一檔後來大跌的股票）驗證價值、對價格做倍數比較"
+      },
+      "priceSensitivityHypothesis": {
+        "level": "低（續約）／高（升級）",
+        "rationale": "18 位 persona 全是尚未付費或已經退訂的，沒有任何人處在「正在用、用得好、面臨續約或升級」的狀態——而財務模型的 NRR 120% 目標**就是靠擴張營收**達成的。他是唯一能測 Pro→Advisor 升級決策的人，而且他的需求（多帳戶、匯出）剛好落在 Advisor 的功能裡但他自認不是顧問，正好測「中間有沒有缺一個方案」。續約與新購是兩種不同的心理：當初問「值不值得試」，續約問「值不值得繼續」。他也是唯一能測漲價反應與舊價保留政策的人。"
+      }
+    },
+    {
+      "id": "ext-08",
+      "name": "簡孟儒",
+      "gender": "男",
+      "age": 47,
+      "city": "台北",
+      "occupation": "外商藥廠產品經理（在職）",
+      "household": "與太太同住，兩個小學生",
+      "income": {
+        "sources": [
+          {
+            "source": "薪資",
+            "monthlyTwd": 168000
+          }
+        ],
+        "monthlyLivingExpenseTwd": 130000
+      },
+      "assets": {
+        "investableTwd": 5400000,
+        "realEstate": "台北租屋，準備買房",
+        "portfolio": [
+          {
+            "symbol": "0050",
+            "name": "元大台灣50",
+            "weightPct": 30
+          },
+          {
+            "symbol": "2330",
+            "name": "台積電",
+            "weightPct": 25
+          },
+          {
+            "symbol": "2454",
+            "name": "聯發科",
+            "weightPct": 15
+          },
+          {
+            "symbol": "CASH",
+            "name": "購屋頭期款",
+            "weightPct": 30
+          }
+        ]
+      },
+      "investing": {
+        "experienceYears": 12,
+        "style": "基本面選股，每月花兩三小時研究，把選股當興趣",
+        "goals": [
+          "長期打敗 0050",
+          "買房頭期款不能動到"
+        ],
+        "riskTolerance": 4,
+        "tradeFrequency": "每月 1–2 次",
+        "primaryConcerns": [
+          "現在付的工具資料更新慢",
+          "同一個指標不同網站算出來不一樣，不知道信誰"
+        ]
+      },
+      "digital": {
+        "techLiteracy": 5,
+        "devices": [
+          "MacBook Pro",
+          "iPhone",
+          "外接螢幕"
+        ],
+        "channels": [
+          "財報狗",
+          "PTT Stock 板",
+          "英文財經 Substack",
+          "券商 App"
+        ],
+        "paymentMethods": [
+          "信用卡"
+        ],
+        "existingSubscriptions": [
+          "財報狗個股方案（月繳 599，已訂 3 年）",
+          "Spotify",
+          "iCloud"
+        ]
+      },
+      "currentToolSpend": [
+        {
+          "item": "財報狗個股方案",
+          "monthlyTwd": 599
+        }
+      ],
+      "oinggFit": {
+        "featuresOfInterest": [
+          "財務韌性徽章與方法論出處",
+          "杜邦拆解",
+          "資料溯源",
+          "選股範本",
+          "匯出"
+        ],
+        "painPoints": [
+          "現在的工具不告訴他數字怎麼算出來的，他想自己驗但驗不到",
+          "搬家成本很高：三年的自訂清單、筆記、追蹤名單全在那邊",
+          "兩邊算出來的同一個比率有時對不起來，不知道哪邊對"
+        ],
+        "valueDrivers": [
+          "方法論與原始財報可回溯（他真的會去點開看）",
+          "如果指標定義寫得比現在清楚就值得換"
+        ]
+      },
+      "purchaseBehavior": {
+        "decisionMaker": "自己",
+        "preferredBilling": "月繳先試，確認資料品質再轉年繳",
+        "trialExpectation": "至少 30 天，而且要能同時開兩邊比對同一檔股票的數字",
+        "objections": [
+          "我已經付 599 了，你要我多付一份還是要我換？",
+          "換過去要重建三年的清單，這個成本你們沒算進去",
+          "如果只是資料一樣、介面比較漂亮，我不會換"
+        ]
+      },
+      "rolePlayNotes": "產品經理口吻，會用「差異化」「切換成本」這類詞。評估方式是拿兩邊同一檔股票的同一個指標逐項比對。對「方法論透明」這件事有超出一般使用者的興趣——他真的會去點資料溯源。價格錨點非常明確：599/月。",
+      "cognitive": {
+        "type": "ENTP",
+        "dominant": "Ne",
+        "inferior": "Si",
+        "underPressure": "想換又怕麻煩時會不斷找新的比較維度來延後決定——他的風險不是拒絕，是無限期擱置",
+        "evidence": "把選股當興趣而非必要、主動尋找矛盾（兩邊數字對不起來）、用切換成本語言分析自己的處境"
+      },
+      "priceSensitivityHypothesis": {
+        "level": "中（不是對金額敏感，是對「換不換」敏感）",
+        "rationale": "18 位裡沒有任何人**正在付競品的錢**。而兩份市場研究都是拿財報狗（599/月、5,990/年）對標來建議定價的——他是唯一手上握有那個錨點、而且是真金白銀在付的人。轉換決策跟新購決策不同：他問的不是「這東西值不值 3,990」，而是「值不值得我搬家」。切換成本（三年累積的清單與筆記）會壓過價差，所以**他的模擬結果最可能顯示：降價沒用，唯一能打動他的是可驗證的資料品質差異**——若真是如此，那對定價策略是比任何數字都重要的發現。"
       }
     }
   ]
