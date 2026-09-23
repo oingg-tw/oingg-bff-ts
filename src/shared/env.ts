@@ -38,4 +38,25 @@ export const ANALYSIS_SERVICE_TIMEOUT_MS = 10_000;
 export const RATE_LIMIT_WINDOW_MS = 60_000;
 export const RATE_LIMIT_MAX_REQUESTS = 300;
 
+/**
+ * Reverse trial: every user gets the full paid experience for their first 14 days, with no card. It's
+ * measured from the User row's `createdAt`, so nothing is stored per trial and nothing can expire
+ * halfway through a session. A live constant rather than an env var — changing it should move everyone
+ * at once, and a per-environment trial length would make support tickets unreproducible.
+ */
+export const REVERSE_TRIAL_DAYS = 14;
+export const REVERSE_TRIAL_TIER = "PRO" as const;
+
+/**
+ * **Temporary Phase 0 scaffolding — delete when NewebPay is wired.** Comma-separated Firebase uids that
+ * get PRO without a Subscription row, so the paywall's behaviour can be built and tested before a
+ * payment provider exists. Absent/empty means nobody, which is the safe default: a typo grants nothing
+ * rather than everything. The resulting entitlement reports `source: "allowlist"` so an entry left in a
+ * production env is visible in the API response instead of silently handing out access.
+ */
+export const BILLING_PAID_UID_ALLOWLIST: readonly string[] = (process.env.BILLING_PAID_UIDS ?? "")
+  .split(",")
+  .map((uid) => uid.trim())
+  .filter(Boolean);
+
 export { requireEnv };

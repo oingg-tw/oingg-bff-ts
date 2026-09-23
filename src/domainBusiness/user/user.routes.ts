@@ -21,7 +21,7 @@ import {
   updateThemeAccentColor,
   updateThemeMode,
 } from "@/domainBusiness/user/theme.service.js";
-import { getUserByFirebaseUidOrThrow } from "@/domainBusiness/user/user.service.js";
+import { getOrCreateUserFromToken } from "@/domainBusiness/user/user.service.js";
 
 export const userRouter = Router();
 
@@ -51,9 +51,14 @@ export const updatePreferredStocksPreferencesSchema = z.object({
   columnOrder: z.array(z.string()),
 });
 
+// Provisions the row on first contact rather than 404ing a caller Firebase has already vouched for.
+// This is the only place a User row is created, and it's why the frontend should call it on login:
+// `createdAt` is what the 14-day reverse trial is measured from (see billing/entitlement.service.ts).
 userRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
-  const profile = await getUserByFirebaseUidOrThrow(requireUser(req));
-  res.json({ user: profile });
+  if (!req.user) {
+    throw new AppError("Authenticated request is missing decoded user", 401);
+  }
+  res.json({ user: await getOrCreateUserFromToken(req.user) });
 });
 
 userRouter.get("/me/theme", requireAuth, async (req: AuthenticatedRequest, res) => {

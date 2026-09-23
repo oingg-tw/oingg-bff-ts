@@ -5,6 +5,7 @@ import { Router } from "ultimate-express";
 import { requireApiDocsAuth } from "@/adapters/swagger/apiDocsAuth.js";
 import { swaggerSpec, swaggerUi } from "@/adapters/swagger/index.js";
 import { authRouter } from "@/domainBusiness/auth/index.js";
+import { billingRouter } from "@/domainBusiness/billing/index.js";
 import { etfScreenerRouter } from "@/domainBff/etfScreener/index.js";
 import { metricCatalogRouter } from "@/domainBusiness/metricCatalog/index.js";
 import { holdingsRouter } from "@/domainBusiness/holdings/index.js";
@@ -52,6 +53,7 @@ routes.use("/api-docs", requireApiDocsAuth, swaggerUi.serve, swaggerUi.setup(swa
 
 routes.use("/system", systemRouter); // GET /system/health
 routes.use("/auth", authRouter); // GET /auth/me
+routes.use("/billing", billingRouter); // GET /billing/entitlement
 // GET /users/me; GET /users/me/theme; PUT /users/me/theme/mode, /theme/accent-color,
 // /theme/market-color-convention, /theme/full-width;
 // GET /users/me/screener-display-settings; PUT /users/me/screener-display-settings/show-as-of-date

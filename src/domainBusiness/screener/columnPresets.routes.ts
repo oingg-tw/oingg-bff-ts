@@ -13,6 +13,8 @@ import {
   removeColumnPreset,
   reorderColumnPresetsForUser,
 } from "@/domainBusiness/screener/columnPresets.service.js";
+import { countColumnPresets } from "@/domainBusiness/screener/columnPresets.repository.js";
+import { enforceQuota } from "@/domainBusiness/billing/quota.middleware.js";
 
 export const columnPresetsRouter = Router();
 
@@ -53,7 +55,8 @@ columnPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
   res.json({ columnPresets });
 });
 
-columnPresetsRouter.post("/", async (req: AuthenticatedRequest, res) => {
+// Creation only — see the same note on POST /screener/presets.
+columnPresetsRouter.post("/", enforceQuota("columnPresets", countColumnPresets), async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const body = parseBody(createColumnPresetSchema, req.body);
 

@@ -484,3 +484,47 @@ model ScreenerPresetFilter {
   @@index([presetId])
   @@map("screener_preset_filter")
 }
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum BillingProvider {
+  NEWEBPAY
+  /// Granted by hand (support, comp, internal testing) rather than by a payment provider — kept
+  /// distinct so a manual grant is never mistaken for a real paid conversion in any future reporting.
+  MANUAL
+}
+
+/// A user's paid entitlement. **Absence of a row means FREE** — free users are never materialized here
+/// (see the system-defaults-as-code rule: a free tier is the live default, not a stored row), so this
+/// table only ever holds people who have actually transacted.
+///
+/// Written exclusively by the billing webhook / manual grants — no user-facing endpoint may create or
+/// modify a row here, or a caller could grant themselves a subscription.
+///
+/// Compliance note (投信投顧法): this row may only ever gate 查詢廣度 / 歷史深度 / 匯出推播效率. It must
+/// never reach the stock-detail assembly path — analysis content is identical for every tier, so that a
+/// downgraded user opening the same company sees exactly what they saw while paying. See
+/// billing/quota.ts for the enforced list.
+model Subscription {
+  firebaseUid      String             @id @map("firebase_uid")
+  status           SubscriptionStatus
+  /// Plan identifier (e.g. "pro-monthly") — a plain string, not an enum, so adding a price point
+  /// doesn't need a migration in a service that isn't the source of truth for the price list.
+  plan             String
+  /// Access runs until this moment even after a cancellation, which is why entitlement is
+  /// (status, currentPeriodEnd) and not status alone.
+  currentPeriodEnd DateTime           @map("current_period_end")
+  provider         BillingProvider
+  /// The provider's own subscription id — NewebPay's PeriodNo (週期單號). Unique so a replayed
+  /// webhook can't create a second subscription for the same provider-side agreement.
+  providerPeriodNo String?            @unique @map("provider_period_no")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @default(now()) @updatedAt @map("updated_at")
+
+  @@map("subscription")
+}

@@ -177,3 +177,9 @@ export async function reorderColumnPresets(firebaseUid: string, orderedIds: stri
     return reordered.map(toRow);
   });
 }
+
+/** Cheap COUNT for the quota guard — see countPresets in screenerPresets.repository.ts. */
+export async function countColumnPresets(firebaseUid: string): Promise<number> {
+  const prisma = getPrismaClient();
+  return prisma.columnPreset.count({ where: { firebaseUid } });
+}

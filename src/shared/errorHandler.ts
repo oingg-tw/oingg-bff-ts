@@ -6,13 +6,22 @@ export class AppError extends Error {
   readonly statusCode: number;
   readonly isOperational: boolean;
   readonly details?: unknown;
+  /**
+   * A stable machine-readable reason, surfaced as `error.code`. Optional and rare on purpose: a status
+   * code plus a message is enough for almost everything, and a code is only worth adding when the
+   * caller must *branch* on it — e.g. telling "you've hit your plan's limit" apart from any other 403
+   * so the UI can show a specific prompt. Unlike `details`, it is sent in production too, since the
+   * frontend depends on it.
+   */
+  readonly code?: string;
 
-  constructor(message: string, statusCode = 500, details?: unknown) {
+  constructor(message: string, statusCode = 500, details?: unknown, code?: string) {
     super(message);
     this.name = "AppError";
     this.statusCode = statusCode;
     this.isOperational = true;
     this.details = details;
+    this.code = code;
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -45,7 +54,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
       logger.error({ err }, "Non-operational AppError");
     }
     res.status(err.statusCode).json({
-      error: { message: err.message, details: env.isProduction ? undefined : err.details },
+      error: { message: err.message, code: err.code, details: env.isProduction ? undefined : err.details },
     });
     return;
   }

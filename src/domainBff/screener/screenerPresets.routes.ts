@@ -15,6 +15,8 @@ import {
   removePreset,
   reorderPresetsForUser,
 } from "@/domainBusiness/screener/screenerPresets.service.js";
+import { countPresets } from "@/domainBusiness/screener/screenerPresets.repository.js";
+import { enforceQuota } from "@/domainBusiness/billing/quota.middleware.js";
 import { runPreset } from "@/domainBff/screener/runPreset.js";
 
 export const screenerPresetsRouter = Router();
@@ -76,7 +78,9 @@ screenerPresetsRouter.get("/", async (req: AuthenticatedRequest, res) => {
   res.json({ presets });
 });
 
-screenerPresetsRouter.post("/", async (req: AuthenticatedRequest, res) => {
+// Quota guards creation only — an over-quota user (e.g. one whose reverse trial just ended) keeps every
+// preset they already made; they simply can't add another. See billing/quota.middleware.ts.
+screenerPresetsRouter.post("/", enforceQuota("screenerPresets", countPresets), async (req: AuthenticatedRequest, res) => {
   const firebaseUid = requireUser(req);
   const body = parseBody(createScreenerPresetSchema, req.body);
 

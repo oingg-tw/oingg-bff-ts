@@ -12,6 +12,7 @@ import "@/root.openapi.js";
 import "@/domainBusiness/system/system.openapi.js";
 import "@/domainBusiness/auth/auth.openapi.js";
 import "@/domainBusiness/user/user.openapi.js";
+import "@/domainBusiness/billing/billing.openapi.js";
 import "@/domainBff/stock/stock.openapi.js";
 import "@/domainBusiness/watchlist/watchlist.openapi.js";
 import "@/domainBusiness/holdings/holdings.openapi.js";
@@ -47,6 +48,7 @@ function generateDocument() {
       { name: "System", description: "伺服器狀態" },
       { name: "Auth", description: "Firebase 登入驗證" },
       { name: "User", description: "使用者資料" },
+      { name: "Billing", description: "訂閱方案與額度（只鎖查詢廣度／歷史深度／匯出推播，不影響任何個股分析內容）" },
       { name: "Stock", description: "股票資料查詢——股價、本益比、本淨比、殖利率" },
       { name: "Watchlist", description: "使用者自選股清單 CRUD" },
       { name: "Holdings", description: "使用者持股管理 CRUD（獨立維護，不從交易日誌自動計算）" },

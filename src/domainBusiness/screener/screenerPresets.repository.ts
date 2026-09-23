@@ -226,3 +226,9 @@ export async function setLastColumnPreset(
   const prisma = getPrismaClient();
   await prisma.screenerPreset.updateMany({ where: { firebaseUid, id }, data: { lastColumnPresetId: columnPresetId } });
 }
+
+/** Cheap COUNT for the quota guard — avoids loading and mapping every preset just to check a ceiling. */
+export async function countPresets(firebaseUid: string): Promise<number> {
+  const prisma = getPrismaClient();
+  return prisma.screenerPreset.count({ where: { firebaseUid } });
+}
