@@ -17,6 +17,9 @@ import type { BillingTier, QuotaResource } from "@/application/billing/billing.t
  *                   （metric-history／roe／roa／dupont）上游一律只有 24 季（2020Q3→2026Q2），
  *                   月營收 60 個月，對免費與付費是同一個天花板——沒有「更深的歷史」可以解鎖。
  *                   股利歷史更不平均：大型股 7–9 年，但全市場隨機抽 20 家平均只有 1.9 年、多數 0–1 年。
+ *                   而且深度是**逐檔不同**的：2330 有 24 季、2317／6547 是 23 季，但較晚上市的
+ *                   6916 只有 7 季（2024Q3 起）、8069 只有 9 季。所以連「保證幾年」都講不出口，
+ *                   結帳頁只能標「這一檔實際有幾季」。
  *                   所以「解鎖更長歷史」這種賣點目前對多數個股是空的，硬寫進結帳頁等於不實陳述
  *                   （web-nuxt 的 persona 訪談裡，retiree-03 明說若實際深度不符會七天內退費並公開講，
  *                   而七天無條件退費是我們已經承諾的）。要賣這個維度，得先等上游把歷史補深。
@@ -39,6 +42,13 @@ import type { BillingTier, QuotaResource } from "@/application/billing/billing.t
  */
 const TIER_QUOTAS: Readonly<Record<BillingTier, Readonly<Record<QuotaResource, number | null>>>> = {
   FREE: {
+    /**
+     * **這條線是承重牆，改之前先問。** 原本它只是規格裡的一個數字，2026-09-24 的 persona 訪談把它變成
+     * 付費牆的主要支柱：歷史深度（見上面）實測幾乎無貨可賣，三個可鎖維度只剩兩個，而「匯出推播」那支
+     * 功能還沒實作——所以現在真正在驅動付費的就是這一條。
+     * 訪談裡 ext-03（替母親付費的兒子，母親持股 17 檔）明說放寬到 20 檔他的付費理由就消失。
+     * 也就是說 10 與 20 之間不是「寬鬆一點」的差別，是「有沒有人要付錢」的差別。
+     */
     watchlistItems: 10,
     screenerPresets: 3,
     columnPresets: 3,
