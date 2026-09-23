@@ -9,7 +9,13 @@ export interface FlatHistoryEntry {
   value: number | null;
   /** Why `value` is null (e.g. a missing trailing quarter of data) — null when `value` is present. */
   nullReason: string | null;
-  /** The financial-report announcement date this figure is aligned to — not a daily market-data date. */
+  /**
+   * The financial-report announcement date this figure is aligned to — not a daily market-data date, and
+   * **not a "last modified" stamp**. It says when the market learned the underlying report, so it does not
+   * move when analysis-ts recomputes the figure under a new formula: 2330's 2022Q4 dupont ROE was rewritten
+   * 34.91 → 40.14 on 2026-09-23 while its knowledgeDate stayed 2023-02-14 (verified live). Never use it as
+   * a cache-invalidation key — a cache holding a pre-recompute value will look current forever.
+   */
   knowledgeDate: string;
   /** True when knowledgeDate is a fallback estimate rather than the real announcement date. */
   knowledgeDateIsFallback: boolean;
