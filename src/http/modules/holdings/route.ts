@@ -7,11 +7,8 @@ import { requireAuth } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
 import { assertSymbolExists } from "@/application/proxy/stock/index.js";
 import { addHolding, editHolding, getHoldingOrThrow, getHoldings, removeHolding } from "@/application/holdings/holdings.service.js";
-import type { HoldingUpdate } from "@/infrastructure/prisma/repositories/holdings.repository.js";
-
-export const holdingsRouter = Router();
-
-holdingsRouter.use(requireAuth);
+import type { HoldingsDeps } from "@/application/holdings/holdings.service.js";
+import type { HoldingUpdate } from "@/application/holdings/holdings.types.js";
 
 function requireUser(req: AuthenticatedRequest): string {
   if (!req.user) {
@@ -37,51 +34,62 @@ export const updateHoldingSchema = z.object({
   note: z.string().nullish(),
 });
 
-holdingsRouter.get("/", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const holdings = await getHoldings(firebaseUid);
-  res.json({ holdings });
-});
+/**
+ * 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。
+ * 這是 http 層不再依賴 infrastructure 的關鍵——它只認得 application 匯出的型別。
+ */
+export function createHoldingsRouter(deps: HoldingsDeps): Router {
+  const holdingsRouter = Router();
+  holdingsRouter.use(requireAuth);
 
-holdingsRouter.post("/", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const body = parseBody(createHoldingSchema, req.body);
+  holdingsRouter.get("/", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const holdings = await getHoldings(firebaseUid, deps);
+    res.json({ holdings });
+  });
 
-  await assertSymbolExists(body.symbol);
-  const holding = await addHolding(firebaseUid, body.symbol, body.quantity, body.averageCost, body.note ?? null);
-  res.status(201).json({ holding });
-});
+  holdingsRouter.post("/", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = parseBody(createHoldingSchema, req.body);
 
-holdingsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  const holding = await getHoldingOrThrow(firebaseUid, id);
-  res.json({ holding });
-});
+    await assertSymbolExists(body.symbol);
+    const holding = await addHolding(firebaseUid, body.symbol, body.quantity, body.averageCost, body.note ?? null, deps);
+    res.status(201).json({ holding });
+  });
 
-holdingsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  const body = parseBody(updateHoldingSchema, req.body ?? {});
+  holdingsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    const holding = await getHoldingOrThrow(firebaseUid, id, deps);
+    res.json({ holding });
+  });
 
-  const update: HoldingUpdate = {};
-  if (body.quantity !== undefined) {
-    update.quantity = body.quantity;
-  }
-  if (body.averageCost !== undefined) {
-    update.averageCost = body.averageCost;
-  }
-  if (body.note !== undefined) {
-    update.note = body.note;
-  }
+  holdingsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    const body = parseBody(updateHoldingSchema, req.body ?? {});
 
-  const holding = await editHolding(firebaseUid, id, update);
-  res.json({ holding });
-});
+    const update: HoldingUpdate = {};
+    if (body.quantity !== undefined) {
+      update.quantity = body.quantity;
+    }
+    if (body.averageCost !== undefined) {
+      update.averageCost = body.averageCost;
+    }
+    if (body.note !== undefined) {
+      update.note = body.note;
+    }
 
-holdingsRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  await removeHolding(firebaseUid, id);
-  res.status(204).end();
-});
+    const holding = await editHolding(firebaseUid, id, update, deps);
+    res.json({ holding });
+  });
+
+  holdingsRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    await removeHolding(firebaseUid, id, deps);
+    res.status(204).end();
+  });
+
+  return holdingsRouter;
+}

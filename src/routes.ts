@@ -8,7 +8,7 @@ import { authRouter } from "@/http/modules/auth/route.js";
 import { billingRouter } from "@/http/modules/billing/route.js";
 import { etfScreenerRouter } from "@/http/modules/etfScreener/route.js";
 import { metricCatalogRouter } from "@/http/modules/metricCatalog/route.js";
-import { holdingsRouter } from "@/http/modules/holdings/route.js";
+import { createHoldingsRouter } from "@/http/modules/holdings/route.js";
 import { industriesRouter } from "@/http/modules/industries/route.js";
 import { createMacroRouter } from "@/http/modules/macro/route.js";
 import { marketRouter } from "@/http/modules/market/route.js";
@@ -17,7 +17,7 @@ import { securitiesRouter } from "@/http/modules/securities/route.js";
 import { stockRouter } from "@/http/modules/stock/route.js";
 import { systemRouter } from "@/http/modules/system/route.js";
 import { startedAt } from "@/application/system/system.state.js";
-import { transactionsRouter } from "@/http/modules/transactions/route.js";
+import { createTransactionsRouter } from "@/http/modules/transactions/route.js";
 import { userRouter } from "@/http/modules/user/route.js";
 import { createWatchlistRouter } from "@/http/modules/watchlist/route.js";
 import { env, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from "@/shared/env.js";
@@ -63,8 +63,8 @@ export function createRoutes(deps: AppDeps): Router {
   routes.use("/users", userRouter);
   routes.use("/stocks", stockRouter); // GET /stocks/:symbol
   routes.use("/watchlist", createWatchlistRouter(deps)); // GET/POST /watchlist, GET/PATCH/DELETE /watchlist/:id
-  routes.use("/holdings", holdingsRouter); // GET/POST /holdings, GET/PATCH/DELETE /holdings/:id
-  routes.use("/transactions", transactionsRouter); // GET/POST /transactions, GET/PATCH/DELETE /transactions/:id
+  routes.use("/holdings", createHoldingsRouter(deps)); // GET/POST /holdings, GET/PATCH/DELETE /holdings/:id
+  routes.use("/transactions", createTransactionsRouter(deps)); // GET/POST /transactions, GET/PATCH/DELETE /transactions/:id
   // POST /screener; POST /screener/values; GET/POST /screener/column-presets, GET/PATCH/DELETE /screener/column-presets/:id;
   // GET /screener/column-preset-templates, GET /screener/column-preset-templates/:key,
   // POST /screener/column-preset-templates/:key/apply;

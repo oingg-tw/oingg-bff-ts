@@ -13,11 +13,8 @@ import {
   getTransactions,
   removeTransaction,
 } from "@/application/transactions/transactions.service.js";
-import type { TransactionInput, TransactionUpdate } from "@/infrastructure/prisma/repositories/transactions.repository.js";
-
-export const transactionsRouter = Router();
-
-transactionsRouter.use(requireAuth);
+import type { TransactionsDeps } from "@/application/transactions/transactions.service.js";
+import type { TransactionInput, TransactionUpdate } from "@/application/transactions/transactions.types.js";
 
 function requireUser(req: AuthenticatedRequest): string {
   if (!req.user) {
@@ -53,75 +50,86 @@ export const updateTransactionSchema = z.object({
   note: z.string().nullish(),
 });
 
-transactionsRouter.get("/", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const symbol = typeof req.query.symbol === "string" ? req.query.symbol : undefined;
-  const transactions = await getTransactions(firebaseUid, symbol);
-  res.json({ transactions });
-});
+/**
+ * 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。
+ * 這是 http 層不再依賴 infrastructure 的關鍵——它只認得 application 匯出的型別。
+ */
+export function createTransactionsRouter(deps: TransactionsDeps): Router {
+  const transactionsRouter = Router();
+  transactionsRouter.use(requireAuth);
 
-transactionsRouter.post("/", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const body = parseBody(createTransactionSchema, req.body);
+  transactionsRouter.get("/", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const symbol = typeof req.query.symbol === "string" ? req.query.symbol : undefined;
+    const transactions = await getTransactions(firebaseUid, symbol, deps);
+    res.json({ transactions });
+  });
 
-  const input: TransactionInput = {
-    symbol: body.symbol,
-    action: body.action as TransactionInput["action"],
-    quantity: body.quantity,
-    price: body.price,
-    fee: body.fee ?? 0,
-    tax: body.tax ?? 0,
-    tradeDate: body.tradeDate,
-    note: body.note ?? null,
-  };
+  transactionsRouter.post("/", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = parseBody(createTransactionSchema, req.body);
 
-  await assertSymbolExists(input.symbol);
-  const transaction = await addTransaction(firebaseUid, input);
-  res.status(201).json({ transaction });
-});
+    const input: TransactionInput = {
+      symbol: body.symbol,
+      action: body.action as TransactionInput["action"],
+      quantity: body.quantity,
+      price: body.price,
+      fee: body.fee ?? 0,
+      tax: body.tax ?? 0,
+      tradeDate: body.tradeDate,
+      note: body.note ?? null,
+    };
 
-transactionsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  const transaction = await getTransactionOrThrow(firebaseUid, id);
-  res.json({ transaction });
-});
+    await assertSymbolExists(input.symbol);
+    const transaction = await addTransaction(firebaseUid, input, deps);
+    res.status(201).json({ transaction });
+  });
 
-transactionsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  const body = parseBody(updateTransactionSchema, req.body ?? {});
+  transactionsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    const transaction = await getTransactionOrThrow(firebaseUid, id, deps);
+    res.json({ transaction });
+  });
 
-  const update: TransactionUpdate = {};
-  if (body.action !== undefined) {
-    update.action = body.action as TransactionUpdate["action"];
-  }
-  if (body.quantity !== undefined) {
-    update.quantity = body.quantity;
-  }
-  if (body.price !== undefined) {
-    update.price = body.price;
-  }
-  if (body.fee !== undefined) {
-    update.fee = body.fee;
-  }
-  if (body.tax !== undefined) {
-    update.tax = body.tax;
-  }
-  if (body.tradeDate !== undefined) {
-    update.tradeDate = body.tradeDate;
-  }
-  if (body.note !== undefined) {
-    update.note = body.note;
-  }
+  transactionsRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    const body = parseBody(updateTransactionSchema, req.body ?? {});
 
-  const transaction = await editTransaction(firebaseUid, id, update);
-  res.json({ transaction });
-});
+    const update: TransactionUpdate = {};
+    if (body.action !== undefined) {
+      update.action = body.action as TransactionUpdate["action"];
+    }
+    if (body.quantity !== undefined) {
+      update.quantity = body.quantity;
+    }
+    if (body.price !== undefined) {
+      update.price = body.price;
+    }
+    if (body.fee !== undefined) {
+      update.fee = body.fee;
+    }
+    if (body.tax !== undefined) {
+      update.tax = body.tax;
+    }
+    if (body.tradeDate !== undefined) {
+      update.tradeDate = body.tradeDate;
+    }
+    if (body.note !== undefined) {
+      update.note = body.note;
+    }
 
-transactionsRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  await removeTransaction(firebaseUid, id);
-  res.status(204).end();
-});
+    const transaction = await editTransaction(firebaseUid, id, update, deps);
+    res.json({ transaction });
+  });
+
+  transactionsRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    await removeTransaction(firebaseUid, id, deps);
+    res.status(204).end();
+  });
+
+  return transactionsRouter;
+}

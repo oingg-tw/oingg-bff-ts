@@ -1,6 +1,11 @@
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { StockTransaction as StockTransactionRow } from "@/generated/prisma/client.js";
-import type { StockTransaction, TransactionAction } from "@/application/transactions/transactions.types.js";
+import type {
+  StockTransaction,
+  TransactionInput,
+  TransactionUpdate,
+} from "@/application/transactions/transactions.types.js";
+import type { TransactionsPort } from "@/application/ports/transactions.js";
 
 function toDateString(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -37,33 +42,12 @@ export async function findTransaction(firebaseUid: string, id: string): Promise<
   return row ? toStockTransaction(row) : null;
 }
 
-export interface TransactionInput {
-  symbol: string;
-  action: TransactionAction;
-  quantity: number;
-  price: number;
-  fee: number;
-  tax: number;
-  tradeDate: string;
-  note: string | null;
-}
-
 export async function createTransaction(firebaseUid: string, input: TransactionInput): Promise<StockTransaction> {
   const prisma = getPrismaClient();
   const row = await prisma.stockTransaction.create({
     data: { firebaseUid, ...input, tradeDate: new Date(input.tradeDate) },
   });
   return toStockTransaction(row);
-}
-
-export interface TransactionUpdate {
-  action?: TransactionAction;
-  quantity?: number;
-  price?: number;
-  fee?: number;
-  tax?: number;
-  tradeDate?: string;
-  note?: string | null;
 }
 
 export async function updateTransaction(
@@ -88,3 +72,17 @@ export async function deleteTransaction(firebaseUid: string, id: string): Promis
   const result = await prisma.stockTransaction.deleteMany({ where: { firebaseUid, id } });
   return result.count > 0;
 }
+
+/**
+ * TransactionsPort 的 Prisma 實作。
+ *
+ * 這裡不需要像 prismaHoldings 那樣翻譯 unique violation——交易紀錄沒有 unique constraint，重複的買賣
+ * 本來就合法。"YYYY-MM-DD" 字串與 Date 的轉換是這一層唯一的翻譯工作，也刻意只發生在這一層。
+ */
+export const prismaTransactions: TransactionsPort = {
+  list: listTransactions,
+  find: findTransaction,
+  create: createTransaction,
+  update: updateTransaction,
+  remove: deleteTransaction,
+};

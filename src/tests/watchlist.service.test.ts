@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { WatchlistPort } from "@/application/ports/watchlist.js";
 import {
   addWatchlistItem,

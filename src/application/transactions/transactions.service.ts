@@ -1,14 +1,13 @@
 import { AppError } from "@/domain/appError.js";
-import {
-  createTransaction,
-  deleteTransaction,
-  findTransaction,
-  listTransactions,
-  updateTransaction,
-  type TransactionInput,
-  type TransactionUpdate,
-} from "@/infrastructure/prisma/repositories/transactions.repository.js";
-import type { StockTransaction, TransactionAction } from "@/application/transactions/transactions.types.js";
+import type { AppDeps } from "@/application/deps.js";
+import type {
+  StockTransaction,
+  TransactionAction,
+  TransactionInput,
+  TransactionUpdate,
+} from "@/application/transactions/transactions.types.js";
+
+export type TransactionsDeps = Pick<AppDeps, "transactions">;
 
 const TRADE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -36,12 +35,20 @@ function assertValidTradeDate(tradeDate: string): void {
   }
 }
 
-export async function getTransactions(firebaseUid: string, symbol?: string): Promise<StockTransaction[]> {
-  return listTransactions(firebaseUid, symbol);
+export async function getTransactions(
+  firebaseUid: string,
+  symbol: string | undefined,
+  deps: TransactionsDeps,
+): Promise<StockTransaction[]> {
+  return deps.transactions.list(firebaseUid, symbol);
 }
 
-export async function getTransactionOrThrow(firebaseUid: string, id: string): Promise<StockTransaction> {
-  const transaction = await findTransaction(firebaseUid, id);
+export async function getTransactionOrThrow(
+  firebaseUid: string,
+  id: string,
+  deps: TransactionsDeps,
+): Promise<StockTransaction> {
+  const transaction = await deps.transactions.find(firebaseUid, id);
   if (!transaction) {
     throw new AppError(`Transaction ${id} not found`, 404);
   }
@@ -53,7 +60,11 @@ export async function getTransactionOrThrow(firebaseUid: string, id: string): Pr
  * stock.assertSymbolExists) before this is invoked — this domain's own service has no reason to reach
  * across into the stock pass-through's live quote data itself.
  */
-export async function addTransaction(firebaseUid: string, input: TransactionInput): Promise<StockTransaction> {
+export async function addTransaction(
+  firebaseUid: string,
+  input: TransactionInput,
+  deps: TransactionsDeps,
+): Promise<StockTransaction> {
   assertValidAction(input.action);
   assertValidQuantity(input.quantity);
   assertValidAmount(input.price, "price", { allowZero: false });
@@ -61,13 +72,14 @@ export async function addTransaction(firebaseUid: string, input: TransactionInpu
   assertValidAmount(input.tax, "tax", { allowZero: true });
   assertValidTradeDate(input.tradeDate);
 
-  return createTransaction(firebaseUid, input);
+  return deps.transactions.create(firebaseUid, input);
 }
 
 export async function editTransaction(
   firebaseUid: string,
   id: string,
   update: TransactionUpdate,
+  deps: TransactionsDeps,
 ): Promise<StockTransaction> {
   if (update.action !== undefined) {
     assertValidAction(update.action);
@@ -88,15 +100,15 @@ export async function editTransaction(
     assertValidTradeDate(update.tradeDate);
   }
 
-  const transaction = await updateTransaction(firebaseUid, id, update);
+  const transaction = await deps.transactions.update(firebaseUid, id, update);
   if (!transaction) {
     throw new AppError(`Transaction ${id} not found`, 404);
   }
   return transaction;
 }
 
-export async function removeTransaction(firebaseUid: string, id: string): Promise<void> {
-  const deleted = await deleteTransaction(firebaseUid, id);
+export async function removeTransaction(firebaseUid: string, id: string, deps: TransactionsDeps): Promise<void> {
+  const deleted = await deps.transactions.remove(firebaseUid, id);
   if (!deleted) {
     throw new AppError(`Transaction ${id} not found`, 404);
   }

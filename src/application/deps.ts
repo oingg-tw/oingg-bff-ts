@@ -1,4 +1,6 @@
+import type { HoldingsPort } from "@/application/ports/holdings.js";
 import type { MacroGatewayPort } from "@/application/ports/macroGateway.js";
+import type { TransactionsPort } from "@/application/ports/transactions.js";
 import type { WatchlistPort } from "@/application/ports/watchlist.js";
 
 /**
@@ -14,6 +16,8 @@ import type { WatchlistPort } from "@/application/ports/watchlist.js";
 export interface AppDeps {
   // --- 業務中台：這個服務自己擁有的資料 ---
   watchlist: WatchlistPort;
+  holdings: HoldingsPort;
+  transactions: TransactionsPort;
 
   // --- 代理層：對 analysis-ts 的出站呼叫，一個切片一個 gateway ---
   macroGateway: MacroGatewayPort;
