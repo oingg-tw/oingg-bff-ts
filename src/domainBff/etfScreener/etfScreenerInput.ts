@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import { parseBody } from "@/shared/validation.js";
 import type { EtfScreenerSort } from "@/domainBff/etfScreener/etfScreener.client.js";
 import type { EtfColumnRef, EtfScreenerFilter } from "@/domainBff/etfScreener/etfScreener.types.js";

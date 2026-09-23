@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/adapters/neon/index.js";
+import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreferenceUpdate } from "@/domainBusiness/user/theme.types.js";
 
 export interface ThemePreferenceRow {

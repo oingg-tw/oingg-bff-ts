@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/adapters/neon/index.js";
+import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { Holding as HoldingRow } from "@/generated/prisma/client.js";
 import type { Holding } from "@/domainBusiness/holdings/holdings.types.js";
 

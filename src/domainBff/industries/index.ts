@@ -1,4 +1,4 @@
-export { industriesRouter } from "@/domainBff/industries/industries.routes.js";
+export { industriesRouter } from "@/http/modules/industries/route.js";
 export { getIndustryFlatList, getIndustryTree, getSecuritiesSectors } from "@/domainBff/industries/industries.service.js";
 export type {
   IndustryFlatCompany,

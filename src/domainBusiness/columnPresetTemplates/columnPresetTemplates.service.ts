@@ -1,7 +1,7 @@
 import { addColumnPresetWithName } from "@/domainBusiness/screener/columnPresets.service.js";
 import type { ColumnPresetView } from "@/domainBusiness/screener/columnPresets.service.js";
 import { findColumnPresetTemplate, listColumnPresetTemplates } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js";
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import type { ColumnPresetTemplate } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.types.js";
 
 /** Serves the templates to the frontend from our own DB — curated locally via prisma/seedColumnPresetTemplates.ts, never synced from analysis-ts (see that script's doc comment for why). */

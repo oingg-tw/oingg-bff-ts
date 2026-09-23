@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/adapters/neon/index.js";
+import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { Subscription as SubscriptionRow } from "@/generated/prisma/client.js";
 import type { SubscriptionRecord } from "@/domainBusiness/billing/billing.types.js";
 

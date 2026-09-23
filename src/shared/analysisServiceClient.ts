@@ -1,4 +1,4 @@
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
 import { logger } from "@/shared/logger.js";
 

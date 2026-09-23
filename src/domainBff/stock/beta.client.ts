@@ -1,4 +1,4 @@
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { BetaResult, BetaTimeframe, BetaWindow } from "@/domainBff/stock/beta.types.js";

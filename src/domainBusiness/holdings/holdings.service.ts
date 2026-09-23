@@ -1,5 +1,5 @@
 import { Prisma } from "@/generated/prisma/client.js";
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import {
   createHolding,
   deleteHolding,

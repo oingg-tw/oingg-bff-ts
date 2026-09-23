@@ -1,4 +1,4 @@
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import {
   findDashboardCardSettings,
   upsertDashboardCardSettings,

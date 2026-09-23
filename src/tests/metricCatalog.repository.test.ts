@@ -12,7 +12,7 @@ const mockPrisma = {
   metricCategory: { findMany: vi.fn() },
 };
 
-vi.mock("@/adapters/neon/index.js", () => ({
+vi.mock("@/infrastructure/prisma/index.js", () => ({
   getPrismaClient: () => mockPrisma,
 }));
 

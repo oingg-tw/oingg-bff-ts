@@ -1,4 +1,4 @@
-export { macroRouter } from "@/domainBff/macro/macro.routes.js";
+export { macroRouter } from "@/http/modules/macro/route.js";
 export {
   getBusinessCycleIndicator,
   getCbcPolicyRate,

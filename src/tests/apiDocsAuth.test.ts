@@ -15,7 +15,7 @@ vi.mock("@/shared/env.js", async (importOriginal) => {
   };
 });
 
-const { requireApiDocsAuth } = await import("@/adapters/swagger/apiDocsAuth.js");
+const { requireApiDocsAuth } = await import("@/http/swagger/apiDocsAuth.js");
 
 const ORIGINAL_USER = process.env.API_DOCS_USER;
 const ORIGINAL_PASSWORD = process.env.API_DOCS_PASSWORD;

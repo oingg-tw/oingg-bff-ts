@@ -1,6 +1,6 @@
 import { createApp } from "@/app.js";
-import { initFirebase } from "@/adapters/firebase/index.js";
-import { closeNeonPools, closePrismaClient, initNeonPools } from "@/adapters/neon/index.js";
+import { initFirebase } from "@/infrastructure/firebase/index.js";
+import { closeNeonPools, closePrismaClient, initNeonPools } from "@/infrastructure/prisma/index.js";
 import { startMetricCatalogSync } from "@/domainBusiness/metricCatalog/index.js";
 import { env } from "@/shared/env.js";
 import { logger } from "@/shared/logger.js";

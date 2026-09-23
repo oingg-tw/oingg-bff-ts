@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/adapters/neon/index.js";
+import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { PresetTemplate as PresetTemplateRow } from "@/generated/prisma/client.js";
 import type { PresetTemplate, PresetTemplateFilter } from "@/domainBusiness/presetTemplates/presetTemplates.types.js";
 

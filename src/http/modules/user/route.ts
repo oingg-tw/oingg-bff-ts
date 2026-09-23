@@ -1,0 +1,151 @@
+import { Router } from "ultimate-express";
+import { z } from "zod";
+import { AppError } from "@/http/errorHandler.js";
+import { parseBody } from "@/shared/validation.js";
+import { requireAuth } from "@/http/middleware/auth.middleware.js";
+import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
+import { getDashboardCardSettings, updateDashboardCardSettings } from "@/domainBusiness/user/dashboardCardSettings.service.js";
+import {
+  getPreferredStocksPreferences,
+  updatePreferredStocksPreferences,
+} from "@/domainBusiness/user/preferredStocksPreferences.service.js";
+import { getDisplaySettings, updateShowAsOfDate } from "@/domainBusiness/user/screenerDisplaySettings.service.js";
+import {
+  getStockDetailPreferences,
+  updateStockDetailPreferences,
+} from "@/domainBusiness/user/stockDetailPreferences.service.js";
+import {
+  getThemePreference,
+  updateIsFullWidth,
+  updateMarketColorConvention,
+  updateThemeAccentColor,
+  updateThemeMode,
+} from "@/domainBusiness/user/theme.service.js";
+import { getOrCreateUserFromToken } from "@/domainBusiness/user/user.service.js";
+
+export const userRouter = Router();
+
+function requireUser(req: AuthenticatedRequest): string {
+  if (!req.user) {
+    throw new AppError("Authenticated request is missing decoded user", 401);
+  }
+  return req.user.uid;
+}
+
+export const updateThemeModeSchema = z.object({ mode: z.enum(["LIGHT", "DARK", "SYSTEM"]) });
+export const updateThemeAccentColorSchema = z.object({
+  accentColor: z.enum(["BLUE", "GREEN", "PURPLE", "ORANGE", "RED", "TEAL", "GOLD"]),
+});
+export const updateMarketColorConventionSchema = z.object({
+  marketColorConvention: z.enum(["ASIA", "WESTERN", "ACCESSIBLE"]),
+});
+export const updateFullWidthSchema = z.object({ isFullWidth: z.boolean() });
+export const updateShowAsOfDateSchema = z.object({ showAsOfDate: z.boolean() });
+export const updateDashboardCardsSchema = z.object({ visibleCardIds: z.array(z.string()) });
+export const updateStockDetailPreferencesSchema = z.object({
+  mode: z.enum(["CARD", "ACCOUNTING"]),
+  visibleCardIds: z.array(z.string()),
+});
+export const updatePreferredStocksPreferencesSchema = z.object({
+  columnPresetId: z.enum(["ALL", "CONTRACT_TERMS", "VALUATION", "CALL_RISK"]),
+  columnOrder: z.array(z.string()),
+});
+
+// Provisions the row on first contact rather than 404ing a caller Firebase has already vouched for.
+// This is the only place a User row is created, and it's why the frontend should call it on login:
+// `createdAt` is what the 14-day reverse trial is measured from (see billing/entitlement.service.ts).
+userRouter.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
+  if (!req.user) {
+    throw new AppError("Authenticated request is missing decoded user", 401);
+  }
+  res.json({ user: await getOrCreateUserFromToken(req.user) });
+});
+
+userRouter.get("/me/theme", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const theme = await getThemePreference(requireUser(req));
+  res.json({ theme });
+});
+
+userRouter.put("/me/theme/mode", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = parseBody(updateThemeModeSchema, req.body);
+  const theme = await updateThemeMode(firebaseUid, body.mode);
+  res.json({ theme });
+});
+
+userRouter.put("/me/theme/accent-color", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = parseBody(updateThemeAccentColorSchema, req.body);
+  const theme = await updateThemeAccentColor(firebaseUid, body.accentColor);
+  res.json({ theme });
+});
+
+userRouter.put("/me/theme/market-color-convention", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = parseBody(updateMarketColorConventionSchema, req.body);
+  const theme = await updateMarketColorConvention(firebaseUid, body.marketColorConvention);
+  res.json({ theme });
+});
+
+userRouter.put("/me/theme/full-width", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = parseBody(updateFullWidthSchema, req.body);
+  const theme = await updateIsFullWidth(firebaseUid, body.isFullWidth);
+  res.json({ theme });
+});
+
+userRouter.get("/me/screener-display-settings", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const displaySettings = await getDisplaySettings(requireUser(req));
+  res.json({ displaySettings });
+});
+
+userRouter.put(
+  "/me/screener-display-settings/show-as-of-date",
+  requireAuth,
+  async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = parseBody(updateShowAsOfDateSchema, req.body);
+    const displaySettings = await updateShowAsOfDate(firebaseUid, body.showAsOfDate);
+    res.json({ displaySettings });
+  },
+);
+
+userRouter.get("/me/dashboard-cards", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const dashboardCards = await getDashboardCardSettings(requireUser(req));
+  res.json({ dashboardCards });
+});
+
+userRouter.put("/me/dashboard-cards", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = parseBody(updateDashboardCardsSchema, req.body);
+  const dashboardCards = await updateDashboardCardSettings(firebaseUid, body.visibleCardIds);
+  res.json({ dashboardCards });
+});
+
+userRouter.get("/me/stock-detail-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const stockDetailPreferences = await getStockDetailPreferences(requireUser(req));
+  res.json({ stockDetailPreferences });
+});
+
+userRouter.put("/me/stock-detail-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = parseBody(updateStockDetailPreferencesSchema, req.body);
+  const stockDetailPreferences = await updateStockDetailPreferences(firebaseUid, body.mode, body.visibleCardIds);
+  res.json({ stockDetailPreferences });
+});
+
+userRouter.get("/me/preferred-stocks-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const preferredStocksPreferences = await getPreferredStocksPreferences(requireUser(req));
+  res.json({ preferredStocksPreferences });
+});
+
+userRouter.put("/me/preferred-stocks-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const firebaseUid = requireUser(req);
+  const body = parseBody(updatePreferredStocksPreferencesSchema, req.body);
+  const preferredStocksPreferences = await updatePreferredStocksPreferences(
+    firebaseUid,
+    body.columnPresetId,
+    body.columnOrder,
+  );
+  res.json({ preferredStocksPreferences });
+});

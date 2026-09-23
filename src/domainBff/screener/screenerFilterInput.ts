@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import { parseBody } from "@/shared/validation.js";
 import type { ScreenerSort } from "@/domainBff/screener/analysisScreenerClient.js";
 import type { ScreenerFilter } from "@/domainBff/screener/screener.types.js";

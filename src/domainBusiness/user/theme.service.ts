@@ -1,4 +1,4 @@
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import { findThemePreference, upsertThemePreference, type ThemePreferenceRow } from "@/domainBusiness/user/theme.repository.js";
 import type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreference } from "@/domainBusiness/user/theme.types.js";
 

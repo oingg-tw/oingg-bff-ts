@@ -6,9 +6,9 @@ vi.mock("@/domainBusiness/billing/entitlement.service.js", () => ({
 }));
 
 import { getEntitlement } from "@/domainBusiness/billing/entitlement.service.js";
-import { QUOTA_EXCEEDED_CODE, enforceQuota } from "@/domainBusiness/billing/quota.middleware.js";
+import { QUOTA_EXCEEDED_CODE, enforceQuota } from "@/http/middleware/quota.middleware.js";
 import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import type { AppError } from "@/shared/errorHandler.js";
+import type { AppError } from "@/http/errorHandler.js";
 
 function requestFor(uid: string | undefined): AuthenticatedRequest {
   return { user: uid ? { uid } : undefined } as AuthenticatedRequest;

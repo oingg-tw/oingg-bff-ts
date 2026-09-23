@@ -1,4 +1,4 @@
-export { metricCatalogRouter } from "@/domainBusiness/metricCatalog/metricCatalog.routes.js";
+export { metricCatalogRouter } from "@/http/modules/metricCatalog/route.js";
 export { findMetricField, findMetricFields } from "@/domainBusiness/metricCatalog/metricCatalog.repository.js";
 export type { FieldRefInput, MetricFieldLookup } from "@/domainBusiness/metricCatalog/metricCatalog.repository.js";
 export { getMetricCatalog, startMetricCatalogSync, syncMetricCatalog } from "@/domainBusiness/metricCatalog/metricCatalog.service.js";

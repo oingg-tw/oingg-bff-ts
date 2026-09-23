@@ -1,5 +1,5 @@
 import { Prisma } from "@/generated/prisma/client.js";
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
 import { findMetricFields } from "@/domainBusiness/metricCatalog/index.js";
 import type { ScreenerFilter } from "@/domainBff/screener/screener.types.js";

@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/adapters/neon/index.js";
+import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import { Prisma } from "@/generated/prisma/client.js";
 import type { MetricBadge, MetricCategory } from "@/domainBusiness/metricCatalog/metricCatalog.types.js";
 

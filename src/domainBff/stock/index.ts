@@ -1,4 +1,4 @@
-export { stockRouter } from "@/domainBff/stock/stock.routes.js";
+export { stockRouter } from "@/http/modules/stock/route.js";
 export {
   assertSymbolExists,
   getBeta,

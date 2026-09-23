@@ -1,9 +1,9 @@
 import { Router } from "ultimate-express";
 import { columnPresetTemplatesRouter } from "@/domainBusiness/columnPresetTemplates/index.js";
 import { presetTemplatesRouter } from "@/domainBusiness/presetTemplates/index.js";
-import { columnPresetsRouter } from "@/domainBusiness/screener/columnPresets.routes.js";
-import { screenerRouter } from "@/domainBff/screener/screener.routes.js";
-import { screenerPresetsRouter } from "@/domainBff/screener/screenerPresets.routes.js";
+import { columnPresetsRouter } from "@/http/modules/columnPresets/route.js";
+import { screenerRouter } from "@/http/modules/screener/route.js";
+import { screenerPresetsRouter } from "@/http/modules/screenerPresets/route.js";
 
 export const screenerRoutes = Router();
 screenerRoutes.use("/column-presets", columnPresetsRouter);

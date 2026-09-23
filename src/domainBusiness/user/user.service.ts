@@ -1,4 +1,4 @@
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import { ensureUserProvisioned, findUserByFirebaseUid } from "@/domainBusiness/user/user.repository.js";
 import type { UserProfile } from "@/domainBusiness/user/user.types.js";
 import type { DecodedIdToken } from "firebase-admin/auth";

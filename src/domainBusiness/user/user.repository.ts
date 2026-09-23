@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/adapters/neon/index.js";
+import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { User as UserRow } from "@/generated/prisma/client.js";
 import type { UserProfile } from "@/domainBusiness/user/user.types.js";
 

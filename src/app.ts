@@ -1,7 +1,7 @@
 import express from "ultimate-express";
 import { routes } from "@/routes.js";
-import { errorHandler, jsonBodyErrorHandler, notFoundHandler } from "@/shared/errorHandler.js";
-import { requestLogger } from "@/shared/requestLogger.js";
+import { errorHandler, jsonBodyErrorHandler, notFoundHandler } from "@/http/errorHandler.js";
+import { requestLogger } from "@/http/requestLogger.js";
 
 export function createApp() {
   const app = express();

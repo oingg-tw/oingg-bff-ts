@@ -1,4 +1,4 @@
-export { etfScreenerRouter } from "@/domainBff/etfScreener/etfScreener.routes.js";
+export { etfScreenerRouter } from "@/http/modules/etfScreener/route.js";
 export { getEtfFieldCatalog, runEtfScreener } from "@/domainBff/etfScreener/etfScreener.service.js";
 export type {
   EtfCategoricalFilter,

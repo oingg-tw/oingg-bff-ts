@@ -1,4 +1,4 @@
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/shared/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { MetricsHistoryEntry, MetricsHistoryResult, MetricsHistoryValue } from "@/domainBff/stock/metricsHistory.types.js";

@@ -1,6 +1,6 @@
 import { findMetricFields } from "@/domainBusiness/metricCatalog/index.js";
 import { getLatestClosePrices } from "@/domainBff/stock/index.js";
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
 import {
   fetchCompanyRank,

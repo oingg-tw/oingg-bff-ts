@@ -1,4 +1,4 @@
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import { addPresetWithName } from "@/domainBusiness/screener/screenerPresets.service.js";
 import type { PresetView } from "@/domainBusiness/screener/screenerPresets.service.js";
 import { findPresetTemplate, listPresetTemplates } from "@/domainBusiness/presetTemplates/presetTemplates.repository.js";

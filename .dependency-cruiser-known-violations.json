@@ -1,20 +1,6 @@
 ﻿[
   {
     "type": "dependency",
-    "from": "src/domainBusiness/holdings/holdings.routes.ts",
-    "to": "src/domainBff/stock/index.ts",
-    "unresolvedTo": "@/domainBff/stock/index.js",
-    "dependencyTypes": [
-      "undetermined",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "business-not-import-bff"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/domainBusiness/screener/columnPresets.service.ts",
     "to": "src/domainBff/screener/screener.types.ts",
     "unresolvedTo": "@/domainBff/screener/screener.types.js",
@@ -22,20 +8,6 @@
       "undetermined",
       "import",
       "type-only"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "business-not-import-bff"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/domainBusiness/screener/screenerPresets.openapi.ts",
-    "to": "src/domainBff/screener/screenerPresets.routes.ts",
-    "unresolvedTo": "@/domainBff/screener/screenerPresets.routes.js",
-    "dependencyTypes": [
-      "undetermined",
-      "import"
     ],
     "rule": {
       "severity": "error",
@@ -59,30 +31,16 @@
   },
   {
     "type": "dependency",
-    "from": "src/domainBusiness/transactions/transactions.routes.ts",
-    "to": "src/domainBff/stock/index.ts",
-    "unresolvedTo": "@/domainBff/stock/index.js",
+    "from": "src/http/middleware/auth.middleware.ts",
+    "to": "src/infrastructure/firebase/index.ts",
+    "unresolvedTo": "@/infrastructure/firebase/index.js",
     "dependencyTypes": [
       "undetermined",
       "import"
     ],
     "rule": {
       "severity": "error",
-      "name": "business-not-import-bff"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/domainBusiness/watchlist/watchlist.routes.ts",
-    "to": "src/domainBff/stock/index.ts",
-    "unresolvedTo": "@/domainBff/stock/index.js",
-    "dependencyTypes": [
-      "undetermined",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "business-not-import-bff"
+      "name": "http-not-infrastructure"
     }
   },
   {

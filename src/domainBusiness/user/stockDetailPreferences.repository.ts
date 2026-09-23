@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/adapters/neon/index.js";
+import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { StockDetailPageMode } from "@/domainBusiness/user/stockDetailPreferences.types.js";
 
 export interface StockDetailPreferencesRow {

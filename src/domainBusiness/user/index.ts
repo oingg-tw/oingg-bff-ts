@@ -1,4 +1,4 @@
-export { userRouter } from "@/domainBusiness/user/user.routes.js";
+export { userRouter } from "@/http/modules/user/route.js";
 export {
   getThemePreference,
   updateThemeMode,

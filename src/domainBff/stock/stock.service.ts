@@ -1,4 +1,4 @@
-import { AppError } from "@/shared/errorHandler.js";
+import { AppError } from "@/http/errorHandler.js";
 import { fetchBeta } from "@/domainBff/stock/beta.client.js";
 import type { BetaResult } from "@/domainBff/stock/beta.types.js";
 import { fetchCompanyBadges } from "@/domainBff/stock/companyBadges.client.js";

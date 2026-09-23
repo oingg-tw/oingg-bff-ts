@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/adapters/neon/index.js";
+import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { StockTransaction as StockTransactionRow } from "@/generated/prisma/client.js";
 import type { StockTransaction, TransactionAction } from "@/domainBusiness/transactions/transactions.types.js";
 

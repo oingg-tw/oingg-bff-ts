@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/adapters/neon/index.js";
+import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { PreferredStocksColumnPreset } from "@/domainBusiness/user/preferredStocksPreferences.types.js";
 
 export interface PreferredStocksPreferencesRow {
