@@ -3,6 +3,11 @@ allowBuilds:
   '@prisma/engines': true
   # @scarf/scarf is swagger-ui-dist's install-telemetry pinger, not needed for Swagger UI to work.
   '@scarf/scarf': false
+  # dependency-cruiser 的 swc 解析器（本專案用 typescript@7/tsgo，dependency-cruiser 18 解析不了它的
+  # API，不換解析器會 0 個模組被掃到、假綠燈）。原生執行檔由 optionalDependencies 的平台套件提供，
+  # postinstall 只是備援下載，不跑也能載入（analysis-ts 2026-09-17 實測，此處沿用）。
+  # 注意：pnpm add 會把「set this to true or false」這個佔位字串寫進來，留著會讓之後每個 pnpm 指令失效。
+  '@swc/core': false
   esbuild: true
   prisma: true
   protobufjs: true

@@ -11,6 +11,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src",
+    "lint:deps": "depcruise src scripts --config .dependency-cruiser.cjs --ignore-known",
+    "lint:deps:check": "depcruise src scripts --config .dependency-cruiser.cjs --no-ignore-known",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "postinstall": "prisma generate",
@@ -38,11 +40,13 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@swc/core": "^1.16.2",
     "@types/cors": "^2.8.19",
     "@types/node": "^26.2.0",
     "@types/pg": "^8.23.1",
     "@types/swagger-ui-express": "^4.1.8",
     "@vitest/coverage-v8": "^4.1.11",
+    "dependency-cruiser": "^18.4.0",
     "oxlint": "^1.81.0",
     "prisma": "^7.9.1",
     "tsc-alias": "^1.9.2",
