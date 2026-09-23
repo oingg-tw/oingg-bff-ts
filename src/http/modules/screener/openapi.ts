@@ -167,9 +167,10 @@ const companyRankResultSchema = z
     rank: z.number().nullable(),
     totalCount: z.number().nullable(),
     topPercent: z.number().nullable(),
+    quintile: z.number().nullable(),
   })
   .openapi("CompanyRankResult", {
-    example: { symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPercent: 72.8 },
+    example: { symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPercent: 72.8, quintile: 2 },
   });
 
 registry.registerPath({
@@ -177,7 +178,7 @@ registry.registerPath({
   path: "/screener/company-rank",
   summary: "查單一公司在全市場某個欄位的排名/百分位——跟 ranking 互補（ranking 是「前幾名是誰」，這支是「這家公司排第幾」）",
   description:
-    "不需要登入。symbol/field/direction 三者都必填，沒有預設值（跟 GET /screener/ranking 的 direction 有預設不同，這支省略 direction 會回 400）。field 格式跟其他 screener 端點一致（\"<metricCode>.<token>\"）。rank 是 1-based，並列數值共用同一個名次（RANK() 語意，所以下一個名次可能不連續）。totalCount 只計入這個欄位有值（非 null）的公司數。excludeZero（2026-09-24 新增）是選填的布林值（\"true\"/\"false\"），true 時把該欄位剛好等於 0 的公司排除在母體之外，省略或 false 都不排除。對殖利率這類欄位差別很大：不配息的公司殖利率是 0，不排除的話「**有配息公司中**的排名」會被它們稀釋（實測 dividendYield.EOD 母體 1,723 vs 1,445）。它只影響 totalCount／topPercent，**rank 不變**——被排除的零值在降冪排序裡本來就排在後面。前端若要在文案上宣稱「有配息公司中」，必須帶 excludeZero=true，否則那句話與數字不符。topPercent = rank÷totalCount×100（四捨五入到小數點後一位）——數字越小代表排名越前面（例如 5 代表排在全市場前 5%），跟一般認知的「百分位」方向相反，不要混淆。查無資料（這個欄位對這家公司從沒算過，或算出來是 null，或代號不存在）時 found 為 false，value/rank/totalCount/topPercent 全部是 null，仍是 200，不是 404。",
+    "不需要登入。symbol/field/direction 三者都必填，沒有預設值（跟 GET /screener/ranking 的 direction 有預設不同，這支省略 direction 會回 400）。field 格式跟其他 screener 端點一致（\"<metricCode>.<token>\"）。rank 是 1-based，並列數值共用同一個名次（RANK() 語意，所以下一個名次可能不連續）。totalCount 只計入這個欄位有值（非 null）的公司數。excludeZero（2026-09-24 新增）是選填的布林值（\"true\"/\"false\"），true 時把該欄位剛好等於 0 的公司排除在母體之外，省略或 false 都不排除。對殖利率這類欄位差別很大：不配息的公司殖利率是 0，不排除的話「**有配息公司中**的排名」會被它們稀釋（實測 dividendYield.EOD 母體 1,723 vs 1,445）。它只影響 totalCount／topPercent，**rank 不變**——被排除的零值在降冪排序裡本來就排在後面。前端若要在文案上宣稱「有配息公司中」，必須帶 excludeZero=true，否則那句話與數字不符。quintile（2026-09-24 接上，analysis-ts 其實早就有送、被 bff-ts 的欄位逐一正規化靜默丟掉）是這家公司落在母體的第幾個五等分（1–5），方向跟 direction 一致（desc 時 5 最好）。**不要自己用 topPercent 推**：並列名次共用同一個 rank（RANK() 語意），analysis-ts 的 quintile 是對真實分布切的，不是 rank÷totalCount。found 為 false 時是 null。topPercent = rank÷totalCount×100（四捨五入到小數點後一位）——數字越小代表排名越前面（例如 5 代表排在全市場前 5%），跟一般認知的「百分位」方向相反，不要混淆。查無資料（這個欄位對這家公司從沒算過，或算出來是 null，或代號不存在）時 found 為 false，value/rank/totalCount/topPercent 全部是 null，仍是 200，不是 404。",
   tags: ["Screener"],
   request: { query: companyRankQueryDocSchema },
   responses: {

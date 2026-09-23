@@ -223,7 +223,7 @@ export async function fetchCompanyRank(
 ): Promise<CompanyRankResult> {
   const body = await getJson("/screener/company-rank", { symbol, field, direction, ...excludeZeroParam(excludeZero) });
 
-  const b = body as { symbol?: unknown; field?: unknown; found?: unknown; value?: unknown; rank?: unknown; totalCount?: unknown; topPercent?: unknown };
+  const b = body as { symbol?: unknown; field?: unknown; found?: unknown; value?: unknown; rank?: unknown; totalCount?: unknown; topPercent?: unknown; quintile?: unknown };
   if (typeof b.symbol !== "string" || typeof b.field !== "string" || typeof b.found !== "boolean") {
     throw new AppError("Company rank endpoint response is missing symbol/field/found", 502);
   }
@@ -236,6 +236,7 @@ export async function fetchCompanyRank(
     rank: typeof b.rank === "number" ? b.rank : null,
     totalCount: typeof b.totalCount === "number" ? b.totalCount : null,
     topPercent: typeof b.topPercent === "number" ? b.topPercent : null,
+    quintile: typeof b.quintile === "number" ? b.quintile : null,
   };
 }
 

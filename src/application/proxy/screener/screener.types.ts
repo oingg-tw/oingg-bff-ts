@@ -89,6 +89,16 @@ export interface CompanyRankResult {
   rank: number | null;
   totalCount: number | null;
   topPercent: number | null;
+  /**
+   * Which fifth of the population this company sits in, 1–5, straight from analysis-ts — added here
+   * 2026-09-24 after it turned out they had been sending it for a while and the field-by-field
+   * normalizer was silently dropping it (the documented hazard of that pattern).
+   *
+   * Direction follows `direction`: with `desc`, 5 is the best fifth. Note this is NOT derivable from
+   * `topPercent` by the caller, because ties share a rank (RANK() semantics) — analysis-ts cuts the
+   * quintile on the real distribution, not on rank÷totalCount. Null whenever `found` is false.
+   */
+  quintile: number | null;
 }
 
 /** One bucket of a DistributionResult's `bins` array — see DistributionResult. */
