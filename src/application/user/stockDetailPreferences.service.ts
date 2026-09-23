@@ -1,9 +1,8 @@
 import { AppError } from "@/domain/appError.js";
-import {
-  findStockDetailPreferences,
-  upsertStockDetailPreferences,
-} from "@/infrastructure/prisma/repositories/stockDetailPreferences.repository.js";
+import type { AppDeps } from "@/application/deps.js";
 import type { StockDetailPageMode, StockDetailPreferences } from "@/application/user/stockDetailPreferences.types.js";
+
+export type StockDetailPreferencesDeps = Pick<AppDeps, "userPreferences">;
 
 const VALID_MODES: StockDetailPageMode[] = ["CARD", "ACCOUNTING"];
 
@@ -11,8 +10,11 @@ const VALID_MODES: StockDetailPageMode[] = ["CARD", "ACCOUNTING"];
  * `mode`/`visibleCardIds` both null means "no preference saved yet" — the frontend applies its own
  * local default for each, same reasoning as getDashboardCardSettings.
  */
-export async function getStockDetailPreferences(firebaseUid: string): Promise<StockDetailPreferences> {
-  const row = await findStockDetailPreferences(firebaseUid);
+export async function getStockDetailPreferences(
+  firebaseUid: string,
+  deps: StockDetailPreferencesDeps,
+): Promise<StockDetailPreferences> {
+  const row = await deps.userPreferences.getStockDetailPreferences(firebaseUid);
   return { mode: row?.mode ?? null, visibleCardIds: row?.visibleCardIds ?? null };
 }
 
@@ -37,9 +39,10 @@ export async function updateStockDetailPreferences(
   firebaseUid: string,
   mode: unknown,
   visibleCardIds: unknown,
+  deps: StockDetailPreferencesDeps,
 ): Promise<StockDetailPreferences> {
   assertValidMode(mode);
   assertValidVisibleCardIds(visibleCardIds);
-  const row = await upsertStockDetailPreferences(firebaseUid, mode, visibleCardIds);
+  const row = await deps.userPreferences.saveStockDetailPreferences(firebaseUid, mode, visibleCardIds);
   return { mode: row.mode, visibleCardIds: row.visibleCardIds };
 }

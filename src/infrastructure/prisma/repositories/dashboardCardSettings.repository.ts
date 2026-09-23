@@ -1,10 +1,7 @@
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
+import type { StoredDashboardCardSettings } from "@/application/ports/userPreferences.js";
 
-export interface DashboardCardSettingsRow {
-  visibleCardIds: string[];
-}
-
-export async function findDashboardCardSettings(firebaseUid: string): Promise<DashboardCardSettingsRow | null> {
+export async function findDashboardCardSettings(firebaseUid: string): Promise<StoredDashboardCardSettings | null> {
   const prisma = getPrismaClient();
   const row = await prisma.dashboardCardSettings.findUnique({
     where: { firebaseUid },
@@ -16,7 +13,7 @@ export async function findDashboardCardSettings(firebaseUid: string): Promise<Da
 export async function upsertDashboardCardSettings(
   firebaseUid: string,
   visibleCardIds: string[],
-): Promise<DashboardCardSettingsRow> {
+): Promise<StoredDashboardCardSettings> {
   const prisma = getPrismaClient();
   const row = await prisma.dashboardCardSettings.upsert({
     where: { firebaseUid },

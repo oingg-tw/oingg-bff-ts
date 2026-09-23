@@ -1,14 +1,10 @@
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
+import type { StoredPreferredStocksPreferences } from "@/application/ports/userPreferences.js";
 import type { PreferredStocksColumnPreset } from "@/application/user/preferredStocksPreferences.types.js";
-
-export interface PreferredStocksPreferencesRow {
-  columnPresetId: PreferredStocksColumnPreset;
-  columnOrder: string[];
-}
 
 export async function findPreferredStocksPreferences(
   firebaseUid: string,
-): Promise<PreferredStocksPreferencesRow | null> {
+): Promise<StoredPreferredStocksPreferences | null> {
   const prisma = getPrismaClient();
   const row = await prisma.preferredStocksPreferences.findUnique({
     where: { firebaseUid },
@@ -21,7 +17,7 @@ export async function upsertPreferredStocksPreferences(
   firebaseUid: string,
   columnPresetId: PreferredStocksColumnPreset,
   columnOrder: string[],
-): Promise<PreferredStocksPreferencesRow> {
+): Promise<StoredPreferredStocksPreferences> {
   const prisma = getPrismaClient();
   const row = await prisma.preferredStocksPreferences.upsert({
     where: { firebaseUid },

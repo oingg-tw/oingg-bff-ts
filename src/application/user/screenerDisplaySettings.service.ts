@@ -1,6 +1,8 @@
 import { AppError } from "@/domain/appError.js";
-import { findDisplaySettings, upsertDisplaySettings } from "@/infrastructure/prisma/repositories/screenerDisplaySettings.repository.js";
+import type { AppDeps } from "@/application/deps.js";
 import type { ScreenerDisplaySettings } from "@/application/user/screenerDisplaySettings.types.js";
+
+export type ScreenerDisplaySettingsDeps = Pick<AppDeps, "userPreferences">;
 
 /**
  * Out-of-the-box screener display settings for users who haven't picked one yet — a plain code
@@ -10,18 +12,22 @@ import type { ScreenerDisplaySettings } from "@/application/user/screenerDisplay
  */
 export const SYSTEM_DEFAULT_DISPLAY_SETTINGS: ScreenerDisplaySettings = { showAsOfDate: false };
 
-export async function getDisplaySettings(firebaseUid: string): Promise<ScreenerDisplaySettings> {
-  const row = await findDisplaySettings(firebaseUid);
+export async function getDisplaySettings(
+  firebaseUid: string,
+  deps: ScreenerDisplaySettingsDeps,
+): Promise<ScreenerDisplaySettings> {
+  const row = await deps.userPreferences.getScreenerDisplaySettings(firebaseUid);
   return { showAsOfDate: row?.showAsOfDate ?? SYSTEM_DEFAULT_DISPLAY_SETTINGS.showAsOfDate };
 }
 
 export async function updateShowAsOfDate(
   firebaseUid: string,
   showAsOfDate: unknown,
+  deps: ScreenerDisplaySettingsDeps,
 ): Promise<ScreenerDisplaySettings> {
   if (typeof showAsOfDate !== "boolean") {
     throw new AppError('"showAsOfDate" must be a boolean', 400);
   }
-  const row = await upsertDisplaySettings(firebaseUid, showAsOfDate);
+  const row = await deps.userPreferences.saveScreenerDisplaySettings(firebaseUid, showAsOfDate);
   return { showAsOfDate: row.showAsOfDate ?? SYSTEM_DEFAULT_DISPLAY_SETTINGS.showAsOfDate };
 }

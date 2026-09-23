@@ -1,5 +1,6 @@
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { User as UserRow } from "@/generated/prisma/client.js";
+import type { UserPort } from "@/application/ports/user.js";
 import type { UserProfile } from "@/application/user/user.types.js";
 
 function toUserProfile(row: UserRow): UserProfile {
@@ -43,3 +44,14 @@ export async function ensureUserProvisioned(
   });
   return toUserProfile(row);
 }
+
+/**
+ * UserPort 的 Prisma 實作。
+ *
+ * 上面那兩個具名函式暫時留著：billing/entitlement.service.ts 還直接 import findUserByFirebaseUid（那個
+ * 切片還沒轉成 ports），等它也轉過去之後，這個檔案就只需要匯出這個 adapter。
+ */
+export const prismaUser: UserPort = {
+  find: findUserByFirebaseUid,
+  ensureProvisioned: ensureUserProvisioned,
+};

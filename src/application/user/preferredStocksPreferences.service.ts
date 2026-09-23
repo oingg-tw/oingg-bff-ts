@@ -1,12 +1,11 @@
 import { AppError } from "@/domain/appError.js";
-import {
-  findPreferredStocksPreferences,
-  upsertPreferredStocksPreferences,
-} from "@/infrastructure/prisma/repositories/preferredStocksPreferences.repository.js";
+import type { AppDeps } from "@/application/deps.js";
 import type {
   PreferredStocksColumnPreset,
   PreferredStocksPreferences,
 } from "@/application/user/preferredStocksPreferences.types.js";
+
+export type PreferredStocksPreferencesDeps = Pick<AppDeps, "userPreferences">;
 
 const VALID_COLUMN_PRESETS: PreferredStocksColumnPreset[] = ["ALL", "CONTRACT_TERMS", "VALUATION", "CALL_RISK"];
 
@@ -14,8 +13,11 @@ const VALID_COLUMN_PRESETS: PreferredStocksColumnPreset[] = ["ALL", "CONTRACT_TE
  * `columnPresetId`/`columnOrder` both null means "no preference saved yet" — the frontend applies its
  * own local default for each, same reasoning as getStockDetailPreferences/getDashboardCardSettings.
  */
-export async function getPreferredStocksPreferences(firebaseUid: string): Promise<PreferredStocksPreferences> {
-  const row = await findPreferredStocksPreferences(firebaseUid);
+export async function getPreferredStocksPreferences(
+  firebaseUid: string,
+  deps: PreferredStocksPreferencesDeps,
+): Promise<PreferredStocksPreferences> {
+  const row = await deps.userPreferences.getPreferredStocksPreferences(firebaseUid);
   return { columnPresetId: row?.columnPresetId ?? null, columnOrder: row?.columnOrder ?? null };
 }
 
@@ -40,9 +42,10 @@ export async function updatePreferredStocksPreferences(
   firebaseUid: string,
   columnPresetId: unknown,
   columnOrder: unknown,
+  deps: PreferredStocksPreferencesDeps,
 ): Promise<PreferredStocksPreferences> {
   assertValidColumnPresetId(columnPresetId);
   assertValidColumnOrder(columnOrder);
-  const row = await upsertPreferredStocksPreferences(firebaseUid, columnPresetId, columnOrder);
+  const row = await deps.userPreferences.savePreferredStocksPreferences(firebaseUid, columnPresetId, columnOrder);
   return { columnPresetId: row.columnPresetId, columnOrder: row.columnOrder };
 }

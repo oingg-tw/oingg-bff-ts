@@ -1,39 +1,29 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@/infrastructure/prisma/repositories/preferredStocksPreferences.repository.js", () => ({
-  findPreferredStocksPreferences: vi.fn(),
-  upsertPreferredStocksPreferences: vi.fn(),
-}));
-
-import {
-  findPreferredStocksPreferences,
-  upsertPreferredStocksPreferences,
-} from "@/infrastructure/prisma/repositories/preferredStocksPreferences.repository.js";
+import { describe, expect, it, vi } from "vitest";
+import { fakeUserPreferences } from "@/tests/fakes/userPreferences.js";
 import {
   getPreferredStocksPreferences,
   updatePreferredStocksPreferences,
 } from "@/application/user/preferredStocksPreferences.service.js";
 
 describe("getPreferredStocksPreferences", () => {
-  beforeEach(() => {
-    vi.mocked(findPreferredStocksPreferences).mockReset();
-  });
-
   it("returns null columnPresetId/columnOrder when the user has no saved row", async () => {
-    vi.mocked(findPreferredStocksPreferences).mockResolvedValue(null);
+    const userPreferences = fakeUserPreferences();
 
-    const preferences = await getPreferredStocksPreferences("uid-1");
+    const preferences = await getPreferredStocksPreferences("uid-1", { userPreferences });
 
     expect(preferences).toEqual({ columnPresetId: null, columnOrder: null });
+    expect(userPreferences.getPreferredStocksPreferences).toHaveBeenCalledWith("uid-1");
   });
 
   it("returns the user's saved column preset and column order", async () => {
-    vi.mocked(findPreferredStocksPreferences).mockResolvedValue({
-      columnPresetId: "CONTRACT_TERMS",
-      columnOrder: ["dividend-type", "participation", "issue-price"],
+    const userPreferences = fakeUserPreferences({
+      getPreferredStocksPreferences: vi.fn().mockResolvedValue({
+        columnPresetId: "CONTRACT_TERMS",
+        columnOrder: ["dividend-type", "participation", "issue-price"],
+      }),
     });
 
-    const preferences = await getPreferredStocksPreferences("uid-1");
+    const preferences = await getPreferredStocksPreferences("uid-1", { userPreferences });
 
     expect(preferences).toEqual({
       columnPresetId: "CONTRACT_TERMS",
@@ -43,54 +33,62 @@ describe("getPreferredStocksPreferences", () => {
 });
 
 describe("updatePreferredStocksPreferences", () => {
-  beforeEach(() => {
-    vi.mocked(upsertPreferredStocksPreferences).mockReset();
-  });
-
   it("rejects a columnPresetId outside ALL/CONTRACT_TERMS/VALUATION/CALL_RISK", async () => {
-    await expect(updatePreferredStocksPreferences("uid-1", "GROWTH", ["dividend-type"])).rejects.toMatchObject({
-      statusCode: 400,
-    });
-    await expect(updatePreferredStocksPreferences("uid-1", undefined, ["dividend-type"])).rejects.toMatchObject({
-      statusCode: 400,
-    });
-    expect(upsertPreferredStocksPreferences).not.toHaveBeenCalled();
+    const userPreferences = fakeUserPreferences();
+
+    await expect(
+      updatePreferredStocksPreferences("uid-1", "GROWTH", ["dividend-type"], { userPreferences }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    await expect(
+      updatePreferredStocksPreferences("uid-1", undefined, ["dividend-type"], { userPreferences }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(userPreferences.savePreferredStocksPreferences).not.toHaveBeenCalled();
   });
 
   // Regression guard: lowercase/mixed-case shouldn't slip through as a valid value even though it
   // "reads" the same — the wire contract is strictly the 4 SCREAMING_SNAKE_CASE values.
   it("rejects a lowercase columnPresetId even if it matches a valid value case-insensitively", async () => {
-    await expect(updatePreferredStocksPreferences("uid-1", "contract_terms", ["dividend-type"])).rejects.toMatchObject({
-      statusCode: 400,
-    });
+    const userPreferences = fakeUserPreferences();
+
+    await expect(
+      updatePreferredStocksPreferences("uid-1", "contract_terms", ["dividend-type"], { userPreferences }),
+    ).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it("rejects a non-array columnOrder", async () => {
-    await expect(updatePreferredStocksPreferences("uid-1", "ALL", "dividend-type")).rejects.toMatchObject({
-      statusCode: 400,
-    });
-    expect(upsertPreferredStocksPreferences).not.toHaveBeenCalled();
+    const userPreferences = fakeUserPreferences();
+
+    await expect(
+      updatePreferredStocksPreferences("uid-1", "ALL", "dividend-type", { userPreferences }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(userPreferences.savePreferredStocksPreferences).not.toHaveBeenCalled();
   });
 
   it("rejects an array containing a non-string element", async () => {
-    await expect(updatePreferredStocksPreferences("uid-1", "ALL", ["dividend-type", 123])).rejects.toMatchObject({
-      statusCode: 400,
-    });
-    expect(upsertPreferredStocksPreferences).not.toHaveBeenCalled();
+    const userPreferences = fakeUserPreferences();
+
+    await expect(
+      updatePreferredStocksPreferences("uid-1", "ALL", ["dividend-type", 123], { userPreferences }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(userPreferences.savePreferredStocksPreferences).not.toHaveBeenCalled();
   });
 
   it("persists a valid columnPresetId and columnOrder together, without validating column id membership", async () => {
-    vi.mocked(upsertPreferredStocksPreferences).mockResolvedValue({
-      columnPresetId: "VALUATION",
-      columnOrder: ["issue-price", "some-brand-new-column-id"],
+    const userPreferences = fakeUserPreferences({
+      savePreferredStocksPreferences: vi.fn().mockResolvedValue({
+        columnPresetId: "VALUATION",
+        columnOrder: ["issue-price", "some-brand-new-column-id"],
+      }),
     });
 
-    const preferences = await updatePreferredStocksPreferences("uid-1", "VALUATION", [
-      "issue-price",
-      "some-brand-new-column-id",
-    ]);
+    const preferences = await updatePreferredStocksPreferences(
+      "uid-1",
+      "VALUATION",
+      ["issue-price", "some-brand-new-column-id"],
+      { userPreferences },
+    );
 
-    expect(upsertPreferredStocksPreferences).toHaveBeenCalledWith("uid-1", "VALUATION", [
+    expect(userPreferences.savePreferredStocksPreferences).toHaveBeenCalledWith("uid-1", "VALUATION", [
       "issue-price",
       "some-brand-new-column-id",
     ]);
@@ -101,11 +99,13 @@ describe("updatePreferredStocksPreferences", () => {
   });
 
   it("persists an intentionally empty columnOrder", async () => {
-    vi.mocked(upsertPreferredStocksPreferences).mockResolvedValue({ columnPresetId: "ALL", columnOrder: [] });
+    const userPreferences = fakeUserPreferences({
+      savePreferredStocksPreferences: vi.fn().mockResolvedValue({ columnPresetId: "ALL", columnOrder: [] }),
+    });
 
-    const preferences = await updatePreferredStocksPreferences("uid-1", "ALL", []);
+    const preferences = await updatePreferredStocksPreferences("uid-1", "ALL", [], { userPreferences });
 
-    expect(upsertPreferredStocksPreferences).toHaveBeenCalledWith("uid-1", "ALL", []);
+    expect(userPreferences.savePreferredStocksPreferences).toHaveBeenCalledWith("uid-1", "ALL", []);
     expect(preferences).toEqual({ columnPresetId: "ALL", columnOrder: [] });
   });
 });

@@ -1,10 +1,7 @@
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
+import type { StoredScreenerDisplaySettings } from "@/application/ports/userPreferences.js";
 
-export interface ScreenerDisplaySettingsRow {
-  showAsOfDate: boolean | null;
-}
-
-export async function findDisplaySettings(firebaseUid: string): Promise<ScreenerDisplaySettingsRow | null> {
+export async function findDisplaySettings(firebaseUid: string): Promise<StoredScreenerDisplaySettings | null> {
   const prisma = getPrismaClient();
   return prisma.screenerDisplaySettings.findUnique({
     where: { firebaseUid },
@@ -15,7 +12,7 @@ export async function findDisplaySettings(firebaseUid: string): Promise<Screener
 export async function upsertDisplaySettings(
   firebaseUid: string,
   showAsOfDate: boolean,
-): Promise<ScreenerDisplaySettingsRow> {
+): Promise<StoredScreenerDisplaySettings> {
   const prisma = getPrismaClient();
   return prisma.screenerDisplaySettings.upsert({
     where: { firebaseUid },

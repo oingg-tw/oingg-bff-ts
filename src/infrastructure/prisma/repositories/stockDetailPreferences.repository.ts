@@ -1,12 +1,8 @@
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
+import type { StoredStockDetailPreferences } from "@/application/ports/userPreferences.js";
 import type { StockDetailPageMode } from "@/application/user/stockDetailPreferences.types.js";
 
-export interface StockDetailPreferencesRow {
-  mode: StockDetailPageMode;
-  visibleCardIds: string[];
-}
-
-export async function findStockDetailPreferences(firebaseUid: string): Promise<StockDetailPreferencesRow | null> {
+export async function findStockDetailPreferences(firebaseUid: string): Promise<StoredStockDetailPreferences | null> {
   const prisma = getPrismaClient();
   const row = await prisma.stockDetailPreferences.findUnique({
     where: { firebaseUid },
@@ -19,7 +15,7 @@ export async function upsertStockDetailPreferences(
   firebaseUid: string,
   mode: StockDetailPageMode,
   visibleCardIds: string[],
-): Promise<StockDetailPreferencesRow> {
+): Promise<StoredStockDetailPreferences> {
   const prisma = getPrismaClient();
   const row = await prisma.stockDetailPreferences.upsert({
     where: { firebaseUid },

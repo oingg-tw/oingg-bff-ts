@@ -2,6 +2,8 @@ import type { AppDeps } from "@/application/deps.js";
 import { analysisMacroGateway } from "@/infrastructure/analysisApi/macro/macro.client.js";
 import { prismaHoldings } from "@/infrastructure/prisma/repositories/holdings.repository.js";
 import { prismaTransactions } from "@/infrastructure/prisma/repositories/transactions.repository.js";
+import { prismaUser } from "@/infrastructure/prisma/repositories/user.repository.js";
+import { prismaUserPreferences } from "@/infrastructure/prisma/repositories/userPreferences.repository.js";
 import { prismaWatchlist } from "@/infrastructure/prisma/repositories/watchlist.repository.js";
 
 /**
@@ -18,6 +20,8 @@ export function createAppDeps(): AppDeps {
     watchlist: prismaWatchlist,
     holdings: prismaHoldings,
     transactions: prismaTransactions,
+    user: prismaUser,
+    userPreferences: prismaUserPreferences,
     macroGateway: analysisMacroGateway,
   };
 }

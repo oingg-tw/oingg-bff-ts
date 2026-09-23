@@ -1,6 +1,8 @@
 import type { HoldingsPort } from "@/application/ports/holdings.js";
 import type { MacroGatewayPort } from "@/application/ports/macroGateway.js";
 import type { TransactionsPort } from "@/application/ports/transactions.js";
+import type { UserPort } from "@/application/ports/user.js";
+import type { UserPreferencesPort } from "@/application/ports/userPreferences.js";
 import type { WatchlistPort } from "@/application/ports/watchlist.js";
 
 /**
@@ -18,6 +20,9 @@ export interface AppDeps {
   watchlist: WatchlistPort;
   holdings: HoldingsPort;
   transactions: TransactionsPort;
+  user: UserPort;
+  /** 五張以 firebaseUid 為鍵的偏好設定表，合成一個 port——為什麼不拆成五個見該檔案的說明。 */
+  userPreferences: UserPreferencesPort;
 
   // --- 代理層：對 analysis-ts 的出站呼叫，一個切片一個 gateway ---
   macroGateway: MacroGatewayPort;

@@ -1,82 +1,82 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@/infrastructure/prisma/repositories/dashboardCardSettings.repository.js", () => ({
-  findDashboardCardSettings: vi.fn(),
-  upsertDashboardCardSettings: vi.fn(),
-}));
-
-import {
-  findDashboardCardSettings,
-  upsertDashboardCardSettings,
-} from "@/infrastructure/prisma/repositories/dashboardCardSettings.repository.js";
+import { describe, expect, it, vi } from "vitest";
+import { fakeUserPreferences } from "@/tests/fakes/userPreferences.js";
 import {
   getDashboardCardSettings,
   updateDashboardCardSettings,
 } from "@/application/user/dashboardCardSettings.service.js";
 
 describe("getDashboardCardSettings", () => {
-  beforeEach(() => {
-    vi.mocked(findDashboardCardSettings).mockReset();
-  });
-
   // null (not []) signals "no preference saved yet" — the frontend owns what "show everything" means,
   // this service never materializes a default list of its own.
   it("returns null visibleCardIds when the user has no saved row", async () => {
-    vi.mocked(findDashboardCardSettings).mockResolvedValue(null);
+    const userPreferences = fakeUserPreferences();
 
-    const settings = await getDashboardCardSettings("uid-1");
+    const settings = await getDashboardCardSettings("uid-1", { userPreferences });
 
     expect(settings).toEqual({ visibleCardIds: null });
+    expect(userPreferences.getDashboardCards).toHaveBeenCalledWith("uid-1");
   });
 
   it("returns the user's explicitly saved list, including an intentionally empty one", async () => {
-    vi.mocked(findDashboardCardSettings).mockResolvedValue({ visibleCardIds: [] });
+    const userPreferences = fakeUserPreferences({
+      getDashboardCards: vi.fn().mockResolvedValue({ visibleCardIds: [] }),
+    });
 
-    const settings = await getDashboardCardSettings("uid-1");
+    const settings = await getDashboardCardSettings("uid-1", { userPreferences });
 
     expect(settings).toEqual({ visibleCardIds: [] });
   });
 
   it("returns the user's saved list of card ids", async () => {
-    vi.mocked(findDashboardCardSettings).mockResolvedValue({
-      visibleCardIds: ["margin-short-ratio", "revenue-ranking"],
+    const userPreferences = fakeUserPreferences({
+      getDashboardCards: vi.fn().mockResolvedValue({ visibleCardIds: ["margin-short-ratio", "revenue-ranking"] }),
     });
 
-    const settings = await getDashboardCardSettings("uid-1");
+    const settings = await getDashboardCardSettings("uid-1", { userPreferences });
 
     expect(settings).toEqual({ visibleCardIds: ["margin-short-ratio", "revenue-ranking"] });
   });
 });
 
 describe("updateDashboardCardSettings", () => {
-  beforeEach(() => {
-    vi.mocked(upsertDashboardCardSettings).mockReset();
-  });
-
   it("rejects a non-array value", async () => {
-    await expect(updateDashboardCardSettings("uid-1", "margin-short-ratio")).rejects.toMatchObject({
+    const userPreferences = fakeUserPreferences();
+
+    await expect(updateDashboardCardSettings("uid-1", "margin-short-ratio", { userPreferences })).rejects.toMatchObject(
+      { statusCode: 400 },
+    );
+    await expect(updateDashboardCardSettings("uid-1", undefined, { userPreferences })).rejects.toMatchObject({
       statusCode: 400,
     });
-    await expect(updateDashboardCardSettings("uid-1", undefined)).rejects.toMatchObject({ statusCode: 400 });
-    await expect(updateDashboardCardSettings("uid-1", null)).rejects.toMatchObject({ statusCode: 400 });
-    expect(upsertDashboardCardSettings).not.toHaveBeenCalled();
+    await expect(updateDashboardCardSettings("uid-1", null, { userPreferences })).rejects.toMatchObject({
+      statusCode: 400,
+    });
+    expect(userPreferences.saveDashboardCards).not.toHaveBeenCalled();
   });
 
   it("rejects an array containing a non-string element", async () => {
-    await expect(updateDashboardCardSettings("uid-1", ["margin-short-ratio", 123])).rejects.toMatchObject({
-      statusCode: 400,
-    });
-    expect(upsertDashboardCardSettings).not.toHaveBeenCalled();
+    const userPreferences = fakeUserPreferences();
+
+    await expect(
+      updateDashboardCardSettings("uid-1", ["margin-short-ratio", 123], { userPreferences }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(userPreferences.saveDashboardCards).not.toHaveBeenCalled();
   });
 
   it("persists a valid list and returns it, without validating membership against a known card id list", async () => {
-    vi.mocked(upsertDashboardCardSettings).mockResolvedValue({
-      visibleCardIds: ["margin-short-ratio", "some-brand-new-card-id"],
+    const userPreferences = fakeUserPreferences({
+      saveDashboardCards: vi
+        .fn()
+        .mockResolvedValue({ visibleCardIds: ["margin-short-ratio", "some-brand-new-card-id"] }),
     });
 
-    const settings = await updateDashboardCardSettings("uid-1", ["margin-short-ratio", "some-brand-new-card-id"]);
+    const settings = await updateDashboardCardSettings(
+      "uid-1",
+      ["margin-short-ratio", "some-brand-new-card-id"],
+      { userPreferences },
+    );
 
-    expect(upsertDashboardCardSettings).toHaveBeenCalledWith("uid-1", [
+    expect(userPreferences.saveDashboardCards).toHaveBeenCalledWith("uid-1", [
       "margin-short-ratio",
       "some-brand-new-card-id",
     ]);
@@ -85,11 +85,13 @@ describe("updateDashboardCardSettings", () => {
 
   // An intentionally empty list (user hid every card) must persist as [], not be rejected or coerced.
   it("persists an intentionally empty list", async () => {
-    vi.mocked(upsertDashboardCardSettings).mockResolvedValue({ visibleCardIds: [] });
+    const userPreferences = fakeUserPreferences({
+      saveDashboardCards: vi.fn().mockResolvedValue({ visibleCardIds: [] }),
+    });
 
-    const settings = await updateDashboardCardSettings("uid-1", []);
+    const settings = await updateDashboardCardSettings("uid-1", [], { userPreferences });
 
-    expect(upsertDashboardCardSettings).toHaveBeenCalledWith("uid-1", []);
+    expect(userPreferences.saveDashboardCards).toHaveBeenCalledWith("uid-1", []);
     expect(settings).toEqual({ visibleCardIds: [] });
   });
 });

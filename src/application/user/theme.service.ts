@@ -1,6 +1,9 @@
 import { AppError } from "@/domain/appError.js";
-import { findThemePreference, upsertThemePreference, type ThemePreferenceRow } from "@/infrastructure/prisma/repositories/theme.repository.js";
+import type { AppDeps } from "@/application/deps.js";
+import type { StoredThemePreference } from "@/application/ports/userPreferences.js";
 import type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreference } from "@/application/user/theme.types.js";
+
+export type ThemeDeps = Pick<AppDeps, "userPreferences">;
 
 const VALID_MODES: ThemeMode[] = ["LIGHT", "DARK", "SYSTEM"];
 const VALID_ACCENT_COLORS: ThemeAccentColor[] = ["BLUE", "GREEN", "PURPLE", "ORANGE", "RED", "TEAL", "GOLD"];
@@ -57,7 +60,13 @@ function assertValidMarketColorConvention(
   }
 }
 
-function toThemePreference(row: ThemePreferenceRow | null): ThemePreference {
+/**
+ * Resolves every unset field against the live SYSTEM_DEFAULT_THEME. This is why the port hands back the
+ * stored shape (fields nullable) instead of a ready-made ThemePreference: "never explicitly chosen" is
+ * a fact about storage, but what it *means* is a product rule, and it has to be re-read on every request
+ * so that changing the constant above changes the default for everyone immediately.
+ */
+function toThemePreference(row: StoredThemePreference | null): ThemePreference {
   return {
     mode: row?.mode ?? SYSTEM_DEFAULT_THEME.mode,
     accentColor: row?.accentColor ?? SYSTEM_DEFAULT_THEME.accentColor,
@@ -66,22 +75,26 @@ function toThemePreference(row: ThemePreferenceRow | null): ThemePreference {
   };
 }
 
-export async function getThemePreference(firebaseUid: string): Promise<ThemePreference> {
-  const row = await findThemePreference(firebaseUid);
+export async function getThemePreference(firebaseUid: string, deps: ThemeDeps): Promise<ThemePreference> {
+  const row = await deps.userPreferences.getTheme(firebaseUid);
   return toThemePreference(row);
 }
 
 /** 外觀模式 (light/dark/system) — its own endpoint, independent of accentColor/marketColorConvention. */
-export async function updateThemeMode(firebaseUid: string, mode: unknown): Promise<ThemePreference> {
+export async function updateThemeMode(firebaseUid: string, mode: unknown, deps: ThemeDeps): Promise<ThemePreference> {
   assertValidMode(mode);
-  const row = await upsertThemePreference(firebaseUid, { mode });
+  const row = await deps.userPreferences.saveTheme(firebaseUid, { mode });
   return toThemePreference(row);
 }
 
 /** 主題色 (accent color) — its own endpoint, independent of mode/marketColorConvention. */
-export async function updateThemeAccentColor(firebaseUid: string, accentColor: unknown): Promise<ThemePreference> {
+export async function updateThemeAccentColor(
+  firebaseUid: string,
+  accentColor: unknown,
+  deps: ThemeDeps,
+): Promise<ThemePreference> {
   assertValidAccentColor(accentColor);
-  const row = await upsertThemePreference(firebaseUid, { accentColor });
+  const row = await deps.userPreferences.saveTheme(firebaseUid, { accentColor });
   return toThemePreference(row);
 }
 
@@ -89,17 +102,22 @@ export async function updateThemeAccentColor(firebaseUid: string, accentColor: u
 export async function updateMarketColorConvention(
   firebaseUid: string,
   marketColorConvention: unknown,
+  deps: ThemeDeps,
 ): Promise<ThemePreference> {
   assertValidMarketColorConvention(marketColorConvention);
-  const row = await upsertThemePreference(firebaseUid, { marketColorConvention });
+  const row = await deps.userPreferences.saveTheme(firebaseUid, { marketColorConvention });
   return toThemePreference(row);
 }
 
 /** 視覺滿版 (app-wide full-width layout) — its own endpoint, independent of the other theme fields. */
-export async function updateIsFullWidth(firebaseUid: string, isFullWidth: unknown): Promise<ThemePreference> {
+export async function updateIsFullWidth(
+  firebaseUid: string,
+  isFullWidth: unknown,
+  deps: ThemeDeps,
+): Promise<ThemePreference> {
   if (typeof isFullWidth !== "boolean") {
     throw new AppError('"isFullWidth" must be a boolean', 400);
   }
-  const row = await upsertThemePreference(firebaseUid, { isFullWidth });
+  const row = await deps.userPreferences.saveTheme(firebaseUid, { isFullWidth });
   return toThemePreference(row);
 }

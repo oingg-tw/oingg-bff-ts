@@ -1,16 +1,10 @@
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
-import type { MarketColorConvention, ThemeAccentColor, ThemeMode, ThemePreferenceUpdate } from "@/application/user/theme.types.js";
-
-export interface ThemePreferenceRow {
-  mode: ThemeMode | null;
-  accentColor: ThemeAccentColor | null;
-  marketColorConvention: MarketColorConvention | null;
-  isFullWidth: boolean | null;
-}
+import type { StoredThemePreference } from "@/application/ports/userPreferences.js";
+import type { ThemePreferenceUpdate } from "@/application/user/theme.types.js";
 
 const SELECT_FIELDS = { mode: true, accentColor: true, marketColorConvention: true, isFullWidth: true } as const;
 
-export async function findThemePreference(firebaseUid: string): Promise<ThemePreferenceRow | null> {
+export async function findThemePreference(firebaseUid: string): Promise<StoredThemePreference | null> {
   const prisma = getPrismaClient();
   return prisma.userThemePreference.findUnique({
     where: { firebaseUid },
@@ -21,7 +15,7 @@ export async function findThemePreference(firebaseUid: string): Promise<ThemePre
 export async function upsertThemePreference(
   firebaseUid: string,
   update: ThemePreferenceUpdate,
-): Promise<ThemePreferenceRow> {
+): Promise<StoredThemePreference> {
   const prisma = getPrismaClient();
   return prisma.userThemePreference.upsert({
     where: { firebaseUid },

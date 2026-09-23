@@ -18,7 +18,7 @@ import { stockRouter } from "@/http/modules/stock/route.js";
 import { systemRouter } from "@/http/modules/system/route.js";
 import { startedAt } from "@/application/system/system.state.js";
 import { createTransactionsRouter } from "@/http/modules/transactions/route.js";
-import { userRouter } from "@/http/modules/user/route.js";
+import { createUserRouter } from "@/http/modules/user/route.js";
 import { createWatchlistRouter } from "@/http/modules/watchlist/route.js";
 import { env, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from "@/shared/env.js";
 import type { AppDeps } from "@/application/deps.js";
@@ -59,8 +59,9 @@ export function createRoutes(deps: AppDeps): Router {
   routes.use("/billing", billingRouter); // GET /billing/entitlement
   // GET /users/me; GET /users/me/theme; PUT /users/me/theme/mode, /theme/accent-color,
   // /theme/market-color-convention, /theme/full-width;
-  // GET /users/me/screener-display-settings; PUT /users/me/screener-display-settings/show-as-of-date
-  routes.use("/users", userRouter);
+  // GET /users/me/screener-display-settings; PUT /users/me/screener-display-settings/show-as-of-date;
+  // GET/PUT /users/me/dashboard-cards, /me/stock-detail-preferences, /me/preferred-stocks-preferences
+  routes.use("/users", createUserRouter(deps));
   routes.use("/stocks", stockRouter); // GET /stocks/:symbol
   routes.use("/watchlist", createWatchlistRouter(deps)); // GET/POST /watchlist, GET/PATCH/DELETE /watchlist/:id
   routes.use("/holdings", createHoldingsRouter(deps)); // GET/POST /holdings, GET/PATCH/DELETE /holdings/:id
