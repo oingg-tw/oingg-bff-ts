@@ -1,14 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Still a module mock, not a port fake: "stock.price" comes from twse/tpex through the proxy/stock
-// slice, which hasn't been converted to ports yet. It becomes a fake when that slice converts.
-vi.mock("@/application/proxy/stock/index.js", () => ({
-  getLatestClosePrices: vi.fn(),
-}));
-
-import { getLatestClosePrices } from "@/application/proxy/stock/index.js";
 import { fakeCatalogLookup, fakeMetricCatalog } from "@/tests/fakes/metricCatalog.js";
-import { fakeScreenerGateway } from "@/tests/fakes/analysisGateways.js";
+import { fakeScreenerGateway, fakeStockGateway } from "@/tests/fakes/analysisGateways.js";
 import { runRanking, runScreener, runScreenerValues } from "@/application/proxy/screener/screener.service.js";
 import type { MetricFieldLookup } from "@/application/metricCatalog/metricCatalog.types.js";
 import type { Pagination } from "@/application/proxy/screener/pagination.js";
@@ -59,19 +52,24 @@ const KNOWN_FIELDS: Record<string, Lookup> = {
 };
 
 /**
- * Typed fakes of the two ports this service takes, rebuilt per test. The gateway fake is what lets each
- * assertion below say "this input never reached analysis-ts" without knowing which client module (or
- * which of its two files) would have been called.
+ * Typed fakes of the three ports this service takes, rebuilt per test. The gateway fakes are what let
+ * each assertion below say "this input never reached analysis-ts" without knowing which client module
+ * (or which of its two files) would have been called.
+ *
+ * stockGateway used to be a vi.mock of the proxy/stock barrel, because that slice wasn't on ports yet.
+ * It is a typed fake now, so the "stock.price" assertions below check the port's contract rather than
+ * one module's export list.
  */
 let screenerGateway = fakeScreenerGateway();
 let metricCatalog = fakeMetricCatalog();
-let deps = { screenerGateway, metricCatalog };
+let stockGateway = fakeStockGateway();
+let deps = { screenerGateway, metricCatalog, stockGateway };
 
 beforeEach(() => {
   screenerGateway = fakeScreenerGateway();
   metricCatalog = fakeMetricCatalog({ findFields: vi.fn(fakeCatalogLookup(KNOWN_FIELDS)) });
-  deps = { screenerGateway, metricCatalog };
-  vi.mocked(getLatestClosePrices).mockReset();
+  stockGateway = fakeStockGateway();
+  deps = { screenerGateway, metricCatalog, stockGateway };
 });
 
 describe("runScreener", () => {
@@ -239,7 +237,7 @@ describe("runScreener", () => {
         { symbol: "2317", name: "鴻海", values: {} },
       ],
     });
-    vi.mocked(getLatestClosePrices).mockResolvedValue(
+    vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
       new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28" }]]),
     );
 
@@ -256,8 +254,8 @@ describe("runScreener", () => {
     // "stock.price" must never leak into the columns sent to analysis-ts — it isn't a metricCatalog field.
     expect(screenerGateway.runScreener).toHaveBeenCalledWith(expect.anything(), [], DEFAULT_PAGINATION, undefined, undefined, undefined);
     // One batched call for the whole result set, not one call per symbol.
-    expect(getLatestClosePrices).toHaveBeenCalledTimes(1);
-    expect(getLatestClosePrices).toHaveBeenCalledWith(["2330", "2317"]);
+    expect(stockGateway.getLatestClosePrices).toHaveBeenCalledTimes(1);
+    expect(stockGateway.getLatestClosePrices).toHaveBeenCalledWith(["2330", "2317"]);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
     expect(result.results).toEqual([
       { symbol: "2330", name: "台積電", values: { "stock.price": { value: "2350.0000", knowledgeDate: "2026-08-28", nullReason: null } } },
@@ -457,7 +455,7 @@ describe("runRanking", () => {
     vi.mocked(screenerGateway.runRanking).mockResolvedValue({
       results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", knowledgeDate: "26Q2", nullReason: null } } }],
     });
-    vi.mocked(getLatestClosePrices).mockResolvedValue(
+    vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
       new Map([["2330", { close: "2410.0000", tradeDate: "2026-08-28" }]]),
     );
 
@@ -465,7 +463,7 @@ describe("runRanking", () => {
 
     // "stock.price" must never be sent to analysis-ts as an extra column — it isn't a metricCatalog field.
     expect(screenerGateway.runRanking).toHaveBeenCalledWith("roe.roeTtmPct", "desc", 10, [], undefined, undefined);
-    expect(getLatestClosePrices).toHaveBeenCalledWith(["2330"]);
+    expect(stockGateway.getLatestClosePrices).toHaveBeenCalledWith(["2330"]);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
     expect(result.results[0]?.values).toMatchObject({
       "stock.price": { value: "2410.0000", knowledgeDate: "2026-08-28" },
@@ -517,7 +515,7 @@ describe("runRanking", () => {
         tradeDate: "2026-08-28",
         rankings: [{ symbol: "2330", name: "台積電", value: 27.82 }],
       });
-      vi.mocked(getLatestClosePrices).mockResolvedValue(
+      vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
         new Map([["2330", { close: "2420.0000", tradeDate: "2026-08-28" }]]),
       );
 
@@ -672,7 +670,7 @@ describe("runScreenerValues", () => {
 
   it('merges in "stock.price" from twse/tpex, not passed through to analysis-ts', async () => {
     vi.mocked(screenerGateway.getValues).mockResolvedValue({ results: [{ symbol: "2330", name: "台積電", values: {} }] });
-    vi.mocked(getLatestClosePrices).mockResolvedValue(
+    vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
       new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28" }]]),
     );
 

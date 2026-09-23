@@ -2,7 +2,7 @@ import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { DupontHistoryBasis, DupontHistoryEntry, DupontHistoryResult } from "@/application/proxy/stock/dupontHistory.types.js";
-import { extractHistoryPageMeta } from "@/application/proxy/stock/metricHistoryShared.js";
+import { extractHistoryPageMeta } from "@/infrastructure/analysisApi/stock/historyShared.client.js";
 
 function toNumberOrNull(value: unknown): number | null {
   return typeof value === "number" ? value : null;
@@ -39,7 +39,7 @@ function isDupontHistoryResponse(body: unknown): body is { entries: unknown[] } 
 /**
  * Fetches DuPont-decomposed ROE quarterly history from analysis-ts's GET /companies/dupont-history — a
  * genuinely different entry shape from metric-history/roe-history/roa-history (3 decomposed factors per
- * quarter, not one `value`), so this doesn't share metricHistoryShared.ts's helper. Only allows basis
+ * quarter, not one `value`), so this doesn't share historyShared.client.ts's helper. Only allows basis
  * Q/TTM (no Q_ANN, unlike roe-history/roa-history — confirmed live, 2026-09-07). Same 400-relay and
  * empty-array-not-404 conventions as the other history endpoints in this domain.
  *

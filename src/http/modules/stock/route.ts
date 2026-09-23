@@ -2,30 +2,7 @@ import { Router } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { parseBody } from "@/shared/validation.js";
-import {
-  getBeta,
-  getCapitalStockHistory,
-  getCompanyBadges,
-  getCompanyList,
-  getCompanyProfile,
-  getDailyPriceHistory,
-  getDividendHistory,
-  getDupontHistory,
-  getExDividendCalendar,
-  getExDividendNotices,
-  getFinancialStatement,
-  getForeignShareholdingHistory,
-  getMetricHistory,
-  getMetricProvenance,
-  getMetricsHistory,
-  getMonthlyRevenueHistory,
-  getPiotroskiBreakdown,
-  getPreferredStockFieldCatalog,
-  getPreferredStocks,
-  getRoaHistory,
-  getRoeHistory,
-  getStockQuote,
-} from "@/application/proxy/stock/stock.service.js";
+import type { StockProxyDeps } from "@/application/proxy/stock/stock.service.js";
 
 const MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST = 100;
 
@@ -45,9 +22,8 @@ function limitSchema(min: number, max: number) {
 /** Shared by metric-history/roe-history/roa-history/dupont-history — matches analysis-ts's own 1-40 bound. */
 const historyLimitSchema = limitSchema(1, 40);
 
-export const stockRouter = Router();
-
 /** Matches analysis-ts's own GET /companies bound (confirmed live, 2026-09-11). */
+
 export const companyListQuerySchema = z.object({
   limit: limitSchema(1, 1000),
   offset: z.preprocess(
@@ -59,34 +35,6 @@ export const companyListQuerySchema = z.object({
   ),
 });
 
-// Bare "/stocks" — the full-market company directory backing site-wide search. Distinct from every
-// "/stocks/<segment>" route below regardless of registration order, since it has no path segment beyond
-// the mount point.
-stockRouter.get("/", async (req, res) => {
-  const query = parseBody(companyListQuerySchema, req.query);
-  const result = await getCompanyList(query.limit, query.offset);
-  res.json(result);
-});
-
-stockRouter.get("/ex-dividend-notices", async (req, res) => {
-  const symbolsParam = req.query.symbols;
-  if (typeof symbolsParam !== "string" || symbolsParam.trim() === "") {
-    throw new AppError('Query parameter "symbols" is required (comma-separated stock symbols)', 400);
-  }
-  const symbols = symbolsParam
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (symbols.length > MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST) {
-    throw new AppError(
-      `Requested ${symbols.length} symbols at once, but this endpoint caps at ${MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST}`,
-      400,
-    );
-  }
-  const notices = await getExDividendNotices(symbols);
-  res.json({ notices: Object.fromEntries(notices) });
-});
-
 const YYYY_MM_PATTERN = /^\d{4}-\d{2}$/;
 
 export const exDividendCalendarQuerySchema = z.object({
@@ -95,70 +43,8 @@ export const exDividendCalendarQuerySchema = z.object({
     .regex(YYYY_MM_PATTERN, { error: '"month" must be in "YYYY-MM" format, e.g. "2026-09"' }),
 });
 
-// Mounted before the "/:symbol" catch-all below, or "ex-dividend-calendar" would be captured as a symbol.
-stockRouter.get("/ex-dividend-calendar", async (req, res) => {
-  const query = parseBody(exDividendCalendarQuerySchema, req.query);
-  const result = await getExDividendCalendar(query.month);
-  res.json(result);
-});
-
 export const preferredStocksQuerySchema = z.object({
   symbol: z.string().trim().min(1, '"symbol" must be a non-empty string').optional(),
-});
-
-// Mounted before the "/:symbol" catch-all below, or "preferred-stocks" would be captured as a symbol.
-stockRouter.get("/preferred-stocks", async (req, res) => {
-  const query = parseBody(preferredStocksQuerySchema, req.query);
-  const result = await getPreferredStocks(query.symbol);
-  res.json(result);
-});
-
-// Static, param-free — analysis-ts confirmed no DB query, same response every time (2026-09-08).
-stockRouter.get("/preferred-stocks/field-catalog", async (_req, res) => {
-  const result = await getPreferredStockFieldCatalog();
-  res.json(result);
-});
-
-stockRouter.get("/:symbol", async (req, res) => {
-  const { symbol } = req.params;
-  const quote = await getStockQuote(symbol);
-  if (!quote) {
-    throw new AppError(`No stock data found for symbol "${symbol}"`, 404);
-  }
-  res.json(quote);
-});
-
-stockRouter.get("/:symbol/profile", async (req, res) => {
-  const { symbol } = req.params;
-  const profile = await getCompanyProfile(symbol);
-  if (!profile) {
-    throw new AppError(`No company profile found for symbol "${symbol}"`, 404);
-  }
-  res.json(profile);
-});
-
-stockRouter.get("/:symbol/beta", async (req, res) => {
-  const { symbol } = req.params;
-  const beta = await getBeta(symbol);
-  res.json(beta);
-});
-
-stockRouter.get("/:symbol/badges", async (req, res) => {
-  const { symbol } = req.params;
-  const badges = await getCompanyBadges(symbol);
-  res.json(badges);
-});
-
-stockRouter.get("/:symbol/capital-stock-history", async (req, res) => {
-  const { symbol } = req.params;
-  const history = await getCapitalStockHistory(symbol);
-  res.json(history);
-});
-
-stockRouter.get("/:symbol/dividend-history", async (req, res) => {
-  const { symbol } = req.params;
-  const history = await getDividendHistory(symbol);
-  res.json(history);
 });
 
 export const financialStatementQuerySchema = z
@@ -174,13 +60,6 @@ export const financialStatementQuerySchema = z
     path: ["year"],
   });
 
-stockRouter.get("/:symbol/financial-statement", async (req, res) => {
-  const { symbol } = req.params;
-  const query = parseBody(financialStatementQuerySchema, req.query);
-  const statement = await getFinancialStatement(symbol, query.statementType, query.year, query.season);
-  res.json(statement);
-});
-
 export const metricHistoryQuerySchema = z.object({
   metricCode: z.enum(["eps", "peRatio", "pbRatio", "bvps", "stockPrice"], {
     error: '"metricCode" must be "eps", "peRatio", "pbRatio", "bvps", or "stockPrice"',
@@ -189,17 +68,11 @@ export const metricHistoryQuerySchema = z.object({
   limit: historyLimitSchema,
 });
 
-stockRouter.get("/:symbol/metric-history", async (req, res) => {
-  const { symbol } = req.params;
-  const query = parseBody(metricHistoryQuerySchema, req.query);
-  const history = await getMetricHistory(symbol, query.metricCode, query.basis, query.limit);
-  res.json(history);
-});
-
 // `basis` isn't a fixed enum here (unlike metricHistoryQuerySchema) — analysis-ts's own valid values for
 // this token differ per metricCode combination (e.g. growth-decomposition codes only allow "Q", not
 // "TTM") and are re-validated against GET /metrics' per-metricCode validTokens; a local enum here would
 // either be too narrow (rejecting valid combinations) or too permissive to be useful.
+
 export const metricsHistoryQuerySchema = z.object({
   metricCodes: z
     .string({ error: '"metricCodes" must be a comma-separated list of metric codes' })
@@ -216,30 +89,9 @@ export const metricsHistoryQuerySchema = z.object({
   limit: historyLimitSchema,
 });
 
-stockRouter.get("/:symbol/metrics-history", async (req, res) => {
-  const { symbol } = req.params;
-  const query = parseBody(metricsHistoryQuerySchema, req.query);
-  const history = await getMetricsHistory(symbol, query.metricCodes, query.basis, query.limit);
-  res.json(history);
-});
-
 export const roeRoaHistoryQuerySchema = z.object({
   basis: z.enum(["Q", "Q_ANN", "TTM"], { error: '"basis" must be "Q", "Q_ANN", or "TTM"' }),
   limit: historyLimitSchema,
-});
-
-stockRouter.get("/:symbol/roe-history", async (req, res) => {
-  const { symbol } = req.params;
-  const query = parseBody(roeRoaHistoryQuerySchema, req.query);
-  const history = await getRoeHistory(symbol, query.basis, query.limit);
-  res.json(history);
-});
-
-stockRouter.get("/:symbol/roa-history", async (req, res) => {
-  const { symbol } = req.params;
-  const query = parseBody(roeRoaHistoryQuerySchema, req.query);
-  const history = await getRoaHistory(symbol, query.basis, query.limit);
-  res.json(history);
 });
 
 export const dupontHistoryQuerySchema = z.object({
@@ -247,49 +99,24 @@ export const dupontHistoryQuerySchema = z.object({
   limit: historyLimitSchema,
 });
 
-stockRouter.get("/:symbol/dupont-history", async (req, res) => {
-  const { symbol } = req.params;
-  const query = parseBody(dupontHistoryQuerySchema, req.query);
-  const history = await getDupontHistory(symbol, query.basis, query.limit);
-  res.json(history);
-});
-
 // analysis-ts's own bound for this endpoint is 1-120, NOT the same 1-40 as the other history endpoints
 // above — confirmed live, 2026-09-07.
+
 export const monthlyRevenueHistoryQuerySchema = z.object({
   limit: limitSchema(1, 120),
 });
 
-stockRouter.get("/:symbol/monthly-revenue-history", async (req, res) => {
-  const { symbol } = req.params;
-  const query = parseBody(monthlyRevenueHistoryQuerySchema, req.query);
-  const history = await getMonthlyRevenueHistory(symbol, query.limit);
-  res.json(history);
-});
-
 // analysis-ts's own bound for this endpoint is 1-1500 (confirmed live, 2026-09-08) — much wider than
 // the other history endpoints since this is daily (not quarterly/monthly) data.
+
 export const foreignShareholdingHistoryQuerySchema = z.object({
   limit: limitSchema(1, 1500),
 });
 
-stockRouter.get("/:symbol/foreign-shareholding-history", async (req, res) => {
-  const { symbol } = req.params;
-  const query = parseBody(foreignShareholdingHistoryQuerySchema, req.query);
-  const history = await getForeignShareholdingHistory(symbol, query.limit);
-  res.json(history);
-});
-
 // analysis-ts's own bound for this endpoint is 1-2000 (confirmed live, 2026-09-10).
+
 export const dailyPriceHistoryQuerySchema = z.object({
   limit: limitSchema(1, 2000),
-});
-
-stockRouter.get("/:symbol/daily-price-history", async (req, res) => {
-  const { symbol } = req.params;
-  const query = parseBody(dailyPriceHistoryQuerySchema, req.query);
-  const history = await getDailyPriceHistory(symbol, query.limit);
-  res.json(history);
 });
 
 export const piotroskiBreakdownQuerySchema = z
@@ -302,18 +129,12 @@ export const piotroskiBreakdownQuerySchema = z
     path: ["year"],
   });
 
-stockRouter.get("/:symbol/piotroski-breakdown", async (req, res) => {
-  const { symbol } = req.params;
-  const query = parseBody(piotroskiBreakdownQuerySchema, req.query);
-  const breakdown = await getPiotroskiBreakdown(symbol, query.year, query.season);
-  res.json(breakdown);
-});
-
 // Not a fixed enum — analysis-ts's own supported metricCode set for this endpoint keeps growing (started
 // at 3, now 112+, see GET /metrics' hasProvenance field) and validates itself; a bad value here is relayed
 // as analysis-ts's own 400 message (see metricProvenance.client.ts) rather than guessed at locally. A
 // hardcoded enum here used to silently block newly-added metricCodes until this file caught up — see
 // metricProvenance.types.ts's MetricProvenanceMetricCode.
+
 export const metricProvenanceQuerySchema = z
   .object({
     metricCode: z.string({ error: '"metricCode" is required' }).trim().min(1, '"metricCode" is required'),
@@ -325,9 +146,184 @@ export const metricProvenanceQuerySchema = z
     path: ["year"],
   });
 
-stockRouter.get("/:symbol/metric-provenance", async (req, res) => {
-  const { symbol } = req.params;
-  const query = parseBody(metricProvenanceQuerySchema, req.query);
-  const provenance = await getMetricProvenance(symbol, query.metricCode, query.year, query.season);
-  res.json(provenance);
-});
+/**
+ * 這個切片沒有留 service：原本的 stock.service.ts 除了 assertSymbolExists 以外，每個函式都是
+ * `getX(args) => fetchX(args)`，真正的規則（limit 上下界、metricCode/basis 列舉、year/season 必須成對）
+ * 一直都在上面這些 zod schema 裡，而那份 schema 同時是 OpenAPI 的來源（見 openapi.ts）。所以 route
+ * 直接呼叫 gateway port，跟 macro 切片同樣的判斷。
+ *
+ * 改成工廠函式純粹是為了把 port 傳進來：註冊順序、驗證規則、界限與錯誤訊息一個字都沒動——"/preferred-stocks"
+ * 之類的固定路徑仍然必須排在 "/:symbol" 前面，否則會被當成股票代號吃掉。
+ */
+export function createStockRouter(deps: StockProxyDeps): Router {
+  const stockRouter = Router();
+
+  // Bare "/stocks" — the full-market company directory backing site-wide search. Distinct from every
+  // "/stocks/<segment>" route below regardless of registration order, since it has no path segment beyond
+  // the mount point.
+  stockRouter.get("/", async (req, res) => {
+    const query = parseBody(companyListQuerySchema, req.query);
+    const result = await deps.stockGateway.getCompanyList(query.limit, query.offset);
+    res.json(result);
+  });
+
+  stockRouter.get("/ex-dividend-notices", async (req, res) => {
+    const symbolsParam = req.query.symbols;
+    if (typeof symbolsParam !== "string" || symbolsParam.trim() === "") {
+      throw new AppError('Query parameter "symbols" is required (comma-separated stock symbols)', 400);
+    }
+    const symbols = symbolsParam
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (symbols.length > MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST) {
+      throw new AppError(
+        `Requested ${symbols.length} symbols at once, but this endpoint caps at ${MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST}`,
+        400,
+      );
+    }
+    const notices = await deps.stockGateway.getExDividendNotices(symbols);
+    res.json({ notices: Object.fromEntries(notices) });
+  });
+
+  // Mounted before the "/:symbol" catch-all below, or "ex-dividend-calendar" would be captured as a symbol.
+  stockRouter.get("/ex-dividend-calendar", async (req, res) => {
+    const query = parseBody(exDividendCalendarQuerySchema, req.query);
+    const result = await deps.stockGateway.getExDividendCalendar(query.month);
+    res.json(result);
+  });
+
+  // Mounted before the "/:symbol" catch-all below, or "preferred-stocks" would be captured as a symbol.
+  stockRouter.get("/preferred-stocks", async (req, res) => {
+    const query = parseBody(preferredStocksQuerySchema, req.query);
+    const result = await deps.stockGateway.getPreferredStocks(query.symbol);
+    res.json(result);
+  });
+
+  // Static, param-free — analysis-ts confirmed no DB query, same response every time (2026-09-08).
+  stockRouter.get("/preferred-stocks/field-catalog", async (_req, res) => {
+    const result = await deps.stockGateway.getPreferredStockFieldCatalog();
+    res.json(result);
+  });
+
+  stockRouter.get("/:symbol", async (req, res) => {
+    const { symbol } = req.params;
+    const quote = await deps.stockGateway.getStockQuote(symbol);
+    if (!quote) {
+      throw new AppError(`No stock data found for symbol "${symbol}"`, 404);
+    }
+    res.json(quote);
+  });
+
+  stockRouter.get("/:symbol/profile", async (req, res) => {
+    const { symbol } = req.params;
+    const profile = await deps.stockGateway.getCompanyProfile(symbol);
+    if (!profile) {
+      throw new AppError(`No company profile found for symbol "${symbol}"`, 404);
+    }
+    res.json(profile);
+  });
+
+  stockRouter.get("/:symbol/beta", async (req, res) => {
+    const { symbol } = req.params;
+    const beta = await deps.stockGateway.getBeta(symbol);
+    res.json(beta);
+  });
+
+  stockRouter.get("/:symbol/badges", async (req, res) => {
+    const { symbol } = req.params;
+    const badges = await deps.stockGateway.getCompanyBadges(symbol);
+    res.json(badges);
+  });
+
+  stockRouter.get("/:symbol/capital-stock-history", async (req, res) => {
+    const { symbol } = req.params;
+    const history = await deps.stockGateway.getCapitalStockHistory(symbol);
+    res.json(history);
+  });
+
+  stockRouter.get("/:symbol/dividend-history", async (req, res) => {
+    const { symbol } = req.params;
+    const history = await deps.stockGateway.getDividendHistory(symbol);
+    res.json(history);
+  });
+
+  stockRouter.get("/:symbol/financial-statement", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(financialStatementQuerySchema, req.query);
+    const statement = await deps.stockGateway.getFinancialStatement(symbol, query.statementType, query.year, query.season);
+    res.json(statement);
+  });
+
+  stockRouter.get("/:symbol/metric-history", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(metricHistoryQuerySchema, req.query);
+    const history = await deps.stockGateway.getMetricHistory(symbol, query.metricCode, query.basis, query.limit);
+    res.json(history);
+  });
+
+  stockRouter.get("/:symbol/metrics-history", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(metricsHistoryQuerySchema, req.query);
+    const history = await deps.stockGateway.getMetricsHistory(symbol, query.metricCodes, query.basis, query.limit);
+    res.json(history);
+  });
+
+  stockRouter.get("/:symbol/roe-history", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(roeRoaHistoryQuerySchema, req.query);
+    const history = await deps.stockGateway.getRoeHistory(symbol, query.basis, query.limit);
+    res.json(history);
+  });
+
+  stockRouter.get("/:symbol/roa-history", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(roeRoaHistoryQuerySchema, req.query);
+    const history = await deps.stockGateway.getRoaHistory(symbol, query.basis, query.limit);
+    res.json(history);
+  });
+
+  stockRouter.get("/:symbol/dupont-history", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(dupontHistoryQuerySchema, req.query);
+    const history = await deps.stockGateway.getDupontHistory(symbol, query.basis, query.limit);
+    res.json(history);
+  });
+
+  stockRouter.get("/:symbol/monthly-revenue-history", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(monthlyRevenueHistoryQuerySchema, req.query);
+    const history = await deps.stockGateway.getMonthlyRevenueHistory(symbol, query.limit);
+    res.json(history);
+  });
+
+  stockRouter.get("/:symbol/foreign-shareholding-history", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(foreignShareholdingHistoryQuerySchema, req.query);
+    const history = await deps.stockGateway.getForeignShareholdingHistory(symbol, query.limit);
+    res.json(history);
+  });
+
+  stockRouter.get("/:symbol/daily-price-history", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(dailyPriceHistoryQuerySchema, req.query);
+    const history = await deps.stockGateway.getDailyPriceHistory(symbol, query.limit);
+    res.json(history);
+  });
+
+  stockRouter.get("/:symbol/piotroski-breakdown", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(piotroskiBreakdownQuerySchema, req.query);
+    const breakdown = await deps.stockGateway.getPiotroskiBreakdown(symbol, query.year, query.season);
+    res.json(breakdown);
+  });
+
+  stockRouter.get("/:symbol/metric-provenance", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(metricProvenanceQuerySchema, req.query);
+    const provenance = await deps.stockGateway.getMetricProvenance(symbol, query.metricCode, query.year, query.season);
+    res.json(provenance);
+  });
+
+  return stockRouter;
+}

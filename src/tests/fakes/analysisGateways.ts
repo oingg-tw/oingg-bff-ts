@@ -2,6 +2,7 @@ import { vi } from "vitest";
 import type { EtfScreenerGatewayPort } from "@/application/ports/etfScreenerGateway.js";
 import type { MarketGatewayPort } from "@/application/ports/marketGateway.js";
 import type { ScreenerGatewayPort } from "@/application/ports/screenerGateway.js";
+import type { StockGatewayPort } from "@/application/ports/stockGateway.js";
 
 /**
  * Typed fakes of the proxy slices' outbound gateways. They share a file because they are the same idea —
@@ -34,6 +35,40 @@ export function fakeEtfScreenerGateway(overrides: Partial<EtfScreenerGatewayPort
   return {
     getFieldCatalog: vi.fn(),
     runScreener: vi.fn(),
+    ...overrides,
+  };
+}
+
+/**
+ * The biggest of these by far — 23 methods, because analysis-ts's per-company API is that wide (see
+ * StockGatewayPort). Listing them all out is the point: if that surface grows, this file is one of the
+ * places that has to acknowledge it.
+ */
+export function fakeStockGateway(overrides: Partial<StockGatewayPort> = {}): StockGatewayPort {
+  return {
+    getCompanyList: vi.fn(),
+    getStockQuote: vi.fn(),
+    getLatestClosePrices: vi.fn(),
+    getCompanyProfile: vi.fn(),
+    getBeta: vi.fn(),
+    getCompanyBadges: vi.fn(),
+    getCapitalStockHistory: vi.fn(),
+    getDividendHistory: vi.fn(),
+    getExDividendNotices: vi.fn(),
+    getExDividendCalendar: vi.fn(),
+    getFinancialStatement: vi.fn(),
+    getPreferredStocks: vi.fn(),
+    getPreferredStockFieldCatalog: vi.fn(),
+    getMetricHistory: vi.fn(),
+    getMetricsHistory: vi.fn(),
+    getRoeHistory: vi.fn(),
+    getRoaHistory: vi.fn(),
+    getDupontHistory: vi.fn(),
+    getMonthlyRevenueHistory: vi.fn(),
+    getForeignShareholdingHistory: vi.fn(),
+    getDailyPriceHistory: vi.fn(),
+    getPiotroskiBreakdown: vi.fn(),
+    getMetricProvenance: vi.fn(),
     ...overrides,
   };
 }

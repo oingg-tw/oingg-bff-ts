@@ -1,4 +1,4 @@
-import { fetchFlatMetricHistory } from "@/application/proxy/stock/metricHistoryShared.js";
+import { fetchFlatMetricHistory } from "@/infrastructure/analysisApi/stock/historyShared.client.js";
 import type { RoaHistoryResult, RoeHistoryResult, RoeRoaHistoryBasis } from "@/application/proxy/stock/roeRoaHistory.types.js";
 
 /**

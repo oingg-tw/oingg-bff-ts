@@ -46,7 +46,7 @@ function isMetricsHistoryResponse(body: unknown): body is { entries: unknown[] }
  *
  * Response shape genuinely differs from the single-metric metric-history endpoint: one entry per fiscal
  * period with a `values` map keyed by metricCode, not a flat `value` field — doesn't share
- * metricHistoryShared.ts's helper (same reason dupont-history doesn't). `token` (this client's own param/
+ * historyShared.client.ts's helper (same reason dupont-history doesn't). `token` (this client's own param/
  * field name, kept as-is through analysis-ts's wire-level renames — see below) is a single value shared
  * by every requested metricCode; analysis-ts validates each metricCode actually supports it and returns a
  * 400 with a clear message otherwise (confirmed live: netIncomeGrowthRate only supports "Q", not "TTM") —

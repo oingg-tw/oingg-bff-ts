@@ -22,7 +22,7 @@ export interface MonthlyRevenueHistoryEntry {
 
 export interface MonthlyRevenueHistoryResult {
   symbol: string;
-  /** Full count available (not just this page) — see metricHistoryShared.ts's HistoryPageMeta. */
+  /** Full count available (not just this page) — see historyShared.types.ts's HistoryPageMeta. */
   total: number;
   /** Whether a higher `limit` would return more entries than this call did. */
   hasMore: boolean;

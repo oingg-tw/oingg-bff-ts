@@ -1,4 +1,4 @@
-import { fetchFlatMetricHistory } from "@/application/proxy/stock/metricHistoryShared.js";
+import { fetchFlatMetricHistory } from "@/infrastructure/analysisApi/stock/historyShared.client.js";
 import type { MetricHistoryBasis, MetricHistoryCode, MetricHistoryResult } from "@/application/proxy/stock/metricHistory.types.js";
 
 /**
@@ -9,7 +9,7 @@ import type { MetricHistoryBasis, MetricHistoryCode, MetricHistoryResult } from 
  * Each metricCode only allows specific basis values (confirmed live, 2026-09-07 — not the same for
  * every code, so don't assume one basis per metric): `eps` allows both `TTM` and `Q`, `peRatio` only
  * `TTM`, `pbRatio` only `Q`. analysis-ts validates this combination itself and returns 400 with a clear
- * message — relayed as-is (see metricHistoryShared.ts's fetchFlatMetricHistory).
+ * message — relayed as-is (see historyShared.client.ts's fetchFlatMetricHistory).
  *
  * An unknown or not-yet-backfilled symbol comes back with an empty `entries` array, never a 404 — as of
  * 2026-09-07 only 2330 has any backfilled history at all for any metricCode.

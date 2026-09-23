@@ -14,7 +14,7 @@ import { createMacroRouter } from "@/http/modules/macro/route.js";
 import { createMarketRouter } from "@/http/modules/market/route.js";
 import { createScreenerRoutes } from "@/http/modules/screener/index.js";
 import { createSecuritiesRouter } from "@/http/modules/securities/route.js";
-import { stockRouter } from "@/http/modules/stock/route.js";
+import { createStockRouter } from "@/http/modules/stock/route.js";
 import { createSystemRouter } from "@/http/modules/system/route.js";
 import { startedAt } from "@/application/system/system.state.js";
 import { createTransactionsRouter } from "@/http/modules/transactions/route.js";
@@ -62,7 +62,7 @@ export function createRoutes(deps: AppDeps): Router {
   // GET /users/me/screener-display-settings; PUT /users/me/screener-display-settings/show-as-of-date;
   // GET/PUT /users/me/dashboard-cards, /me/stock-detail-preferences, /me/preferred-stocks-preferences
   routes.use("/users", createUserRouter(deps));
-  routes.use("/stocks", stockRouter); // GET /stocks/:symbol
+  routes.use("/stocks", createStockRouter(deps)); // GET /stocks/:symbol
   routes.use("/watchlist", createWatchlistRouter(deps)); // GET/POST /watchlist, GET/PATCH/DELETE /watchlist/:id
   routes.use("/holdings", createHoldingsRouter(deps)); // GET/POST /holdings, GET/PATCH/DELETE /holdings/:id
   routes.use("/transactions", createTransactionsRouter(deps)); // GET/POST /transactions, GET/PATCH/DELETE /transactions/:id

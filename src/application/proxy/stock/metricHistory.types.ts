@@ -1,4 +1,4 @@
-import type { FlatHistoryEntry } from "@/application/proxy/stock/metricHistoryShared.js";
+import type { FlatHistoryEntry } from "@/application/proxy/stock/historyShared.types.js";
 
 export type MetricHistoryCode = "eps" | "peRatio" | "pbRatio" | "bvps" | "stockPrice";
 export type MetricHistoryBasis = "TTM" | "Q";
@@ -9,7 +9,7 @@ export interface MetricHistoryResult {
   symbol: string;
   metricCode: MetricHistoryCode;
   basis: MetricHistoryBasis;
-  /** Full count available (not just this page) — see metricHistoryShared.ts's HistoryPageMeta. */
+  /** Full count available (not just this page) — see historyShared.types.ts's HistoryPageMeta. */
   total: number;
   /** Whether a higher `limit` would return more entries than this call did. */
   hasMore: boolean;

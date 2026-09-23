@@ -5,7 +5,7 @@ import type {
   MonthlyRevenueHistoryEntry,
   MonthlyRevenueHistoryResult,
 } from "@/application/proxy/stock/monthlyRevenueHistory.types.js";
-import { extractHistoryPageMeta } from "@/application/proxy/stock/metricHistoryShared.js";
+import { extractHistoryPageMeta } from "@/infrastructure/analysisApi/stock/historyShared.client.js";
 
 function toStringOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;

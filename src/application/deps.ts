@@ -11,6 +11,7 @@ import type { PresetTemplatesPort } from "@/application/ports/presetTemplates.js
 import type { ScreenerGatewayPort } from "@/application/ports/screenerGateway.js";
 import type { ScreenerPresetsPort } from "@/application/ports/screenerPresets.js";
 import type { SecuritiesGatewayPort } from "@/application/ports/securitiesGateway.js";
+import type { StockGatewayPort } from "@/application/ports/stockGateway.js";
 import type { SubscriptionsPort } from "@/application/ports/subscriptions.js";
 import type { SystemHealthPort } from "@/application/ports/systemHealth.js";
 import type { TokenVerifierPort } from "@/application/ports/tokenVerifier.js";
@@ -51,6 +52,8 @@ export interface AppDeps {
   // --- 代理層：對 analysis-ts 的出站呼叫，一個切片一個 gateway ---
   macroGateway: MacroGatewayPort;
   marketGateway: MarketGatewayPort;
+  /** 全 repo 最大的一個 port（23 個方法）——那是上游個股 API 的寬度，不是分類失敗，見該 port 的說明。 */
+  stockGateway: StockGatewayPort;
   industriesGateway: IndustriesGatewayPort;
   securitiesGateway: SecuritiesGatewayPort;
   etfScreenerGateway: EtfScreenerGatewayPort;

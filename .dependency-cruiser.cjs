@@ -17,8 +17,9 @@
 // 額度政策、preset 的互斥條件。
 //
 // 重構期間用 dependency-cruiser 內建的 baseline（.dependency-cruiser-known-violations.json +
-// --ignore-known）讓既有違規逐階段歸零，做法跟 analysis-ts 2026-09-17 那次相同（他們 Phase 6 歸零後
-// 就刪掉 baseline 檔，不再帶 --ignore-known）。
+// --ignore-known）讓既有違規逐階段歸零。2026-09-24 最後一個切片（proxy/stock）轉完後歸零，baseline 檔已
+// 刪除、`npm run lint:deps` 也不再帶 --ignore-known——從此任何新違規直接是錯，沒有「先欠著」這個選項。
+// 曲線：80 → 76 → 70 → 62 → 52 → 40 → 24 → 0。
 const layer = (name) => `^src/${name}/`;
 
 const WEB_FRAMEWORK = "node_modules/(ultimate-express|express|helmet|cors|express-rate-limit|swagger-ui-express|@asteasolutions)/";

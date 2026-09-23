@@ -1,39 +1,15 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
-
-export interface FlatHistoryEntry {
-  fiscalYear: number;
-  fiscalQuarter: number;
-  /** Null when the underlying figure couldn't be computed for this quarter — see nullReason. */
-  value: number | null;
-  /** Why `value` is null (e.g. a missing trailing quarter of data) — null when `value` is present. */
-  nullReason: string | null;
-  /**
-   * The financial-report announcement date this figure is aligned to — not a daily market-data date, and
-   * **not a "last modified" stamp**. It says when the market learned the underlying report, so it does not
-   * move when analysis-ts recomputes the figure under a new formula: 2330's 2022Q4 dupont ROE was rewritten
-   * 34.91 → 40.14 on 2026-09-23 while its knowledgeDate stayed 2023-02-14 (verified live). Never use it as
-   * a cache-invalidation key — a cache holding a pre-recompute value will look current forever.
-   */
-  knowledgeDate: string;
-  /** True when knowledgeDate is a fallback estimate rather than the real announcement date. */
-  knowledgeDateIsFallback: boolean;
-}
+import type { FlatHistoryEntry, FlatHistoryPage, HistoryPageMeta } from "@/application/proxy/stock/historyShared.types.js";
 
 /**
- * Pagination metadata analysis-ts added to every history endpoint in this domain (2026-09-07, same day
- * as the endpoints themselves — not present in the very first responses this codebase saw, which is why
- * it was initially missed on 3 of the 5 endpoints until web-nuxt's tenYearDisabled UI logic surfaced the
- * gap). `total` is the full count available (not just what this page returned); `hasMore` is whether a
- * higher `limit` would return more entries than this call did.
+ * The fetch+normalize half of what used to be application/proxy/stock/metricHistoryShared.ts. It lives
+ * here because it *is* an analysis-ts client — it builds the URL, relays their 400, and 502s on a
+ * malformed body, exactly like the per-endpoint clients beside it. The shapes it returns stayed in
+ * application (historyShared.types.ts): those are this slice's outward contract, this file is how it
+ * gets filled in.
  */
-export interface HistoryPageMeta {
-  total: number;
-  hasMore: boolean;
-}
-
-export type FlatHistoryPage = HistoryPageMeta & { entries: FlatHistoryEntry[] };
 
 function toNumberOrNull(value: unknown): number | null {
   return typeof value === "number" ? value : null;

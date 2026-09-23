@@ -1,4 +1,3 @@
-import { getLatestClosePrices } from "@/application/proxy/stock/index.js";
 import { AppError } from "@/domain/appError.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
 import type { AppDeps } from "@/application/deps.js";
@@ -16,14 +15,16 @@ import type {
 } from "@/application/proxy/screener/screener.types.js";
 
 /**
- * Two ports, and the split is the point: `screenerGateway` is the query engine (analysis-ts owns it),
+ * Three ports, and the split is the point: `screenerGateway` is the query engine (analysis-ts owns it),
  * `metricCatalog` is bff-ts's own synced copy of the field catalog, only ever read here to attach
  * display names and to fail fast on an unknown field without a round trip. Taken as the LAST argument.
  *
- * "stock.price" is a third source again (twse/tpex, via proxy/stock) — still a direct module call, since
- * that slice hasn't been converted to ports yet.
+ * `stockGateway` is a third source again: "stock.price" comes from twse/tpex via analysis-ts's batched
+ * prices endpoint, not from the screener query. It used to be a direct module call into proxy/stock's
+ * barrel; now it is the same port the stock slice's own routes use, so this dependency shows up in the
+ * signature like the other two instead of hiding in an import.
  */
-export type ScreenerDeps = Pick<AppDeps, "screenerGateway" | "metricCatalog">;
+export type ScreenerDeps = Pick<AppDeps, "screenerGateway" | "metricCatalog" | "stockGateway">;
 
 const STOCK_PRICE_FIELD = "stock.price";
 
@@ -96,11 +97,11 @@ async function resolveCatalogFieldRefs(fields: string[], deps: ScreenerDeps): Pr
 }
 
 /** Shared by runScreener/runRanking: merges "stock.price" (twse/tpex, not the analysis DB) into result rows. */
-async function mergeStockPrices(rows: ScreenerResultRow[], wantsStockPrice: boolean): Promise<void> {
+async function mergeStockPrices(rows: ScreenerResultRow[], wantsStockPrice: boolean, deps: ScreenerDeps): Promise<void> {
   if (!wantsStockPrice) {
     return;
   }
-  const pricesBySymbol = await getLatestClosePrices(rows.map((row) => row.symbol));
+  const pricesBySymbol = await deps.stockGateway.getLatestClosePrices(rows.map((row) => row.symbol));
   for (const row of rows) {
     const price = pricesBySymbol.get(row.symbol);
     row.values[STOCK_PRICE_FIELD] = { value: price?.close ?? null, knowledgeDate: price?.tradeDate ?? null, nullReason: null };
@@ -188,7 +189,7 @@ export async function runScreener(
     name: row.name,
     values: row.values,
   }));
-  await mergeStockPrices(results, wantsStockPrice);
+  await mergeStockPrices(results, wantsStockPrice, deps);
 
   return {
     count: apiResult.count,
@@ -258,7 +259,7 @@ export async function runScreenerValues(
     name: rowBySymbol.get(symbol)?.name ?? null,
     values: rowBySymbol.get(symbol)?.values ?? {},
   }));
-  await mergeStockPrices(results, wantsStockPrice);
+  await mergeStockPrices(results, wantsStockPrice, deps);
 
   return { count: results.length, columns: resultColumns, results };
 }
@@ -331,7 +332,7 @@ export async function runRanking(
     name: row.name,
     values: row.values,
   }));
-  await mergeStockPrices(results, wantsStockPrice);
+  await mergeStockPrices(results, wantsStockPrice, deps);
 
   return { field, direction, columns: resultColumns, results };
 }
@@ -369,7 +370,7 @@ async function runValuationRanking(
     name: row.name,
     values: { [field]: { value: String(row.value), knowledgeDate: tradeDate, nullReason: null } },
   }));
-  await mergeStockPrices(results, wantsStockPrice);
+  await mergeStockPrices(results, wantsStockPrice, deps);
 
   const resultColumns: ScreenerResultColumn[] = [
     { field, metricName: rankedRef!.metricName, fieldName: rankedRef!.fieldName, unit: rankedRef!.unit },

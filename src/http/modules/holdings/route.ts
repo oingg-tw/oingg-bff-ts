@@ -5,7 +5,7 @@ import { parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
-import { assertSymbolExists } from "@/application/proxy/stock/index.js";
+import { assertSymbolExists, type StockProxyDeps } from "@/application/proxy/stock/stock.service.js";
 import { addHolding, editHolding, getHoldingOrThrow, getHoldings, removeHolding } from "@/application/holdings/holdings.service.js";
 import type { HoldingsDeps } from "@/application/holdings/holdings.service.js";
 import type { HoldingUpdate } from "@/application/holdings/holdings.types.js";
@@ -38,7 +38,7 @@ export const updateHoldingSchema = z.object({
  * 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。
  * 這是 http 層不再依賴 infrastructure 的關鍵——它只認得 application 匯出的型別。
  */
-export function createHoldingsRouter(deps: HoldingsDeps & AuthMiddlewareDeps): Router {
+export function createHoldingsRouter(deps: HoldingsDeps & StockProxyDeps & AuthMiddlewareDeps): Router {
   const holdingsRouter = Router();
   holdingsRouter.use(createRequireAuth(deps));
 
@@ -52,7 +52,7 @@ export function createHoldingsRouter(deps: HoldingsDeps & AuthMiddlewareDeps): R
     const firebaseUid = requireUser(req);
     const body = parseBody(createHoldingSchema, req.body);
 
-    await assertSymbolExists(body.symbol);
+    await assertSymbolExists(body.symbol, deps);
     const holding = await addHolding(firebaseUid, body.symbol, body.quantity, body.averageCost, body.note ?? null, deps);
     res.status(201).json({ holding });
   });

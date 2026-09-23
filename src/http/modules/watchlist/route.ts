@@ -5,7 +5,7 @@ import { parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
-import { assertSymbolExists } from "@/application/proxy/stock/index.js";
+import { assertSymbolExists, type StockProxyDeps } from "@/application/proxy/stock/stock.service.js";
 import type { WatchlistDeps } from "@/application/watchlist/watchlist.service.js";
 import {
   addWatchlistItem,
@@ -40,7 +40,7 @@ export const updateWatchlistItemSchema = z.object({
  * 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。
  * 這是 http 層不再依賴 infrastructure 的關鍵——它只認得 application 匯出的型別。
  */
-export function createWatchlistRouter(deps: WatchlistDeps & AuthMiddlewareDeps): Router {
+export function createWatchlistRouter(deps: WatchlistDeps & StockProxyDeps & AuthMiddlewareDeps): Router {
   const watchlistRouter = Router();
   watchlistRouter.use(createRequireAuth(deps));
 
@@ -54,7 +54,7 @@ export function createWatchlistRouter(deps: WatchlistDeps & AuthMiddlewareDeps):
     const firebaseUid = requireUser(req);
     const body = parseBody(addWatchlistItemSchema, req.body);
 
-    await assertSymbolExists(body.symbol);
+    await assertSymbolExists(body.symbol, deps);
     const item = await addWatchlistItem(firebaseUid, body.symbol, body.note ?? null, deps);
     res.status(201).json({ item });
   });

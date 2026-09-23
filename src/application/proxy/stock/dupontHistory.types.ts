@@ -3,7 +3,7 @@ export type DupontHistoryBasis = "Q" | "TTM";
 
 /**
  * ROE decomposed into its 3 DuPont factors for one quarter — a genuinely different shape from
- * metricHistoryShared.ts's FlatHistoryEntry (multiple figures per quarter, not one `value`).
+ * historyShared.types.ts's FlatHistoryEntry (multiple figures per quarter, not one `value`).
  */
 export interface DupontHistoryEntry {
   fiscalYear: number;
@@ -50,7 +50,7 @@ export interface DupontHistoryEntry {
 export interface DupontHistoryResult {
   symbol: string;
   basis: DupontHistoryBasis;
-  /** Full count available (not just this page) — see metricHistoryShared.ts's HistoryPageMeta. */
+  /** Full count available (not just this page) — see historyShared.types.ts's HistoryPageMeta. */
   total: number;
   /** Whether a higher `limit` would return more entries than this call did. */
   hasMore: boolean;

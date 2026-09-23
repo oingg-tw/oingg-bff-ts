@@ -1,8 +1,7 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
-import type { ClosePrice } from "@/application/proxy/stock/stock.service.js";
-import type { StockQuote } from "@/application/proxy/stock/stock.types.js";
+import type { ClosePrice, StockQuote } from "@/application/proxy/stock/stock.types.js";
 
 const MAX_SYMBOLS_PER_PRICES_REQUEST = 100;
 
