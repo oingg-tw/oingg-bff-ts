@@ -120,6 +120,12 @@ export const companyRankQuerySchema = z.object({
   symbol: z.string({ error: '"symbol" query parameter is required' }).trim().min(1, '"symbol" query parameter is required'),
   field: z.string({ error: '"field" query parameter is required' }).trim().min(1, '"field" query parameter is required'),
   direction: z.enum(["asc", "desc"], { error: '"direction" query parameter is required and must be "asc" or "desc"' }),
+  // Same shape as distribution's — added 2026-09-24 after web-nuxt found it was silently ignored here
+  // while they were labelling the result "有配息公司中", which the un-filtered population made untrue.
+  excludeZero: z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : v),
+    z.enum(["true", "false"], { error: '"excludeZero" must be "true" or "false"' }).transform((v) => v === "true").optional(),
+  ),
 });
 
 export const distributionQuerySchema = z.object({
@@ -194,7 +200,7 @@ export function createScreenerRouter(deps: ColumnPresetsDeps & ScreenerDeps & Au
 
   screenerRouter.get("/company-rank", async (req, res) => {
     const query = parseBody(companyRankQuerySchema, req.query);
-    const result = await deps.screenerGateway.getCompanyRank(query.symbol, query.field, query.direction);
+    const result = await deps.screenerGateway.getCompanyRank(query.symbol, query.field, query.direction, query.excludeZero);
     res.json(result);
   });
 

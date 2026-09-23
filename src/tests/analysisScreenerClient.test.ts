@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchCompanyRank, fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/infrastructure/analysisApi/screener/analysisScreenerClient.js";
+import {
+  fetchCompanyRank,
+  fetchDistribution,
+  fetchScreenerRanking,
+  fetchScreenerResults,
+  fetchScreenerValues,
+} from "@/infrastructure/analysisApi/screener/analysisScreenerClient.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
@@ -330,11 +336,33 @@ describe("fetchCompanyRank", () => {
       body: { symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPercent: 72.8 },
     });
 
-    const result = await fetchCompanyRank("2330", "dividendYield.EOD", "desc");
+    const result = await fetchCompanyRank("2330", "dividendYield.EOD", "desc", undefined);
 
     expect(result).toEqual({ symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPercent: 72.8 });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(url.toString()).toBe("http://filters.test/screener/company-rank?symbol=2330&field=dividendYield.EOD&direction=desc");
+  });
+
+  // excludeZero (2026-09-24). analysis-ts parses it as "present means yes" rather than as a boolean —
+  // excludeZero=false and excludeZero=bogus both exclude zeros there, verified live. So bff-ts sends the
+  // parameter only when it is true; false must reach the wire as an absent parameter, or a caller that
+  // explicitly asked to KEEP zero-yield companies would silently get them filtered out.
+  it.each([
+    [true, "&excludeZero=true"],
+    [false, ""],
+    [undefined, ""],
+  ])("sends excludeZero upstream only when it is true (%s)", async (value, expectedSuffix) => {
+    mockFetchOnce({
+      ok: true,
+      body: { symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1259, totalCount: 1445, topPercent: 87.1 },
+    });
+
+    await fetchCompanyRank("2330", "dividendYield.EOD", "desc", value);
+
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe(
+      `http://filters.test/screener/company-rank?symbol=2330&field=dividendYield.EOD&direction=desc${expectedSuffix}`,
+    );
   });
 
   // Confirmed live: an unknown symbol, or a field with no data for this symbol, is still a 200.
@@ -344,7 +372,7 @@ describe("fetchCompanyRank", () => {
       body: { symbol: "NOPE9999", field: "dividendYield.EOD", found: false, value: null, rank: null, totalCount: null, topPercent: null },
     });
 
-    const result = await fetchCompanyRank("NOPE9999", "dividendYield.EOD", "desc");
+    const result = await fetchCompanyRank("NOPE9999", "dividendYield.EOD", "desc", undefined);
 
     expect(result).toEqual({ symbol: "NOPE9999", field: "dividendYield.EOD", found: false, value: null, rank: null, totalCount: null, topPercent: null });
   });
@@ -352,7 +380,7 @@ describe("fetchCompanyRank", () => {
   it("relays analysis-ts's 400 message for an unknown field", async () => {
     mockFetchOnce({ ok: false, status: 400, body: { message: '"nope.nope" 不是可查詢的欄位' } });
 
-    await expect(fetchCompanyRank("2330", "nope.nope", "desc")).rejects.toMatchObject({
+    await expect(fetchCompanyRank("2330", "nope.nope", "desc", undefined)).rejects.toMatchObject({
       statusCode: 400,
       message: '"nope.nope" 不是可查詢的欄位',
     });
@@ -361,12 +389,55 @@ describe("fetchCompanyRank", () => {
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
 
-    await expect(fetchCompanyRank("2330", "dividendYield.EOD", "desc")).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchCompanyRank("2330", "dividendYield.EOD", "desc", undefined)).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("throws a 502 AppError when the response is missing symbol/field/found", async () => {
     mockFetchOnce({ ok: true, body: {} });
 
-    await expect(fetchCompanyRank("2330", "dividendYield.EOD", "desc")).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchCompanyRank("2330", "dividendYield.EOD", "desc", undefined)).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+const DISTRIBUTION_BODY = {
+  field: "dividendYield.EOD",
+  totalCount: 1445,
+  trueMin: 0.01,
+  trueMax: 18.2,
+  clippedMin: 0.01,
+  clippedMax: 12,
+  bins: [{ min: 0.01, max: 0.6, count: 72 }],
+};
+
+describe("fetchDistribution", () => {
+  // This endpoint had no client tests at all until 2026-09-24, which is how the excludeZero=false bug
+  // below survived: the parameter was forwarded as the string "false", and analysis-ts treats any
+  // present value as "yes", so asking to KEEP zero-yield companies quietly dropped 278 of them.
+  it.each([
+    [true, "&excludeZero=true"],
+    [false, ""],
+    [undefined, ""],
+  ])("sends excludeZero upstream only when it is true (%s)", async (value, expectedSuffix) => {
+    mockFetchOnce({ ok: true, body: DISTRIBUTION_BODY });
+
+    await fetchDistribution("dividendYield.EOD", undefined, value);
+
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe(`http://filters.test/screener/distribution?field=dividendYield.EOD${expectedSuffix}`);
+  });
+
+  it("omits bins when not given, so analysis-ts applies its own default bucketing", async () => {
+    mockFetchOnce({ ok: true, body: DISTRIBUTION_BODY });
+
+    await fetchDistribution("dividendYield.EOD", 20, undefined);
+
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/screener/distribution?field=dividendYield.EOD&bins=20");
+  });
+
+  it("rejects a malformed response with a 502 rather than passing a broken histogram on", async () => {
+    mockFetchOnce({ ok: true, body: { ...DISTRIBUTION_BODY, bins: "not an array" } });
+
+    await expect(fetchDistribution("dividendYield.EOD", undefined, undefined)).rejects.toMatchObject({ statusCode: 502 });
   });
 });

@@ -203,12 +203,25 @@ export async function fetchScreenerValues(
  * data for this symbol, or the symbol itself doesn't exist) still returns 200 with value/rank/totalCount/
  * topPercent all null, not a 404 — confirmed live, same convention as this domain's other per-symbol calls.
  */
+/**
+ * analysis-ts 對 excludeZero 的解析是「有給就算數」，不是布林剖析——實測 2026-09-24：`excludeZero=false`
+ * 跟 `excludeZero=0`、`excludeZero=bogus` 一樣都會排除零值，只有整個參數不存在（或空字串）才不排除。
+ *
+ * 所以這裡**只在 true 的時候送出這個參數**，false 一律省略。這不是替上游決定語意，而是讓我們自己文件上
+ * 寫的「省略時等同 false」變成真的：呼叫端明講 false 卻拿到排除後的母體，是最惡劣的一種錯——數字看起來
+ * 完全合理，只是回答了另一個問題。已回報上游，他們修好之後這個寫法仍然正確（true 照送、false 不送）。
+ */
+function excludeZeroParam(excludeZero: boolean | undefined): Record<string, string> {
+  return excludeZero === true ? { excludeZero: "true" } : {};
+}
+
 export async function fetchCompanyRank(
   symbol: string,
   field: string,
   direction: "asc" | "desc",
+  excludeZero: boolean | undefined,
 ): Promise<CompanyRankResult> {
-  const body = await getJson("/screener/company-rank", { symbol, field, direction });
+  const body = await getJson("/screener/company-rank", { symbol, field, direction, ...excludeZeroParam(excludeZero) });
 
   const b = body as { symbol?: unknown; field?: unknown; found?: unknown; value?: unknown; rank?: unknown; totalCount?: unknown; topPercent?: unknown };
   if (typeof b.symbol !== "string" || typeof b.field !== "string" || typeof b.found !== "boolean") {
@@ -240,7 +253,7 @@ export async function fetchDistribution(
   const body = await getJson("/screener/distribution", {
     field,
     ...(bins !== undefined ? { bins: String(bins) } : {}),
-    ...(excludeZero !== undefined ? { excludeZero: String(excludeZero) } : {}),
+    ...excludeZeroParam(excludeZero),
   });
 
   const b = body as {
