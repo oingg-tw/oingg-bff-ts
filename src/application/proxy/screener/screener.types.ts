@@ -115,15 +115,41 @@ export interface DistributionBin {
  * the range the `bins` actually cover (analysis-ts may clip outliers before bucketing — see their own
  * endpoint for the exact rule). `totalCount` only counts companies with a non-null value for this field,
  * same convention as CompanyRankResult.
+ *
+ * Every numeric field is nullable because an empty population is a legitimate answer, not an error:
+ * analysis-ts returns totalCount 0 with all five ranges null (e.g. a monthly metric before its first
+ * month lands). bff-ts used to require them to be numbers and turned that into a 502 saying the response
+ * was "missing" them, which was both a false alarm and a misleading message — fixed 2026-09-24.
  */
 export interface DistributionResult {
   field: string;
   totalCount: number;
-  trueMin: number;
-  trueMax: number;
-  clippedMin: number;
-  clippedMax: number;
+  trueMin: number | null;
+  trueMax: number | null;
+  clippedMin: number | null;
+  clippedMax: number | null;
   bins: DistributionBin[];
+  /**
+   * The values at the quintile boundaries — what a company's value has to reach to sit on the 20/40/60/80
+   * line. Added by analysis-ts 2026-09-24 so a histogram axis can be labelled by position in the
+   * population instead of by evenly-spaced numbers, which say nothing about where a reader sits.
+   *
+   * Computed in the same `percentile_cont` query and under the same filter as `bins`/`totalCount`, so the
+   * population cannot drift between them. Null when totalCount is 0.
+   *
+   * Do not derive these from `bins`: interpolating inside a bucket is guesswork on a right-skewed field
+   * like dividend yield, where the low buckets hold most of the market. This is the complement of
+   * CompanyRankResult.quintile — that says which fifth a company is in, this says where the lines are.
+   */
+  quantiles: DistributionQuantiles | null;
+}
+
+/** Quintile boundary values, in the same unit as the field itself. */
+export interface DistributionQuantiles {
+  p20: number;
+  p40: number;
+  p60: number;
+  p80: number;
 }
 
 /**

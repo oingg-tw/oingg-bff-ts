@@ -5,6 +5,7 @@ import { fetchValuationRanking } from "@/infrastructure/analysisApi/screener/val
 import type { Pagination } from "@/application/proxy/screener/pagination.js";
 import type {
   CompanyRankResult,
+  DistributionQuantiles,
   DistributionResult,
   ScreenerColumnRef,
   ScreenerFilter,
@@ -246,6 +247,19 @@ export async function fetchCompanyRank(
  * pass-through, same convention as fetchCompanyRank: field validation is delegated to analysis-ts itself,
  * this client only shape-checks the response.
  */
+function toNumberOrNull(value: unknown): number | null {
+  return typeof value === "number" ? value : null;
+}
+
+/** All four boundaries or nothing — a partial set would let a caller label an axis with gaps. */
+function normalizeQuantiles(raw: unknown): DistributionQuantiles | null {
+  const q = raw as Record<string, unknown> | null | undefined;
+  if (!q || ["p20", "p40", "p60", "p80"].some((k) => typeof q[k] !== "number")) {
+    return null;
+  }
+  return { p20: q.p20 as number, p40: q.p40 as number, p60: q.p60 as number, p80: q.p80 as number };
+}
+
 export async function fetchDistribution(
   field: string,
   bins: number | undefined,
@@ -265,26 +279,22 @@ export async function fetchDistribution(
     clippedMin?: unknown;
     clippedMax?: unknown;
     bins?: unknown;
+    quantiles?: unknown;
   };
-  if (
-    typeof b.field !== "string" ||
-    typeof b.totalCount !== "number" ||
-    typeof b.trueMin !== "number" ||
-    typeof b.trueMax !== "number" ||
-    typeof b.clippedMin !== "number" ||
-    typeof b.clippedMax !== "number" ||
-    !Array.isArray(b.bins)
-  ) {
-    throw new AppError("Distribution endpoint response is missing field/totalCount/trueMin/trueMax/clippedMin/clippedMax/bins", 502);
+  // Only field/totalCount/bins are structural. The five ranges are legitimately null on an empty
+  // population (totalCount 0), and demanding numbers turned that into a 502 claiming they were missing.
+  if (typeof b.field !== "string" || typeof b.totalCount !== "number" || !Array.isArray(b.bins)) {
+    throw new AppError("Distribution endpoint response is missing field/totalCount/bins", 502);
   }
 
   return {
     field: b.field,
     totalCount: b.totalCount,
-    trueMin: b.trueMin,
-    trueMax: b.trueMax,
-    clippedMin: b.clippedMin,
-    clippedMax: b.clippedMax,
+    trueMin: toNumberOrNull(b.trueMin),
+    trueMax: toNumberOrNull(b.trueMax),
+    clippedMin: toNumberOrNull(b.clippedMin),
+    clippedMax: toNumberOrNull(b.clippedMax),
+    quantiles: normalizeQuantiles(b.quantiles),
     bins: b.bins.map((bin) => {
       const raw = bin as { min?: unknown; max?: unknown; count?: unknown };
       if (typeof raw.min !== "number" || typeof raw.max !== "number" || typeof raw.count !== "number") {

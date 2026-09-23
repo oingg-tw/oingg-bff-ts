@@ -407,6 +407,7 @@ const DISTRIBUTION_BODY = {
   clippedMin: 0.01,
   clippedMax: 12,
   bins: [{ min: 0.01, max: 0.6, count: 72 }],
+  quantiles: { p20: 1.298, p40: 2.62, p60: 4.07, p80: 5.772 },
 };
 
 describe("fetchDistribution", () => {
@@ -433,6 +434,42 @@ describe("fetchDistribution", () => {
 
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(url.toString()).toBe("http://filters.test/screener/distribution?field=dividendYield.EOD&bins=20");
+  });
+
+  it("passes the quintile boundaries through", async () => {
+    mockFetchOnce({ ok: true, body: DISTRIBUTION_BODY });
+
+    const result = await fetchDistribution("dividendYield.EOD", undefined, true);
+
+    expect(result.quantiles).toEqual({ p20: 1.298, p40: 2.62, p60: 4.07, p80: 5.772 });
+  });
+
+  // An empty population is a legitimate answer, not a malformed one: analysis-ts sends totalCount 0 with
+  // every range null (a monthly metric before its first month lands). bff-ts used to demand numbers and
+  // turned that into a 502 claiming the fields were missing.
+  it("returns an empty distribution instead of a 502 when the population is empty", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { field: "sus.M", totalCount: 0, trueMin: null, trueMax: null, clippedMin: null, clippedMax: null, bins: [], quantiles: null },
+    });
+
+    await expect(fetchDistribution("sus.M", undefined, true)).resolves.toEqual({
+      field: "sus.M",
+      totalCount: 0,
+      trueMin: null,
+      trueMax: null,
+      clippedMin: null,
+      clippedMax: null,
+      bins: [],
+      quantiles: null,
+    });
+  });
+
+  // All four boundaries or nothing — a partial set would let a caller label an axis with gaps.
+  it("drops a partial quantiles object rather than half-labelling an axis", async () => {
+    mockFetchOnce({ ok: true, body: { ...DISTRIBUTION_BODY, quantiles: { p20: 1.3, p40: 2.6 } } });
+
+    await expect(fetchDistribution("dividendYield.EOD", undefined, true)).resolves.toMatchObject({ quantiles: null });
   });
 
   it("rejects a malformed response with a 502 rather than passing a broken histogram on", async () => {

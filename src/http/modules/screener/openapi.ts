@@ -205,11 +205,14 @@ const distributionResultSchema = z
   .object({
     field: z.string(),
     totalCount: z.number(),
-    trueMin: z.number(),
-    trueMax: z.number(),
-    clippedMin: z.number(),
-    clippedMax: z.number(),
+    trueMin: z.number().nullable(),
+    trueMax: z.number().nullable(),
+    clippedMin: z.number().nullable(),
+    clippedMax: z.number().nullable(),
     bins: z.array(distributionBinSchema),
+    quantiles: z
+      .object({ p20: z.number(), p40: z.number(), p60: z.number(), p80: z.number() })
+      .nullable(),
   })
   .openapi("DistributionResult", {
     example: {
@@ -223,6 +226,7 @@ const distributionResultSchema = z
         { min: 0, max: 0.6, count: 214 },
         { min: 0.6, max: 1.2, count: 358 },
       ],
+      quantiles: { p20: 1.298, p40: 2.62, p60: 4.07, p80: 5.772 },
     },
   });
 
@@ -231,7 +235,7 @@ registry.registerPath({
   path: "/screener/distribution",
   summary: "查單一欄位在全市場的分布直方圖——給股票詳情頁的市場排名圖表用（例如現金殖利率的市場排名）",
   description:
-    "不需要登入。field 格式跟其他 screener 端點一致（\"<metricCode>.<token>\"），欄位驗證交給 analysis-ts。bins 是選填的分桶數量（正整數），省略時用 analysis-ts 自己的預設值。excludeZero 是選填的布林值（\"true\"/\"false\"，2026-09-18 由 analysis-ts 新增），true 時會在分桶前先排除該欄位剛好等於 0 的資料列，省略時等同 false。totalCount 只計入這個欄位有值（非 null，且未被 excludeZero 排除）的公司數。trueMin/trueMax 是全市場這個欄位實際的最小/最大值；clippedMin/clippedMax 是 bins 實際涵蓋的範圍（analysis-ts 可能會先裁掉極端離群值再分桶，詳細規則以他們的端點為準）。bins 陣列每一格是 { min, max, count }。",
+    "不需要登入。field 格式跟其他 screener 端點一致（\"<metricCode>.<token>\"），欄位驗證交給 analysis-ts。bins 是選填的分桶數量（正整數），省略時用 analysis-ts 自己的預設值。excludeZero 是選填的布林值（\"true\"/\"false\"，2026-09-18 由 analysis-ts 新增），true 時會在分桶前先排除該欄位剛好等於 0 的資料列，省略時等同 false。totalCount 只計入這個欄位有值（非 null，且未被 excludeZero 排除）的公司數。trueMin/trueMax 是全市場這個欄位實際的最小/最大值；clippedMin/clippedMax 是 bins 實際涵蓋的範圍（analysis-ts 可能會先裁掉極端離群值再分桶，詳細規則以他們的端點為準）。bins 陣列每一格是 { min, max, count }。quantiles（2026-09-24 新增）是五等分位的**邊界數值**：p20/p40/p60/p80，單位跟欄位本身相同，用途是讓直方圖的座標軸能標「在母體中的位置」而不是等距數值（等距刻度講不出讀者站在哪）。它跟 bins/totalCount 在 analysis-ts 端是**同一個 percentile_cont 查詢、同一個 filter**算出來的，所以母體結構上不可能跟 bins 不一致（含 excludeZero）。**不要自己從 bins 插值反推**——在格內線性插值對殖利率這種右偏長尾欄位就是猜，低值那幾格塞了大部分市場。它跟 GET /screener/company-rank 的 `quintile` 互補：那個說「這家公司在第幾等分」，這個說「界線在哪個數值」。**這是逐日型欄位，分位線每天會變**，前端要在圖上標數字請用同一次回應裡的值，不要分兩次請求拼。totalCount 為 0（母體是空的，例如月頻指標的第一個月還沒到）時 quantiles 與 trueMin/trueMax/clippedMin/clippedMax 全部是 null，這是正常回應不是錯誤——bff-ts 2026-09-24 以前會把這種回應誤判成格式錯誤並回 502，已修。",
   tags: ["Screener"],
   request: { query: distributionQueryDocSchema },
   responses: {
