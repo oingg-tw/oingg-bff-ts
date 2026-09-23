@@ -6,6 +6,15 @@ export interface CompanyListEntry {
   /** 證交所類股代碼（見 GET /industries/securities-sectors），null if analysis-ts hasn't classified this company yet. */
   sectorCode: string | null;
   sectorName: string | null;
+  /**
+   * 是否為興櫃公司 — added by analysis-ts 2026-09-23, always present (never null). The directory
+   * deliberately includes 興櫃 (the user's call: a future business line may target them), so this flag is
+   * how a caller separates them: 2,349 total = 363 興櫃 + 1,986 上市櫃, and every other service's
+   * "全市場" means the latter (mops-ts counts 1,985; the one-company gap is a de-duplication boundary).
+   * **Subtract isEmerging=true before using this directory as a coverage denominator** — 興櫃 has no
+   * mandatory monthly-revenue disclosure, so any revenue-derived metric is permanently null for them.
+   */
+  isEmerging: boolean;
 }
 
 /**

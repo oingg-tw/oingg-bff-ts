@@ -11,6 +11,9 @@ function normalizeEntry(raw: unknown): CompanyListEntry {
     market: String(r.market),
     sectorCode: typeof r.sectorCode === "string" ? r.sectorCode : null,
     sectorName: typeof r.sectorName === "string" ? r.sectorName : null,
+    // Upstream guarantees this is always a boolean; `=== true` keeps a malformed response from
+    // silently becoming "not 興櫃", which would quietly re-inflate any coverage denominator.
+    isEmerging: r.isEmerging === true,
   };
 }
 

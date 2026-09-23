@@ -26,14 +26,14 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
 }
 
 // Real shape given directly by analysis-ts (2026-09-11): companyName, not name, on the wire.
-// market/sectorCode/sectorName added 2026-09-19.
+// market/sectorCode/sectorName added 2026-09-19; isEmerging 2026-09-23 (always present, never null).
 const RAW_BODY = {
   count: 2650,
   limit: 200,
   offset: 0,
   entries: [
-    { symbol: "000700", companyName: "兆豐證券", market: "TWSE", sectorCode: null, sectorName: null },
-    { symbol: "2330", companyName: "台積電", market: "TWSE", sectorCode: "24", sectorName: "半導體業" },
+    { symbol: "000700", companyName: "兆豐證券", market: "TWSE", sectorCode: null, sectorName: null, isEmerging: false },
+    { symbol: "2330", companyName: "台積電", market: "TWSE", sectorCode: "24", sectorName: "半導體業", isEmerging: false },
   ],
 };
 
@@ -48,12 +48,32 @@ describe("fetchCompanyList", () => {
       limit: 200,
       offset: 0,
       entries: [
-        { symbol: "000700", name: "兆豐證券", market: "TWSE", sectorCode: null, sectorName: null },
-        { symbol: "2330", name: "台積電", market: "TWSE", sectorCode: "24", sectorName: "半導體業" },
+        { symbol: "000700", name: "兆豐證券", market: "TWSE", sectorCode: null, sectorName: null, isEmerging: false },
+        { symbol: "2330", name: "台積電", market: "TWSE", sectorCode: "24", sectorName: "半導體業", isEmerging: false },
       ],
     });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies");
+  });
+
+  // isEmerging is upstream-guaranteed non-null, but a malformed response must not silently read as
+  // "not 興櫃" — that would quietly re-inflate any coverage denominator built on this directory.
+  it("passes through isEmerging:true and treats a non-boolean as false", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        ...RAW_BODY,
+        entries: [
+          { symbol: "6548", companyName: "長科*", market: "TPEx", sectorCode: null, sectorName: null, isEmerging: true },
+          { symbol: "9999", companyName: "壞掉的列", market: "TPEx", sectorCode: null, sectorName: null },
+        ],
+      },
+    });
+
+    const result = await fetchCompanyList();
+
+    expect(result.entries[0]?.isEmerging).toBe(true);
+    expect(result.entries[1]?.isEmerging).toBe(false);
   });
 
   it("includes limit/offset in the request when given", async () => {

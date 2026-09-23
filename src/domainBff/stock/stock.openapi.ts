@@ -46,6 +46,7 @@ const companyListSchema = z
         market: z.string(),
         sectorCode: z.string().nullable(),
         sectorName: z.string().nullable(),
+        isEmerging: z.boolean(),
       }),
     ),
   })
@@ -56,7 +57,7 @@ registry.registerPath({
   path: "/stocks",
   summary: "全市場上市／上櫃公司代號與名稱清單（全站搜尋股票用的資料來源）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies，來源是 twse-ts/tpex-ts 各自的 company_profile 表（代號衝突時以上市優先去重）。目前約 2650 檔，需要分頁：limit 1-1000（預設 200），offset 預設 0，offset 超過 count 時回傳空的 entries 陣列（不是錯誤）。前端要拿到全市場清單需要自己依 count 迴圈呼叫多次，這支端點單純原樣轉發 analysis-ts 的分頁參數，不會在 bff-ts 這邊多次呼叫組成單一大回應。market 是 \"TWSE\"（上市）或 \"TPEx\"（上櫃），sectorCode/sectorName 是證交所類股代碼／名稱（見 GET /industries/securities-sectors），三者都是 2026-09-19 新增，analysis-ts 尚未分類的公司 sectorCode/sectorName 會是 null。",
+    "資料來自 oingg-analysis-ts 的 GET /companies，來源是 twse-ts/tpex-ts 各自的 company_profile 表（代號衝突時以上市優先去重）。目前約 2650 檔，需要分頁：limit 1-1000（預設 200），offset 預設 0，offset 超過 count 時回傳空的 entries 陣列（不是錯誤）。前端要拿到全市場清單需要自己依 count 迴圈呼叫多次，這支端點單純原樣轉發 analysis-ts 的分頁參數，不會在 bff-ts 這邊多次呼叫組成單一大回應。market 是 \"TWSE\"（上市）或 \"TPEx\"（上櫃），sectorCode/sectorName 是證交所類股代碼／名稱（見 GET /industries/securities-sectors），三者都是 2026-09-19 新增，analysis-ts 尚未分類的公司 sectorCode/sectorName 會是 null。isEmerging（2026-09-23 新增，恆有值不會是 null）標示是否為**興櫃**公司：這份目錄刻意包含興櫃，實測 2,349 家＝興櫃 363 ＋ 上市櫃 1,986，而生態系其他服務口中的「全市場」一律只指上市＋上櫃（mops-ts 是 1,985 家，差 1 家是去重邊界）。**拿這份目錄當覆蓋率分母前請先扣掉 isEmerging=true**——興櫃沒有月營收強制揭露，任何以月營收推導的指標對它們永遠是 null，不扣掉會讓分母多出 364 家永遠算不出來的公司。",
   tags: ["Stock"],
   request: { query: companyListQuerySchema.openapi("CompanyListQuery", { example: { limit: 200, offset: 0 } }) },
   responses: {
