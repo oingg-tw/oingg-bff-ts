@@ -1,0 +1,1943 @@
+{
+  "$comment": "由 generate-sampled-personas.mjs 抽樣產生，不是手寫的。參數來源與可信度分級（實證／近似／假設）寫在該腳本開頭。用途是提供輸入的變異與平凡的中間值，不是宣稱輸出有統計效度——LLM 扮演時仍會往平均回歸，塌縮檢查照做。",
+  "generatedWith": {
+    "script": "generate-sampled-personas.mjs",
+    "n": 60,
+    "seed": 20260923
+  },
+  "sanityCheck": {
+    "note": "抽樣後的實際均值，應該接近上面的位移設定；若明顯偏離代表抽樣或參數有誤。",
+    "traitMeans": {
+      "O": -0.2,
+      "C": 0.2,
+      "E": 0,
+      "A": 0.4,
+      "N": -0.2
+    },
+    "meanAge": 66.9,
+    "meanAffordableMonthlyTwd": 713,
+    "prefersOneOffAnnualPct": 35
+  },
+  "personas": [
+    {
+      "id": "samp-001",
+      "gender": "女",
+      "age": 56,
+      "city": "新竹",
+      "traits": {
+        "O": -0.1,
+        "C": 0.6,
+        "E": 0.2,
+        "A": -0.5,
+        "N": 0.9
+      },
+      "income": {
+        "monthlyTwd": 42000,
+        "monthlyLivingExpenseTwd": 36115
+      },
+      "assets": {
+        "investableTwd": 4600000
+      },
+      "investing": {
+        "style": "被動持有不操作",
+        "riskTolerance": 2
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0.8,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 412
+    },
+    {
+      "id": "samp-002",
+      "gender": "男",
+      "age": 71,
+      "city": "台北",
+      "traits": {
+        "O": 0.1,
+        "C": -1.3,
+        "E": -1.5,
+        "A": 0,
+        "N": -1.1
+      },
+      "income": {
+        "monthlyTwd": 31000,
+        "monthlyLivingExpenseTwd": 26383
+      },
+      "assets": {
+        "investableTwd": 2000000
+      },
+      "investing": {
+        "style": "高股息 ETF",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.1,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 400
+    },
+    {
+      "id": "samp-003",
+      "gender": "男",
+      "age": 72,
+      "city": "新竹",
+      "traits": {
+        "O": -1.1,
+        "C": 0.1,
+        "E": 0.6,
+        "A": -1.6,
+        "N": -0.8
+      },
+      "income": {
+        "monthlyTwd": 31000,
+        "monthlyLivingExpenseTwd": 22904
+      },
+      "assets": {
+        "investableTwd": 4300000
+      },
+      "investing": {
+        "style": "被動持有不操作",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 2
+      },
+      "billing": {
+        "autoRenewAversion": 0.6,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 344
+    },
+    {
+      "id": "samp-004",
+      "gender": "女",
+      "age": 76,
+      "city": "台北",
+      "traits": {
+        "O": 0.5,
+        "C": 0.7,
+        "E": 0.1,
+        "A": 1.6,
+        "N": -0.5
+      },
+      "income": {
+        "monthlyTwd": 104000,
+        "monthlyLivingExpenseTwd": 70206
+      },
+      "assets": {
+        "investableTwd": 2700000
+      },
+      "investing": {
+        "style": "價值選股",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.2,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 1882
+    },
+    {
+      "id": "samp-005",
+      "gender": "男",
+      "age": 73,
+      "city": "台北",
+      "traits": {
+        "O": -1.2,
+        "C": -0.5,
+        "E": 0.2,
+        "A": -1.8,
+        "N": -0.4
+      },
+      "income": {
+        "monthlyTwd": 19000,
+        "monthlyLivingExpenseTwd": 15038
+      },
+      "assets": {
+        "investableTwd": 2100000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 2
+      },
+      "billing": {
+        "autoRenewAversion": 0.7,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 139
+    },
+    {
+      "id": "samp-006",
+      "gender": "男",
+      "age": 71,
+      "city": "台南",
+      "traits": {
+        "O": 0.7,
+        "C": 1.4,
+        "E": 0.1,
+        "A": -0.7,
+        "N": -0.2
+      },
+      "income": {
+        "monthlyTwd": 29000,
+        "monthlyLivingExpenseTwd": 21166
+      },
+      "assets": {
+        "investableTwd": 3900000
+      },
+      "investing": {
+        "style": "價值選股",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.2,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 574
+    },
+    {
+      "id": "samp-007",
+      "gender": "女",
+      "age": 56,
+      "city": "台南",
+      "traits": {
+        "O": -0.8,
+        "C": -0.3,
+        "E": -0.7,
+        "A": -0.6,
+        "N": 0.2
+      },
+      "income": {
+        "monthlyTwd": 59000,
+        "monthlyLivingExpenseTwd": 44618
+      },
+      "assets": {
+        "investableTwd": 9600000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 2
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.8,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 419
+    },
+    {
+      "id": "samp-008",
+      "gender": "男",
+      "age": 68,
+      "city": "台北",
+      "traits": {
+        "O": -0.5,
+        "C": -0.1,
+        "E": -0.9,
+        "A": 1.6,
+        "N": -1.6
+      },
+      "income": {
+        "monthlyTwd": 78000,
+        "monthlyLivingExpenseTwd": 66236
+      },
+      "assets": {
+        "investableTwd": 11900000
+      },
+      "investing": {
+        "style": "高股息 ETF",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.1,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 1256
+    },
+    {
+      "id": "samp-009",
+      "gender": "女",
+      "age": 66,
+      "city": "宜蘭",
+      "traits": {
+        "O": -1.4,
+        "C": -0.1,
+        "E": -1.1,
+        "A": 0.4,
+        "N": 1
+      },
+      "income": {
+        "monthlyTwd": 186000,
+        "monthlyLivingExpenseTwd": 159555
+      },
+      "assets": {
+        "investableTwd": 10100000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 1
+      },
+      "digital": {
+        "techLiteracy": 2
+      },
+      "billing": {
+        "autoRenewAversion": 1,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 391
+    },
+    {
+      "id": "samp-010",
+      "gender": "女",
+      "age": 63,
+      "city": "高雄",
+      "traits": {
+        "O": -0.8,
+        "C": -1.5,
+        "E": -2,
+        "A": -0.8,
+        "N": 1.4
+      },
+      "income": {
+        "monthlyTwd": 59000,
+        "monthlyLivingExpenseTwd": 51787
+      },
+      "assets": {
+        "investableTwd": 8100000
+      },
+      "investing": {
+        "style": "金融股存股",
+        "riskTolerance": 1
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 1,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 118
+    },
+    {
+      "id": "samp-011",
+      "gender": "女",
+      "age": 55,
+      "city": "台中",
+      "traits": {
+        "O": -0.5,
+        "C": 1.8,
+        "E": 1.7,
+        "A": 1.2,
+        "N": -0.3
+      },
+      "income": {
+        "monthlyTwd": 45000,
+        "monthlyLivingExpenseTwd": 29603
+      },
+      "assets": {
+        "investableTwd": 6400000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.5,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 747
+    },
+    {
+      "id": "samp-012",
+      "gender": "女",
+      "age": 64,
+      "city": "新竹",
+      "traits": {
+        "O": 0.1,
+        "C": 0.6,
+        "E": 0.6,
+        "A": 0,
+        "N": 0.1
+      },
+      "income": {
+        "monthlyTwd": 24000,
+        "monthlyLivingExpenseTwd": 18617
+      },
+      "assets": {
+        "investableTwd": 3100000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.5,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 331
+    },
+    {
+      "id": "samp-013",
+      "gender": "女",
+      "age": 59,
+      "city": "桃園",
+      "traits": {
+        "O": -1.3,
+        "C": 0.1,
+        "E": -0.4,
+        "A": 2.4,
+        "N": 0.5
+      },
+      "income": {
+        "monthlyTwd": 76000,
+        "monthlyLivingExpenseTwd": 58695
+      },
+      "assets": {
+        "investableTwd": 6300000
+      },
+      "investing": {
+        "style": "價值選股",
+        "riskTolerance": 2
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 1,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 388
+    },
+    {
+      "id": "samp-014",
+      "gender": "男",
+      "age": 69,
+      "city": "新北",
+      "traits": {
+        "O": 0.8,
+        "C": 0.3,
+        "E": 0.4,
+        "A": 0.6,
+        "N": -3
+      },
+      "income": {
+        "monthlyTwd": 39000,
+        "monthlyLivingExpenseTwd": 34321
+      },
+      "assets": {
+        "investableTwd": 2900000
+      },
+      "investing": {
+        "style": "高股息 ETF",
+        "riskTolerance": 5
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 1096
+    },
+    {
+      "id": "samp-015",
+      "gender": "男",
+      "age": 73,
+      "city": "新北",
+      "traits": {
+        "O": 1.6,
+        "C": 0.8,
+        "E": 0.5,
+        "A": 2.5,
+        "N": -1
+      },
+      "income": {
+        "monthlyTwd": 87000,
+        "monthlyLivingExpenseTwd": 60657
+      },
+      "assets": {
+        "investableTwd": 10000000
+      },
+      "investing": {
+        "style": "金融股存股",
+        "riskTolerance": 5
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 2158
+    },
+    {
+      "id": "samp-016",
+      "gender": "女",
+      "age": 55,
+      "city": "桃園",
+      "traits": {
+        "O": -0.8,
+        "C": 1.2,
+        "E": -1.1,
+        "A": 0.2,
+        "N": 0
+      },
+      "income": {
+        "monthlyTwd": 54000,
+        "monthlyLivingExpenseTwd": 46277
+      },
+      "assets": {
+        "investableTwd": 5000000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 2
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.7,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 670
+    },
+    {
+      "id": "samp-017",
+      "gender": "男",
+      "age": 65,
+      "city": "高雄",
+      "traits": {
+        "O": 1,
+        "C": 1.2,
+        "E": -0.1,
+        "A": -0.3,
+        "N": -1.2
+      },
+      "income": {
+        "monthlyTwd": 66000,
+        "monthlyLivingExpenseTwd": 43774
+      },
+      "assets": {
+        "investableTwd": 7500000
+      },
+      "investing": {
+        "style": "指數化投資",
+        "riskTolerance": 5
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 1610
+    },
+    {
+      "id": "samp-018",
+      "gender": "男",
+      "age": 59,
+      "city": "新竹",
+      "traits": {
+        "O": -0.5,
+        "C": -0.3,
+        "E": -2.1,
+        "A": -1.9,
+        "N": -0.4
+      },
+      "income": {
+        "monthlyTwd": 50000,
+        "monthlyLivingExpenseTwd": 37516
+      },
+      "assets": {
+        "investableTwd": 5100000
+      },
+      "investing": {
+        "style": "被動持有不操作",
+        "riskTolerance": 2
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.5,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 535
+    },
+    {
+      "id": "samp-019",
+      "gender": "女",
+      "age": 76,
+      "city": "宜蘭",
+      "traits": {
+        "O": -2.7,
+        "C": 0.9,
+        "E": -0.5,
+        "A": 0,
+        "N": 1.5
+      },
+      "income": {
+        "monthlyTwd": 24000,
+        "monthlyLivingExpenseTwd": 14739
+      },
+      "assets": {
+        "investableTwd": 3400000
+      },
+      "investing": {
+        "style": "金融股存股",
+        "riskTolerance": 1
+      },
+      "digital": {
+        "techLiteracy": 1
+      },
+      "billing": {
+        "autoRenewAversion": 1,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 48
+    },
+    {
+      "id": "samp-020",
+      "gender": "男",
+      "age": 76,
+      "city": "台中",
+      "traits": {
+        "O": 0,
+        "C": 0.5,
+        "E": 0.6,
+        "A": 0.9,
+        "N": 0.8
+      },
+      "income": {
+        "monthlyTwd": 63000,
+        "monthlyLivingExpenseTwd": 43932
+      },
+      "assets": {
+        "investableTwd": 8600000
+      },
+      "investing": {
+        "style": "金融股存股",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.8,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 649
+    },
+    {
+      "id": "samp-021",
+      "gender": "女",
+      "age": 72,
+      "city": "台北",
+      "traits": {
+        "O": -0.1,
+        "C": 1.3,
+        "E": -1,
+        "A": -0.4,
+        "N": -0.4
+      },
+      "income": {
+        "monthlyTwd": 18000,
+        "monthlyLivingExpenseTwd": 11416
+      },
+      "assets": {
+        "investableTwd": 2100000
+      },
+      "investing": {
+        "style": "被動持有不操作",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.4,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 308
+    },
+    {
+      "id": "samp-022",
+      "gender": "女",
+      "age": 74,
+      "city": "高雄",
+      "traits": {
+        "O": -1.4,
+        "C": 0.8,
+        "E": 1,
+        "A": -0.3,
+        "N": -0.4
+      },
+      "income": {
+        "monthlyTwd": 65000,
+        "monthlyLivingExpenseTwd": 51476
+      },
+      "assets": {
+        "investableTwd": 6200000
+      },
+      "investing": {
+        "style": "價值選股",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 2
+      },
+      "billing": {
+        "autoRenewAversion": 0.8,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 676
+    },
+    {
+      "id": "samp-023",
+      "gender": "男",
+      "age": 66,
+      "city": "宜蘭",
+      "traits": {
+        "O": 1.4,
+        "C": 0,
+        "E": 0.7,
+        "A": 0.4,
+        "N": -2.3
+      },
+      "income": {
+        "monthlyTwd": 44000,
+        "monthlyLivingExpenseTwd": 31832
+      },
+      "assets": {
+        "investableTwd": 2200000
+      },
+      "investing": {
+        "style": "被動持有不操作",
+        "riskTolerance": 5
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 1179
+    },
+    {
+      "id": "samp-024",
+      "gender": "男",
+      "age": 76,
+      "city": "新北",
+      "traits": {
+        "O": 1.6,
+        "C": -0.7,
+        "E": 0.7,
+        "A": -0.9,
+        "N": -0.3
+      },
+      "income": {
+        "monthlyTwd": 40000,
+        "monthlyLivingExpenseTwd": 33922
+      },
+      "assets": {
+        "investableTwd": 2600000
+      },
+      "investing": {
+        "style": "高股息 ETF",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 700
+    },
+    {
+      "id": "samp-025",
+      "gender": "男",
+      "age": 67,
+      "city": "台中",
+      "traits": {
+        "O": -0.2,
+        "C": 0.9,
+        "E": 2.5,
+        "A": 1.3,
+        "N": -1.8
+      },
+      "income": {
+        "monthlyTwd": 63000,
+        "monthlyLivingExpenseTwd": 42433
+      },
+      "assets": {
+        "investableTwd": 6200000
+      },
+      "investing": {
+        "style": "高股息 ETF",
+        "riskTolerance": 5
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 1329
+    },
+    {
+      "id": "samp-026",
+      "gender": "女",
+      "age": 76,
+      "city": "台南",
+      "traits": {
+        "O": -0.4,
+        "C": 1.2,
+        "E": 0.8,
+        "A": 0.6,
+        "N": -0.7
+      },
+      "income": {
+        "monthlyTwd": 33000,
+        "monthlyLivingExpenseTwd": 22602
+      },
+      "assets": {
+        "investableTwd": 1500000
+      },
+      "investing": {
+        "style": "指數化投資",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 2
+      },
+      "billing": {
+        "autoRenewAversion": 0.4,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 554
+    },
+    {
+      "id": "samp-027",
+      "gender": "女",
+      "age": 71,
+      "city": "新北",
+      "traits": {
+        "O": -0.4,
+        "C": 1.5,
+        "E": 1.3,
+        "A": 1.8,
+        "N": -0.7
+      },
+      "income": {
+        "monthlyTwd": 35000,
+        "monthlyLivingExpenseTwd": 29471
+      },
+      "assets": {
+        "investableTwd": 1400000
+      },
+      "investing": {
+        "style": "金融股存股",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.4,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 620
+    },
+    {
+      "id": "samp-028",
+      "gender": "女",
+      "age": 70,
+      "city": "新竹",
+      "traits": {
+        "O": -0.4,
+        "C": -0.7,
+        "E": -0.1,
+        "A": -0.4,
+        "N": 0.1
+      },
+      "income": {
+        "monthlyTwd": 100000,
+        "monthlyLivingExpenseTwd": 88609
+      },
+      "assets": {
+        "investableTwd": 5000000
+      },
+      "investing": {
+        "style": "價值選股",
+        "riskTolerance": 2
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.7,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 790
+    },
+    {
+      "id": "samp-029",
+      "gender": "女",
+      "age": 64,
+      "city": "桃園",
+      "traits": {
+        "O": -0.7,
+        "C": -0.2,
+        "E": -1.1,
+        "A": 1.7,
+        "N": -1.1
+      },
+      "income": {
+        "monthlyTwd": 19000,
+        "monthlyLivingExpenseTwd": 14850
+      },
+      "assets": {
+        "investableTwd": 1500000
+      },
+      "investing": {
+        "style": "指數化投資",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.3,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 247
+    },
+    {
+      "id": "samp-030",
+      "gender": "男",
+      "age": 75,
+      "city": "台北",
+      "traits": {
+        "O": 0.1,
+        "C": 0.1,
+        "E": 0.9,
+        "A": 0.2,
+        "N": -0.1
+      },
+      "income": {
+        "monthlyTwd": 14000,
+        "monthlyLivingExpenseTwd": 12416
+      },
+      "assets": {
+        "investableTwd": 1700000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.4,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 183
+    },
+    {
+      "id": "samp-031",
+      "gender": "女",
+      "age": 63,
+      "city": "嘉義",
+      "traits": {
+        "O": -0.7,
+        "C": -0.2,
+        "E": 0,
+        "A": -0.3,
+        "N": 0
+      },
+      "income": {
+        "monthlyTwd": 61000,
+        "monthlyLivingExpenseTwd": 50321
+      },
+      "assets": {
+        "investableTwd": 10200000
+      },
+      "investing": {
+        "style": "被動持有不操作",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.7,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 525
+    },
+    {
+      "id": "samp-032",
+      "gender": "男",
+      "age": 66,
+      "city": "台中",
+      "traits": {
+        "O": 0.3,
+        "C": -0.2,
+        "E": -0.4,
+        "A": 0.3,
+        "N": -1.7
+      },
+      "income": {
+        "monthlyTwd": 32000,
+        "monthlyLivingExpenseTwd": 20851
+      },
+      "assets": {
+        "investableTwd": 2600000
+      },
+      "investing": {
+        "style": "指數化投資",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 621
+    },
+    {
+      "id": "samp-033",
+      "gender": "男",
+      "age": 61,
+      "city": "台北",
+      "traits": {
+        "O": -0.6,
+        "C": -2.3,
+        "E": -0.1,
+        "A": -1.6,
+        "N": -0.1
+      },
+      "income": {
+        "monthlyTwd": 19000,
+        "monthlyLivingExpenseTwd": 16313
+      },
+      "assets": {
+        "investableTwd": 1500000
+      },
+      "investing": {
+        "style": "指數化投資",
+        "riskTolerance": 2
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.6,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 59
+    },
+    {
+      "id": "samp-034",
+      "gender": "女",
+      "age": 66,
+      "city": "台北",
+      "traits": {
+        "O": -1,
+        "C": 0.2,
+        "E": 1,
+        "A": 0.7,
+        "N": -0.2
+      },
+      "income": {
+        "monthlyTwd": 18000,
+        "monthlyLivingExpenseTwd": 15732
+      },
+      "assets": {
+        "investableTwd": 2400000
+      },
+      "investing": {
+        "style": "高股息 ETF",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 2
+      },
+      "billing": {
+        "autoRenewAversion": 0.7,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 169
+    },
+    {
+      "id": "samp-035",
+      "gender": "男",
+      "age": 59,
+      "city": "宜蘭",
+      "traits": {
+        "O": 0.5,
+        "C": 0.8,
+        "E": -1.4,
+        "A": -0.6,
+        "N": 0.1
+      },
+      "income": {
+        "monthlyTwd": 47000,
+        "monthlyLivingExpenseTwd": 40601
+      },
+      "assets": {
+        "investableTwd": 5000000
+      },
+      "investing": {
+        "style": "高股息 ETF",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0.4,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 752
+    },
+    {
+      "id": "samp-036",
+      "gender": "男",
+      "age": 67,
+      "city": "台北",
+      "traits": {
+        "O": 0.8,
+        "C": 0.9,
+        "E": 0.4,
+        "A": 0.6,
+        "N": -0.7
+      },
+      "income": {
+        "monthlyTwd": 15000,
+        "monthlyLivingExpenseTwd": 13396
+      },
+      "assets": {
+        "investableTwd": 1100000
+      },
+      "investing": {
+        "style": "被動持有不操作",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 311
+    },
+    {
+      "id": "samp-037",
+      "gender": "男",
+      "age": 57,
+      "city": "新北",
+      "traits": {
+        "O": -0.2,
+        "C": 0.3,
+        "E": 0.4,
+        "A": 0.4,
+        "N": -0.4
+      },
+      "income": {
+        "monthlyTwd": 65000,
+        "monthlyLivingExpenseTwd": 40155
+      },
+      "assets": {
+        "investableTwd": 10900000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0.4,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 891
+    },
+    {
+      "id": "samp-038",
+      "gender": "女",
+      "age": 73,
+      "city": "台中",
+      "traits": {
+        "O": 1.4,
+        "C": 0.4,
+        "E": -0.1,
+        "A": 1,
+        "N": 0.5
+      },
+      "income": {
+        "monthlyTwd": 46000,
+        "monthlyLivingExpenseTwd": 39626
+      },
+      "assets": {
+        "investableTwd": 6300000
+      },
+      "investing": {
+        "style": "高股息 ETF",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0.3,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 773
+    },
+    {
+      "id": "samp-039",
+      "gender": "女",
+      "age": 77,
+      "city": "彰化",
+      "traits": {
+        "O": 1.7,
+        "C": 0.1,
+        "E": 1,
+        "A": 1.9,
+        "N": -0.2
+      },
+      "income": {
+        "monthlyTwd": 37000,
+        "monthlyLivingExpenseTwd": 27842
+      },
+      "assets": {
+        "investableTwd": 4700000
+      },
+      "investing": {
+        "style": "金融股存股",
+        "riskTolerance": 5
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 736
+    },
+    {
+      "id": "samp-040",
+      "gender": "男",
+      "age": 57,
+      "city": "新北",
+      "traits": {
+        "O": -1,
+        "C": -1.3,
+        "E": 0.1,
+        "A": 0.2,
+        "N": -0.7
+      },
+      "income": {
+        "monthlyTwd": 18000,
+        "monthlyLivingExpenseTwd": 13724
+      },
+      "assets": {
+        "investableTwd": 1500000
+      },
+      "investing": {
+        "style": "高股息 ETF",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.6,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 124
+    },
+    {
+      "id": "samp-041",
+      "gender": "男",
+      "age": 69,
+      "city": "桃園",
+      "traits": {
+        "O": -0.9,
+        "C": -2,
+        "E": 0.9,
+        "A": 2,
+        "N": -1.3
+      },
+      "income": {
+        "monthlyTwd": 68000,
+        "monthlyLivingExpenseTwd": 45600
+      },
+      "assets": {
+        "investableTwd": 5500000
+      },
+      "investing": {
+        "style": "指數化投資",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 2
+      },
+      "billing": {
+        "autoRenewAversion": 0.3,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 517
+    },
+    {
+      "id": "samp-042",
+      "gender": "女",
+      "age": 62,
+      "city": "新竹",
+      "traits": {
+        "O": -1,
+        "C": 1.2,
+        "E": -1.7,
+        "A": 2.2,
+        "N": -0.3
+      },
+      "income": {
+        "monthlyTwd": 85000,
+        "monthlyLivingExpenseTwd": 62132
+      },
+      "assets": {
+        "investableTwd": 14000000
+      },
+      "investing": {
+        "style": "指數化投資",
+        "riskTolerance": 2
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.7,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 1088
+    },
+    {
+      "id": "samp-043",
+      "gender": "男",
+      "age": 61,
+      "city": "台中",
+      "traits": {
+        "O": 0.2,
+        "C": -0.9,
+        "E": -0.4,
+        "A": 0.7,
+        "N": -0.2
+      },
+      "income": {
+        "monthlyTwd": 59000,
+        "monthlyLivingExpenseTwd": 36909
+      },
+      "assets": {
+        "investableTwd": 3200000
+      },
+      "investing": {
+        "style": "被動持有不操作",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0.4,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 643
+    },
+    {
+      "id": "samp-044",
+      "gender": "女",
+      "age": 77,
+      "city": "高雄",
+      "traits": {
+        "O": 0.5,
+        "C": -0.3,
+        "E": 0.8,
+        "A": 2.1,
+        "N": -0.5
+      },
+      "income": {
+        "monthlyTwd": 118000,
+        "monthlyLivingExpenseTwd": 76952
+      },
+      "assets": {
+        "investableTwd": 9900000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.2,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 1782
+    },
+    {
+      "id": "samp-045",
+      "gender": "女",
+      "age": 61,
+      "city": "桃園",
+      "traits": {
+        "O": 1.1,
+        "C": -1.2,
+        "E": 0.8,
+        "A": 0.8,
+        "N": 0.4
+      },
+      "income": {
+        "monthlyTwd": 64000,
+        "monthlyLivingExpenseTwd": 38419
+      },
+      "assets": {
+        "investableTwd": 5000000
+      },
+      "investing": {
+        "style": "金融股存股",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0.3,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 717
+    },
+    {
+      "id": "samp-046",
+      "gender": "女",
+      "age": 60,
+      "city": "台中",
+      "traits": {
+        "O": -0.9,
+        "C": -0.1,
+        "E": 0.4,
+        "A": 1.5,
+        "N": 0.6
+      },
+      "income": {
+        "monthlyTwd": 57000,
+        "monthlyLivingExpenseTwd": 49641
+      },
+      "assets": {
+        "investableTwd": 8800000
+      },
+      "investing": {
+        "style": "指數化投資",
+        "riskTolerance": 2
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 1,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 325
+    },
+    {
+      "id": "samp-047",
+      "gender": "女",
+      "age": 74,
+      "city": "高雄",
+      "traits": {
+        "O": -1,
+        "C": 1.6,
+        "E": -0.7,
+        "A": 0.5,
+        "N": 1.4
+      },
+      "income": {
+        "monthlyTwd": 141000,
+        "monthlyLivingExpenseTwd": 94162
+      },
+      "assets": {
+        "investableTwd": 21200000
+      },
+      "investing": {
+        "style": "價值選股",
+        "riskTolerance": 1
+      },
+      "digital": {
+        "techLiteracy": 2
+      },
+      "billing": {
+        "autoRenewAversion": 1,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 1015
+    },
+    {
+      "id": "samp-048",
+      "gender": "女",
+      "age": 75,
+      "city": "桃園",
+      "traits": {
+        "O": -2.3,
+        "C": -0.5,
+        "E": -1.6,
+        "A": 0.9,
+        "N": 1.7
+      },
+      "income": {
+        "monthlyTwd": 53000,
+        "monthlyLivingExpenseTwd": 40075
+      },
+      "assets": {
+        "investableTwd": 5200000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 1
+      },
+      "digital": {
+        "techLiteracy": 1
+      },
+      "billing": {
+        "autoRenewAversion": 1,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 106
+    },
+    {
+      "id": "samp-049",
+      "gender": "男",
+      "age": 69,
+      "city": "台北",
+      "traits": {
+        "O": -1.1,
+        "C": 1.7,
+        "E": -1.1,
+        "A": 0.2,
+        "N": 0.9
+      },
+      "income": {
+        "monthlyTwd": 48000,
+        "monthlyLivingExpenseTwd": 39492
+      },
+      "assets": {
+        "investableTwd": 3600000
+      },
+      "investing": {
+        "style": "高股息 ETF",
+        "riskTolerance": 2
+      },
+      "digital": {
+        "techLiteracy": 2
+      },
+      "billing": {
+        "autoRenewAversion": 1,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 437
+    },
+    {
+      "id": "samp-050",
+      "gender": "女",
+      "age": 75,
+      "city": "台北",
+      "traits": {
+        "O": -0.3,
+        "C": 1.6,
+        "E": 0.2,
+        "A": 1.3,
+        "N": 0.3
+      },
+      "income": {
+        "monthlyTwd": 37000,
+        "monthlyLivingExpenseTwd": 30139
+      },
+      "assets": {
+        "investableTwd": 5400000
+      },
+      "investing": {
+        "style": "金融股存股",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 2
+      },
+      "billing": {
+        "autoRenewAversion": 0.7,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 533
+    },
+    {
+      "id": "samp-051",
+      "gender": "男",
+      "age": 77,
+      "city": "彰化",
+      "traits": {
+        "O": 1.5,
+        "C": 0.1,
+        "E": 0,
+        "A": -0.8,
+        "N": 0.9
+      },
+      "income": {
+        "monthlyTwd": 106000,
+        "monthlyLivingExpenseTwd": 89386
+      },
+      "assets": {
+        "investableTwd": 9400000
+      },
+      "investing": {
+        "style": "指數化投資",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0.4,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 1558
+    },
+    {
+      "id": "samp-052",
+      "gender": "男",
+      "age": 68,
+      "city": "嘉義",
+      "traits": {
+        "O": 0.4,
+        "C": 0.6,
+        "E": -1.1,
+        "A": 0.6,
+        "N": 0.1
+      },
+      "income": {
+        "monthlyTwd": 35000,
+        "monthlyLivingExpenseTwd": 31165
+      },
+      "assets": {
+        "investableTwd": 1000000
+      },
+      "investing": {
+        "style": "被動持有不操作",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.4,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 525
+    },
+    {
+      "id": "samp-053",
+      "gender": "男",
+      "age": 73,
+      "city": "嘉義",
+      "traits": {
+        "O": -1.2,
+        "C": -0.4,
+        "E": 0.3,
+        "A": 0.7,
+        "N": -1.8
+      },
+      "income": {
+        "monthlyTwd": 36000,
+        "monthlyLivingExpenseTwd": 29665
+      },
+      "assets": {
+        "investableTwd": 1200000
+      },
+      "investing": {
+        "style": "金融股存股",
+        "riskTolerance": 4
+      },
+      "digital": {
+        "techLiteracy": 2
+      },
+      "billing": {
+        "autoRenewAversion": 0.2,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 475
+    },
+    {
+      "id": "samp-054",
+      "gender": "男",
+      "age": 66,
+      "city": "新竹",
+      "traits": {
+        "O": 1.1,
+        "C": -1,
+        "E": -0.4,
+        "A": 0,
+        "N": 0.1
+      },
+      "income": {
+        "monthlyTwd": 34000,
+        "monthlyLivingExpenseTwd": 23271
+      },
+      "assets": {
+        "investableTwd": 2700000
+      },
+      "investing": {
+        "style": "高股息 ETF",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0.2,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 442
+    },
+    {
+      "id": "samp-055",
+      "gender": "女",
+      "age": 58,
+      "city": "台中",
+      "traits": {
+        "O": -0.4,
+        "C": 0.4,
+        "E": 1.9,
+        "A": 0.7,
+        "N": -1.8
+      },
+      "income": {
+        "monthlyTwd": 75000,
+        "monthlyLivingExpenseTwd": 58577
+      },
+      "assets": {
+        "investableTwd": 10000000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 5
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 1410
+    },
+    {
+      "id": "samp-056",
+      "gender": "女",
+      "age": 61,
+      "city": "彰化",
+      "traits": {
+        "O": 0.7,
+        "C": 2.2,
+        "E": 0.5,
+        "A": 0.2,
+        "N": 1.9
+      },
+      "income": {
+        "monthlyTwd": 66000,
+        "monthlyLivingExpenseTwd": 57370
+      },
+      "assets": {
+        "investableTwd": 5000000
+      },
+      "investing": {
+        "style": "指數化投資",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 1,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 911
+    },
+    {
+      "id": "samp-057",
+      "gender": "女",
+      "age": 67,
+      "city": "台北",
+      "traits": {
+        "O": 0.7,
+        "C": -0.7,
+        "E": 2,
+        "A": 0.7,
+        "N": -1.5
+      },
+      "income": {
+        "monthlyTwd": 84000,
+        "monthlyLivingExpenseTwd": 51956
+      },
+      "assets": {
+        "investableTwd": 9900000
+      },
+      "investing": {
+        "style": "價值選股",
+        "riskTolerance": 5
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 1571
+    },
+    {
+      "id": "samp-058",
+      "gender": "男",
+      "age": 57,
+      "city": "高雄",
+      "traits": {
+        "O": 0.3,
+        "C": -0.6,
+        "E": 0.7,
+        "A": -1.3,
+        "N": 1.9
+      },
+      "income": {
+        "monthlyTwd": 26000,
+        "monthlyLivingExpenseTwd": 19524
+      },
+      "assets": {
+        "investableTwd": 3500000
+      },
+      "investing": {
+        "style": "存股領息",
+        "riskTolerance": 2
+      },
+      "digital": {
+        "techLiteracy": 4
+      },
+      "billing": {
+        "autoRenewAversion": 1,
+        "prefersOneOffAnnual": true
+      },
+      "affordableMonthlyTwd": 99
+    },
+    {
+      "id": "samp-059",
+      "gender": "男",
+      "age": 61,
+      "city": "宜蘭",
+      "traits": {
+        "O": -0.4,
+        "C": -1,
+        "E": -1,
+        "A": -1.1,
+        "N": -0.7
+      },
+      "income": {
+        "monthlyTwd": 86000,
+        "monthlyLivingExpenseTwd": 57351
+      },
+      "assets": {
+        "investableTwd": 3900000
+      },
+      "investing": {
+        "style": "金融股存股",
+        "riskTolerance": 3
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0.4,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 877
+    },
+    {
+      "id": "samp-060",
+      "gender": "男",
+      "age": 62,
+      "city": "新竹",
+      "traits": {
+        "O": -0.2,
+        "C": 2,
+        "E": -0.7,
+        "A": 1.3,
+        "N": -1.9
+      },
+      "income": {
+        "monthlyTwd": 82000,
+        "monthlyLivingExpenseTwd": 54750
+      },
+      "assets": {
+        "investableTwd": 5800000
+      },
+      "investing": {
+        "style": "指數化投資",
+        "riskTolerance": 5
+      },
+      "digital": {
+        "techLiteracy": 3
+      },
+      "billing": {
+        "autoRenewAversion": 0,
+        "prefersOneOffAnnual": false
+      },
+      "affordableMonthlyTwd": 2034
+    }
+  ]
+}
