@@ -35,7 +35,7 @@ DI 風格（抄自 analysis-ts，兩個 repo 讀起來一樣，不要自創第�
 護欄不是全面否決。這個 repo 最近一次重構刪掉的東西正好是它擅長抓的：約 28 個 `getX(a) => fetchX(a)` 的純轉發函式、4 個整個 service 檔、`stock.service.ts` 從 213 行變 29 行、它的測試從約 400 行變 36 行（原本是 17 個 mock 的 client 模組在驗證「一行轉發會轉發」）。
 
 - **純轉發不要留空殼**。代理切片如果驗證已經在 route 的 zod schema（那份 schema 同時是 OpenAPI 來源），就讓 route 直接呼叫 gateway port，不要為了湊滿分層多一層。
-- 既有 helper 一定重用：`parseBody`、`parseUuidParam`、`fetchAnalysisService`、`assertAnalysisServiceOk`、`historyShared.client.ts` 的 `fetchFlatMetricHistory`，別再寫一份。
+- 既有 helper 一定重用：`parseBody`、`booleanQueryParam`（query 的布林參數請用它，**不要用 `z.coerce.boolean()`**——那是 `Boolean(value)`，`"false"` 會變成 true）、`parseUuidParam`、`fetchAnalysisService`、`assertAnalysisServiceOk`、`historyShared.client.ts` 的 `fetchFlatMetricHistory`，別再寫一份。
 - 不加新 dependency；不加沒人要求的選填參數、feature flag、抽象基底。
 - Bug 修在共用函式的根因，不是只修 ticket 提到的那一條呼叫路徑。
 - 非平凡邏輯留一個最小的 vitest 檢查，走既有 fakes 慣例，不另起框架。

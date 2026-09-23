@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { UUID_PATTERN } from "@/shared/uuid.js";
-import { parseBody } from "@/shared/validation.js";
+import { booleanQueryParam, parseBody } from "@/shared/validation.js";
 import { createOptionalAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { runRanking, runScreener, runScreenerValues, type ScreenerDeps } from "@/application/proxy/screener/screener.service.js";
@@ -122,10 +122,7 @@ export const companyRankQuerySchema = z.object({
   direction: z.enum(["asc", "desc"], { error: '"direction" query parameter is required and must be "asc" or "desc"' }),
   // Same shape as distribution's — added 2026-09-24 after web-nuxt found it was silently ignored here
   // while they were labelling the result "有配息公司中", which the un-filtered population made untrue.
-  excludeZero: z.preprocess(
-    (v) => (v === undefined || v === "" ? undefined : v),
-    z.enum(["true", "false"], { error: '"excludeZero" must be "true" or "false"' }).transform((v) => v === "true").optional(),
-  ),
+  excludeZero: booleanQueryParam("excludeZero"),
 });
 
 export const distributionQuerySchema = z.object({
@@ -137,10 +134,7 @@ export const distributionQuerySchema = z.object({
       .refine((n) => Number.isInteger(n) && n > 0, { message: '"bins" must be a positive integer' })
       .optional(),
   ),
-  excludeZero: z.preprocess(
-    (v) => (v === undefined || v === "" ? undefined : v),
-    z.enum(["true", "false"], { error: '"excludeZero" must be "true" or "false"' }).transform((v) => v === "true").optional(),
-  ),
+  excludeZero: booleanQueryParam("excludeZero"),
 });
 
 /**
