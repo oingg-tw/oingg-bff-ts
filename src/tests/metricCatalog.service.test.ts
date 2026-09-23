@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MetricCatalogPort } from "@/application/ports/metricCatalog.js";
 import type { MetricCatalogGatewayPort } from "@/application/ports/metricCatalogGateway.js";
 import type { MetricCategory } from "@/application/metricCatalog/metricCatalog.types.js";
+import { fakeMetricCatalog } from "@/tests/fakes/metricCatalog.js";
 import {
   startMetricCatalogSync,
   syncMetricCatalog,
@@ -17,10 +18,7 @@ const SAMPLE_CATEGORY: MetricCategory = { key: "profitability", name: "Profitabi
  * returned nothing") rather than which modules happen to implement each side.
  */
 function fakeDeps(gateway: Partial<MetricCatalogGatewayPort> = {}): MetricCatalogSyncDeps {
-  const metricCatalog: MetricCatalogPort = {
-    list: vi.fn().mockResolvedValue([]),
-    replace: vi.fn().mockResolvedValue(undefined),
-  };
+  const metricCatalog: MetricCatalogPort = fakeMetricCatalog();
   const metricCatalogGateway: MetricCatalogGatewayPort = {
     fetchCatalog: vi.fn().mockResolvedValue([SAMPLE_CATEGORY]),
     ...gateway,

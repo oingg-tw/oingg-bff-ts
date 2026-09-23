@@ -6,14 +6,14 @@ import { requireApiDocsAuth } from "@/http/swagger/apiDocsAuth.js";
 import { swaggerSpec, swaggerUi } from "@/http/swagger/index.js";
 import { createAuthRouter } from "@/http/modules/auth/route.js";
 import { createBillingRouter } from "@/http/modules/billing/route.js";
-import { etfScreenerRouter } from "@/http/modules/etfScreener/route.js";
+import { createEtfScreenerRouter } from "@/http/modules/etfScreener/route.js";
 import { createMetricCatalogRouter } from "@/http/modules/metricCatalog/route.js";
 import { createHoldingsRouter } from "@/http/modules/holdings/route.js";
-import { industriesRouter } from "@/http/modules/industries/route.js";
+import { createIndustriesRouter } from "@/http/modules/industries/route.js";
 import { createMacroRouter } from "@/http/modules/macro/route.js";
-import { marketRouter } from "@/http/modules/market/route.js";
+import { createMarketRouter } from "@/http/modules/market/route.js";
 import { createScreenerRoutes } from "@/http/modules/screener/index.js";
-import { securitiesRouter } from "@/http/modules/securities/route.js";
+import { createSecuritiesRouter } from "@/http/modules/securities/route.js";
 import { stockRouter } from "@/http/modules/stock/route.js";
 import { createSystemRouter } from "@/http/modules/system/route.js";
 import { startedAt } from "@/application/system/system.state.js";
@@ -73,13 +73,13 @@ export function createRoutes(deps: AppDeps): Router {
   // GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply
   routes.use("/screener", createScreenerRoutes(deps));
   routes.use("/metrics", createMetricCatalogRouter(deps)); // GET /metrics, POST /metrics/sync
-  routes.use("/market", marketRouter); // GET /market/margin-short-ratio-ranking, ...
+  routes.use("/market", createMarketRouter(deps)); // GET /market/margin-short-ratio-ranking, ...
   // GET /macro/cbc-policy-rate, /macro/business-cycle-indicator, /macro/monetary-aggregate,
   // /macro/gov-bond-yield-10y, /macro/gov-bond-yield-10y-history, /macro/stock-market-summary, /macro/usd-twd-rate, /macro/cpi, /macro/gdp
   routes.use("/macro", createMacroRouter(deps));
-  routes.use("/etf-screener", etfScreenerRouter); // GET /etf-screener/filters, POST /etf-screener
-  routes.use("/industries", industriesRouter); // GET /industries/tree
-  routes.use("/securities", securitiesRouter); // GET /securities
+  routes.use("/etf-screener", createEtfScreenerRouter(deps)); // GET /etf-screener/filters, POST /etf-screener
+  routes.use("/industries", createIndustriesRouter(deps)); // GET /industries/tree
+  routes.use("/securities", createSecuritiesRouter(deps)); // GET /securities
 
   return routes;
 }

@@ -16,7 +16,9 @@ vi.mock("@/application/screener/columnPresets.service.js", () => ({
 import { resolveScreenerColumns } from "@/application/screener/columnPresets.service.js";
 import { runPreset } from "@/application/proxy/screener/runPreset.js";
 import { runScreener } from "@/application/proxy/screener/screener.service.js";
+import { fakeScreenerGateway } from "@/tests/fakes/analysisGateways.js";
 import { fakeColumnPresets } from "@/tests/fakes/columnPresets.js";
+import { fakeMetricCatalog } from "@/tests/fakes/metricCatalog.js";
 import { fakeColumnPresetTemplates } from "@/tests/fakes/presetTemplates.js";
 import { fakeScreenerPresets } from "@/tests/fakes/screenerPresets.js";
 import type { ScreenerPresetsPort } from "@/application/ports/screenerPresets.js";
@@ -50,9 +52,19 @@ const SAMPLE_SCREENER_RESULT = {
 
 const DEFAULT_PAGINATION = { page: 1, pageSize: 50 };
 
-/** runPreset needs both business slices' ports (see RunPresetDeps) — only the preset one is ever varied. */
+/**
+ * runPreset needs both business slices' ports plus the proxy's own (see RunPresetDeps) — only the preset
+ * one is ever varied. The screener gateway and metric catalog are in here purely to satisfy the type:
+ * runScreener itself is module-mocked above, so nothing in these tests ever reaches them.
+ */
 function depsWith(screenerPresets: ScreenerPresetsPort) {
-  return { screenerPresets, columnPresets: fakeColumnPresets(), columnPresetTemplates: fakeColumnPresetTemplates() };
+  return {
+    screenerPresets,
+    columnPresets: fakeColumnPresets(),
+    columnPresetTemplates: fakeColumnPresetTemplates(),
+    screenerGateway: fakeScreenerGateway(),
+    metricCatalog: fakeMetricCatalog(),
+  };
 }
 
 beforeEach(() => {
@@ -92,6 +104,7 @@ describe("runPreset", () => {
       undefined,
       [],
       [],
+      deps,
     );
     expect(result.preset.name).toBe("績優股");
     expect(result.columnPresetId).toBeNull();
@@ -138,6 +151,7 @@ describe("runPreset", () => {
       undefined,
       [],
       [],
+      deps,
     );
   });
 

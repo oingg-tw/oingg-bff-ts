@@ -1,61 +1,21 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
+import { fetchValuationRanking } from "@/infrastructure/analysisApi/screener/valuationRanking.client.js";
 import type { Pagination } from "@/application/proxy/screener/pagination.js";
-import type { ScreenerFilter, ScreenerValue } from "@/application/proxy/screener/screener.types.js";
-
-export interface ScreenerColumnInput {
-  field: string;
-}
-
-export interface AnalysisScreenerResultRow {
-  symbol: string;
-  /** analysis-ts attaches this directly as of 2026-09-01 — see normalizeRows. Null if they have no name on file. */
-  name: string | null;
-  values: Record<string, ScreenerValue>;
-}
-
-export interface AnalysisScreenerResult {
-  count: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-  results: AnalysisScreenerResultRow[];
-}
-
-export interface AnalysisRankingResult {
-  results: AnalysisScreenerResultRow[];
-}
-
-export interface AnalysisScreenerValuesResult {
-  results: AnalysisScreenerResultRow[];
-}
-
-export interface AnalysisCompanyRankResult {
-  symbol: string;
-  field: string;
-  found: boolean;
-  value: number | null;
-  rank: number | null;
-  totalCount: number | null;
-  topPercent: number | null;
-}
-
-export interface AnalysisDistributionBin {
-  min: number;
-  max: number;
-  count: number;
-}
-
-export interface AnalysisDistributionResult {
-  field: string;
-  totalCount: number;
-  trueMin: number;
-  trueMax: number;
-  clippedMin: number;
-  clippedMax: number;
-  bins: AnalysisDistributionBin[];
-}
+import type {
+  CompanyRankResult,
+  DistributionResult,
+  ScreenerColumnRef,
+  ScreenerFilter,
+  ScreenerGatewayResult,
+  ScreenerGatewayRow,
+  ScreenerRankingGatewayResult,
+  ScreenerSort,
+  ScreenerValue,
+  ScreenerValuesGatewayResult,
+} from "@/application/proxy/screener/screener.types.js";
+import type { ScreenerGatewayPort } from "@/application/ports/screenerGateway.js";
 
 /**
  * analysis-ts sends ratio/percentage `value`s as JSON numbers (their real, existing convention for
@@ -87,7 +47,7 @@ function normalizeValues(values: Record<string, unknown>): Record<string, Screen
   return normalized;
 }
 
-function normalizeRows(rows: unknown): AnalysisScreenerResultRow[] {
+function normalizeRows(rows: unknown): ScreenerGatewayRow[] {
   if (!Array.isArray(rows)) {
     return [];
   }
@@ -136,11 +96,6 @@ async function handleJsonResponse(response: Response, url: URL): Promise<unknown
   return response.json();
 }
 
-export interface ScreenerSort {
-  field: string;
-  order: "asc" | "desc";
-}
-
 /**
  * Runs the full filtered/paginated screener against analysis-ts's POST /screener — the field-resolution
  * (catalog validation, metricName/fieldName for display) and "stock.price"/company-name merging still
@@ -152,12 +107,12 @@ export interface ScreenerSort {
  */
 export async function fetchScreenerResults(
   filters: ScreenerFilter[],
-  columns: ScreenerColumnInput[],
+  columns: ScreenerColumnRef[],
   pagination: Pagination,
   sort?: ScreenerSort,
   sectorCodes?: string[],
   excludeSectorCodes?: string[],
-): Promise<AnalysisScreenerResult> {
+): Promise<ScreenerGatewayResult> {
   const body = await postJson("/screener", {
     filters,
     columns,
@@ -192,10 +147,10 @@ export async function fetchScreenerRanking(
   field: string,
   direction: "asc" | "desc",
   limit: number,
-  extraColumns: ScreenerColumnInput[],
+  extraColumns: ScreenerColumnRef[],
   sectorCodes?: string[],
   excludeSectorCodes?: string[],
-): Promise<AnalysisRankingResult> {
+): Promise<ScreenerRankingGatewayResult> {
   const body = await getJson("/screener/ranking", {
     field,
     direction,
@@ -222,8 +177,8 @@ export async function fetchScreenerRanking(
  */
 export async function fetchScreenerValues(
   symbols: string[],
-  columns: ScreenerColumnInput[],
-): Promise<AnalysisScreenerValuesResult> {
+  columns: ScreenerColumnRef[],
+): Promise<ScreenerValuesGatewayResult> {
   const body = await postJson("/screener/values", { symbols, columns });
 
   const b = body as { results?: unknown };
@@ -252,7 +207,7 @@ export async function fetchCompanyRank(
   symbol: string,
   field: string,
   direction: "asc" | "desc",
-): Promise<AnalysisCompanyRankResult> {
+): Promise<CompanyRankResult> {
   const body = await getJson("/screener/company-rank", { symbol, field, direction });
 
   const b = body as { symbol?: unknown; field?: unknown; found?: unknown; value?: unknown; rank?: unknown; totalCount?: unknown; topPercent?: unknown };
@@ -281,7 +236,7 @@ export async function fetchDistribution(
   field: string,
   bins: number | undefined,
   excludeZero: boolean | undefined,
-): Promise<AnalysisDistributionResult> {
+): Promise<DistributionResult> {
   const body = await getJson("/screener/distribution", {
     field,
     ...(bins !== undefined ? { bins: String(bins) } : {}),
@@ -325,3 +280,24 @@ export async function fetchDistribution(
     }),
   };
 }
+
+/**
+ * ScreenerGatewayPort 的實作。上面的 fetchX 函式已經做完正規化與 400/502 判定，這裡只是把它們對應到
+ * port 的方法名。
+ *
+ * getValuationRanking 指向隔壁的 valuationRanking.client.ts：那支打的是 /valuation/ranking（不在
+ * /screener 底下），但對 application 來說是同一個切片的同一個問題，所以合在同一個 port 出口——哪幾個
+ * 檔案湊出一個 port 是 infrastructure 的細節，不該漏到呼叫端的依賴清單上。
+ *
+ * 這個切片保留了 screener.service.ts：那裡有本地型錄驗證、"stock.price" 合併、估值排行改道等真正的
+ * 規則，不是 `getX(a) => fetchX(a)` 的空殼。純轉發的 runCompanyRank/runDistribution 兩支則已經刪掉，
+ * route 直接呼叫這個 port（跟 macro 切片同樣的判斷）。
+ */
+export const analysisScreenerGateway: ScreenerGatewayPort = {
+  runScreener: fetchScreenerResults,
+  runRanking: fetchScreenerRanking,
+  getValues: fetchScreenerValues,
+  getCompanyRank: fetchCompanyRank,
+  getDistribution: fetchDistribution,
+  getValuationRanking: fetchValuationRanking,
+};

@@ -198,3 +198,29 @@ export interface MetricCategory {
   sort: number;
   metrics: MetricDefinition[];
 }
+
+/**
+ * One field addressed by its natural key — the (metricKey, fieldKey) pair a "metricCode.token" field
+ * reference parses into (see shared/fieldRef.ts). Callers routinely pass objects carrying extra
+ * properties of their own (e.g. the original unparsed `field` string, so they can report which one was
+ * unknown); only these two are read.
+ */
+export interface MetricFieldRef {
+  metricKey: string;
+  fieldKey: string;
+}
+
+/**
+ * A catalog field resolved for display — what the screener slices need to turn a bare
+ * "metricCode.token" into something a human can read in a result column header.
+ */
+export interface MetricFieldLookup {
+  categoryKey: string;
+  metricKey: string;
+  metricName: string;
+  fieldKey: string;
+  fieldName: string;
+  period: string;
+  /** Field's own unit if set, else falls back to the metric's — see MetricField.unit/MetricDefinition.unit. */
+  unit: string | null;
+}

@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { parseBody } from "@/shared/validation.js";
-import { getEtfFieldCatalog, runEtfScreener } from "@/application/proxy/etfScreener/etfScreener.service.js";
+import { runEtfScreener, type EtfScreenerDeps } from "@/application/proxy/etfScreener/etfScreener.service.js";
 import {
   DEFAULT_ETF_SCREENER_PAGE_SIZE,
   etfColumnsArraySchema,
@@ -9,13 +9,6 @@ import {
   etfScreenerPaginationSchema,
   toEtfScreenerFilter,
 } from "@/application/proxy/etfScreener/etfScreenerInput.js";
-
-export const etfScreenerRouter = Router();
-
-etfScreenerRouter.get("/filters", async (_req, res) => {
-  const catalog = await getEtfFieldCatalog();
-  res.json(catalog);
-});
 
 export const etfScreenerRequestSchema = z
   .object({
@@ -35,14 +28,30 @@ export const etfScreenerRequestSchema = z
     path: ["sortField"],
   });
 
-etfScreenerRouter.post("/", async (req, res) => {
-  const body = parseBody(etfScreenerRequestSchema, req.body);
-  const filters = (body.filters ?? []).map(toEtfScreenerFilter);
-  const columns = body.columns ?? [];
-  const page = body.page ?? 1;
-  const pageSize = body.pageSize ?? DEFAULT_ETF_SCREENER_PAGE_SIZE;
-  const sort = body.sortField !== undefined ? { field: body.sortField, order: body.sortOrder! } : undefined;
+/**
+ * GET /filters 是純轉發（沒有本地型錄快取，沒有東西可驗），所以直接呼叫 gateway port；POST / 走
+ * etfScreener.service.ts，因為那裡有「filters 與 columns 不能同時為空」這條真規則。
+ * 同一個切片裡兩支端點分屬兩種處理方式，是照「這支有沒有規則」決定的，不是照切片決定的。
+ */
+export function createEtfScreenerRouter(deps: EtfScreenerDeps): Router {
+  const etfScreenerRouter = Router();
 
-  const result = await runEtfScreener(filters, columns, page, pageSize, sort);
-  res.json(result);
-});
+  etfScreenerRouter.get("/filters", async (_req, res) => {
+    const catalog = await deps.etfScreenerGateway.getFieldCatalog();
+    res.json(catalog);
+  });
+
+  etfScreenerRouter.post("/", async (req, res) => {
+    const body = parseBody(etfScreenerRequestSchema, req.body);
+    const filters = (body.filters ?? []).map(toEtfScreenerFilter);
+    const columns = body.columns ?? [];
+    const page = body.page ?? 1;
+    const pageSize = body.pageSize ?? DEFAULT_ETF_SCREENER_PAGE_SIZE;
+    const sort = body.sortField !== undefined ? { field: body.sortField, order: body.sortOrder! } : undefined;
+
+    const result = await runEtfScreener(filters, columns, page, pageSize, sort, deps);
+    res.json(result);
+  });
+
+  return etfScreenerRouter;
+}

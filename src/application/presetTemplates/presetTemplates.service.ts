@@ -8,9 +8,10 @@ import type { PresetTemplate } from "@/application/presetTemplates/presetTemplat
  * `screenerPresets` is in here because applying a template *creates a personal preset* — this use case
  * calls addPresetWithName rather than writing rows itself, so it has to hand that use case the port it
  * needs. application→application is fine (both sides are use cases); what would not be fine is this
- * slice reaching for the preset repository directly and duplicating the naming/retry rules.
+ * slice reaching for the preset repository directly and duplicating the naming/retry rules. `metricCatalog`
+ * rides along for the same reason: that use case validates the cloned filters against the synced catalog.
  */
-export type PresetTemplatesDeps = Pick<AppDeps, "presetTemplates" | "screenerPresets">;
+export type PresetTemplatesDeps = Pick<AppDeps, "presetTemplates" | "screenerPresets" | "metricCatalog">;
 
 export async function getPresetTemplates(deps: PresetTemplatesDeps): Promise<PresetTemplate[]> {
   return deps.presetTemplates.list();

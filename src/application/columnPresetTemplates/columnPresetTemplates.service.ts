@@ -5,11 +5,15 @@ import type { ColumnPresetView } from "@/application/screener/columnPresets.serv
 import type { ColumnPresetTemplate } from "@/application/columnPresetTemplates/columnPresetTemplates.types.js";
 
 /**
- * The extra two ports are what addColumnPresetWithName needs (ColumnPresetsDeps), not what this slice
+ * The extra ports are what addColumnPresetWithName needs (ColumnPresetsDeps), not what this slice
  * reads itself: applying a template creates a personal ColumnPreset, so this use case calls that one and
- * has to hand over its dependencies — same arrangement as presetTemplates.service.ts.
+ * has to hand over its dependencies — same arrangement as presetTemplates.service.ts. `metricCatalog` is
+ * in there because that use case validates the cloned fieldKeys against the synced catalog.
  */
-export type ColumnPresetTemplatesDeps = Pick<AppDeps, "columnPresetTemplates" | "columnPresets">;
+export type ColumnPresetTemplatesDeps = Pick<
+  AppDeps,
+  "columnPresetTemplates" | "columnPresets" | "metricCatalog"
+>;
 
 /** Serves the templates to the frontend from our own DB — curated locally via prisma/seedColumnPresetTemplates.ts, never synced from analysis-ts (see that script's doc comment for why). */
 export async function getColumnPresetTemplates(deps: ColumnPresetTemplatesDeps): Promise<ColumnPresetTemplate[]> {

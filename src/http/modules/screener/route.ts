@@ -4,7 +4,7 @@ import { UUID_PATTERN } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { createOptionalAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
-import { runCompanyRank, runDistribution, runRanking, runScreener, runScreenerValues } from "@/application/proxy/screener/screener.service.js";
+import { runRanking, runScreener, runScreenerValues, type ScreenerDeps } from "@/application/proxy/screener/screener.service.js";
 import { resolveScreenerColumns, type ColumnPresetsDeps } from "@/application/screener/columnPresets.service.js";
 import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/application/proxy/screener/pagination.js";
 import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/application/proxy/screener/screenerFilterInput.js";
@@ -138,11 +138,14 @@ export const distributionQuerySchema = z.object({
 });
 
 /**
- * 這支代理路由本身不擁有資料，唯一需要注入的是 resolveScreenerColumns——決定要顯示哪幾欄要讀使用者
- * 自己的 ColumnPreset 與策展範本，那兩張表屬於業務中台。改成工廠函式純粹是為了把那份依賴傳進去，
- * 代理邏輯（runScreener/runRanking/...）一行都沒動。
+ * 這支代理路由本身不擁有資料，注入的是兩種東西：決定要顯示哪幾欄要讀使用者自己的 ColumnPreset 與策展
+ * 範本（那兩張表屬於業務中台，ColumnPresetsDeps），以及選股引擎與本地指標型錄（ScreenerDeps）。
+ * 代理邏輯（runScreener/runRanking/...）的規則一行都沒動，只是依賴改成從參數進來。
+ *
+ * /company-rank 與 /distribution 直接呼叫 gateway port：它們在 service 層原本只是 `runX => fetchX`，
+ * 沒有本地型錄解析也沒有驗證（欄位有效性由 analysis-ts 判定），所以那層空殼已經移除。
  */
-export function createScreenerRouter(deps: ColumnPresetsDeps & AuthMiddlewareDeps): Router {
+export function createScreenerRouter(deps: ColumnPresetsDeps & ScreenerDeps & AuthMiddlewareDeps): Router {
   const screenerRouter = Router();
 
   // Guests can screen without an account — only saving a filter set as a named preset
@@ -167,13 +170,13 @@ export function createScreenerRouter(deps: ColumnPresetsDeps & AuthMiddlewareDep
       ({ columnPresetId, columns } = await resolveScreenerColumns(firebaseUid, body.columnPresetId ?? undefined, deps));
     }
 
-    const result = await runScreener(filters, columns, pagination, sort, body.sectorCodes, body.excludeSectorCodes);
+    const result = await runScreener(filters, columns, pagination, sort, body.sectorCodes, body.excludeSectorCodes, deps);
     res.json({ ...result, columnPresetId });
   });
 
   screenerRouter.post("/values", async (req, res) => {
     const body = parseBody(screenerValuesRequestSchema, req.body);
-    const result = await runScreenerValues(body.symbols, body.columns);
+    const result = await runScreenerValues(body.symbols, body.columns, deps);
     res.json(result);
   });
 
@@ -185,19 +188,19 @@ export function createScreenerRouter(deps: ColumnPresetsDeps & AuthMiddlewareDep
     const sectorCodes = parseSectorCodes(query.sectorCodes);
     const excludeSectorCodes = parseSectorCodes(query.excludeSectorCodes);
 
-    const result = await runRanking(query.field, direction, limit, columns, sectorCodes, excludeSectorCodes);
+    const result = await runRanking(query.field, direction, limit, columns, sectorCodes, excludeSectorCodes, deps);
     res.json(result);
   });
 
   screenerRouter.get("/company-rank", async (req, res) => {
     const query = parseBody(companyRankQuerySchema, req.query);
-    const result = await runCompanyRank(query.symbol, query.field, query.direction);
+    const result = await deps.screenerGateway.getCompanyRank(query.symbol, query.field, query.direction);
     res.json(result);
   });
 
   screenerRouter.get("/distribution", async (req, res) => {
     const query = parseBody(distributionQuerySchema, req.query);
-    const result = await runDistribution(query.field, query.bins, query.excludeZero);
+    const result = await deps.screenerGateway.getDistribution(query.field, query.bins, query.excludeZero);
     res.json(result);
   });
 

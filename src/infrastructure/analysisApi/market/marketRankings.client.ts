@@ -31,6 +31,7 @@ import type {
   VolumeTop20Entry,
   VolumeTop20Result,
 } from "@/application/proxy/market/market.types.js";
+import type { MarketGatewayPort } from "@/application/ports/marketGateway.js";
 
 /** "" means "no data yet" — normalized to null, a clearer signal than an empty string. */
 function toDateOrNull(value: unknown): string | null {
@@ -489,3 +490,23 @@ export async function fetchTaiexDailyPrice(limit: number, interval?: TaiexDailyP
 
   return { entries: body.entries.map(normalizeTaiexDailyPriceEntry) };
 }
+
+/**
+ * MarketGatewayPort 的實作。上面的 fetchX 函式已經做完正規化與 400/502 判定，所以這裡只是把它們對應到
+ * port 的方法名。
+ *
+ * 這個切片跟 macro 不同，上層的 market.service.ts 沒有被刪掉：那裡有真正的 limit 上下界與 metric/order
+ * 列舉驗證，不是 `getX(a) => fetchX(a)` 的空殼。
+ */
+export const analysisMarketGateway: MarketGatewayPort = {
+  getMarginShortRatioRanking: fetchMarginShortRatioRanking,
+  getMaterialAnnouncements: fetchMaterialAnnouncements,
+  getRevenueRanking: fetchRevenueRanking,
+  getVolumeTop20: fetchVolumeTop20,
+  getDisposedStocks: fetchDisposedStocks,
+  getAttentionStocks: fetchAttentionStocks,
+  getPriceLimitRange: fetchPriceLimitRange,
+  getPriceChangeRanking: fetchPriceChangeRanking,
+  getEtfRanking: fetchEtfRanking,
+  getTaiexDailyPrice: fetchTaiexDailyPrice,
+};

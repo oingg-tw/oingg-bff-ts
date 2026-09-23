@@ -9,13 +9,10 @@ import type {
   EtfScreenerFilter,
   EtfScreenerResult,
   EtfScreenerResultRow,
+  EtfScreenerSort,
   EtfScreenerValue,
 } from "@/application/proxy/etfScreener/etfScreener.types.js";
-
-export interface EtfScreenerSort {
-  field: string;
-  order: "asc" | "desc";
-}
+import type { EtfScreenerGatewayPort } from "@/application/ports/etfScreenerGateway.js";
 
 function normalizeEtfField(raw: unknown): EtfField {
   const r = raw as Record<string, unknown>;
@@ -166,3 +163,15 @@ export async function fetchEtfScreenerResults(
     results: body.results.map(normalizeEtfScreenerRow),
   };
 }
+
+/**
+ * EtfScreenerGatewayPort 的實作。上面的 fetchX 函式已經做完正規化與 400/502 判定，這裡只是對應方法名。
+ *
+ * getFieldCatalog 沒有留服務層：它在 etfScreener.service.ts 裡只是 `() => fetchEtfFieldCatalog()`，
+ * 沒有任何本地驗證可做（這個切片刻意沒有本地型錄快取），所以 route 直接呼叫這個 port。
+ * runScreener 那一支相反——服務層留著，因為那裡有「filters 與 columns 不能同時為空」這條真規則。
+ */
+export const analysisEtfScreenerGateway: EtfScreenerGatewayPort = {
+  getFieldCatalog: fetchEtfFieldCatalog,
+  runScreener: fetchEtfScreenerResults,
+};

@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/infrastructure/prisma/repositories/metricCatalog.repository.js", () => ({
-  findMetricFields: vi.fn(),
-}));
-
-import { findMetricFields } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
+import { fakeMetricCatalog } from "@/tests/fakes/metricCatalog.js";
 import { fakeColumnPresets } from "@/tests/fakes/columnPresets.js";
 import { fakeColumnPresetTemplates } from "@/tests/fakes/presetTemplates.js";
 import {
@@ -12,6 +8,7 @@ import {
   getColumnPresetTemplateOrThrow,
   getColumnPresetTemplates,
 } from "@/application/columnPresetTemplates/columnPresetTemplates.service.js";
+import type { MetricFieldRef } from "@/application/metricCatalog/metricCatalog.types.js";
 
 const PROFITABILITY_QUALITY_TEMPLATE = {
   key: "profitabilityQuality",
@@ -30,11 +27,18 @@ const CREATED_ROW = {
   updatedAt: "2026-08-30T00:00:00.000Z",
 };
 
+/**
+ * A typed fake of MetricCatalogPort instead of `vi.mock` on the repository module — applying a template
+ * validates the cloned fieldKeys through this port (see addColumnPresetWithName).
+ */
+const findFields = vi.fn();
+const metricCatalog = fakeMetricCatalog({ findFields });
+
 beforeEach(() => {
-  vi.mocked(findMetricFields).mockReset();
+  findFields.mockReset();
   // Every field the template references resolves — the "a template references a dropped field" case is
   // covered in columnPresets.service.test.ts, where the dropping rule actually lives.
-  vi.mocked(findMetricFields).mockImplementation(async (refs) =>
+  findFields.mockImplementation(async (refs: MetricFieldRef[]) =>
     refs.map((ref) => ({
       categoryKey: "profitability",
       metricKey: ref.metricKey,
@@ -54,14 +58,14 @@ describe("getColumnPresetTemplates", () => {
     });
 
     await expect(
-      getColumnPresetTemplates({ columnPresetTemplates, columnPresets: fakeColumnPresets() }),
+      getColumnPresetTemplates({ columnPresetTemplates, columnPresets: fakeColumnPresets(), metricCatalog }),
     ).resolves.toEqual([PROFITABILITY_QUALITY_TEMPLATE]);
   });
 });
 
 describe("getColumnPresetTemplateOrThrow", () => {
   it("throws 404 when not found", async () => {
-    const deps = { columnPresetTemplates: fakeColumnPresetTemplates(), columnPresets: fakeColumnPresets() };
+    const deps = { columnPresetTemplates: fakeColumnPresetTemplates(), columnPresets: fakeColumnPresets(), metricCatalog };
     await expect(getColumnPresetTemplateOrThrow("missing", deps)).rejects.toMatchObject({ statusCode: 404 });
   });
 
@@ -71,6 +75,7 @@ describe("getColumnPresetTemplateOrThrow", () => {
         find: vi.fn().mockResolvedValue(PROFITABILITY_QUALITY_TEMPLATE),
       }),
       columnPresets: fakeColumnPresets(),
+      metricCatalog,
     };
     await expect(getColumnPresetTemplateOrThrow("profitabilityQuality", deps)).resolves.toEqual(
       PROFITABILITY_QUALITY_TEMPLATE,
@@ -86,6 +91,7 @@ describe("applyColumnPresetTemplate", () => {
       applyColumnPresetTemplate("uid1", "missing", {
         columnPresetTemplates: fakeColumnPresetTemplates(),
         columnPresets,
+        metricCatalog,
       }),
     ).rejects.toMatchObject({ statusCode: 404 });
     expect(columnPresets.create).not.toHaveBeenCalled();
@@ -103,6 +109,7 @@ describe("applyColumnPresetTemplate", () => {
     const result = await applyColumnPresetTemplate("uid1", "profitabilityQuality", {
       columnPresetTemplates,
       columnPresets,
+      metricCatalog,
     });
 
     expect(columnPresets.create).toHaveBeenCalledWith(

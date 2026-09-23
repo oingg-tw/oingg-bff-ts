@@ -1,12 +1,11 @@
-import type { ScreenerSort } from "@/infrastructure/analysisApi/screener/analysisScreenerClient.js";
 import {
   resolveScreenerColumns,
   type ColumnPresetsDeps,
   type ResolvedScreenerColumns,
 } from "@/application/screener/columnPresets.service.js";
 import type { Pagination } from "@/application/proxy/screener/pagination.js";
-import { runScreener } from "@/application/proxy/screener/screener.service.js";
-import type { ScreenerResult } from "@/application/proxy/screener/screener.types.js";
+import { runScreener, type ScreenerDeps } from "@/application/proxy/screener/screener.service.js";
+import type { ScreenerResult, ScreenerSort } from "@/application/proxy/screener/screener.types.js";
 import {
   getPresetOrThrow,
   updateLastColumnPreset,
@@ -17,9 +16,9 @@ import {
 /**
  * Both business slices' deps, because this is the one function allowed to depend on both sides (see
  * below): it reads a saved ScreenerPreset and resolves that user's display columns before handing the
- * whole thing to the proxy's query engine.
+ * whole thing to the proxy's query engine — whose own deps (ScreenerDeps) are therefore in here too.
  */
-export type RunPresetDeps = ScreenerPresetsDeps & ColumnPresetsDeps;
+export type RunPresetDeps = ScreenerPresetsDeps & ColumnPresetsDeps & ScreenerDeps;
 
 /**
  * Re-runs a saved preset's filters and returns both the filter definition and the matching stocks.
@@ -67,6 +66,14 @@ export async function runPreset(
     await updateLastColumnPreset(firebaseUid, id, resolved.columnPresetId ?? columnPresetId, deps);
   }
 
-  const screener = await runScreener(preset.filters, resolved.columns, pagination, sort, preset.sectorCodes, preset.excludeSectorCodes);
+  const screener = await runScreener(
+    preset.filters,
+    resolved.columns,
+    pagination,
+    sort,
+    preset.sectorCodes,
+    preset.excludeSectorCodes,
+    deps,
+  );
   return { preset, screener, columnPresetId: resolved.columnPresetId };
 }

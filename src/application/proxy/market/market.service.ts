@@ -1,16 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import {
-  fetchAttentionStocks,
-  fetchDisposedStocks,
-  fetchEtfRanking,
-  fetchMarginShortRatioRanking,
-  fetchMaterialAnnouncements,
-  fetchPriceChangeRanking,
-  fetchPriceLimitRange,
-  fetchRevenueRanking,
-  fetchTaiexDailyPrice,
-  fetchVolumeTop20,
-} from "@/infrastructure/analysisApi/market/marketRankings.client.js";
+import type { AppDeps } from "@/application/deps.js";
 import type {
   AttentionStocksResult,
   DisposedStocksResult,
@@ -27,6 +16,12 @@ import type {
   TaiexDailyPriceResult,
   VolumeTop20Result,
 } from "@/application/proxy/market/market.types.js";
+
+/**
+ * Only the one gateway: this slice owns no data of its own, it validates and forwards. Every function
+ * below takes it as its LAST argument, same convention as the 業務中台 services.
+ */
+export type MarketDeps = Pick<AppDeps, "marketGateway">;
 
 const REVENUE_RANKING_METRICS: readonly RevenueRankingMetric[] = ["yoy", "mom", "revenue"];
 const RANKING_ORDERS: readonly RankingOrder[] = ["asc", "desc"];
@@ -80,18 +75,18 @@ export const MIN_TAIEX_DAILY_PRICE_LIMIT = 1;
 export const MAX_TAIEX_DAILY_PRICE_LIMIT = 8000;
 
 /** Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400. */
-export async function getMarginShortRatioRanking(limit: number): Promise<MarginShortRatioRankingResult> {
+export async function getMarginShortRatioRanking(limit: number, deps: MarketDeps): Promise<MarginShortRatioRankingResult> {
   if (!Number.isInteger(limit) || limit < MIN_MARGIN_SHORT_LIMIT || limit > MAX_MARGIN_SHORT_LIMIT) {
     throw new AppError(
       `"limit" must be an integer between ${MIN_MARGIN_SHORT_LIMIT} and ${MAX_MARGIN_SHORT_LIMIT}`,
       400,
     );
   }
-  return fetchMarginShortRatioRanking(limit);
+  return deps.marketGateway.getMarginShortRatioRanking(limit);
 }
 
 /** Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400. */
-export async function getMaterialAnnouncements(limit: number): Promise<MaterialAnnouncementsResult> {
+export async function getMaterialAnnouncements(limit: number, deps: MarketDeps): Promise<MaterialAnnouncementsResult> {
   if (
     !Number.isInteger(limit) ||
     limit < MIN_MATERIAL_ANNOUNCEMENTS_LIMIT ||
@@ -102,14 +97,19 @@ export async function getMaterialAnnouncements(limit: number): Promise<MaterialA
       400,
     );
   }
-  return fetchMaterialAnnouncements(limit);
+  return deps.marketGateway.getMaterialAnnouncements(limit);
 }
 
 /**
  * `metric`/`order` are required upstream (no default, see market.routes.ts's requireStringQueryParam) —
  * only `limit` has one. Bounds/enums match analysis-ts's own validation (verified live).
  */
-export async function getRevenueRanking(metric: string, order: string, limit: number): Promise<RevenueRankingResult> {
+export async function getRevenueRanking(
+  metric: string,
+  order: string,
+  limit: number,
+  deps: MarketDeps,
+): Promise<RevenueRankingResult> {
   if (!REVENUE_RANKING_METRICS.includes(metric as RevenueRankingMetric)) {
     throw new AppError(`"metric" must be one of ${REVENUE_RANKING_METRICS.join(", ")}`, 400);
   }
@@ -122,39 +122,39 @@ export async function getRevenueRanking(metric: string, order: string, limit: nu
       400,
     );
   }
-  return fetchRevenueRanking(metric as RevenueRankingMetric, order as RankingOrder, limit);
+  return deps.marketGateway.getRevenueRanking(metric as RevenueRankingMetric, order as RankingOrder, limit);
 }
 
 /** No params — always the current top 20 by volume (data permitting). */
-export async function getVolumeTop20(): Promise<VolumeTop20Result> {
-  return fetchVolumeTop20();
+export async function getVolumeTop20(deps: MarketDeps): Promise<VolumeTop20Result> {
+  return deps.marketGateway.getVolumeTop20();
 }
 
 /** Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400. */
-export async function getDisposedStocks(limit: number): Promise<DisposedStocksResult> {
+export async function getDisposedStocks(limit: number, deps: MarketDeps): Promise<DisposedStocksResult> {
   if (!Number.isInteger(limit) || limit < MIN_DISPOSED_STOCKS_LIMIT || limit > MAX_DISPOSED_STOCKS_LIMIT) {
     throw new AppError(
       `"limit" must be an integer between ${MIN_DISPOSED_STOCKS_LIMIT} and ${MAX_DISPOSED_STOCKS_LIMIT}`,
       400,
     );
   }
-  return fetchDisposedStocks(limit);
+  return deps.marketGateway.getDisposedStocks(limit);
 }
 
 /** Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400. */
-export async function getAttentionStocks(limit: number): Promise<AttentionStocksResult> {
+export async function getAttentionStocks(limit: number, deps: MarketDeps): Promise<AttentionStocksResult> {
   if (!Number.isInteger(limit) || limit < MIN_ATTENTION_STOCKS_LIMIT || limit > MAX_ATTENTION_STOCKS_LIMIT) {
     throw new AppError(
       `"limit" must be an integer between ${MIN_ATTENTION_STOCKS_LIMIT} and ${MAX_ATTENTION_STOCKS_LIMIT}`,
       400,
     );
   }
-  return fetchAttentionStocks(limit);
+  return deps.marketGateway.getAttentionStocks(limit);
 }
 
 /** No params — always the current widest/narrowest 20 movers each (data permitting). */
-export async function getPriceLimitRange(): Promise<PriceLimitRangeResult> {
-  return fetchPriceLimitRange();
+export async function getPriceLimitRange(deps: MarketDeps): Promise<PriceLimitRangeResult> {
+  return deps.marketGateway.getPriceLimitRange();
 }
 
 /**
@@ -162,7 +162,7 @@ export async function getPriceLimitRange(): Promise<PriceLimitRangeResult> {
  * Computed from daily_price (already fully mirrored), not a twse-ts/tpex-ts export dataset — real data
  * from day one, unlike this file's other TWSE+TPEx endpoints (see fetchPriceChangeRanking).
  */
-export async function getPriceChangeRanking(limit: number): Promise<PriceChangeRankingResult> {
+export async function getPriceChangeRanking(limit: number, deps: MarketDeps): Promise<PriceChangeRankingResult> {
   if (
     !Number.isInteger(limit) ||
     limit < MIN_PRICE_CHANGE_RANKING_LIMIT ||
@@ -173,14 +173,19 @@ export async function getPriceChangeRanking(limit: number): Promise<PriceChangeR
       400,
     );
   }
-  return fetchPriceChangeRanking(limit);
+  return deps.marketGateway.getPriceChangeRanking(limit);
 }
 
 /**
  * `metric`/`order` are required upstream (no default, same as getRevenueRanking) — only `limit` has one.
  * Bounds/enums match analysis-ts's own validation (verified live).
  */
-export async function getEtfRanking(metric: string, order: string, limit: number): Promise<EtfRankingResult> {
+export async function getEtfRanking(
+  metric: string,
+  order: string,
+  limit: number,
+  deps: MarketDeps,
+): Promise<EtfRankingResult> {
   if (!ETF_RANKING_METRICS.includes(metric as EtfRankingMetric)) {
     throw new AppError(`"metric" must be one of ${ETF_RANKING_METRICS.join(", ")}`, 400);
   }
@@ -190,13 +195,17 @@ export async function getEtfRanking(metric: string, order: string, limit: number
   if (!Number.isInteger(limit) || limit < MIN_ETF_RANKING_LIMIT || limit > MAX_ETF_RANKING_LIMIT) {
     throw new AppError(`"limit" must be an integer between ${MIN_ETF_RANKING_LIMIT} and ${MAX_ETF_RANKING_LIMIT}`, 400);
   }
-  return fetchEtfRanking(metric as EtfRankingMetric, order as RankingOrder, limit);
+  return deps.marketGateway.getEtfRanking(metric as EtfRankingMetric, order as RankingOrder, limit);
 }
 
 export const TAIEX_DAILY_PRICE_INTERVALS: readonly TaiexDailyPriceInterval[] = ["daily", "weekly", "monthly"];
 
 /** Bounds match analysis-ts's own validation (verified live) — checked here too for a fast local 400. */
-export async function getTaiexDailyPrice(limit: number, interval?: string): Promise<TaiexDailyPriceResult> {
+export async function getTaiexDailyPrice(
+  limit: number,
+  interval: string | undefined,
+  deps: MarketDeps,
+): Promise<TaiexDailyPriceResult> {
   if (
     !Number.isInteger(limit) ||
     limit < MIN_TAIEX_DAILY_PRICE_LIMIT ||
@@ -210,5 +219,5 @@ export async function getTaiexDailyPrice(limit: number, interval?: string): Prom
   if (interval !== undefined && !TAIEX_DAILY_PRICE_INTERVALS.includes(interval as TaiexDailyPriceInterval)) {
     throw new AppError(`"interval" must be one of ${TAIEX_DAILY_PRICE_INTERVALS.join(", ")}`, 400);
   }
-  return fetchTaiexDailyPrice(limit, interval as TaiexDailyPriceInterval | undefined);
+  return deps.marketGateway.getTaiexDailyPrice(limit, interval as TaiexDailyPriceInterval | undefined);
 }

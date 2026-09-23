@@ -1,11 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/infrastructure/prisma/repositories/metricCatalog.repository.js", () => ({
-  findMetricFields: vi.fn(),
-}));
-
-import { findMetricFields } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
 import { fakeColumnPresets } from "@/tests/fakes/columnPresets.js";
+import { fakeMetricCatalog } from "@/tests/fakes/metricCatalog.js";
 import { fakeColumnPresetTemplates } from "@/tests/fakes/presetTemplates.js";
 import {
   addColumnPreset,
@@ -15,8 +11,17 @@ import {
   reorderColumnPresetsForUser,
   resolveScreenerColumns,
 } from "@/application/screener/columnPresets.service.js";
+import type { MetricFieldLookup, MetricFieldRef } from "@/application/metricCatalog/metricCatalog.types.js";
 
-type Lookup = Awaited<ReturnType<typeof findMetricFields>>[number];
+type Lookup = MetricFieldLookup;
+
+/**
+ * A typed fake of MetricCatalogPort instead of `vi.mock` on the repository module — the batching
+ * assertions below are about how many times this slice asks the *port* to resolve fields, which is the
+ * contract, not about which module happens to answer.
+ */
+const findFields = vi.fn();
+const metricCatalog = fakeMetricCatalog({ findFields });
 
 const PER_FIELD: Lookup = {
   categoryKey: "valuation",
@@ -50,17 +55,21 @@ const SAMPLE_ROW = {
   updatedAt: "2026-08-27T00:00:00.000Z",
 };
 
-/** The two ports this slice's use cases take, with "nothing saved, nothing curated" defaults. */
+/** The three ports this slice's use cases take, with "nothing saved, nothing curated" defaults. */
 function deps(
   columnPresets = fakeColumnPresets(),
   columnPresetTemplates = fakeColumnPresetTemplates(),
-): { columnPresets: ReturnType<typeof fakeColumnPresets>; columnPresetTemplates: ReturnType<typeof fakeColumnPresetTemplates> } {
-  return { columnPresets, columnPresetTemplates };
+): {
+  columnPresets: ReturnType<typeof fakeColumnPresets>;
+  columnPresetTemplates: ReturnType<typeof fakeColumnPresetTemplates>;
+  metricCatalog: typeof metricCatalog;
+} {
+  return { columnPresets, columnPresetTemplates, metricCatalog };
 }
 
 beforeEach(() => {
-  vi.mocked(findMetricFields).mockReset();
-  vi.mocked(findMetricFields).mockImplementation(async (refs) =>
+  findFields.mockReset();
+  findFields.mockImplementation(async (refs: MetricFieldRef[]) =>
     refs
       .map((ref) => {
         if (ref.metricKey === "per" && ref.fieldKey === "peRatio") return PER_FIELD;
@@ -75,7 +84,7 @@ describe("getColumnPresets", () => {
   // Perf regression test (2026-09-01): used to call toView() per preset row via Promise.all, each doing
   // its own resolveColumnFields round trip — N presets meant N separate remote DB queries (concurrent,
   // but still N of them) instead of one. Must batch every preset's columns into a single lookup.
-  it("resolves every preset's columns in a single batched findMetricFields call, not one per preset", async () => {
+  it("resolves every preset's columns in a single batched findFields call, not one per preset", async () => {
     const columnPresets = fakeColumnPresets({
       list: vi.fn().mockResolvedValue([
         { ...SAMPLE_ROW, id: SAMPLE_ID, columns: ["per.peRatio"] },
@@ -85,8 +94,8 @@ describe("getColumnPresets", () => {
 
     const result = await getColumnPresets("uid1", deps(columnPresets));
 
-    expect(findMetricFields).toHaveBeenCalledTimes(1);
-    expect(findMetricFields).toHaveBeenCalledWith([
+    expect(findFields).toHaveBeenCalledTimes(1);
+    expect(findFields).toHaveBeenCalledWith([
       { field: "per.peRatio", metricKey: "per", fieldKey: "peRatio" },
       { field: "pbr.pbRatio", metricKey: "pbr", fieldKey: "pbRatio" },
     ]);
@@ -120,14 +129,14 @@ describe("getColumnPresets", () => {
 
     await getColumnPresets("uid1", deps(columnPresets));
 
-    expect(findMetricFields).toHaveBeenCalledWith([{ field: "per.peRatio", metricKey: "per", fieldKey: "peRatio" }]);
+    expect(findFields).toHaveBeenCalledWith([{ field: "per.peRatio", metricKey: "per", fieldKey: "peRatio" }]);
   });
 
-  it("returns an empty array without calling findMetricFields when the user has no presets", async () => {
+  it("returns an empty array without calling findFields when the user has no presets", async () => {
     const result = await getColumnPresets("uid1", deps());
 
     expect(result).toEqual([]);
-    expect(findMetricFields).not.toHaveBeenCalled();
+    expect(findFields).not.toHaveBeenCalled();
   });
 });
 
@@ -151,7 +160,7 @@ describe("addColumnPreset", () => {
 
   // Regression test: fields used to be validated one at a time (one query per field, sequentially
   // awaited even). Must be a single batched lookup regardless of how many fields are given — every
-  // call findMetricFields receives here should carry all the catalog fields at once, never one at a time.
+  // call findFields receives here should carry all the catalog fields at once, never one at a time.
   it("validates all fields in a single batched lookup, not one query per field", async () => {
     const columnPresets = fakeColumnPresets({
       create: vi.fn().mockResolvedValue({
@@ -170,8 +179,8 @@ describe("addColumnPreset", () => {
 
     // validateFields (input) + toView (the created row's own columns) — 2 calls total, each batched
     // to cover both catalog fields at once rather than one call per field.
-    expect(findMetricFields).toHaveBeenCalledTimes(2);
-    for (const call of vi.mocked(findMetricFields).mock.calls) {
+    expect(findFields).toHaveBeenCalledTimes(2);
+    for (const call of findFields.mock.calls) {
       expect(call[0]).toEqual([
         { field: "per.peRatio", metricKey: "per", fieldKey: "peRatio" },
         { field: "pbr.pbRatio", metricKey: "pbr", fieldKey: "pbRatio" },
@@ -304,7 +313,7 @@ describe("resolveScreenerColumns", () => {
   });
 
   // Also covers the drop-invalid-fields regression (2026-09-08): OVERVIEW_TEMPLATE includes
-  // roe.roeTtmPct, which the findMetricFields mock above doesn't recognize — analysis-ts's own
+  // roe.roeTtmPct, which the findFields fake above doesn't recognize — analysis-ts's own
   // "overview" columnPreset kept referencing a field already dropped from their /filters `categories`
   // catalog, which made every screener call without an explicit columnPresetId fail 100% of the time
   // with an "unknown filter field" error unrelated to what the caller actually asked for. Must drop

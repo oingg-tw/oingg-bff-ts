@@ -6,11 +6,12 @@ import { resolveColumnFields } from "@/application/screener/columnField.js";
 import type { ColumnPresetRow } from "@/application/screener/columnPresets.types.js";
 
 /**
- * Both ports, not just `columnPresets`: resolveScreenerColumns falls back to the curated
+ * Three ports, not just `columnPresets`: resolveScreenerColumns falls back to the curated
  * ColumnPresetTemplate when the caller has no preset of their own, so "which columns do I show" genuinely
- * spans the two tables. Everything else here only touches `columnPresets`.
+ * spans those two tables, and every view built here resolves its fields' display names against the
+ * synced metric catalog (see resolveColumnFields). Everything else only touches `columnPresets`.
  */
-export type ColumnPresetsDeps = Pick<AppDeps, "columnPresets" | "columnPresetTemplates">;
+export type ColumnPresetsDeps = Pick<AppDeps, "columnPresets" | "columnPresetTemplates" | "metricCatalog">;
 
 export interface ColumnPresetColumnView {
   field: string;
@@ -45,13 +46,13 @@ function buildView(
   };
 }
 
-async function toView(row: ColumnPresetRow): Promise<ColumnPresetView> {
-  const infoByField = await resolveColumnFields(row.columns);
+async function toView(row: ColumnPresetRow, deps: ColumnPresetsDeps): Promise<ColumnPresetView> {
+  const infoByField = await resolveColumnFields(row.columns, deps);
   return buildView(row, infoByField);
 }
 
-async function validateFields(fields: string[]): Promise<void> {
-  const infoByField = await resolveColumnFields(fields);
+async function validateFields(fields: string[], deps: ColumnPresetsDeps): Promise<void> {
+  const infoByField = await resolveColumnFields(fields, deps);
   for (const field of fields) {
     if (!infoByField.get(field)) {
       throw new AppError(`Unknown column field "${field}"`, 400);
@@ -69,7 +70,7 @@ async function validateFields(fields: string[]): Promise<void> {
 export async function getColumnPresets(firebaseUid: string, deps: ColumnPresetsDeps): Promise<ColumnPresetView[]> {
   const rows = await deps.columnPresets.list(firebaseUid);
   const allFields = [...new Set(rows.flatMap((row) => row.columns))];
-  const infoByField = await resolveColumnFields(allFields);
+  const infoByField = await resolveColumnFields(allFields, deps);
   return rows.map((row) => buildView(row, infoByField));
 }
 
@@ -82,7 +83,7 @@ export async function getColumnPresetOrThrow(
   if (!row) {
     throw new AppError(`Column preset ${id} not found`, 404);
   }
-  return toView(row);
+  return toView(row, deps);
 }
 
 /**
@@ -97,13 +98,13 @@ export async function addColumnPreset(
   isDefault: boolean,
   deps: ColumnPresetsDeps,
 ): Promise<ColumnPresetView> {
-  await validateFields(columns);
+  await validateFields(columns, deps);
 
   const result = await deps.columnPresets.create(firebaseUid, name, columns, isDefault);
   if (!result.ok) {
     throw new AppError(`You already have a column preset named "${name}"`, 409);
   }
-  return toView(result.row);
+  return toView(result.row, deps);
 }
 
 const MAX_NAME_SUFFIX_ATTEMPTS = 1000;
@@ -138,13 +139,13 @@ export async function addColumnPresetWithName(
   columns: string[],
   deps: ColumnPresetsDeps,
 ): Promise<ColumnPresetView> {
-  await validateFields(columns);
+  await validateFields(columns, deps);
 
   for (let attempt = 0; attempt < MAX_NAME_SUFFIX_ATTEMPTS; attempt++) {
     const candidateName = await pickAvailableName(firebaseUid, name, deps);
     const result = await deps.columnPresets.create(firebaseUid, candidateName, columns, false);
     if (result.ok) {
-      return toView(result.row);
+      return toView(result.row, deps);
     }
   }
   throw new AppError(`Could not find an available name for "${name}"`, 409);
@@ -157,7 +158,7 @@ export async function editColumnPreset(
   deps: ColumnPresetsDeps,
 ): Promise<ColumnPresetView> {
   if (update.columns !== undefined) {
-    await validateFields(update.columns);
+    await validateFields(update.columns, deps);
   }
 
   const result = await deps.columnPresets.update(firebaseUid, id, update);
@@ -167,7 +168,7 @@ export async function editColumnPreset(
     }
     throw new AppError(`Column preset ${id} not found`, 404);
   }
-  return toView(result.row);
+  return toView(result.row, deps);
 }
 
 export async function removeColumnPreset(firebaseUid: string, id: string, deps: ColumnPresetsDeps): Promise<void> {
@@ -193,7 +194,7 @@ export async function reorderColumnPresetsForUser(
   }
 
   const allFields = [...new Set(rows.flatMap((row) => row.columns))];
-  const infoByField = await resolveColumnFields(allFields);
+  const infoByField = await resolveColumnFields(allFields, deps);
   return rows.map((row) => buildView(row, infoByField));
 }
 
@@ -224,7 +225,7 @@ async function resolveDefaultColumns(deps: ColumnPresetsDeps): Promise<ScreenerC
     return [];
   }
 
-  const resolved = await resolveColumnFields(template.fieldKeys);
+  const resolved = await resolveColumnFields(template.fieldKeys, deps);
   const validFields = template.fieldKeys.filter((field) => resolved.get(field) !== null);
   const droppedFields = template.fieldKeys.filter((field) => resolved.get(field) === null);
   if (droppedFields.length > 0) {

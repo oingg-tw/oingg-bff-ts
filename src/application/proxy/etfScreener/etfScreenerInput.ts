@@ -1,8 +1,11 @@
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { parseBody } from "@/shared/validation.js";
-import type { EtfScreenerSort } from "@/infrastructure/analysisApi/etfScreener/etfScreener.client.js";
-import type { EtfColumnRef, EtfScreenerFilter } from "@/application/proxy/etfScreener/etfScreener.types.js";
+import type {
+  EtfColumnRef,
+  EtfScreenerFilter,
+  EtfScreenerSort,
+} from "@/application/proxy/etfScreener/etfScreener.types.js";
 
 /**
  * Each filter is either numeric (`min`/`max`/`exclude`) or categorical (`values` array) — `values`'s

@@ -80,3 +80,17 @@ export interface EtfScreenerResult {
   totalPages: number;
   results: EtfScreenerResultRow[];
 }
+
+/**
+ * Which field to sort the result set by, and in which direction. analysis-ts requires both halves or
+ * neither (see etfScreenerInput.ts's parseEtfSort), which is why this is one object rather than two
+ * independent optional params.
+ *
+ * Declared here rather than in etfScreener.client.ts (where it used to live): it's part of what a caller
+ * hands EtfScreenerGatewayPort, so the request parser and the route can't be made to import the
+ * infrastructure module just to name it.
+ */
+export interface EtfScreenerSort {
+  field: string;
+  order: "asc" | "desc";
+}

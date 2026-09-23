@@ -1,41 +1,37 @@
-// findMetricFields still comes straight from the repository: the metricCatalog slice moved to ports
-// 2026-09-24 and its barrel went away with it, but this lookup has no caller inside that slice, so
-// there was nothing to put on MetricCatalogPort yet. Threading it in as a dep means widening this
-// slice's public Deps types (and three neighbouring slices' that call into it) — that's the screener
-// slice's own ports conversion, not this one. Until then this import is an acknowledged violation.
-import { findMetricFields } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
 import { getLatestClosePrices } from "@/application/proxy/stock/index.js";
 import { AppError } from "@/domain/appError.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
-import {
-  fetchCompanyRank,
-  fetchDistribution,
-  fetchScreenerRanking,
-  fetchScreenerResults,
-  fetchScreenerValues,
-  type ScreenerSort,
-} from "@/infrastructure/analysisApi/screener/analysisScreenerClient.js";
+import type { AppDeps } from "@/application/deps.js";
 import { SPECIAL_COLUMNS } from "@/application/screener/columnField.js";
 import type { Pagination } from "@/application/proxy/screener/pagination.js";
 import type {
-  CompanyRankResult,
-  DistributionResult,
   ScreenerColumnRef,
   ScreenerFilter,
   ScreenerResult,
   ScreenerResultColumn,
   ScreenerResultRow,
+  ScreenerSort,
   ScreenerValuesResult,
+  ValuationRankingMetric,
 } from "@/application/proxy/screener/screener.types.js";
-import { fetchValuationRanking, type ValuationRankingMetric } from "@/infrastructure/analysisApi/screener/valuationRanking.client.js";
+
+/**
+ * Two ports, and the split is the point: `screenerGateway` is the query engine (analysis-ts owns it),
+ * `metricCatalog` is bff-ts's own synced copy of the field catalog, only ever read here to attach
+ * display names and to fail fast on an unknown field without a round trip. Taken as the LAST argument.
+ *
+ * "stock.price" is a third source again (twse/tpex, via proxy/stock) — still a direct module call, since
+ * that slice hasn't been converted to ports yet.
+ */
+export type ScreenerDeps = Pick<AppDeps, "screenerGateway" | "metricCatalog">;
 
 const STOCK_PRICE_FIELD = "stock.price";
 
 /**
  * Ranking is a second-order computation over raw market data, not something this BFF should own —
  * oingg-analysis-ts's GET /valuation/ranking already does it (sort, limit, exclude non-positive P/E or
- * P/B), covering both TWSE and TPEx. These three fields go there (see valuationRanking.client.ts)
- * instead of the general screener path below — this override is ranking-only.
+ * P/B), covering both TWSE and TPEx. These three fields go there (see ScreenerGatewayPort's
+ * getValuationRanking) instead of the general screener path below — this override is ranking-only.
  *
  * Trigger keys updated 2026-09-08 for analysis-ts's pitMetrics rebuild (old metricCatalog metricKeys
  * per/pbr/dividendYield no longer exist). The new catalog has two distinct metrics per concept — e.g.
@@ -68,8 +64,8 @@ interface ResolvedRef {
 /**
  * Resolves metricCatalog fields against bff-ts's own synced catalog — used for filters, and for catalog
  * display columns (to attach metricName/fieldName in the response; the actual query now runs on
- * analysis-ts's side, see analysisScreenerClient.ts). Looks all of them up in a single batched query
- * rather than one query per field.
+ * analysis-ts's side, see ScreenerGatewayPort). Looks all of them up in a single batched query rather
+ * than one query per field.
  *
  * Used to also check the field against ANALYSIS_METRIC_TABLES and 501 if the metric wasn't wired up to
  * a real analysis-DB table yet — removed 2026-09-01 along with the rest of the direct-DB query building
@@ -78,9 +74,9 @@ interface ResolvedRef {
  * yet" case left on bff-ts's side. An unknown field is still a 400 here (fails fast against the local
  * catalog cache, same message as always, without a round trip to analysis-ts).
  */
-async function resolveCatalogFieldRefs(fields: string[]): Promise<ResolvedRef[]> {
+async function resolveCatalogFieldRefs(fields: string[], deps: ScreenerDeps): Promise<ResolvedRef[]> {
   const refs = fields.map((field) => ({ field, ...parseFieldRef(field) }));
-  const found = await findMetricFields(refs);
+  const found = await deps.metricCatalog.findFields(refs);
   const foundByKey = new Map(found.map((f) => [toFieldRefString(f.metricKey, f.fieldKey), f]));
 
   return refs.map((ref) => {
@@ -133,7 +129,7 @@ function validateSort(sort: ScreenerSort | undefined, resolvedColumns: ResolvedR
 /**
  * Screens companies by metricCatalog metrics — the actual query (dynamic CTE/JOIN across 30+ metric
  * tables, latest-row-per-symbol, ROC-year quarter labels, null/exclude filter semantics, sorting) now
- * runs on analysis-ts's own POST /screener (see analysisScreenerClient.ts and
+ * runs on analysis-ts's own POST /screener (see ScreenerGatewayPort and
  * docs/直連DB反模式修復計畫.md for what moved and why). This function's remaining job is: validate/resolve
  * fields against bff-ts's own synced catalog (for metricName/fieldName in the response — analysis-ts's
  * endpoint doesn't echo those back, we already have them locally), split off "stock.price" (twse/tpex,
@@ -147,9 +143,10 @@ export async function runScreener(
   filters: ScreenerFilter[],
   columns: ScreenerColumnRef[],
   pagination: Pagination,
-  sort?: ScreenerSort,
-  sectorCodes?: string[],
-  excludeSectorCodes?: string[],
+  sort: ScreenerSort | undefined,
+  sectorCodes: string[] | undefined,
+  excludeSectorCodes: string[] | undefined,
+  deps: ScreenerDeps,
 ): Promise<ScreenerResult> {
   if (filters.length === 0) {
     throw new AppError("At least one filter is required", 400);
@@ -158,14 +155,14 @@ export async function runScreener(
   const specialColumns = columns.filter((c) => c.field in SPECIAL_COLUMNS);
   const catalogColumnRefs = columns.filter((c) => !(c.field in SPECIAL_COLUMNS));
 
-  const allRefs = await resolveCatalogFieldRefs([
-    ...filters.map((f) => f.field),
-    ...catalogColumnRefs.map((c) => c.field),
-  ]);
+  const allRefs = await resolveCatalogFieldRefs(
+    [...filters.map((f) => f.field), ...catalogColumnRefs.map((c) => c.field)],
+    deps,
+  );
   const resolvedColumns = allRefs.slice(filters.length);
   validateSort(sort, resolvedColumns);
 
-  const apiResult = await fetchScreenerResults(
+  const apiResult = await deps.screenerGateway.runScreener(
     filters,
     resolvedColumns.map((c) => ({ field: c.field })),
     pagination,
@@ -215,7 +212,11 @@ const MAX_VALUES_SYMBOLS = 200;
  * result row (even if analysis-ts has no data for it, with empty `values`) — this never silently drops a
  * row the caller already has on screen.
  */
-export async function runScreenerValues(symbols: string[], columns: ScreenerColumnRef[]): Promise<ScreenerValuesResult> {
+export async function runScreenerValues(
+  symbols: string[],
+  columns: ScreenerColumnRef[],
+  deps: ScreenerDeps,
+): Promise<ScreenerValuesResult> {
   if (symbols.length === 0) {
     throw new AppError("At least one symbol is required", 400);
   }
@@ -229,9 +230,12 @@ export async function runScreenerValues(symbols: string[], columns: ScreenerColu
   const specialColumns = columns.filter((c) => c.field in SPECIAL_COLUMNS);
   const catalogColumnRefs = columns.filter((c) => !(c.field in SPECIAL_COLUMNS));
 
-  const resolvedColumns = await resolveCatalogFieldRefs(catalogColumnRefs.map((c) => c.field));
+  const resolvedColumns = await resolveCatalogFieldRefs(
+    catalogColumnRefs.map((c) => c.field),
+    deps,
+  );
 
-  const apiResult = await fetchScreenerValues(
+  const apiResult = await deps.screenerGateway.getValues(
     symbols,
     resolvedColumns.map((c) => ({ field: c.field })),
   );
@@ -278,8 +282,9 @@ export async function runRanking(
   direction: "asc" | "desc",
   limit: number,
   columns: ScreenerColumnRef[],
-  sectorCodes?: string[],
-  excludeSectorCodes?: string[],
+  sectorCodes: string[] | undefined,
+  excludeSectorCodes: string[] | undefined,
+  deps: ScreenerDeps,
 ): Promise<RankingResult> {
   const valuationMetric = VALUATION_RANKING_FIELDS[field];
   if (valuationMetric) {
@@ -291,17 +296,17 @@ export async function runRanking(
         400,
       );
     }
-    return runValuationRanking(field, valuationMetric, direction, limit, columns);
+    return runValuationRanking(field, valuationMetric, direction, limit, columns, deps);
   }
 
   const specialColumns = columns.filter((c) => c.field in SPECIAL_COLUMNS);
   const catalogColumnRefs = columns.filter((c) => !(c.field in SPECIAL_COLUMNS) && c.field !== field);
 
-  const allRefs = await resolveCatalogFieldRefs([field, ...catalogColumnRefs.map((c) => c.field)]);
+  const allRefs = await resolveCatalogFieldRefs([field, ...catalogColumnRefs.map((c) => c.field)], deps);
   const [rankedRef, ...extraColumnRefs] = allRefs as [ResolvedRef, ...ResolvedRef[]];
   const allColumnRefs = [rankedRef, ...extraColumnRefs];
 
-  const apiResult = await fetchScreenerRanking(
+  const apiResult = await deps.screenerGateway.runRanking(
     field,
     direction,
     limit,
@@ -343,6 +348,7 @@ async function runValuationRanking(
   direction: "asc" | "desc",
   limit: number,
   columns: ScreenerColumnRef[],
+  deps: ScreenerDeps,
 ): Promise<RankingResult> {
   const unsupportedColumn = columns.find((c) => c.field !== STOCK_PRICE_FIELD);
   if (unsupportedColumn) {
@@ -354,8 +360,8 @@ async function runValuationRanking(
     );
   }
 
-  const [rankedRef] = await resolveCatalogFieldRefs([field]);
-  const { tradeDate, rankings } = await fetchValuationRanking(metric, direction, limit);
+  const [rankedRef] = await resolveCatalogFieldRefs([field], deps);
+  const { tradeDate, rankings } = await deps.screenerGateway.getValuationRanking(metric, direction, limit);
   const wantsStockPrice = columns.some((c) => c.field === STOCK_PRICE_FIELD);
 
   const results: ScreenerResultRow[] = rankings.map((row) => ({
@@ -375,26 +381,11 @@ async function runValuationRanking(
   return { field, direction, columns: resultColumns, results };
 }
 
-/**
- * One company's rank/percentile against the whole market for a single field — GET /screener/company-rank.
- * Complements runRanking's "top N" with the reverse question. Delegates field validation to analysis-ts
- * itself — this response has no display column (metricName/fieldName), so there's nothing to resolve
- * against the local catalog for, unlike runScreener/runRanking. Not routed through the valuation-ranking
- * special case (exchangePeRatio.EOD/exchangePbRatio.EOD/dividendYield.EOD) — analysis-ts's own
- * /screener/company-rank covers the whole catalog uniformly, unlike GET /screener/ranking's split.
+/*
+ * GET /screener/company-rank and GET /screener/distribution used to have a runCompanyRank/runDistribution
+ * wrapper here. Both were `runX(args) => fetchX(args)` with nothing else in them: neither response has a
+ * display column (metricName/fieldName), so there's nothing to resolve against the local catalog, and
+ * field/bins validation is delegated to analysis-ts itself — unlike runScreener/runRanking above. The
+ * route now calls ScreenerGatewayPort's getCompanyRank/getDistribution directly (their semantics, and why
+ * company-rank isn't routed through the valuation-ranking override, are documented on that port).
  */
-export async function runCompanyRank(symbol: string, field: string, direction: "asc" | "desc"): Promise<CompanyRankResult> {
-  return fetchCompanyRank(symbol, field, direction);
-}
-
-/**
- * The whole market's distribution for a single field — GET /screener/distribution. Same pure pass-through
- * convention as runCompanyRank: field/bins validation is delegated to analysis-ts itself.
- */
-export async function runDistribution(
-  field: string,
-  bins: number | undefined,
-  excludeZero: boolean | undefined,
-): Promise<DistributionResult> {
-  return fetchDistribution(field, bins, excludeZero);
-}

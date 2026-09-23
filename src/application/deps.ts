@@ -1,11 +1,16 @@
 import type { ColumnPresetsPort } from "@/application/ports/columnPresets.js";
 import type { ColumnPresetTemplatesPort } from "@/application/ports/columnPresetTemplates.js";
+import type { EtfScreenerGatewayPort } from "@/application/ports/etfScreenerGateway.js";
 import type { HoldingsPort } from "@/application/ports/holdings.js";
+import type { IndustriesGatewayPort } from "@/application/ports/industriesGateway.js";
 import type { MacroGatewayPort } from "@/application/ports/macroGateway.js";
+import type { MarketGatewayPort } from "@/application/ports/marketGateway.js";
 import type { MetricCatalogPort } from "@/application/ports/metricCatalog.js";
 import type { MetricCatalogGatewayPort } from "@/application/ports/metricCatalogGateway.js";
 import type { PresetTemplatesPort } from "@/application/ports/presetTemplates.js";
+import type { ScreenerGatewayPort } from "@/application/ports/screenerGateway.js";
 import type { ScreenerPresetsPort } from "@/application/ports/screenerPresets.js";
+import type { SecuritiesGatewayPort } from "@/application/ports/securitiesGateway.js";
 import type { SubscriptionsPort } from "@/application/ports/subscriptions.js";
 import type { SystemHealthPort } from "@/application/ports/systemHealth.js";
 import type { TokenVerifierPort } from "@/application/ports/tokenVerifier.js";
@@ -45,6 +50,12 @@ export interface AppDeps {
 
   // --- 代理層：對 analysis-ts 的出站呼叫，一個切片一個 gateway ---
   macroGateway: MacroGatewayPort;
+  marketGateway: MarketGatewayPort;
+  industriesGateway: IndustriesGatewayPort;
+  securitiesGateway: SecuritiesGatewayPort;
+  etfScreenerGateway: EtfScreenerGatewayPort;
+  /** 選股引擎。含 /valuation/ranking——它路徑不同、實作在另一個檔案，但仍是同一個切片，見該 port 的說明。 */
+  screenerGateway: ScreenerGatewayPort;
   /** 唯一一個不是「即時轉發」的 gateway：拉回來是為了寫進 metricCatalog，不是為了直接回給前端。 */
   metricCatalogGateway: MetricCatalogGatewayPort;
 

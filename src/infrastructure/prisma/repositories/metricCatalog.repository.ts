@@ -1,40 +1,12 @@
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import { Prisma } from "@/generated/prisma/client.js";
 import type { MetricCatalogPort } from "@/application/ports/metricCatalog.js";
-import type { MetricBadge, MetricCategory } from "@/application/metricCatalog/metricCatalog.types.js";
-
-export interface MetricFieldLookup {
-  categoryKey: string;
-  metricKey: string;
-  metricName: string;
-  fieldKey: string;
-  fieldName: string;
-  period: string;
-  /** Field's own unit if set, else falls back to the metric's — see MetricField.unit/MetricDefinition.unit. */
-  unit: string | null;
-}
-
-export interface FieldRefInput {
-  metricKey: string;
-  fieldKey: string;
-}
-
-/*
- * findMetricField/findMetricFields are deliberately NOT on MetricCatalogPort yet.
- *
- * Nothing in the metricCatalog slice calls them — their only callers are the screener slices
- * (application/screener/*, application/proxy/screener/*), which still import them from this module
- * directly because that slice hasn't been converted to ports yet. Putting them on the port now would
- * mean a port method with no caller; threading them through as deps would mean rewriting four other
- * slices' public Deps types and their tests. They move onto the port when the screener slice converts,
- * which is the change that will actually have somewhere to call them from.
- */
-
-/** Looks up a single catalog field by (metricKey, fieldKey) — used to validate screener filters/columns. */
-export async function findMetricField(metricKey: string, fieldKey: string): Promise<MetricFieldLookup | null> {
-  const [field] = await findMetricFields([{ metricKey, fieldKey }]);
-  return field ?? null;
-}
+import type {
+  MetricBadge,
+  MetricCategory,
+  MetricFieldLookup,
+  MetricFieldRef,
+} from "@/application/metricCatalog/metricCatalog.types.js";
 
 /**
  * Looks up several catalog fields in one round trip instead of one query per field — the app DB is a
@@ -43,7 +15,7 @@ export async function findMetricField(metricKey: string, fieldKey: string): Prom
  * still needs its own connection out to Neon). Returns only the fields that were found; callers compare
  * against what they asked for to report which ones are missing.
  */
-export async function findMetricFields(refs: FieldRefInput[]): Promise<MetricFieldLookup[]> {
+export async function findMetricFields(refs: MetricFieldRef[]): Promise<MetricFieldLookup[]> {
   if (refs.length === 0) {
     return [];
   }
@@ -245,11 +217,12 @@ export async function replaceMetricCatalog(categories: MetricCategory[]): Promis
 /**
  * MetricCatalogPort 的 Prisma 實作。
  *
- * 兩個方法直接對應上面兩支函式——這個 port 沒有任何「把驅動錯誤翻譯成領域語彙」的工作要做，因為它的
+ * 三個方法直接對應上面三支函式——這個 port 沒有任何「把驅動錯誤翻譯成領域語彙」的工作要做，因為它的
  * 失敗模式只有「資料庫連不上」一種，而那本來就該原樣往上冒（同步是 fire-and-forget，會被重試）。
  * 真正值錢的保證在 replace 那一側：upsert 而不是刪光重建，理由見 replaceMetricCatalog 的註解。
  */
 export const prismaMetricCatalog: MetricCatalogPort = {
   list: listMetricCatalog,
   replace: replaceMetricCatalog,
+  findFields: findMetricFields,
 };

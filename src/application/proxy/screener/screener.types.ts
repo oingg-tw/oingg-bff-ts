@@ -115,3 +115,66 @@ export interface DistributionResult {
   clippedMax: number;
   bins: DistributionBin[];
 }
+
+/**
+ * Which field to sort the full result set by, and in which direction. analysis-ts requires both halves or
+ * neither (see screenerFilterInput.ts's parseSort), which is why this is one object rather than two
+ * independent optional params. Sorting happens upstream across every match, not just the returned page.
+ *
+ * Declared here rather than in analysisScreenerClient.ts (where it used to live): it's part of what a
+ * caller hands ScreenerGatewayPort, so the request parsers, runPreset and the route can't be made to
+ * import the infrastructure module just to name it.
+ */
+export interface ScreenerSort {
+  field: string;
+  order: "asc" | "desc";
+}
+
+/**
+ * The raw per-symbol row ScreenerGatewayPort returns — the same symbol/name/values triple as
+ * ScreenerResultRow, kept as its own name because it is what comes *back from the gateway*, before
+ * screener.service.ts merges "stock.price" in and attaches the display columns.
+ */
+export interface ScreenerGatewayRow {
+  symbol: string;
+  /** Attached directly by the gateway as of 2026-09-01 — null when it has no name on file for the symbol. */
+  name: string | null;
+  values: Record<string, ScreenerValue>;
+}
+
+/** Filtered + paginated screener results, before bff-ts attaches display columns. */
+export interface ScreenerGatewayResult {
+  count: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  results: ScreenerGatewayRow[];
+}
+
+/** Top-N ranking rows — no pagination metadata, by design (see runRanking). */
+export interface ScreenerRankingGatewayResult {
+  results: ScreenerGatewayRow[];
+}
+
+/** Values for an explicit symbol list — no pagination, and rows may be missing (see runScreenerValues). */
+export interface ScreenerValuesGatewayResult {
+  results: ScreenerGatewayRow[];
+}
+
+/**
+ * The three fields with a dedicated upstream ranking endpoint — see screener.service.ts's
+ * VALUATION_RANKING_FIELDS for how a catalog field maps onto one of these.
+ */
+export type ValuationRankingMetric = "peRatio" | "pbRatio" | "dividendYield";
+
+export interface ValuationRankingRow {
+  symbol: string;
+  name: string | null;
+  value: number;
+}
+
+export interface ValuationRankingResult {
+  /** The trading day this whole ranking is computed as of — one date for the entire ranking, not per-row. */
+  tradeDate: string | null;
+  rankings: ValuationRankingRow[];
+}

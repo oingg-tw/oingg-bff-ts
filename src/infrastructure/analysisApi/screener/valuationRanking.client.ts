@@ -1,20 +1,11 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
-
-export type ValuationRankingMetric = "peRatio" | "pbRatio" | "dividendYield";
-
-export interface ValuationRankingRow {
-  symbol: string;
-  name: string | null;
-  value: number;
-}
-
-export interface ValuationRankingResult {
-  /** The trading day this whole ranking is computed as of — one date for the entire ranking, not per-row. */
-  tradeDate: string | null;
-  rankings: ValuationRankingRow[];
-}
+import type {
+  ValuationRankingMetric,
+  ValuationRankingResult,
+  ValuationRankingRow,
+} from "@/application/proxy/screener/screener.types.js";
 
 interface RawValuationRankingResponse {
   tradeDate?: unknown;

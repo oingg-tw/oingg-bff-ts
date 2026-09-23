@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/infrastructure/prisma/repositories/metricCatalog.repository.js", () => ({
-  findMetricFields: vi.fn(),
-}));
-
-import { findMetricFields } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
+import { fakeMetricCatalog } from "@/tests/fakes/metricCatalog.js";
 import { fakePresetTemplates } from "@/tests/fakes/presetTemplates.js";
 import { fakeScreenerPresets } from "@/tests/fakes/screenerPresets.js";
 import {
@@ -48,9 +44,16 @@ const CREATED_ROW = {
   updatedAt: "2026-08-30T00:00:00.000Z",
 };
 
+/**
+ * A typed fake of MetricCatalogPort instead of `vi.mock` on the repository module — applying a template
+ * validates the cloned filters through this port (see addPresetWithName).
+ */
+const findFields = vi.fn();
+const metricCatalog = fakeMetricCatalog({ findFields });
+
 beforeEach(() => {
-  vi.mocked(findMetricFields).mockReset();
-  vi.mocked(findMetricFields).mockResolvedValue([
+  findFields.mockReset();
+  findFields.mockResolvedValue([
     {
       categoryKey: "profitability",
       metricKey: "roe",
@@ -69,7 +72,7 @@ describe("getPresetTemplates", () => {
       list: vi.fn().mockResolvedValue([AVAILABLE_TEMPLATE, PENDING_TEMPLATE]),
     });
 
-    await expect(getPresetTemplates({ presetTemplates, screenerPresets: fakeScreenerPresets() })).resolves.toEqual([
+    await expect(getPresetTemplates({ presetTemplates, screenerPresets: fakeScreenerPresets(), metricCatalog })).resolves.toEqual([
       AVAILABLE_TEMPLATE,
       PENDING_TEMPLATE,
     ]);
@@ -78,7 +81,7 @@ describe("getPresetTemplates", () => {
 
 describe("getPresetTemplateOrThrow", () => {
   it("throws 404 when not found", async () => {
-    const deps = { presetTemplates: fakePresetTemplates(), screenerPresets: fakeScreenerPresets() };
+    const deps = { presetTemplates: fakePresetTemplates(), screenerPresets: fakeScreenerPresets(), metricCatalog };
     await expect(getPresetTemplateOrThrow("missing-uuid", deps)).rejects.toMatchObject({ statusCode: 404 });
   });
 
@@ -86,6 +89,7 @@ describe("getPresetTemplateOrThrow", () => {
     const deps = {
       presetTemplates: fakePresetTemplates({ find: vi.fn().mockResolvedValue(AVAILABLE_TEMPLATE) }),
       screenerPresets: fakeScreenerPresets(),
+      metricCatalog,
     };
     await expect(getPresetTemplateOrThrow(AVAILABLE_TEMPLATE.id, deps)).resolves.toEqual(AVAILABLE_TEMPLATE);
   });
@@ -96,7 +100,7 @@ describe("applyPresetTemplate", () => {
     const screenerPresets = fakeScreenerPresets();
 
     await expect(
-      applyPresetTemplate("uid1", "missing-uuid", { presetTemplates: fakePresetTemplates(), screenerPresets }),
+      applyPresetTemplate("uid1", "missing-uuid", { presetTemplates: fakePresetTemplates(), screenerPresets, metricCatalog }),
     ).rejects.toMatchObject({ statusCode: 404 });
     expect(screenerPresets.create).not.toHaveBeenCalled();
   });
@@ -109,7 +113,7 @@ describe("applyPresetTemplate", () => {
     const presetTemplates = fakePresetTemplates({ find: vi.fn().mockResolvedValue(PENDING_TEMPLATE) });
 
     await expect(
-      applyPresetTemplate("uid1", PENDING_TEMPLATE.id, { presetTemplates, screenerPresets }),
+      applyPresetTemplate("uid1", PENDING_TEMPLATE.id, { presetTemplates, screenerPresets, metricCatalog }),
     ).rejects.toMatchObject({
       statusCode: 409,
       message: expect.stringContaining(PENDING_TEMPLATE.pendingReason),
@@ -123,7 +127,7 @@ describe("applyPresetTemplate", () => {
     const screenerPresets = fakeScreenerPresets({ create: vi.fn().mockResolvedValue({ ok: true, row: CREATED_ROW }) });
     const presetTemplates = fakePresetTemplates({ find: vi.fn().mockResolvedValue(AVAILABLE_TEMPLATE) });
 
-    const result = await applyPresetTemplate("uid1", AVAILABLE_TEMPLATE.id, { presetTemplates, screenerPresets });
+    const result = await applyPresetTemplate("uid1", AVAILABLE_TEMPLATE.id, { presetTemplates, screenerPresets, metricCatalog });
 
     expect(screenerPresets.create).toHaveBeenCalledWith(
       "uid1",

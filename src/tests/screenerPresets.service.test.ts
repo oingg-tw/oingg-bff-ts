@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/infrastructure/prisma/repositories/metricCatalog.repository.js", () => ({
-  findMetricFields: vi.fn(),
-}));
-
-import { findMetricFields } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
+import { fakeMetricCatalog } from "@/tests/fakes/metricCatalog.js";
 import { fakeScreenerPresets } from "@/tests/fakes/screenerPresets.js";
 import {
   addPreset,
@@ -13,8 +9,16 @@ import {
   removePreset,
   reorderPresetsForUser,
 } from "@/application/screener/screenerPresets.service.js";
+import type { MetricFieldLookup, MetricFieldRef } from "@/application/metricCatalog/metricCatalog.types.js";
 
-type Lookup = Awaited<ReturnType<typeof findMetricFields>>[number];
+type Lookup = MetricFieldLookup;
+
+/**
+ * A typed fake of MetricCatalogPort instead of `vi.mock` on the repository module — what these tests
+ * care about is that a preset's filters are validated against *the catalog*, not against Prisma.
+ */
+const findFields = vi.fn();
+const metricCatalog = fakeMetricCatalog({ findFields });
 
 const ROE_FIELD: Lookup = {
   categoryKey: "profitability",
@@ -63,8 +67,8 @@ const SAMPLE_ROW = {
 };
 
 beforeEach(() => {
-  vi.mocked(findMetricFields).mockReset();
-  vi.mocked(findMetricFields).mockImplementation(async (refs) =>
+  findFields.mockReset();
+  findFields.mockImplementation(async (refs: MetricFieldRef[]) =>
     refs
       .map((ref) => {
         if (ref.metricKey === "roe" && ref.fieldKey === "roeTtmPct") return ROE_FIELD;
@@ -80,7 +84,7 @@ describe("addPreset", () => {
   it("defaults an empty filter list to ROE > 30", async () => {
     const screenerPresets = fakeScreenerPresets({ create: vi.fn().mockResolvedValue({ ok: true, row: SAMPLE_ROW }) });
 
-    await addPreset("uid1", [], undefined, undefined, { screenerPresets });
+    await addPreset("uid1", [], undefined, undefined, { screenerPresets, metricCatalog });
 
     expect(screenerPresets.create).toHaveBeenCalledWith(
       "uid1",
@@ -97,6 +101,7 @@ describe("addPreset", () => {
     await expect(
       addPreset("uid1", [{ field: "nope.nope", min: 1, max: null, exclude: false }], undefined, undefined, {
         screenerPresets,
+        metricCatalog,
       }),
     ).rejects.toMatchObject({ statusCode: 400 });
     expect(screenerPresets.create).not.toHaveBeenCalled();
@@ -113,7 +118,7 @@ describe("addPreset", () => {
       ],
       undefined,
       undefined,
-      { screenerPresets },
+      { screenerPresets, metricCatalog },
     );
 
     expect(screenerPresets.create).toHaveBeenCalledWith(
@@ -141,11 +146,11 @@ describe("addPreset", () => {
       ],
       undefined,
       undefined,
-      { screenerPresets },
+      { screenerPresets, metricCatalog },
     );
 
-    expect(findMetricFields).toHaveBeenCalledTimes(1);
-    expect(findMetricFields).toHaveBeenCalledWith([
+    expect(findFields).toHaveBeenCalledTimes(1);
+    expect(findFields).toHaveBeenCalledWith([
       { metricKey: "roe", fieldKey: "roeTtmPct" },
       { metricKey: "grossMargin", fieldKey: "grossMarginTtm" },
     ]);
@@ -162,7 +167,7 @@ describe("addPreset", () => {
       [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }],
       undefined,
       undefined,
-      { screenerPresets },
+      { screenerPresets, metricCatalog },
     );
 
     expect(screenerPresets.create).toHaveBeenCalledWith(
@@ -189,7 +194,7 @@ describe("addPreset", () => {
       [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }],
       undefined,
       undefined,
-      { screenerPresets },
+      { screenerPresets, metricCatalog },
     );
 
     expect(screenerPresets.create).toHaveBeenCalledWith(
@@ -219,7 +224,7 @@ describe("addPreset", () => {
       [{ field: "roe.roeTtmPct", min: 30, max: null, exclude: false }],
       undefined,
       undefined,
-      { screenerPresets },
+      { screenerPresets, metricCatalog },
     );
 
     expect(screenerPresets.create).toHaveBeenCalledTimes(2);
@@ -234,7 +239,7 @@ describe("addPreset", () => {
   it("never touches column presets — lastColumnPresetId stays whatever the port returns (usually null)", async () => {
     const screenerPresets = fakeScreenerPresets({ create: vi.fn().mockResolvedValue({ ok: true, row: SAMPLE_ROW }) });
 
-    const result = await addPreset("uid1", [], undefined, undefined, { screenerPresets });
+    const result = await addPreset("uid1", [], undefined, undefined, { screenerPresets, metricCatalog });
 
     expect(screenerPresets.setLastColumnPreset).not.toHaveBeenCalled();
     expect(result.lastColumnPresetId).toBe(SAMPLE_ROW.lastColumnPresetId);
@@ -247,7 +252,7 @@ describe("editPreset", () => {
       update: vi.fn().mockResolvedValue({ ok: true, row: { ...SAMPLE_ROW, filters: [] } }),
     });
 
-    await editPreset("uid1", SAMPLE_ID, { filters: [] }, { screenerPresets });
+    await editPreset("uid1", SAMPLE_ID, { filters: [] }, { screenerPresets, metricCatalog });
 
     expect(screenerPresets.update).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
       name: undefined,
@@ -262,7 +267,7 @@ describe("editPreset", () => {
       update: vi.fn().mockResolvedValue({ ok: false, reason: "not-found" }),
     });
 
-    await expect(editPreset("uid1", "missing-uuid", { name: "x" }, { screenerPresets })).rejects.toMatchObject({
+    await expect(editPreset("uid1", "missing-uuid", { name: "x" }, { screenerPresets, metricCatalog })).rejects.toMatchObject({
       statusCode: 404,
     });
   });
@@ -275,7 +280,7 @@ describe("editPreset", () => {
       update: vi.fn().mockResolvedValue({ ok: true, row: { ...SAMPLE_ROW, excludeSectorCodes: ["24"] } }),
     });
 
-    await editPreset("uid1", SAMPLE_ID, { excludeSectorCodes: ["24"] }, { screenerPresets });
+    await editPreset("uid1", SAMPLE_ID, { excludeSectorCodes: ["24"] }, { screenerPresets, metricCatalog });
 
     expect(screenerPresets.update).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
       name: undefined,
@@ -290,7 +295,7 @@ describe("editPreset", () => {
       update: vi.fn().mockResolvedValue({ ok: true, row: { ...SAMPLE_ROW, sectorCodes: ["24"] } }),
     });
 
-    await editPreset("uid1", SAMPLE_ID, { sectorCodes: ["24"] }, { screenerPresets });
+    await editPreset("uid1", SAMPLE_ID, { sectorCodes: ["24"] }, { screenerPresets, metricCatalog });
 
     expect(screenerPresets.update).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
       name: undefined,
@@ -303,7 +308,7 @@ describe("editPreset", () => {
   it("leaves both untouched when neither sectorCodes nor excludeSectorCodes is given", async () => {
     const screenerPresets = fakeScreenerPresets({ update: vi.fn().mockResolvedValue({ ok: true, row: SAMPLE_ROW }) });
 
-    await editPreset("uid1", SAMPLE_ID, { name: "renamed" }, { screenerPresets });
+    await editPreset("uid1", SAMPLE_ID, { name: "renamed" }, { screenerPresets, metricCatalog });
 
     expect(screenerPresets.update).toHaveBeenCalledWith("uid1", SAMPLE_ID, {
       name: "renamed",
@@ -318,7 +323,7 @@ describe("editPreset", () => {
       update: vi.fn().mockResolvedValue({ ok: false, reason: "duplicate" }),
     });
 
-    await expect(editPreset("uid1", SAMPLE_ID, { name: "重複" }, { screenerPresets })).rejects.toMatchObject({
+    await expect(editPreset("uid1", SAMPLE_ID, { name: "重複" }, { screenerPresets, metricCatalog })).rejects.toMatchObject({
       statusCode: 409,
     });
   });
@@ -327,14 +332,14 @@ describe("editPreset", () => {
 describe("getPresetOrThrow / removePreset", () => {
   it("getPresetOrThrow throws 404 when not found", async () => {
     const screenerPresets = fakeScreenerPresets({ find: vi.fn().mockResolvedValue(null) });
-    await expect(getPresetOrThrow("uid1", "missing-uuid", { screenerPresets })).rejects.toMatchObject({
+    await expect(getPresetOrThrow("uid1", "missing-uuid", { screenerPresets, metricCatalog })).rejects.toMatchObject({
       statusCode: 404,
     });
   });
 
   it("removePreset throws 404 when nothing was deleted", async () => {
     const screenerPresets = fakeScreenerPresets({ remove: vi.fn().mockResolvedValue(false) });
-    await expect(removePreset("uid1", "missing-uuid", { screenerPresets })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(removePreset("uid1", "missing-uuid", { screenerPresets, metricCatalog })).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 
@@ -347,7 +352,7 @@ describe("reorderPresetsForUser", () => {
       ]),
     });
 
-    const result = await reorderPresetsForUser("uid1", [OTHER_ID, SAMPLE_ID], { screenerPresets });
+    const result = await reorderPresetsForUser("uid1", [OTHER_ID, SAMPLE_ID], { screenerPresets, metricCatalog });
 
     expect(screenerPresets.reorder).toHaveBeenCalledWith("uid1", [OTHER_ID, SAMPLE_ID]);
     expect(result.map((r) => r.id)).toEqual([OTHER_ID, SAMPLE_ID]);
@@ -358,7 +363,7 @@ describe("reorderPresetsForUser", () => {
   it("throws a 400 when the port reports ids don't match the user's current full set", async () => {
     const screenerPresets = fakeScreenerPresets({ reorder: vi.fn().mockResolvedValue(null) });
 
-    await expect(reorderPresetsForUser("uid1", [SAMPLE_ID], { screenerPresets })).rejects.toMatchObject({
+    await expect(reorderPresetsForUser("uid1", [SAMPLE_ID], { screenerPresets, metricCatalog })).rejects.toMatchObject({
       statusCode: 400,
     });
   });

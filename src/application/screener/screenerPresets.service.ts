@@ -1,16 +1,14 @@
 import { AppError } from "@/domain/appError.js";
 import type { ScreenerFilter } from "@/domain/screenerCriteria.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
-// findMetricFields still comes straight from the repository: the metricCatalog slice moved to ports
-// 2026-09-24 and its barrel went away with it, but this lookup has no caller inside that slice, so
-// there was nothing to put on MetricCatalogPort yet. Threading it in as a dep means widening this
-// slice's public Deps types (and three neighbouring slices' that call into it) — that's the screener
-// slice's own ports conversion, not this one. Until then this import is an acknowledged violation.
-import { findMetricFields } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
 import type { AppDeps } from "@/application/deps.js";
 import type { PresetFilterInput, PresetRow } from "@/application/screener/screenerPresets.types.js";
 
-export type ScreenerPresetsDeps = Pick<AppDeps, "screenerPresets">;
+/**
+ * `metricCatalog` alongside the preset storage: a preset can only save filters on fields that exist, so
+ * every write path validates them against the synced catalog first (see resolveFilters).
+ */
+export type ScreenerPresetsDeps = Pick<AppDeps, "screenerPresets" | "metricCatalog">;
 
 export interface PresetFilterView {
   field: string;
@@ -63,9 +61,9 @@ function normalizeSectorCodes(sectorCodes: string[] | undefined): string[] | und
  * remote Neon Postgres, so a preset with several filters used to pay one full network round trip per
  * filter just for validation.
  */
-async function resolveFilters(filters: ScreenerFilter[]): Promise<PresetFilterInput[]> {
+async function resolveFilters(filters: ScreenerFilter[], deps: ScreenerPresetsDeps): Promise<PresetFilterInput[]> {
   const refs = filters.map((filter) => parseFieldRef(filter.field));
-  const found = await findMetricFields(refs);
+  const found = await deps.metricCatalog.findFields(refs);
   const foundKeys = new Set(found.map((f) => toFieldRefString(f.metricKey, f.fieldKey)));
 
   return filters.map((filter, i) => {
@@ -148,7 +146,7 @@ export async function addPreset(
   excludeSectorCodes: string[] = [],
   deps: ScreenerPresetsDeps,
 ): Promise<PresetView> {
-  const resolved = await resolveFilters(filters.length > 0 ? filters : DEFAULT_PRESET_FILTERS);
+  const resolved = await resolveFilters(filters.length > 0 ? filters : DEFAULT_PRESET_FILTERS, deps);
   return createPresetWithAvailableName(
     firebaseUid,
     DEFAULT_PRESET_NAME,
@@ -171,7 +169,7 @@ export async function addPresetWithName(
   filters: ScreenerFilter[],
   deps: ScreenerPresetsDeps,
 ): Promise<PresetView> {
-  const resolved = await resolveFilters(filters);
+  const resolved = await resolveFilters(filters, deps);
   return createPresetWithAvailableName(firebaseUid, name, resolved, [], [], deps);
 }
 
@@ -211,7 +209,7 @@ export async function editPreset(
   update: { name?: string; filters?: ScreenerFilter[]; sectorCodes?: string[]; excludeSectorCodes?: string[] },
   deps: ScreenerPresetsDeps,
 ): Promise<PresetView> {
-  const resolvedFilters = update.filters !== undefined ? await resolveFilters(update.filters) : undefined;
+  const resolvedFilters = update.filters !== undefined ? await resolveFilters(update.filters, deps) : undefined;
 
   const sectorCodes = normalizeSectorCodes(update.sectorCodes);
   const excludeSectorCodes = normalizeSectorCodes(update.excludeSectorCodes);

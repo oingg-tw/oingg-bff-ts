@@ -2,6 +2,7 @@ import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { SecurityListEntry, SecurityListResult, SecurityType } from "@/application/proxy/securities/securities.types.js";
+import type { SecuritiesGatewayPort } from "@/application/ports/securitiesGateway.js";
 
 const VALID_TYPES: SecurityType[] = ["COMMON", "PREFERRED", "ETF"];
 
@@ -58,3 +59,14 @@ export async function fetchSecurityList(limit?: number, offset?: number): Promis
     entries: body.entries.map(normalizeEntry),
   };
 }
+
+/**
+ * SecuritiesGatewayPort 的實作。fetchSecurityList 已經做完正規化與 502 判定，這裡只是對應方法名。
+ *
+ * 重構前中間隔著一支 securities.service.ts，但它整個檔案只有 `getSecurityList(a, b) => fetchSecurityList(a, b)`
+ * 一個函式，沒有驗證也沒有編排（limit/offset 的界限驗證一直在 route 的 zod schema，那份 schema 同時是
+ * OpenAPI 的來源）。純轉發就不留空殼，跟 macro 切片同樣的判斷。
+ */
+export const analysisSecuritiesGateway: SecuritiesGatewayPort = {
+  getSecurityList: fetchSecurityList,
+};

@@ -1,9 +1,9 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { parseBody } from "@/shared/validation.js";
-import { getSecurityList } from "@/application/proxy/securities/securities.service.js";
+import type { AppDeps } from "@/application/deps.js";
 
-export const securitiesRouter = Router();
+export type SecuritiesDeps = Pick<AppDeps, "securitiesGateway">;
 
 export const securityListQuerySchema = z.object({
   limit: z.preprocess(
@@ -24,8 +24,19 @@ export const securityListQuerySchema = z.object({
   ),
 });
 
-securitiesRouter.get("/", async (req, res) => {
-  const query = parseBody(securityListQuerySchema, req.query);
-  const result = await getSecurityList(query.limit, query.offset);
-  res.json(result);
-});
+/**
+ * 純轉發切片：route 直接呼叫 gateway port，中間沒有 service 層（見 securities.client.ts 的說明）。
+ * limit/offset 的界限驗證留在上面的 zod schema，它同時是 OpenAPI 的來源；兩者都是 optional，沒給就
+ * 不往上游送，上游才會套用它自己的預設值。
+ */
+export function createSecuritiesRouter(deps: SecuritiesDeps): Router {
+  const securitiesRouter = Router();
+
+  securitiesRouter.get("/", async (req, res) => {
+    const query = parseBody(securityListQuerySchema, req.query);
+    const result = await deps.securitiesGateway.getSecurityList(query.limit, query.offset);
+    res.json(result);
+  });
+
+  return securitiesRouter;
+}

@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { parseBody } from "@/shared/validation.js";
-import type { ScreenerSort } from "@/infrastructure/analysisApi/screener/analysisScreenerClient.js";
-import type { ScreenerFilter } from "@/application/proxy/screener/screener.types.js";
+import type { ScreenerFilter, ScreenerSort } from "@/application/proxy/screener/screener.types.js";
 
 /** One filter condition — the shared shape for POST /screener's body and the preset CRUD routes'. */
 export const screenerFilterSchema = z.object({

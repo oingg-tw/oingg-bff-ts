@@ -12,6 +12,7 @@ import type {
   SecuritiesSector,
   SecuritiesSectorList,
 } from "@/application/proxy/industries/industries.types.js";
+import type { IndustriesGatewayPort } from "@/application/ports/industriesGateway.js";
 
 const VALID_LEVELS: IndustryLevel[] = ["section", "division", "group", "class", "subclass"];
 
@@ -133,4 +134,18 @@ export async function fetchSecuritiesSectors(): Promise<SecuritiesSectorList> {
 
   return { sectors: sectors.map(normalizeSector) };
 }
+
+/**
+ * IndustriesGatewayPort 的實作。上面的 fetchX 函式已經做完正規化與 502 判定，所以這裡只是把它們對應到
+ * port 的方法名。
+ *
+ * 重構前中間還隔著一支 industries.service.ts，但那支檔案三個函式都是 `getX(a) => fetchX(a)`，沒有任何
+ * 驗證或編排（`code` 的格式驗證一直在 route 的 zod schema，那份 schema 同時是 OpenAPI 的來源）。
+ * 代理切片只要是純轉發，就不該為了湊滿分層而留一層空殼——跟 macro 切片同樣的判斷。
+ */
+export const analysisIndustriesGateway: IndustriesGatewayPort = {
+  getIndustryTree: fetchIndustryTree,
+  getIndustryFlatList: fetchIndustryFlatList,
+  getSecuritiesSectors: fetchSecuritiesSectors,
+};
 
