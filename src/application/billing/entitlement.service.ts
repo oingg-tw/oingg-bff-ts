@@ -67,6 +67,7 @@ export async function getEntitlement(
       status: subscription.status,
       currentPeriodEnd: subscription.currentPeriodEnd,
       trialEndsAt: null,
+      renewalMode: subscription.renewalMode,
     };
   }
 
@@ -83,13 +84,15 @@ export async function getEntitlement(
         source: "trial",
         status: null,
         currentPeriodEnd: null,
+        // A trial has nothing to renew: it ends by the calendar, not by a payment agreement.
         trialEndsAt: trialEnds.toISOString(),
+        renewalMode: null,
       };
     }
   }
 
   if (BILLING_PAID_UID_ALLOWLIST.includes(firebaseUid)) {
-    return { tier: "PRO", source: "allowlist", status: null, currentPeriodEnd: null, trialEndsAt: null };
+    return { tier: "PRO", source: "allowlist", status: null, currentPeriodEnd: null, trialEndsAt: null, renewalMode: null };
   }
 
   return {
@@ -98,5 +101,8 @@ export async function getEntitlement(
     status: subscription?.status ?? null,
     currentPeriodEnd: subscription?.currentPeriodEnd ?? null,
     trialEndsAt: null,
+    // Kept on a lapsed row: "it expired and would not have renewed itself" is what tells the UI to
+    // offer a renewal rather than wait for a charge that is never coming.
+    renewalMode: subscription?.renewalMode ?? null,
   };
 }

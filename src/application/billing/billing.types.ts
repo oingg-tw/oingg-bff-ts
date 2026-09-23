@@ -1,6 +1,6 @@
-import type { BillingProvider, SubscriptionStatus } from "@/generated/prisma/client.js";
+import type { BillingProvider, RenewalMode, SubscriptionStatus } from "@/generated/prisma/client.js";
 
-export type { BillingProvider, SubscriptionStatus };
+export type { BillingProvider, RenewalMode, SubscriptionStatus };
 
 /**
  * The three-step ladder. Deliberately NOT a Prisma enum and NOT tied to a price: prices are expected to
@@ -33,6 +33,19 @@ export interface Entitlement {
   currentPeriodEnd: string | null;
   /** ISO date-time the reverse trial ends; present whenever the user is still inside it. */
   trialEndsAt: string | null;
+  /**
+   * Whether access renews itself when `currentPeriodEnd` arrives, or simply stops.
+   *
+   * Null when there is no subscription row at all (free, trial, allowlist). Otherwise it is the single
+   * thing that decides which sentence the UI may truthfully show: "next charge on <date>" for
+   * AUTOMATIC, versus "expires on <date>, renew before then" for MANUAL. Without it the frontend can
+   * only show a date and leave the user to guess, and a MANUAL subscriber who guesses "it renews"
+   * loses access with no warning.
+   *
+   * Deliberately its own field rather than `providerPeriodNo !== null`: a MANUAL grant has no period
+   * number either, so that inference would classify comped accounts as auto-renewing.
+   */
+  renewalMode: RenewalMode | null;
 }
 
 export interface SubscriptionRecord {
@@ -42,4 +55,5 @@ export interface SubscriptionRecord {
   currentPeriodEnd: string;
   provider: BillingProvider;
   providerPeriodNo: string | null;
+  renewalMode: RenewalMode;
 }

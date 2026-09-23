@@ -492,6 +492,16 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+/// 這期結束後會不會自己續下去。刻意是獨立欄位而不是從 providerPeriodNo 是否為 null 推論——手動授予
+/// （provider = MANUAL）同樣沒有週期單號，推論會把它誤判成「會自動續」，而那正是最不該誤判的一種。
+enum RenewalMode {
+  /// 信用卡定期定額：金流商那邊有合約，每期自動扣款並回呼，使用者什麼都不用做。
+  AUTOMATIC
+  /// ATM 虛擬帳號／超商代碼的一次性年繳：金流商那邊沒有任何合約，到期就是到期。中高齡族群對自動續扣
+  /// 有戒心，這條路徑是必備而非選配，所以它的「到期前要主動提醒」是產品責任，不是邊緣案例。
+  MANUAL
+}
+
 enum BillingProvider {
   NEWEBPAY
   /// Granted by hand (support, comp, internal testing) rather than by a payment provider — kept
@@ -520,6 +530,9 @@ model Subscription {
   /// (status, currentPeriodEnd) and not status alone.
   currentPeriodEnd DateTime           @map("current_period_end")
   provider         BillingProvider
+  /// 預設 MANUAL 是刻意選擇的失效方向：猜錯成 MANUAL 只會多寄一封提醒，猜錯成 AUTOMATIC 會讓使用者
+  /// 等一筆永遠不會發生的扣款，然後在毫無預警下被降級。
+  renewalMode      RenewalMode        @default(MANUAL) @map("renewal_mode")
   /// The provider's own subscription id — NewebPay's PeriodNo (週期單號). Unique so a replayed
   /// webhook can't create a second subscription for the same provider-side agreement.
   providerPeriodNo String?            @unique @map("provider_period_no")

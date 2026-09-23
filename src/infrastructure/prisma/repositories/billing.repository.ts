@@ -11,6 +11,7 @@ function toSubscriptionRecord(row: SubscriptionRow): SubscriptionRecord {
     currentPeriodEnd: row.currentPeriodEnd.toISOString(),
     provider: row.provider,
     providerPeriodNo: row.providerPeriodNo,
+    renewalMode: row.renewalMode,
   };
 }
 

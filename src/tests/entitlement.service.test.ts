@@ -20,6 +20,7 @@ function subscription(overrides: Partial<SubscriptionRecord> = {}): Subscription
     currentPeriodEnd: "2026-10-23T00:00:00.000Z",
     provider: "NEWEBPAY",
     providerPeriodNo: "P123",
+    renewalMode: "AUTOMATIC" as const,
     ...overrides,
   };
 }
@@ -51,6 +52,7 @@ describe("getEntitlement — subscriptions", () => {
       status: "ACTIVE",
       currentPeriodEnd: "2026-10-23T00:00:00.000Z",
       trialEndsAt: null,
+      renewalMode: "AUTOMATIC",
     });
   });
 
@@ -106,6 +108,7 @@ describe("getEntitlement — reverse trial", () => {
       status: null,
       currentPeriodEnd: null,
       trialEndsAt: "2026-10-04T00:00:00.000Z",
+      renewalMode: null,
     });
   });
 
@@ -152,5 +155,55 @@ describe("getEntitlement — Phase 0 allowlist", () => {
     );
 
     await expect(result).resolves.toMatchObject({ tier: "ADVISOR", source: "subscription" });
+  });
+});
+
+describe("getEntitlement — renewalMode", () => {
+  // The point of the field: currentPeriodEnd says WHEN access ends, renewalMode says whether anything
+  // will stop that happening. A MANUAL subscriber shown "next charge on <date>" loses access with no
+  // warning, because no charge is coming.
+  it("reports AUTOMATIC for a recurring card subscription", async () => {
+    const result = await getEntitlement("uid", NOW, deps({ subscription: subscription({ renewalMode: "AUTOMATIC" }) }));
+
+    expect(result).toMatchObject({ tier: "PRO", renewalMode: "AUTOMATIC" });
+  });
+
+  // ATM / convenience-store annual payments have no agreement on the provider side at all.
+  it("reports MANUAL for a one-off annual payment, which has no provider period number either", async () => {
+    const result = await getEntitlement(
+      "uid",
+      NOW,
+      deps({ subscription: subscription({ renewalMode: "MANUAL", providerPeriodNo: null }) }),
+    );
+
+    expect(result).toMatchObject({ tier: "PRO", renewalMode: "MANUAL" });
+  });
+
+  // Kept on a lapsed row so the UI can offer a renewal instead of waiting for a charge that will
+  // never arrive.
+  it("keeps the mode on an expired subscription that has already dropped to FREE", async () => {
+    const result = await getEntitlement(
+      "uid",
+      NOW,
+      deps({ subscription: subscription({ renewalMode: "MANUAL", currentPeriodEnd: "2026-09-01T00:00:00.000Z" }) }),
+    );
+
+    expect(result).toMatchObject({ tier: "FREE", renewalMode: "MANUAL" });
+  });
+
+  it("is null during the trial, which ends by the calendar rather than by a payment agreement", async () => {
+    const result = await getEntitlement(
+      "uid",
+      NOW,
+      deps({ subscription: null, user: { ...OLD_USER, createdAt: "2026-09-20T00:00:00.000Z" } }),
+    );
+
+    expect(result).toMatchObject({ source: "trial", renewalMode: null });
+  });
+
+  it("is null for a free user with no subscription row", async () => {
+    const result = await getEntitlement("uid", NOW, deps({ subscription: null }));
+
+    expect(result).toMatchObject({ tier: "FREE", renewalMode: null });
   });
 });
