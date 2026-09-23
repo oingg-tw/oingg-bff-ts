@@ -1,0 +1,19 @@
+import type { AppDeps } from "@/application/deps.js";
+import { analysisMacroGateway } from "@/infrastructure/analysisApi/macro/macro.client.js";
+import { prismaWatchlist } from "@/infrastructure/prisma/repositories/watchlist.repository.js";
+
+/**
+ * 整個服務的 composition root：全 repo 只有這個檔案（跟測試裡的 fake）知道「哪個 port 由哪個實作滿足」。
+ *
+ * 這就是依賴反轉真正發生的地方——application 宣告它需要什麼（port），infrastructure 提供怎麼做（實作），
+ * 兩邊誰都不 import 誰，靠這裡把它們接起來。要換掉 Prisma、或把某支代理改打別的上游，改動範圍就是這個
+ * 檔案的一行。
+ *
+ * 目前是函式而不是常數：讓測試能產生獨立的一份，也讓未來需要非同步初始化（連線池、快取暖身）時有地方放。
+ */
+export function createAppDeps(): AppDeps {
+  return {
+    watchlist: prismaWatchlist,
+    macroGateway: analysisMacroGateway,
+  };
+}

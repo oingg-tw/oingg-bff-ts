@@ -6,6 +6,7 @@ import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
 import { assertSymbolExists } from "@/application/proxy/stock/index.js";
+import type { WatchlistDeps } from "@/application/watchlist/watchlist.service.js";
 import {
   addWatchlistItem,
   editWatchlistItemNote,
@@ -14,9 +15,6 @@ import {
   removeWatchlistItem,
 } from "@/application/watchlist/watchlist.service.js";
 
-export const watchlistRouter = Router();
-
-watchlistRouter.use(requireAuth);
 
 function requireUser(req: AuthenticatedRequest): string {
   if (!req.user) {
@@ -38,39 +36,50 @@ export const updateWatchlistItemSchema = z.object({
   note: z.string().nullish(),
 });
 
-watchlistRouter.get("/", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const items = await getWatchlist(firebaseUid);
-  res.json({ items });
-});
+/**
+ * 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。
+ * 這是 http 層不再依賴 infrastructure 的關鍵——它只認得 application 匯出的型別。
+ */
+export function createWatchlistRouter(deps: WatchlistDeps): Router {
+  const watchlistRouter = Router();
+  watchlistRouter.use(requireAuth);
 
-watchlistRouter.post("/", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const body = parseBody(addWatchlistItemSchema, req.body);
+  watchlistRouter.get("/", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const items = await getWatchlist(firebaseUid, deps);
+    res.json({ items });
+  });
 
-  await assertSymbolExists(body.symbol);
-  const item = await addWatchlistItem(firebaseUid, body.symbol, body.note ?? null);
-  res.status(201).json({ item });
-});
+  watchlistRouter.post("/", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = parseBody(addWatchlistItemSchema, req.body);
 
-watchlistRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  const item = await getWatchlistItemOrThrow(firebaseUid, id);
-  res.json({ item });
-});
+    await assertSymbolExists(body.symbol);
+    const item = await addWatchlistItem(firebaseUid, body.symbol, body.note ?? null, deps);
+    res.status(201).json({ item });
+  });
 
-watchlistRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  const body = parseBody(updateWatchlistItemSchema, req.body ?? {});
-  const item = await editWatchlistItemNote(firebaseUid, id, body.note ?? null);
-  res.json({ item });
-});
+  watchlistRouter.get("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    const item = await getWatchlistItemOrThrow(firebaseUid, id, deps);
+    res.json({ item });
+  });
 
-watchlistRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
-  const firebaseUid = requireUser(req);
-  const id = parseId(req.params.id ?? "");
-  await removeWatchlistItem(firebaseUid, id);
-  res.status(204).end();
-});
+  watchlistRouter.patch("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    const body = parseBody(updateWatchlistItemSchema, req.body ?? {});
+    const item = await editWatchlistItemNote(firebaseUid, id, body.note ?? null, deps);
+    res.json({ item });
+  });
+
+  watchlistRouter.delete("/:id", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const id = parseId(req.params.id ?? "");
+    await removeWatchlistItem(firebaseUid, id, deps);
+    res.status(204).end();
+  });
+
+  return watchlistRouter;
+}

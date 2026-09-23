@@ -1,4 +1,5 @@
 import { createApp } from "@/app.js";
+import { createAppDeps } from "@/bootstrap/deps.js";
 import { initFirebase } from "@/infrastructure/firebase/index.js";
 import { closeNeonPools, closePrismaClient, initNeonPools } from "@/infrastructure/prisma/index.js";
 import { startMetricCatalogSync } from "@/application/metricCatalog/index.js";
@@ -18,7 +19,8 @@ async function main(): Promise<void> {
   // same as PresetTemplate, with no sync mechanism at all.
   startMetricCatalogSync();
 
-  const app = createApp();
+  // Composition root runs after the driver init above, so every port has a live connection behind it.
+  const app = createApp(createAppDeps());
 
   const server = app.listen(env.port, () => {
     logger.info(`oingg-bff-ts listening on port ${env.port} (${env.nodeEnv})`);

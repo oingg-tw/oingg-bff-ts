@@ -1,19 +1,10 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { parseBody } from "@/shared/validation.js";
-import {
-  getBusinessCycleIndicator,
-  getCbcPolicyRate,
-  getCpi,
-  getGdp,
-  getGovBondYield10y,
-  getGovBondYield10yHistory,
-  getMonetaryAggregate,
-  getStockMarketSummary,
-  getUsdTwdRate,
-} from "@/application/proxy/macro/macro.service.js";
+import type { AppDeps } from "@/application/deps.js";
 
-export const macroRouter = Router();
+export type MacroDeps = Pick<AppDeps, "macroGateway">;
+
 
 const YYYY_MM_DD_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const YYYY_MM_PATTERN = /^\d{4}-\d{2}$/;
@@ -90,47 +81,57 @@ export const gdpQuerySchema = z.object({
   category: z.enum(GDP_CATEGORIES, { error: `"category" must be one of ${GDP_CATEGORIES.join(", ")}` }).optional(),
 });
 
-macroRouter.get("/cbc-policy-rate", async (req, res) => {
-  const query = parseBody(cbcPolicyRateQuerySchema, req.query);
-  res.json(await getCbcPolicyRate(query.from));
-});
+/**
+ * 純轉發切片：route 直接呼叫 gateway port，中間沒有 service 層（見 macro.client.ts 的說明）。
+ * 參數驗證留在這裡的 zod schema，它同時是 OpenAPI 的來源。
+ */
+export function createMacroRouter(deps: MacroDeps): Router {
+  const macroRouter = Router();
 
-macroRouter.get("/business-cycle-indicator", async (req, res) => {
-  const query = parseBody(businessCycleIndicatorQuerySchema, req.query);
-  res.json(await getBusinessCycleIndicator(query.from));
-});
+  macroRouter.get("/cbc-policy-rate", async (req, res) => {
+    const query = parseBody(cbcPolicyRateQuerySchema, req.query);
+    res.json(await deps.macroGateway.getCbcPolicyRate(query.from));
+  });
 
-macroRouter.get("/monetary-aggregate", async (req, res) => {
-  const query = parseBody(monetaryAggregateQuerySchema, req.query);
-  res.json(await getMonetaryAggregate(query.from));
-});
+  macroRouter.get("/business-cycle-indicator", async (req, res) => {
+    const query = parseBody(businessCycleIndicatorQuerySchema, req.query);
+    res.json(await deps.macroGateway.getBusinessCycleIndicator(query.from));
+  });
 
-// Registered before the "-history" sibling purely for readability — distinct literal paths, no overlap.
-macroRouter.get("/gov-bond-yield-10y", async (_req, res) => {
-  res.json(await getGovBondYield10y());
-});
+  macroRouter.get("/monetary-aggregate", async (req, res) => {
+    const query = parseBody(monetaryAggregateQuerySchema, req.query);
+    res.json(await deps.macroGateway.getMonetaryAggregate(query.from));
+  });
 
-macroRouter.get("/gov-bond-yield-10y-history", async (req, res) => {
-  const query = parseBody(govBondYield10yHistoryQuerySchema, req.query);
-  res.json(await getGovBondYield10yHistory(query.from));
-});
+  // Registered before the "-history" sibling purely for readability — distinct literal paths, no overlap.
+  macroRouter.get("/gov-bond-yield-10y", async (_req, res) => {
+    res.json(await deps.macroGateway.getGovBondYield10y());
+  });
 
-macroRouter.get("/stock-market-summary", async (req, res) => {
-  const query = parseBody(stockMarketSummaryQuerySchema, req.query);
-  res.json(await getStockMarketSummary(query.from));
-});
+  macroRouter.get("/gov-bond-yield-10y-history", async (req, res) => {
+    const query = parseBody(govBondYield10yHistoryQuerySchema, req.query);
+    res.json(await deps.macroGateway.getGovBondYield10yHistory(query.from));
+  });
 
-macroRouter.get("/usd-twd-rate", async (req, res) => {
-  const query = parseBody(usdTwdRateQuerySchema, req.query);
-  res.json(await getUsdTwdRate(query.limit, query.interval));
-});
+  macroRouter.get("/stock-market-summary", async (req, res) => {
+    const query = parseBody(stockMarketSummaryQuerySchema, req.query);
+    res.json(await deps.macroGateway.getStockMarketSummary(query.from));
+  });
 
-macroRouter.get("/cpi", async (req, res) => {
-  const query = parseBody(cpiQuerySchema, req.query);
-  res.json(await getCpi(query.from, query.category));
-});
+  macroRouter.get("/usd-twd-rate", async (req, res) => {
+    const query = parseBody(usdTwdRateQuerySchema, req.query);
+    res.json(await deps.macroGateway.getUsdTwdRate(query.limit, query.interval));
+  });
 
-macroRouter.get("/gdp", async (req, res) => {
-  const query = parseBody(gdpQuerySchema, req.query);
-  res.json(await getGdp(query.from, query.category));
-});
+  macroRouter.get("/cpi", async (req, res) => {
+    const query = parseBody(cpiQuerySchema, req.query);
+    res.json(await deps.macroGateway.getCpi(query.from, query.category));
+  });
+
+  macroRouter.get("/gdp", async (req, res) => {
+    const query = parseBody(gdpQuerySchema, req.query);
+    res.json(await deps.macroGateway.getGdp(query.from, query.category));
+  });
+
+  return macroRouter;
+}

@@ -1,9 +1,10 @@
 import express from "ultimate-express";
-import { routes } from "@/routes.js";
+import { createRoutes } from "@/routes.js";
+import type { AppDeps } from "@/application/deps.js";
 import { errorHandler, jsonBodyErrorHandler, notFoundHandler } from "@/http/errorHandler.js";
 import { requestLogger } from "@/http/requestLogger.js";
 
-export function createApp() {
+export function createApp(deps: AppDeps) {
   const app = express();
 
   // Forwards rejected/throwing async route handlers to next(err) automatically,
@@ -19,7 +20,7 @@ export function createApp() {
   // Must sit here, directly behind the parser — see jsonBodyErrorHandler for why it can't live in errorHandler.
   app.use(jsonBodyErrorHandler);
 
-  app.use(routes);
+  app.use(createRoutes(deps));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

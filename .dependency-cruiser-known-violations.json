@@ -340,34 +340,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/application/proxy/macro/index.ts",
-    "to": "src/http/modules/macro/route.ts",
-    "unresolvedTo": "@/http/modules/macro/route.js",
-    "dependencyTypes": [
-      "undetermined",
-      "export"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "application-only-domain"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/application/proxy/macro/macro.service.ts",
-    "to": "src/infrastructure/analysisApi/macro/macro.client.ts",
-    "unresolvedTo": "@/infrastructure/analysisApi/macro/macro.client.js",
-    "dependencyTypes": [
-      "undetermined",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "application-only-domain"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/application/proxy/market/index.ts",
     "to": "src/http/modules/market/route.ts",
     "unresolvedTo": "@/http/modules/market/route.js",
@@ -1004,34 +976,6 @@
     "from": "src/application/user/user.service.ts",
     "to": "src/infrastructure/prisma/repositories/user.repository.ts",
     "unresolvedTo": "@/infrastructure/prisma/repositories/user.repository.js",
-    "dependencyTypes": [
-      "undetermined",
-      "import"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "application-only-domain"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/application/watchlist/index.ts",
-    "to": "src/http/modules/watchlist/route.ts",
-    "unresolvedTo": "@/http/modules/watchlist/route.js",
-    "dependencyTypes": [
-      "undetermined",
-      "export"
-    ],
-    "rule": {
-      "severity": "error",
-      "name": "application-only-domain"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/application/watchlist/watchlist.service.ts",
-    "to": "src/infrastructure/prisma/repositories/watchlist.repository.ts",
-    "unresolvedTo": "@/infrastructure/prisma/repositories/watchlist.repository.js",
     "dependencyTypes": [
       "undetermined",
       "import"

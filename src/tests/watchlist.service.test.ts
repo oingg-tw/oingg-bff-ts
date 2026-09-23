@@ -1,23 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@/infrastructure/prisma/repositories/watchlist.repository.js", () => ({
-  createWatchlistItem: vi.fn(),
-  deleteWatchlistItem: vi.fn(),
-  findWatchlistItem: vi.fn(),
-  listWatchlistItems: vi.fn(),
-  updateWatchlistItemNote: vi.fn(),
-}));
-
-import { Prisma } from "@/generated/prisma/client.js";
-import {
-  createWatchlistItem,
-  deleteWatchlistItem,
-  findWatchlistItem,
-  updateWatchlistItemNote,
-} from "@/infrastructure/prisma/repositories/watchlist.repository.js";
+import type { WatchlistPort } from "@/application/ports/watchlist.js";
 import {
   addWatchlistItem,
   editWatchlistItemNote,
+  getWatchlist,
   getWatchlistItemOrThrow,
   removeWatchlistItem,
 } from "@/application/watchlist/watchlist.service.js";
@@ -32,89 +18,102 @@ const SAMPLE_ITEM = {
   updatedAt: "2026-08-24T00:00:00.000Z",
 };
 
-describe("addWatchlistItem", () => {
-  beforeEach(() => {
-    vi.mocked(createWatchlistItem).mockReset();
+/**
+ * A fake port instead of `vi.mock` on the repository module. The test now states the *contract* the
+ * service depends on, so it keeps passing if the storage behind it is rewritten — which is the whole
+ * point of the port. It also can't drift from reality unnoticed: the object must satisfy WatchlistPort,
+ * so adding a method to the port breaks this file at compile time rather than at runtime.
+ */
+function fakeWatchlist(overrides: Partial<WatchlistPort> = {}): WatchlistPort {
+  return {
+    list: vi.fn().mockResolvedValue([]),
+    find: vi.fn().mockResolvedValue(null),
+    create: vi.fn().mockResolvedValue({ ok: true, item: SAMPLE_ITEM }),
+    updateNote: vi.fn().mockResolvedValue(null),
+    remove: vi.fn().mockResolvedValue(false),
+    ...overrides,
+  };
+}
+
+describe("getWatchlist", () => {
+  it("passes the caller's uid straight through to the port", async () => {
+    const watchlist = fakeWatchlist({ list: vi.fn().mockResolvedValue([SAMPLE_ITEM]) });
+
+    await expect(getWatchlist("uid1", { watchlist })).resolves.toEqual([SAMPLE_ITEM]);
+    expect(watchlist.list).toHaveBeenCalledWith("uid1");
   });
+});
 
+describe("addWatchlistItem", () => {
   it("creates the item", async () => {
-    vi.mocked(createWatchlistItem).mockResolvedValue(SAMPLE_ITEM);
+    const watchlist = fakeWatchlist();
 
-    const result = await addWatchlistItem("uid1", "2330", "watching for a dip");
+    const result = await addWatchlistItem("uid1", "2330", "watching for a dip", { watchlist });
 
     expect(result).toEqual(SAMPLE_ITEM);
-    expect(createWatchlistItem).toHaveBeenCalledWith("uid1", "2330", "watching for a dip");
+    expect(watchlist.create).toHaveBeenCalledWith("uid1", "2330", "watching for a dip");
   });
 
-  // Regression test: Prisma wraps a unique-constraint violation as PrismaClientKnownRequestError
-  // with code "P2002" — NOT Postgres's raw "23505" that a hand-written pg query would throw.
-  // Checking for the wrong code silently let the raw Prisma error escape as an unhandled 500
-  // instead of the intended 409, which is exactly what happened before this was fixed.
-  it("turns a duplicate-symbol conflict (Prisma P2002) into a 409 AppError", async () => {
-    vi.mocked(createWatchlistItem).mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
-        code: "P2002",
-        clientVersion: "test",
-      }),
-    );
+  // The duplicate case arrives as a value, not as a Prisma error. Before the ports refactor this
+  // assertion had to construct a PrismaClientKnownRequestError with code "P2002" — a test that proved
+  // the service understood one driver's error taxonomy rather than proving the 409 rule.
+  it("turns a duplicate into a 409 without knowing anything about the database", async () => {
+    const watchlist = fakeWatchlist({ create: vi.fn().mockResolvedValue({ ok: false, reason: "duplicate" }) });
 
-    await expect(addWatchlistItem("uid1", "2330", null)).rejects.toMatchObject({
+    await expect(addWatchlistItem("uid1", "2330", null, { watchlist })).rejects.toMatchObject({
       statusCode: 409,
       message: '"2330" is already in your watchlist',
     });
   });
 
-  it("does not mask database errors that aren't a unique-constraint violation", async () => {
-    const dbError = new Error("connection reset");
-    vi.mocked(createWatchlistItem).mockRejectedValue(dbError);
+  it("lets an unexpected storage failure propagate untouched", async () => {
+    const watchlist = fakeWatchlist({ create: vi.fn().mockRejectedValue(new Error("connection lost")) });
 
-    await expect(addWatchlistItem("uid1", "2330", null)).rejects.toBe(dbError);
+    await expect(addWatchlistItem("uid1", "2330", null, { watchlist })).rejects.toThrow("connection lost");
   });
 });
 
 describe("getWatchlistItemOrThrow", () => {
-  beforeEach(() => {
-    vi.mocked(findWatchlistItem).mockReset();
+  it("returns the item when it exists", async () => {
+    const watchlist = fakeWatchlist({ find: vi.fn().mockResolvedValue(SAMPLE_ITEM) });
+
+    await expect(getWatchlistItemOrThrow("uid1", SAMPLE_ID, { watchlist })).resolves.toEqual(SAMPLE_ITEM);
   });
 
-  it("throws a 404 when the item doesn't exist (or belongs to a different user)", async () => {
-    vi.mocked(findWatchlistItem).mockResolvedValue(null);
+  // "missing" and "belongs to someone else" are deliberately the same answer — see the port's docs.
+  it("404s when the item is missing or not the caller's", async () => {
+    const watchlist = fakeWatchlist();
 
-    await expect(getWatchlistItemOrThrow("uid1", "missing-uuid")).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it("returns the item when found", async () => {
-    vi.mocked(findWatchlistItem).mockResolvedValue(SAMPLE_ITEM);
-
-    await expect(getWatchlistItemOrThrow("uid1", SAMPLE_ID)).resolves.toEqual(SAMPLE_ITEM);
+    await expect(getWatchlistItemOrThrow("uid1", SAMPLE_ID, { watchlist })).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 
 describe("editWatchlistItemNote", () => {
-  it("throws a 404 when the update matched no row (wrong owner or missing id)", async () => {
-    vi.mocked(updateWatchlistItemNote).mockReset().mockResolvedValue(null);
+  it("returns the updated item", async () => {
+    const updated = { ...SAMPLE_ITEM, note: "updated" };
+    const watchlist = fakeWatchlist({ updateNote: vi.fn().mockResolvedValue(updated) });
 
-    await expect(editWatchlistItemNote("uid1", SAMPLE_ID, "new note")).rejects.toMatchObject({ statusCode: 404 });
+    await expect(editWatchlistItemNote("uid1", SAMPLE_ID, "updated", { watchlist })).resolves.toEqual(updated);
+    expect(watchlist.updateNote).toHaveBeenCalledWith("uid1", SAMPLE_ID, "updated");
   });
 
-  it("returns the updated item on success", async () => {
-    const updated = { ...SAMPLE_ITEM, note: "new note" };
-    vi.mocked(updateWatchlistItemNote).mockReset().mockResolvedValue(updated);
+  it("404s when nothing was updated", async () => {
+    const watchlist = fakeWatchlist();
 
-    await expect(editWatchlistItemNote("uid1", SAMPLE_ID, "new note")).resolves.toEqual(updated);
+    await expect(editWatchlistItemNote("uid1", SAMPLE_ID, "x", { watchlist })).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 
 describe("removeWatchlistItem", () => {
-  it("throws a 404 when nothing was deleted", async () => {
-    vi.mocked(deleteWatchlistItem).mockReset().mockResolvedValue(false);
+  it("resolves when a row was deleted", async () => {
+    const watchlist = fakeWatchlist({ remove: vi.fn().mockResolvedValue(true) });
 
-    await expect(removeWatchlistItem("uid1", SAMPLE_ID)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(removeWatchlistItem("uid1", SAMPLE_ID, { watchlist })).resolves.toBeUndefined();
   });
 
-  it("resolves silently when the row was deleted", async () => {
-    vi.mocked(deleteWatchlistItem).mockReset().mockResolvedValue(true);
+  it("404s when nothing was deleted", async () => {
+    const watchlist = fakeWatchlist();
 
-    await expect(removeWatchlistItem("uid1", SAMPLE_ID)).resolves.toBeUndefined();
+    await expect(removeWatchlistItem("uid1", SAMPLE_ID, { watchlist })).rejects.toMatchObject({ statusCode: 404 });
   });
 });

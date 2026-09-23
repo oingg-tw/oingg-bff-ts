@@ -23,6 +23,7 @@ import type {
   UsdTwdRateInterval,
   UsdTwdRateResult,
 } from "@/application/proxy/macro/macro.types.js";
+import type { MacroGatewayPort } from "@/application/ports/macroGateway.js";
 
 function toNumberOrNull(value: unknown): number | null {
   return typeof value === "number" ? value : null;
@@ -267,3 +268,21 @@ export async function fetchGdp(from?: string, category?: GdpCategory): Promise<G
   }
   return { category: body.category as GdpCategory, entries: entries.map(normalizeGdpEntry) };
 }
+
+/**
+ * MacroGatewayPort 的實作。這一層底下的 fetchX 函式已經做完正規化與 502 判定，所以這裡只是把它們對應到
+ * port 的方法名；重構前中間還隔著一支 macro.service.ts，但那支檔案每個函式都是 `getX(a) => fetchX(a)`，
+ * 沒有任何驗證或編排（macro 的參數驗證全在 route 的 zod schema，那份 schema 同時是 OpenAPI 的來源）。
+ * 代理切片只要是純轉發，就不該為了湊滿分層而留一層空殼。
+ */
+export const analysisMacroGateway: MacroGatewayPort = {
+  getCbcPolicyRate: fetchCbcPolicyRate,
+  getBusinessCycleIndicator: fetchBusinessCycleIndicator,
+  getMonetaryAggregate: fetchMonetaryAggregate,
+  getGovBondYield10y: fetchGovBondYield10y,
+  getGovBondYield10yHistory: fetchGovBondYield10yHistory,
+  getStockMarketSummary: fetchStockMarketSummary,
+  getUsdTwdRate: fetchUsdTwdRate,
+  getCpi: fetchCpi,
+  getGdp: fetchGdp,
+};
