@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchSecurityList } from "@/domainBff/securities/securities.client.js";
+import { fetchSecurityList } from "@/infrastructure/analysisApi/securities/securities.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;

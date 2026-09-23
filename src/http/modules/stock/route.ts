@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
-import { AppError } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 import { parseBody } from "@/shared/validation.js";
 import {
   getBeta,
@@ -25,7 +25,7 @@ import {
   getRoaHistory,
   getRoeHistory,
   getStockQuote,
-} from "@/domainBff/stock/stock.service.js";
+} from "@/application/proxy/stock/stock.service.js";
 
 const MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST = 100;
 

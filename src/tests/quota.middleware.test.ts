@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextFunction, Response } from "ultimate-express";
 
-vi.mock("@/domainBusiness/billing/entitlement.service.js", () => ({
+vi.mock("@/application/billing/entitlement.service.js", () => ({
   getEntitlement: vi.fn(),
 }));
 
-import { getEntitlement } from "@/domainBusiness/billing/entitlement.service.js";
+import { getEntitlement } from "@/application/billing/entitlement.service.js";
 import { QUOTA_EXCEEDED_CODE, enforceQuota } from "@/http/middleware/quota.middleware.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import type { AppError } from "@/http/errorHandler.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import type { AppError } from "@/domain/appError.js";
 
 function requestFor(uid: string | undefined): AuthenticatedRequest {
   return { user: uid ? { uid } : undefined } as AuthenticatedRequest;

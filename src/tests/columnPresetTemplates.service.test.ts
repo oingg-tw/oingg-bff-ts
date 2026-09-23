@@ -1,26 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/columnPresetTemplates.repository.js", () => ({
   findColumnPresetTemplate: vi.fn(),
   listColumnPresetTemplates: vi.fn(),
   replaceColumnPresetTemplates: vi.fn(),
 }));
 
-vi.mock("@/domainBusiness/screener/columnPresets.service.js", () => ({
+vi.mock("@/application/screener/columnPresets.service.js", () => ({
   addColumnPresetWithName: vi.fn(),
 }));
 
-import { addColumnPresetWithName } from "@/domainBusiness/screener/columnPresets.service.js";
+import { addColumnPresetWithName } from "@/application/screener/columnPresets.service.js";
 import {
   findColumnPresetTemplate,
   listColumnPresetTemplates,
   replaceColumnPresetTemplates,
-} from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js";
+} from "@/infrastructure/prisma/repositories/columnPresetTemplates.repository.js";
 import {
   applyColumnPresetTemplate,
   getColumnPresetTemplateOrThrow,
   getColumnPresetTemplates,
-} from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.service.js";
+} from "@/application/columnPresetTemplates/columnPresetTemplates.service.js";
 
 const PROFITABILITY_QUALITY_TEMPLATE = {
   key: "profitabilityQuality",

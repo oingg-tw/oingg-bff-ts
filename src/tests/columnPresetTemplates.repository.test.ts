@@ -19,8 +19,8 @@ import {
   findDefaultColumnPresetTemplate,
   listColumnPresetTemplates,
   replaceColumnPresetTemplates,
-} from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.repository.js";
-import type { ColumnPresetTemplate } from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.types.js";
+} from "@/infrastructure/prisma/repositories/columnPresetTemplates.repository.js";
+import type { ColumnPresetTemplate } from "@/application/columnPresetTemplates/columnPresetTemplates.types.js";
 
 const SAMPLE_TEMPLATES: ColumnPresetTemplate[] = [
   {

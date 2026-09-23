@@ -1,9 +1,9 @@
 import { Router } from "ultimate-express";
-import { AppError } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
 import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import { applyPresetTemplate, getPresetTemplateOrThrow, getPresetTemplates } from "@/domainBusiness/presetTemplates/presetTemplates.service.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { applyPresetTemplate, getPresetTemplateOrThrow, getPresetTemplates } from "@/application/presetTemplates/presetTemplates.service.js";
 
 export const presetTemplatesRouter = Router();
 

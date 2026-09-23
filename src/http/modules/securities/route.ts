@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { parseBody } from "@/shared/validation.js";
-import { getSecurityList } from "@/domainBff/securities/securities.service.js";
+import { getSecurityList } from "@/application/proxy/securities/securities.service.js";
 
 export const securitiesRouter = Router();
 

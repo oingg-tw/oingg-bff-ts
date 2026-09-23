@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/billing/billing.repository.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/billing.repository.js", () => ({
   findSubscriptionByFirebaseUid: vi.fn(),
 }));
 
-vi.mock("@/domainBusiness/user/user.repository.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/user.repository.js", () => ({
   findUserByFirebaseUid: vi.fn(),
   ensureUserProvisioned: vi.fn(),
 }));
@@ -15,9 +15,9 @@ vi.mock("@/shared/env.js", () => ({
   REVERSE_TRIAL_TIER: "PRO",
 }));
 
-import { findSubscriptionByFirebaseUid } from "@/domainBusiness/billing/billing.repository.js";
-import { findUserByFirebaseUid } from "@/domainBusiness/user/user.repository.js";
-import { getEntitlement } from "@/domainBusiness/billing/entitlement.service.js";
+import { findSubscriptionByFirebaseUid } from "@/infrastructure/prisma/repositories/billing.repository.js";
+import { findUserByFirebaseUid } from "@/infrastructure/prisma/repositories/user.repository.js";
+import { getEntitlement } from "@/application/billing/entitlement.service.js";
 
 const NOW = new Date("2026-09-23T00:00:00.000Z");
 

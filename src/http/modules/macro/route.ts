@@ -11,7 +11,7 @@ import {
   getMonetaryAggregate,
   getStockMarketSummary,
   getUsdTwdRate,
-} from "@/domainBff/macro/macro.service.js";
+} from "@/application/proxy/macro/macro.service.js";
 
 export const macroRouter = Router();
 

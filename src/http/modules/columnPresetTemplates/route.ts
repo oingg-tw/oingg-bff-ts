@@ -1,12 +1,12 @@
 import { Router } from "ultimate-express";
-import { AppError } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
 import {
   applyColumnPresetTemplate,
   getColumnPresetTemplateOrThrow,
   getColumnPresetTemplates,
-} from "@/domainBusiness/columnPresetTemplates/columnPresetTemplates.service.js";
+} from "@/application/columnPresetTemplates/columnPresetTemplates.service.js";
 
 export const columnPresetTemplatesRouter = Router();
 

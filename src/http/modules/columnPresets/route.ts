@@ -1,10 +1,10 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
-import { AppError } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
 import {
   addColumnPreset,
   editColumnPreset,
@@ -12,8 +12,8 @@ import {
   getColumnPresets,
   removeColumnPreset,
   reorderColumnPresetsForUser,
-} from "@/domainBusiness/screener/columnPresets.service.js";
-import { countColumnPresets } from "@/domainBusiness/screener/columnPresets.repository.js";
+} from "@/application/screener/columnPresets.service.js";
+import { countColumnPresets } from "@/infrastructure/prisma/repositories/columnPresets.repository.js";
 import { enforceQuota } from "@/http/middleware/quota.middleware.js";
 
 export const columnPresetsRouter = Router();

@@ -1,14 +1,14 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { parseBody } from "@/shared/validation.js";
-import { getEtfFieldCatalog, runEtfScreener } from "@/domainBff/etfScreener/etfScreener.service.js";
+import { getEtfFieldCatalog, runEtfScreener } from "@/application/proxy/etfScreener/etfScreener.service.js";
 import {
   DEFAULT_ETF_SCREENER_PAGE_SIZE,
   etfColumnsArraySchema,
   etfScreenerFiltersArraySchema,
   etfScreenerPaginationSchema,
   toEtfScreenerFilter,
-} from "@/domainBff/etfScreener/etfScreenerInput.js";
+} from "@/application/proxy/etfScreener/etfScreenerInput.js";
 
 export const etfScreenerRouter = Router();
 

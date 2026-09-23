@@ -16,8 +16,8 @@ vi.mock("@/infrastructure/prisma/index.js", () => ({
   getPrismaClient: () => mockPrisma,
 }));
 
-import { listMetricCatalog, replaceMetricCatalog } from "@/domainBusiness/metricCatalog/metricCatalog.repository.js";
-import type { MetricCategory } from "@/domainBusiness/metricCatalog/metricCatalog.types.js";
+import { listMetricCatalog, replaceMetricCatalog } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
+import type { MetricCategory } from "@/application/metricCatalog/metricCatalog.types.js";
 
 const SAMPLE_CATALOG: MetricCategory[] = [
   {

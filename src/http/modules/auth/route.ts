@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
 import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
 
 export const authRouter = Router();
 

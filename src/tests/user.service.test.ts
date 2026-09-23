@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/user/user.repository.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/user.repository.js", () => ({
   findUserByFirebaseUid: vi.fn(),
 }));
 
-import { findUserByFirebaseUid } from "@/domainBusiness/user/user.repository.js";
-import { getUserByFirebaseUidOrThrow } from "@/domainBusiness/user/user.service.js";
+import { findUserByFirebaseUid } from "@/infrastructure/prisma/repositories/user.repository.js";
+import { getUserByFirebaseUidOrThrow } from "@/application/user/user.service.js";
 
 const SAMPLE_USER = {
   id: "cabc123",

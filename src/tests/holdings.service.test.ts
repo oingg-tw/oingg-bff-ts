@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/holdings/holdings.repository.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/holdings.repository.js", () => ({
   createHolding: vi.fn(),
   deleteHolding: vi.fn(),
   findHolding: vi.fn(),
@@ -14,8 +14,8 @@ import {
   deleteHolding,
   findHolding,
   updateHolding,
-} from "@/domainBusiness/holdings/holdings.repository.js";
-import { addHolding, editHolding, getHoldingOrThrow, removeHolding } from "@/domainBusiness/holdings/holdings.service.js";
+} from "@/infrastructure/prisma/repositories/holdings.repository.js";
+import { addHolding, editHolding, getHoldingOrThrow, removeHolding } from "@/application/holdings/holdings.service.js";
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 

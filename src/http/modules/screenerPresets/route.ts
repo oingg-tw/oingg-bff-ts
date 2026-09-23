@@ -1,12 +1,12 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
-import { AppError } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 import { UUID_PATTERN, parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/domainBff/screener/pagination.js";
-import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/domainBff/screener/screenerFilterInput.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/application/proxy/screener/pagination.js";
+import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/application/proxy/screener/screenerFilterInput.js";
 import {
   addPreset,
   editPreset,
@@ -14,10 +14,10 @@ import {
   getPresets,
   removePreset,
   reorderPresetsForUser,
-} from "@/domainBusiness/screener/screenerPresets.service.js";
-import { countPresets } from "@/domainBusiness/screener/screenerPresets.repository.js";
+} from "@/application/screener/screenerPresets.service.js";
+import { countPresets } from "@/infrastructure/prisma/repositories/screenerPresets.repository.js";
 import { enforceQuota } from "@/http/middleware/quota.middleware.js";
-import { runPreset } from "@/domainBff/screener/runPreset.js";
+import { runPreset } from "@/application/proxy/screener/runPreset.js";
 
 export const screenerPresetsRouter = Router();
 

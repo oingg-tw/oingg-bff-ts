@@ -4,24 +4,25 @@ import helmet from "helmet";
 import { Router } from "ultimate-express";
 import { requireApiDocsAuth } from "@/http/swagger/apiDocsAuth.js";
 import { swaggerSpec, swaggerUi } from "@/http/swagger/index.js";
-import { authRouter } from "@/domainBusiness/auth/index.js";
-import { billingRouter } from "@/domainBusiness/billing/index.js";
-import { etfScreenerRouter } from "@/domainBff/etfScreener/index.js";
-import { metricCatalogRouter } from "@/domainBusiness/metricCatalog/index.js";
-import { holdingsRouter } from "@/domainBusiness/holdings/index.js";
-import { industriesRouter } from "@/domainBff/industries/index.js";
-import { macroRouter } from "@/domainBff/macro/index.js";
-import { marketRouter } from "@/domainBff/market/index.js";
-import { screenerRoutes } from "@/domainBff/screener/index.js";
-import { securitiesRouter } from "@/domainBff/securities/index.js";
-import { stockRouter } from "@/domainBff/stock/index.js";
-import { startedAt, systemRouter } from "@/domainBusiness/system/index.js";
-import { transactionsRouter } from "@/domainBusiness/transactions/index.js";
-import { userRouter } from "@/domainBusiness/user/index.js";
-import { watchlistRouter } from "@/domainBusiness/watchlist/index.js";
+import { authRouter } from "@/http/modules/auth/route.js";
+import { billingRouter } from "@/http/modules/billing/route.js";
+import { etfScreenerRouter } from "@/http/modules/etfScreener/route.js";
+import { metricCatalogRouter } from "@/http/modules/metricCatalog/route.js";
+import { holdingsRouter } from "@/http/modules/holdings/route.js";
+import { industriesRouter } from "@/http/modules/industries/route.js";
+import { macroRouter } from "@/http/modules/macro/route.js";
+import { marketRouter } from "@/http/modules/market/route.js";
+import { screenerRoutes } from "@/http/modules/screener/index.js";
+import { securitiesRouter } from "@/http/modules/securities/route.js";
+import { stockRouter } from "@/http/modules/stock/route.js";
+import { systemRouter } from "@/http/modules/system/route.js";
+import { startedAt } from "@/application/system/system.state.js";
+import { transactionsRouter } from "@/http/modules/transactions/route.js";
+import { userRouter } from "@/http/modules/user/route.js";
+import { watchlistRouter } from "@/http/modules/watchlist/route.js";
 import { env, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from "@/shared/env.js";
 
-// Single place to see every mounted path — check here before grepping through src/domainBff and src/domainBusiness.
+// Single place to see every mounted path — check here before grepping through src/http/modules.
 export const routes = Router();
 
 // Mounted on this inner Router rather than the outer app: ultimate-express drops headers set by

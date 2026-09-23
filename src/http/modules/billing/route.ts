@@ -1,8 +1,8 @@
 import { Router } from "ultimate-express";
-import { AppError } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import { getEntitlementView } from "@/domainBusiness/billing/billing.service.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { getEntitlementView } from "@/application/billing/billing.service.js";
 
 export const billingRouter = Router();
 

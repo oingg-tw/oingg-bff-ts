@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/metricCatalog/metricCatalog.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/metricCatalog/metricCatalog.client.js", () => ({
   fetchMetricCatalog: vi.fn(),
 }));
 
-vi.mock("@/domainBusiness/metricCatalog/metricCatalog.repository.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/metricCatalog.repository.js", () => ({
   listMetricCatalog: vi.fn(),
   replaceMetricCatalog: vi.fn(),
 }));
 
-import { fetchMetricCatalog } from "@/domainBusiness/metricCatalog/metricCatalog.client.js";
-import { replaceMetricCatalog } from "@/domainBusiness/metricCatalog/metricCatalog.repository.js";
-import { startMetricCatalogSync, syncMetricCatalog } from "@/domainBusiness/metricCatalog/metricCatalog.service.js";
+import { fetchMetricCatalog } from "@/infrastructure/analysisApi/metricCatalog/metricCatalog.client.js";
+import { replaceMetricCatalog } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
+import { startMetricCatalogSync, syncMetricCatalog } from "@/application/metricCatalog/metricCatalog.service.js";
 
 const SAMPLE_CATEGORY = { key: "profitability", name: "Profitability", sort: 0, metrics: [] };
 

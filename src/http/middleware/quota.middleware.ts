@@ -1,9 +1,9 @@
 import type { NextFunction, Response } from "ultimate-express";
-import { AppError } from "@/http/errorHandler.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import { getEntitlement } from "@/domainBusiness/billing/entitlement.service.js";
-import type { QuotaResource } from "@/domainBusiness/billing/billing.types.js";
-import { QUOTA_RESOURCE_LABELS, quotaLimitFor } from "@/domainBusiness/billing/quota.js";
+import { AppError } from "@/domain/appError.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { getEntitlement } from "@/application/billing/entitlement.service.js";
+import type { QuotaResource } from "@/application/billing/billing.types.js";
+import { QUOTA_RESOURCE_LABELS, quotaLimitFor } from "@/application/billing/quota.js";
 
 /** Machine-readable reason the frontend branches on to show an upgrade prompt rather than a generic error. */
 export const QUOTA_EXCEEDED_CODE = "quota_exceeded";

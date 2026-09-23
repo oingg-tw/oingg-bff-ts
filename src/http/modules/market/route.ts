@@ -1,5 +1,5 @@
 import { Router } from "ultimate-express";
-import { AppError } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 import {
   DEFAULT_ATTENTION_STOCKS_LIMIT,
   DEFAULT_DISPOSED_STOCKS_LIMIT,
@@ -19,7 +19,7 @@ import {
   getRevenueRanking,
   getTaiexDailyPrice,
   getVolumeTop20,
-} from "@/domainBff/market/market.service.js";
+} from "@/application/proxy/market/market.service.js";
 
 export const marketRouter = Router();
 

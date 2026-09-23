@@ -1,24 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/presetTemplates/presetTemplates.repository.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/presetTemplates.repository.js", () => ({
   findPresetTemplate: vi.fn(),
   listPresetTemplates: vi.fn(),
 }));
 
-vi.mock("@/domainBusiness/screener/screenerPresets.service.js", () => ({
+vi.mock("@/application/screener/screenerPresets.service.js", () => ({
   addPresetWithName: vi.fn(),
 }));
 
-import { addPresetWithName } from "@/domainBusiness/screener/screenerPresets.service.js";
+import { addPresetWithName } from "@/application/screener/screenerPresets.service.js";
 import {
   findPresetTemplate,
   listPresetTemplates,
-} from "@/domainBusiness/presetTemplates/presetTemplates.repository.js";
+} from "@/infrastructure/prisma/repositories/presetTemplates.repository.js";
 import {
   applyPresetTemplate,
   getPresetTemplateOrThrow,
   getPresetTemplates,
-} from "@/domainBusiness/presetTemplates/presetTemplates.service.js";
+} from "@/application/presetTemplates/presetTemplates.service.js";
 
 const AVAILABLE_TEMPLATE = {
   id: "aaaaaaaa-0000-4000-8000-000000000001",

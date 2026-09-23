@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBff/etfScreener/etfScreener.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/etfScreener/etfScreener.client.js", () => ({
   fetchEtfFieldCatalog: vi.fn(),
   fetchEtfScreenerResults: vi.fn(),
 }));
 
-import { fetchEtfFieldCatalog, fetchEtfScreenerResults } from "@/domainBff/etfScreener/etfScreener.client.js";
-import { getEtfFieldCatalog, runEtfScreener } from "@/domainBff/etfScreener/etfScreener.service.js";
+import { fetchEtfFieldCatalog, fetchEtfScreenerResults } from "@/infrastructure/analysisApi/etfScreener/etfScreener.client.js";
+import { getEtfFieldCatalog, runEtfScreener } from "@/application/proxy/etfScreener/etfScreener.service.js";
 
 beforeEach(() => {
   vi.mocked(fetchEtfFieldCatalog).mockReset();

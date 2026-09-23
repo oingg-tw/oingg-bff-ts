@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/watchlist/watchlist.repository.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/watchlist.repository.js", () => ({
   createWatchlistItem: vi.fn(),
   deleteWatchlistItem: vi.fn(),
   findWatchlistItem: vi.fn(),
@@ -14,13 +14,13 @@ import {
   deleteWatchlistItem,
   findWatchlistItem,
   updateWatchlistItemNote,
-} from "@/domainBusiness/watchlist/watchlist.repository.js";
+} from "@/infrastructure/prisma/repositories/watchlist.repository.js";
 import {
   addWatchlistItem,
   editWatchlistItemNote,
   getWatchlistItemOrThrow,
   removeWatchlistItem,
-} from "@/domainBusiness/watchlist/watchlist.service.js";
+} from "@/application/watchlist/watchlist.service.js";
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 

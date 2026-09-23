@@ -4,7 +4,7 @@ import {
   parseEtfScreenerFilters,
   parseEtfScreenerPagination,
   parseEtfSort,
-} from "@/domainBff/etfScreener/etfScreenerInput.js";
+} from "@/application/proxy/etfScreener/etfScreenerInput.js";
 
 describe("parseEtfScreenerFilters", () => {
   it("returns an empty array when filters is undefined", () => {

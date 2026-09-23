@@ -1,82 +1,82 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBff/stock/stockQuote.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/stockQuote.client.js", () => ({
   fetchStockQuote: vi.fn(),
   fetchStockPrices: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/companyProfile.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/companyProfile.client.js", () => ({
   fetchCompanyProfile: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/capitalStockHistory.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/capitalStockHistory.client.js", () => ({
   fetchCapitalStockHistory: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/exDividendNotices.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/exDividendNotices.client.js", () => ({
   fetchExDividendNotices: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/exDividendCalendar.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/exDividendCalendar.client.js", () => ({
   fetchExDividendCalendar: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/financialStatement.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/financialStatement.client.js", () => ({
   fetchFinancialStatement: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/preferredStocks.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/preferredStocks.client.js", () => ({
   fetchPreferredStocks: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/preferredStocksFieldCatalog.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/preferredStocksFieldCatalog.client.js", () => ({
   fetchPreferredStockFieldCatalog: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/metricHistory.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/metricHistory.client.js", () => ({
   fetchMetricHistory: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/metricsHistory.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/metricsHistory.client.js", () => ({
   fetchMetricsHistory: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/roeRoaHistory.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/roeRoaHistory.client.js", () => ({
   fetchRoeHistory: vi.fn(),
   fetchRoaHistory: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/dupontHistory.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/dupontHistory.client.js", () => ({
   fetchDupontHistory: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/monthlyRevenueHistory.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/monthlyRevenueHistory.client.js", () => ({
   fetchMonthlyRevenueHistory: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/foreignShareholdingHistory.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/foreignShareholdingHistory.client.js", () => ({
   fetchForeignShareholdingHistory: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/dailyPriceHistory.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/stock/dailyPriceHistory.client.js", () => ({
   fetchDailyPriceHistory: vi.fn(),
 }));
 
-import { fetchCapitalStockHistory } from "@/domainBff/stock/capitalStockHistory.client.js";
-import { fetchDailyPriceHistory } from "@/domainBff/stock/dailyPriceHistory.client.js";
-import { fetchCompanyProfile } from "@/domainBff/stock/companyProfile.client.js";
-import { fetchDupontHistory } from "@/domainBff/stock/dupontHistory.client.js";
-import { fetchExDividendCalendar } from "@/domainBff/stock/exDividendCalendar.client.js";
-import { fetchExDividendNotices } from "@/domainBff/stock/exDividendNotices.client.js";
-import { fetchFinancialStatement } from "@/domainBff/stock/financialStatement.client.js";
-import { fetchForeignShareholdingHistory } from "@/domainBff/stock/foreignShareholdingHistory.client.js";
-import { fetchMetricHistory } from "@/domainBff/stock/metricHistory.client.js";
-import { fetchMetricsHistory } from "@/domainBff/stock/metricsHistory.client.js";
-import { fetchMonthlyRevenueHistory } from "@/domainBff/stock/monthlyRevenueHistory.client.js";
-import { fetchPreferredStocks } from "@/domainBff/stock/preferredStocks.client.js";
-import { fetchPreferredStockFieldCatalog } from "@/domainBff/stock/preferredStocksFieldCatalog.client.js";
-import { fetchRoaHistory, fetchRoeHistory } from "@/domainBff/stock/roeRoaHistory.client.js";
-import { fetchStockPrices, fetchStockQuote } from "@/domainBff/stock/stockQuote.client.js";
+import { fetchCapitalStockHistory } from "@/infrastructure/analysisApi/stock/capitalStockHistory.client.js";
+import { fetchDailyPriceHistory } from "@/infrastructure/analysisApi/stock/dailyPriceHistory.client.js";
+import { fetchCompanyProfile } from "@/infrastructure/analysisApi/stock/companyProfile.client.js";
+import { fetchDupontHistory } from "@/infrastructure/analysisApi/stock/dupontHistory.client.js";
+import { fetchExDividendCalendar } from "@/infrastructure/analysisApi/stock/exDividendCalendar.client.js";
+import { fetchExDividendNotices } from "@/infrastructure/analysisApi/stock/exDividendNotices.client.js";
+import { fetchFinancialStatement } from "@/infrastructure/analysisApi/stock/financialStatement.client.js";
+import { fetchForeignShareholdingHistory } from "@/infrastructure/analysisApi/stock/foreignShareholdingHistory.client.js";
+import { fetchMetricHistory } from "@/infrastructure/analysisApi/stock/metricHistory.client.js";
+import { fetchMetricsHistory } from "@/infrastructure/analysisApi/stock/metricsHistory.client.js";
+import { fetchMonthlyRevenueHistory } from "@/infrastructure/analysisApi/stock/monthlyRevenueHistory.client.js";
+import { fetchPreferredStocks } from "@/infrastructure/analysisApi/stock/preferredStocks.client.js";
+import { fetchPreferredStockFieldCatalog } from "@/infrastructure/analysisApi/stock/preferredStocksFieldCatalog.client.js";
+import { fetchRoaHistory, fetchRoeHistory } from "@/infrastructure/analysisApi/stock/roeRoaHistory.client.js";
+import { fetchStockPrices, fetchStockQuote } from "@/infrastructure/analysisApi/stock/stockQuote.client.js";
 import {
   assertSymbolExists,
   getCapitalStockHistory,
@@ -96,7 +96,7 @@ import {
   getRoaHistory,
   getRoeHistory,
   getStockQuote,
-} from "@/domainBff/stock/stock.service.js";
+} from "@/application/proxy/stock/stock.service.js";
 
 beforeEach(() => {
   vi.mocked(fetchStockQuote).mockReset();

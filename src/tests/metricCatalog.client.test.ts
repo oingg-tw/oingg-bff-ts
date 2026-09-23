@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchMetricCatalog } from "@/domainBusiness/metricCatalog/metricCatalog.client.js";
+import { fetchMetricCatalog } from "@/infrastructure/analysisApi/metricCatalog/metricCatalog.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;

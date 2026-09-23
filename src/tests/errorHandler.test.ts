@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NextFunction, Request, Response } from "ultimate-express";
-import { AppError, errorHandler, jsonBodyErrorHandler, notFoundHandler } from "@/http/errorHandler.js";
+import { errorHandler, jsonBodyErrorHandler, notFoundHandler } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 
 function createMockResponse() {
   const res = {} as Response;

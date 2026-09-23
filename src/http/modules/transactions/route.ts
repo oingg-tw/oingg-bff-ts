@@ -1,19 +1,19 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
-import { AppError } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import { assertSymbolExists } from "@/domainBff/stock/index.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { assertSymbolExists } from "@/application/proxy/stock/index.js";
 import {
   addTransaction,
   editTransaction,
   getTransactionOrThrow,
   getTransactions,
   removeTransaction,
-} from "@/domainBusiness/transactions/transactions.service.js";
-import type { TransactionInput, TransactionUpdate } from "@/domainBusiness/transactions/transactions.repository.js";
+} from "@/application/transactions/transactions.service.js";
+import type { TransactionInput, TransactionUpdate } from "@/infrastructure/prisma/repositories/transactions.repository.js";
 
 export const transactionsRouter = Router();
 

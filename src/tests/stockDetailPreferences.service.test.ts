@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/user/stockDetailPreferences.repository.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/stockDetailPreferences.repository.js", () => ({
   findStockDetailPreferences: vi.fn(),
   upsertStockDetailPreferences: vi.fn(),
 }));
@@ -8,11 +8,11 @@ vi.mock("@/domainBusiness/user/stockDetailPreferences.repository.js", () => ({
 import {
   findStockDetailPreferences,
   upsertStockDetailPreferences,
-} from "@/domainBusiness/user/stockDetailPreferences.repository.js";
+} from "@/infrastructure/prisma/repositories/stockDetailPreferences.repository.js";
 import {
   getStockDetailPreferences,
   updateStockDetailPreferences,
-} from "@/domainBusiness/user/stockDetailPreferences.service.js";
+} from "@/application/user/stockDetailPreferences.service.js";
 
 describe("getStockDetailPreferences", () => {
   beforeEach(() => {

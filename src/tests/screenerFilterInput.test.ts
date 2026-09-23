@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSort } from "@/domainBff/screener/screenerFilterInput.js";
+import { parseSort } from "@/application/proxy/screener/screenerFilterInput.js";
 
 describe("parseSort", () => {
   it("returns undefined when neither sortField nor sortOrder is given", () => {

@@ -1,27 +1,27 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
-import { AppError } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import { getDashboardCardSettings, updateDashboardCardSettings } from "@/domainBusiness/user/dashboardCardSettings.service.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { getDashboardCardSettings, updateDashboardCardSettings } from "@/application/user/dashboardCardSettings.service.js";
 import {
   getPreferredStocksPreferences,
   updatePreferredStocksPreferences,
-} from "@/domainBusiness/user/preferredStocksPreferences.service.js";
-import { getDisplaySettings, updateShowAsOfDate } from "@/domainBusiness/user/screenerDisplaySettings.service.js";
+} from "@/application/user/preferredStocksPreferences.service.js";
+import { getDisplaySettings, updateShowAsOfDate } from "@/application/user/screenerDisplaySettings.service.js";
 import {
   getStockDetailPreferences,
   updateStockDetailPreferences,
-} from "@/domainBusiness/user/stockDetailPreferences.service.js";
+} from "@/application/user/stockDetailPreferences.service.js";
 import {
   getThemePreference,
   updateIsFullWidth,
   updateMarketColorConvention,
   updateThemeAccentColor,
   updateThemeMode,
-} from "@/domainBusiness/user/theme.service.js";
-import { getOrCreateUserFromToken } from "@/domainBusiness/user/user.service.js";
+} from "@/application/user/theme.service.js";
+import { getOrCreateUserFromToken } from "@/application/user/user.service.js";
 
 export const userRouter = Router();
 

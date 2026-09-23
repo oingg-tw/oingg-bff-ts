@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
 import { requireFilterSyncSecret } from "@/http/middleware/filterSyncAuth.js";
-import { getMetricCatalog, syncMetricCatalog } from "@/domainBusiness/metricCatalog/metricCatalog.service.js";
+import { getMetricCatalog, syncMetricCatalog } from "@/application/metricCatalog/metricCatalog.service.js";
 
 export const metricCatalogRouter = Router();
 

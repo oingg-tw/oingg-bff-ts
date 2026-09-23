@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import { AppError } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 
 /**
  * Validates `body` against `schema`, throwing a 400 AppError (bff-ts's own `{ error: { message } }`

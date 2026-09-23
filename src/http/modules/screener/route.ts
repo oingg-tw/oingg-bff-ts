@@ -3,12 +3,12 @@ import { z } from "zod";
 import { UUID_PATTERN } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { optionalAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import { runCompanyRank, runDistribution, runRanking, runScreener, runScreenerValues } from "@/domainBff/screener/screener.service.js";
-import { resolveScreenerColumns } from "@/domainBusiness/screener/columnPresets.service.js";
-import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/domainBff/screener/pagination.js";
-import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/domainBff/screener/screenerFilterInput.js";
-import type { ScreenerColumnRef } from "@/domainBff/screener/screener.types.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { runCompanyRank, runDistribution, runRanking, runScreener, runScreenerValues } from "@/application/proxy/screener/screener.service.js";
+import { resolveScreenerColumns } from "@/application/screener/columnPresets.service.js";
+import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/application/proxy/screener/pagination.js";
+import { normalizeScreenerFilters, screenerFiltersArraySchema } from "@/application/proxy/screener/screenerFilterInput.js";
+import type { ScreenerColumnRef } from "@/application/proxy/screener/screener.types.js";
 
 const DEFAULT_RANKING_LIMIT = 10;
 const MAX_RANKING_LIMIT = 50;

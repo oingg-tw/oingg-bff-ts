@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/transactions/transactions.repository.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/transactions.repository.js", () => ({
   createTransaction: vi.fn(),
   deleteTransaction: vi.fn(),
   findTransaction: vi.fn(),
@@ -13,13 +13,13 @@ import {
   deleteTransaction,
   findTransaction,
   updateTransaction,
-} from "@/domainBusiness/transactions/transactions.repository.js";
+} from "@/infrastructure/prisma/repositories/transactions.repository.js";
 import {
   addTransaction,
   editTransaction,
   getTransactionOrThrow,
   removeTransaction,
-} from "@/domainBusiness/transactions/transactions.service.js";
+} from "@/application/transactions/transactions.service.js";
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 

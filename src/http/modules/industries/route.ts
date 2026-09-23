@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { parseBody } from "@/shared/validation.js";
-import { getIndustryFlatList, getIndustryTree, getSecuritiesSectors } from "@/domainBff/industries/industries.service.js";
+import { getIndustryFlatList, getIndustryTree, getSecuritiesSectors } from "@/application/proxy/industries/industries.service.js";
 
 export const industriesRouter = Router();
 

@@ -1,30 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBff/screener/analysisScreenerClient.js", () => ({
+vi.mock("@/infrastructure/analysisApi/screener/analysisScreenerClient.js", () => ({
   fetchScreenerResults: vi.fn(),
   fetchScreenerRanking: vi.fn(),
   fetchScreenerValues: vi.fn(),
   fetchCompanyRank: vi.fn(),
 }));
 
-vi.mock("@/domainBusiness/metricCatalog/index.js", () => ({
+vi.mock("@/application/metricCatalog/index.js", () => ({
   findMetricFields: vi.fn(),
 }));
 
-vi.mock("@/domainBff/stock/index.js", () => ({
+vi.mock("@/application/proxy/stock/index.js", () => ({
   getLatestClosePrices: vi.fn(),
 }));
 
-vi.mock("@/domainBff/screener/valuationRanking.client.js", () => ({
+vi.mock("@/infrastructure/analysisApi/screener/valuationRanking.client.js", () => ({
   fetchValuationRanking: vi.fn(),
 }));
 
-import { fetchCompanyRank, fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/domainBff/screener/analysisScreenerClient.js";
-import { findMetricFields } from "@/domainBusiness/metricCatalog/index.js";
-import { getLatestClosePrices } from "@/domainBff/stock/index.js";
-import { fetchValuationRanking } from "@/domainBff/screener/valuationRanking.client.js";
-import { runCompanyRank, runRanking, runScreener, runScreenerValues } from "@/domainBff/screener/screener.service.js";
-import type { Pagination } from "@/domainBff/screener/pagination.js";
+import { fetchCompanyRank, fetchScreenerRanking, fetchScreenerResults, fetchScreenerValues } from "@/infrastructure/analysisApi/screener/analysisScreenerClient.js";
+import { findMetricFields } from "@/application/metricCatalog/index.js";
+import { getLatestClosePrices } from "@/application/proxy/stock/index.js";
+import { fetchValuationRanking } from "@/infrastructure/analysisApi/screener/valuationRanking.client.js";
+import { runCompanyRank, runRanking, runScreener, runScreenerValues } from "@/application/proxy/screener/screener.service.js";
+import type { Pagination } from "@/application/proxy/screener/pagination.js";
 
 const DEFAULT_PAGINATION: Pagination = { page: 1, pageSize: 50 };
 

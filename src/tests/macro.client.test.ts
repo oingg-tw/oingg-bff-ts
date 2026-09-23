@@ -9,7 +9,7 @@ import {
   fetchMonetaryAggregate,
   fetchStockMarketSummary,
   fetchUsdTwdRate,
-} from "@/domainBff/macro/macro.client.js";
+} from "@/infrastructure/analysisApi/macro/macro.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;

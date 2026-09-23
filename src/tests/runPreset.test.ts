@@ -1,22 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/domainBusiness/screener/screenerPresets.repository.js", () => ({
+vi.mock("@/infrastructure/prisma/repositories/screenerPresets.repository.js", () => ({
   findPreset: vi.fn(),
   setLastColumnPreset: vi.fn(),
 }));
 
-vi.mock("@/domainBff/screener/screener.service.js", () => ({
+vi.mock("@/application/proxy/screener/screener.service.js", () => ({
   runScreener: vi.fn(),
 }));
 
-vi.mock("@/domainBusiness/screener/columnPresets.service.js", () => ({
+vi.mock("@/application/screener/columnPresets.service.js", () => ({
   resolveScreenerColumns: vi.fn(),
 }));
 
-import { resolveScreenerColumns } from "@/domainBusiness/screener/columnPresets.service.js";
-import { runPreset } from "@/domainBff/screener/runPreset.js";
-import { findPreset, setLastColumnPreset } from "@/domainBusiness/screener/screenerPresets.repository.js";
-import { runScreener } from "@/domainBff/screener/screener.service.js";
+import { resolveScreenerColumns } from "@/application/screener/columnPresets.service.js";
+import { runPreset } from "@/application/proxy/screener/runPreset.js";
+import { findPreset, setLastColumnPreset } from "@/infrastructure/prisma/repositories/screenerPresets.repository.js";
+import { runScreener } from "@/application/proxy/screener/screener.service.js";
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 const COLUMN_PRESET_ID = "bbbbbbbb-0000-4000-8000-000000000007";

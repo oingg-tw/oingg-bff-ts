@@ -1,13 +1,13 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
-import { AppError } from "@/http/errorHandler.js";
+import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
 import { parseBody } from "@/shared/validation.js";
 import { requireAuth } from "@/http/middleware/auth.middleware.js";
-import type { AuthenticatedRequest } from "@/domainBusiness/auth/auth.types.js";
-import { assertSymbolExists } from "@/domainBff/stock/index.js";
-import { addHolding, editHolding, getHoldingOrThrow, getHoldings, removeHolding } from "@/domainBusiness/holdings/holdings.service.js";
-import type { HoldingUpdate } from "@/domainBusiness/holdings/holdings.repository.js";
+import type { AuthenticatedRequest } from "@/application/auth/auth.types.js";
+import { assertSymbolExists } from "@/application/proxy/stock/index.js";
+import { addHolding, editHolding, getHoldingOrThrow, getHoldings, removeHolding } from "@/application/holdings/holdings.service.js";
+import type { HoldingUpdate } from "@/infrastructure/prisma/repositories/holdings.repository.js";
 
 export const holdingsRouter = Router();
 
