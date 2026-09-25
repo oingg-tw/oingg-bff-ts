@@ -16,8 +16,10 @@ function normalizeEvent(raw: unknown): DividendEvent {
   return {
     fiscalQuarter: toNumberOrNull(r.fiscalQuarter),
     cashDividend: Number(r.cashDividend),
-    cashDividendFromEarnings: Number(r.cashDividendFromEarnings),
-    cashDividendFromCapitalReserve: Number(r.cashDividendFromCapitalReserve),
+    // toNumberOrNull 而不是 Number()：欄位缺席時 Number(undefined) 是 NaN，序列化成 null 但型別說是
+    // number——那是意外對了。用 toNumberOrNull 讓 null 成為一個被宣告的狀態，而 0 保持是 0。
+    cashDividendFromEarnings: toNumberOrNull(r.cashDividendFromEarnings),
+    cashDividendFromLegalReserveAndCapitalSurplus: toNumberOrNull(r.cashDividendFromLegalReserveAndCapitalSurplus),
     stockDividend: Number(r.stockDividend),
     exDividendDate: toStringOrNull(r.exDividendDate),
     exRightsDate: toStringOrNull(r.exRightsDate),
@@ -34,8 +36,10 @@ function normalizeEntry(raw: unknown): DividendHistoryEntry {
     fiscalYear: Number(r.fiscalYear),
     rocFiscalYear: Number(r.rocFiscalYear),
     cashDividend: Number(r.cashDividend),
-    cashDividendFromEarnings: Number(r.cashDividendFromEarnings),
-    cashDividendFromCapitalReserve: Number(r.cashDividendFromCapitalReserve),
+    // toNumberOrNull 而不是 Number()：欄位缺席時 Number(undefined) 是 NaN，序列化成 null 但型別說是
+    // number——那是意外對了。用 toNumberOrNull 讓 null 成為一個被宣告的狀態，而 0 保持是 0。
+    cashDividendFromEarnings: toNumberOrNull(r.cashDividendFromEarnings),
+    cashDividendFromLegalReserveAndCapitalSurplus: toNumberOrNull(r.cashDividendFromLegalReserveAndCapitalSurplus),
     stockDividend: Number(r.stockDividend),
     totalDividend: Number(r.totalDividend),
     distributionCount: Number(r.distributionCount),
