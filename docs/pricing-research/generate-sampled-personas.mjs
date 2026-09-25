@@ -47,6 +47,76 @@ const AGE_SHIFT = { O: -0.25, C: 0.25, E: -0.15, A: 0.3, N: -0.3 };
 /** [實證] 女性相對男性的平均位移，單位是 SD。 */
 const FEMALE_SHIFT = { O: 0.0, C: 0.05, E: 0.1, A: 0.25, N: 0.35 };
 
+// ---------------------------------------------------------------------------
+// Schwartz 價值排序：從 traits 推導，不是另外抽樣。
+//
+// 為什麼是正弦而不是 5×10 的係數表：Parks-Leduc 等人的後設分析（60 篇研究）發現特質與價值的相關
+// 沿著 Schwartz 的價值環呈**正弦形**——一個清楚的峰、一個清楚的谷，繞著環單調升降，開放性與友善性
+// 尤其明顯。所以每個特質只需要「峰值位置 + 振幅」兩個參數，而不是 50 個各自可疑的係數。少 25 倍的
+// 自由參數，而且形狀是文獻測到的而非我配的。
+//
+// [實證] 峰值位置與振幅取自後設分析報告的相關量級：
+//   A → 仁慈 ρ=.61（全表最強），普世 .39，權力 −.42  → 峰在 benevolence，振幅最大
+//   O → 自我導向 ρ=.37，普世為正                      → 峰在 selfDirection
+//   C → 安全 ρ=.37、從眾 .27、成就 .17                → 峰落在 security 與 conformity 之間
+//   E → 刺激／享樂／成就／權力為正，傳統為負          → 峰在 hedonism 附近，谷正好在 tradition
+//   N → **與價值幾乎無相關**，所以振幅為 0
+//
+// 最後一條是刻意的：情緒穩定性在後設分析裡對價值沒有解釋力，硬給它一個方向就是憑空造訊號。
+// 代價是這 60 位的價值排序只由 O/C/E/A 四個維度決定，N 只影響行為參數（見 derive()）。
+//
+// **這是母體層級的相關，量級中等。** 個別 persona 推出來的排序是一個合理的抽樣，不是對這個人的測量；
+// 手寫的 20 位是逐句找證據排出來的，性質不同，不要混著當同一種資料用。
+// ---------------------------------------------------------------------------
+
+/** Schwartz 的環狀順序，相鄰相容、相隔 5 格對立。 */
+const VALUE_CIRCLE = [
+  "selfDirection", "stimulation", "hedonism", "achievement", "power",
+  "security", "conformity", "tradition", "benevolence", "universalism",
+];
+
+/** [實證] 峰值在環上的位置（可為小數，代表落在兩個價值之間）與振幅。 */
+const VALUE_LOADING = {
+  O: { peak: 0.0, amp: 0.37 },
+  C: { peak: 5.5, amp: 0.32 },
+  E: { peak: 2.5, amp: 0.25 },
+  A: { peak: 8.0, amp: 0.5 },
+  N: { peak: 0.0, amp: 0.0 },
+};
+
+/**
+ * [實證] 特質解釋不掉的個體差異。**這一項不是把數字弄漂亮，它是必要的，理由有兩層：**
+ *
+ * 第一層是文獻：最強的相關是 A↔仁慈 ρ=.61，也就是只解釋約 37% 的變異；其餘多在 .2–.4，解釋不到
+ * 兩成。特質能決定一個人價值排序的傾向，決定不了排序本身。把投影直接當排序，等於宣稱 r=1。
+ *
+ * 第二層是實測，而且是這支腳本自己測出來的：沒有這一項時 60 位只產生 **17 種互異的排序**。原因是
+ * 同頻率正弦疊加後仍是單一正弦，所以四個特質最後只決定「一個相位」，排序退化成「從峰值往兩側展開」，
+ * 10 個離散位置就只有十幾種可能。振幅設多大都救不了——那是三角恆等式，不是參數沒調好。
+ *
+ * 比例定在特質約佔四分之一的變異（σ_ε ≈ 1.7 × 投影本身的典型 SD），對應文獻中等量級的相關。
+ */
+const VALUE_NOISE_SD = 0.45;
+
+/**
+ * 把五個特質分數投影到價值環上，加上個體差異，回傳由高到低的排序。
+ * `rand` 走同一條可重現的亂數流，所以換 seed 會換排序、同 seed 永遠一樣。
+ */
+function deriveValueOrder(t, rand) {
+  const scored = VALUE_CIRCLE.map((key, i) => {
+    let s = 0;
+    for (const trait of BIG_FIVE) {
+      const { peak, amp } = VALUE_LOADING[trait];
+      if (amp === 0) continue;
+      s += t[trait] * amp * Math.cos((2 * Math.PI * (i - peak)) / VALUE_CIRCLE.length);
+    }
+    return { key, s: s + normal(rand) * VALUE_NOISE_SD };
+  });
+  // 同分時用環上的位置當穩定的第二鍵，否則換 node 版本可能換順序
+  scored.sort((a, b) => b.s - a.s || VALUE_CIRCLE.indexOf(a.key) - VALUE_CIRCLE.indexOf(b.key));
+  return scored.map((x) => x.key);
+}
+
 // --- 可重現的亂數（mulberry32）與常態抽樣（Box-Muller） -------------------
 function rng(seed) {
   let a = seed >>> 0;
@@ -134,6 +204,12 @@ function makePersona(i, rand) {
       prefersOneOffAnnual: derived.autoRenewAversion > 0.6,
     },
     affordableMonthlyTwd: derived.affordableMonthly,
+    // 價值排序用**獨立的**亂數流，不共用 rand：共用會改變後續抽樣的消耗順序，讓同一個 seed 產生
+    // 完全不同的 60 個人。加一個欄位不該把既有樣本整批換掉，所以這裡由 seed 與序號各自導出。
+    values: (() => {
+      const order = deriveValueOrder(traits, rng((seed ^ ((i + 1) * 2654435761)) >>> 0));
+      return { schema: "schwartz10", order, top3: order.slice(0, 3), bottom2: order.slice(-2), derivedFrom: "traits" };
+    })(),
   };
 }
 
@@ -156,6 +232,12 @@ console.log(
         meanAge: mean((p) => p.age),
         meanAffordableMonthlyTwd: Math.round(personas.reduce((s, p) => s + p.affordableMonthlyTwd, 0) / n),
         prefersOneOffAnnualPct: Math.round((personas.filter((p) => p.billing.prefersOneOffAnnual).length / n) * 100),
+        // 價值排序的塌縮檢查：全體年齡位移讓 A 與 C 整體偏高，所以「首位價值」有可能被同一個值吃掉。
+        // 若 topValueCounts 只剩一兩個鍵，或 distinctOrders 遠小於 n，那是這個推導模型自己塌縮，
+        // 不是母體真的這麼一致——那種情況下這批的價值序不能用來論證分岔。
+        topValueCounts: personas.reduce((acc, p) => ({ ...acc, [p.values.order[0]]: (acc[p.values.order[0]] ?? 0) + 1 }), {}),
+        distinctTop3: new Set(personas.map((p) => p.values.top3.join(">"))).size,
+        distinctOrders: new Set(personas.map((p) => p.values.order.join(">"))).size,
       },
       personas,
     },

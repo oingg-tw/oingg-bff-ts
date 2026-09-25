@@ -16,7 +16,21 @@
     },
     "meanAge": 66.9,
     "meanAffordableMonthlyTwd": 713,
-    "prefersOneOffAnnualPct": 35
+    "prefersOneOffAnnualPct": 35,
+    "topValueCounts": {
+      "hedonism": 6,
+      "tradition": 7,
+      "power": 7,
+      "benevolence": 5,
+      "achievement": 4,
+      "conformity": 8,
+      "security": 8,
+      "universalism": 10,
+      "stimulation": 4,
+      "selfDirection": 1
+    },
+    "distinctTop3": 58,
+    "distinctOrders": 60
   },
   "personas": [
     {
@@ -49,7 +63,32 @@
         "autoRenewAversion": 0.8,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 412
+      "affordableMonthlyTwd": 412,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "hedonism",
+          "conformity",
+          "achievement",
+          "power",
+          "security",
+          "stimulation",
+          "tradition",
+          "selfDirection",
+          "benevolence",
+          "universalism"
+        ],
+        "top3": [
+          "hedonism",
+          "conformity",
+          "achievement"
+        ],
+        "bottom2": [
+          "benevolence",
+          "universalism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-002",
@@ -81,7 +120,32 @@
         "autoRenewAversion": 0.1,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 400
+      "affordableMonthlyTwd": 400,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "tradition",
+          "benevolence",
+          "stimulation",
+          "universalism",
+          "hedonism",
+          "selfDirection",
+          "achievement",
+          "conformity",
+          "security",
+          "power"
+        ],
+        "top3": [
+          "tradition",
+          "benevolence",
+          "stimulation"
+        ],
+        "bottom2": [
+          "security",
+          "power"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-003",
@@ -113,7 +177,32 @@
         "autoRenewAversion": 0.6,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 344
+      "affordableMonthlyTwd": 344,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "power",
+          "conformity",
+          "security",
+          "achievement",
+          "hedonism",
+          "stimulation",
+          "selfDirection",
+          "tradition",
+          "benevolence",
+          "universalism"
+        ],
+        "top3": [
+          "power",
+          "conformity",
+          "security"
+        ],
+        "bottom2": [
+          "benevolence",
+          "universalism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-004",
@@ -145,7 +234,32 @@
         "autoRenewAversion": 0.2,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 1882
+      "affordableMonthlyTwd": 1882,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "benevolence",
+          "conformity",
+          "universalism",
+          "selfDirection",
+          "stimulation",
+          "power",
+          "tradition",
+          "hedonism",
+          "security",
+          "achievement"
+        ],
+        "top3": [
+          "benevolence",
+          "conformity",
+          "universalism"
+        ],
+        "bottom2": [
+          "security",
+          "achievement"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-005",
@@ -177,7 +291,32 @@
         "autoRenewAversion": 0.7,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 139
+      "affordableMonthlyTwd": 139,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "achievement",
+          "security",
+          "power",
+          "selfDirection",
+          "conformity",
+          "hedonism",
+          "stimulation",
+          "universalism",
+          "benevolence",
+          "tradition"
+        ],
+        "top3": [
+          "achievement",
+          "security",
+          "power"
+        ],
+        "bottom2": [
+          "benevolence",
+          "tradition"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-006",
@@ -209,7 +348,32 @@
         "autoRenewAversion": 0.2,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 574
+      "affordableMonthlyTwd": 574,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "conformity",
+          "stimulation",
+          "achievement",
+          "power",
+          "tradition",
+          "benevolence",
+          "selfDirection",
+          "hedonism",
+          "universalism",
+          "security"
+        ],
+        "top3": [
+          "conformity",
+          "stimulation",
+          "achievement"
+        ],
+        "bottom2": [
+          "universalism",
+          "security"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-007",
@@ -241,7 +405,32 @@
         "autoRenewAversion": 0.8,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 419
+      "affordableMonthlyTwd": 419,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "power",
+          "benevolence",
+          "conformity",
+          "security",
+          "selfDirection",
+          "universalism",
+          "stimulation",
+          "tradition",
+          "hedonism",
+          "achievement"
+        ],
+        "top3": [
+          "power",
+          "benevolence",
+          "conformity"
+        ],
+        "bottom2": [
+          "hedonism",
+          "achievement"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-008",
@@ -273,7 +462,32 @@
         "autoRenewAversion": 0.1,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 1256
+      "affordableMonthlyTwd": 1256,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "benevolence",
+          "conformity",
+          "selfDirection",
+          "tradition",
+          "universalism",
+          "security",
+          "power",
+          "achievement",
+          "stimulation",
+          "hedonism"
+        ],
+        "top3": [
+          "benevolence",
+          "conformity",
+          "selfDirection"
+        ],
+        "bottom2": [
+          "stimulation",
+          "hedonism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-009",
@@ -305,7 +519,32 @@
         "autoRenewAversion": 1,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 391
+      "affordableMonthlyTwd": 391,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "tradition",
+          "conformity",
+          "security",
+          "power",
+          "benevolence",
+          "universalism",
+          "stimulation",
+          "hedonism",
+          "selfDirection",
+          "achievement"
+        ],
+        "top3": [
+          "tradition",
+          "conformity",
+          "security"
+        ],
+        "bottom2": [
+          "selfDirection",
+          "achievement"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-010",
@@ -337,7 +576,32 @@
         "autoRenewAversion": 1,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 118
+      "affordableMonthlyTwd": 118,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "achievement",
+          "tradition",
+          "universalism",
+          "selfDirection",
+          "power",
+          "stimulation",
+          "benevolence",
+          "conformity",
+          "hedonism",
+          "security"
+        ],
+        "top3": [
+          "achievement",
+          "tradition",
+          "universalism"
+        ],
+        "bottom2": [
+          "hedonism",
+          "security"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-011",
@@ -369,7 +633,32 @@
         "autoRenewAversion": 0.5,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 747
+      "affordableMonthlyTwd": 747,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "security",
+          "conformity",
+          "benevolence",
+          "achievement",
+          "universalism",
+          "power",
+          "tradition",
+          "stimulation",
+          "selfDirection",
+          "hedonism"
+        ],
+        "top3": [
+          "security",
+          "conformity",
+          "benevolence"
+        ],
+        "bottom2": [
+          "selfDirection",
+          "hedonism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-012",
@@ -401,7 +690,32 @@
         "autoRenewAversion": 0.5,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 331
+      "affordableMonthlyTwd": 331,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "hedonism",
+          "power",
+          "tradition",
+          "conformity",
+          "universalism",
+          "security",
+          "stimulation",
+          "achievement",
+          "selfDirection",
+          "benevolence"
+        ],
+        "top3": [
+          "hedonism",
+          "power",
+          "tradition"
+        ],
+        "bottom2": [
+          "selfDirection",
+          "benevolence"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-013",
@@ -433,7 +747,32 @@
         "autoRenewAversion": 1,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 388
+      "affordableMonthlyTwd": 388,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "tradition",
+          "benevolence",
+          "universalism",
+          "conformity",
+          "power",
+          "security",
+          "selfDirection",
+          "hedonism",
+          "stimulation",
+          "achievement"
+        ],
+        "top3": [
+          "tradition",
+          "benevolence",
+          "universalism"
+        ],
+        "bottom2": [
+          "stimulation",
+          "achievement"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-014",
@@ -465,7 +804,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 1096
+      "affordableMonthlyTwd": 1096,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "universalism",
+          "stimulation",
+          "selfDirection",
+          "benevolence",
+          "conformity",
+          "security",
+          "hedonism",
+          "power",
+          "achievement",
+          "tradition"
+        ],
+        "top3": [
+          "universalism",
+          "stimulation",
+          "selfDirection"
+        ],
+        "bottom2": [
+          "achievement",
+          "tradition"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-015",
@@ -497,7 +861,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 2158
+      "affordableMonthlyTwd": 2158,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "universalism",
+          "tradition",
+          "benevolence",
+          "selfDirection",
+          "power",
+          "stimulation",
+          "conformity",
+          "achievement",
+          "hedonism",
+          "security"
+        ],
+        "top3": [
+          "universalism",
+          "tradition",
+          "benevolence"
+        ],
+        "bottom2": [
+          "hedonism",
+          "security"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-016",
@@ -529,7 +918,32 @@
         "autoRenewAversion": 0.7,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 670
+      "affordableMonthlyTwd": 670,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "conformity",
+          "security",
+          "power",
+          "tradition",
+          "benevolence",
+          "selfDirection",
+          "achievement",
+          "universalism",
+          "stimulation",
+          "hedonism"
+        ],
+        "top3": [
+          "conformity",
+          "security",
+          "power"
+        ],
+        "bottom2": [
+          "stimulation",
+          "hedonism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-017",
@@ -561,7 +975,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 1610
+      "affordableMonthlyTwd": 1610,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "conformity",
+          "security",
+          "universalism",
+          "stimulation",
+          "selfDirection",
+          "benevolence",
+          "power",
+          "hedonism",
+          "achievement",
+          "tradition"
+        ],
+        "top3": [
+          "conformity",
+          "security",
+          "universalism"
+        ],
+        "bottom2": [
+          "achievement",
+          "tradition"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-018",
@@ -593,7 +1032,32 @@
         "autoRenewAversion": 0.5,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 535
+      "affordableMonthlyTwd": 535,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "power",
+          "stimulation",
+          "hedonism",
+          "benevolence",
+          "conformity",
+          "achievement",
+          "tradition",
+          "universalism",
+          "security",
+          "selfDirection"
+        ],
+        "top3": [
+          "power",
+          "stimulation",
+          "hedonism"
+        ],
+        "bottom2": [
+          "security",
+          "selfDirection"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-019",
@@ -625,7 +1089,32 @@
         "autoRenewAversion": 1,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 48
+      "affordableMonthlyTwd": 48,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "conformity",
+          "power",
+          "security",
+          "tradition",
+          "benevolence",
+          "universalism",
+          "achievement",
+          "hedonism",
+          "stimulation",
+          "selfDirection"
+        ],
+        "top3": [
+          "conformity",
+          "power",
+          "security"
+        ],
+        "bottom2": [
+          "stimulation",
+          "selfDirection"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-020",
@@ -657,7 +1146,32 @@
         "autoRenewAversion": 0.8,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 649
+      "affordableMonthlyTwd": 649,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "stimulation",
+          "universalism",
+          "security",
+          "hedonism",
+          "achievement",
+          "power",
+          "conformity",
+          "benevolence",
+          "selfDirection",
+          "tradition"
+        ],
+        "top3": [
+          "stimulation",
+          "universalism",
+          "security"
+        ],
+        "bottom2": [
+          "selfDirection",
+          "tradition"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-021",
@@ -689,7 +1203,32 @@
         "autoRenewAversion": 0.4,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 308
+      "affordableMonthlyTwd": 308,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "security",
+          "power",
+          "conformity",
+          "benevolence",
+          "hedonism",
+          "selfDirection",
+          "universalism",
+          "achievement",
+          "tradition",
+          "stimulation"
+        ],
+        "top3": [
+          "security",
+          "power",
+          "conformity"
+        ],
+        "bottom2": [
+          "tradition",
+          "stimulation"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-022",
@@ -721,7 +1260,32 @@
         "autoRenewAversion": 0.8,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 676
+      "affordableMonthlyTwd": 676,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "power",
+          "security",
+          "conformity",
+          "achievement",
+          "hedonism",
+          "tradition",
+          "benevolence",
+          "universalism",
+          "stimulation",
+          "selfDirection"
+        ],
+        "top3": [
+          "power",
+          "security",
+          "conformity"
+        ],
+        "bottom2": [
+          "stimulation",
+          "selfDirection"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-023",
@@ -753,7 +1317,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 1179
+      "affordableMonthlyTwd": 1179,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "universalism",
+          "stimulation",
+          "selfDirection",
+          "hedonism",
+          "benevolence",
+          "tradition",
+          "conformity",
+          "achievement",
+          "power",
+          "security"
+        ],
+        "top3": [
+          "universalism",
+          "stimulation",
+          "selfDirection"
+        ],
+        "bottom2": [
+          "power",
+          "security"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-024",
@@ -785,7 +1374,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 700
+      "affordableMonthlyTwd": 700,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "hedonism",
+          "selfDirection",
+          "universalism",
+          "stimulation",
+          "achievement",
+          "power",
+          "benevolence",
+          "tradition",
+          "security",
+          "conformity"
+        ],
+        "top3": [
+          "hedonism",
+          "selfDirection",
+          "universalism"
+        ],
+        "bottom2": [
+          "security",
+          "conformity"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-025",
@@ -817,7 +1431,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 1329
+      "affordableMonthlyTwd": 1329,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "power",
+          "benevolence",
+          "universalism",
+          "conformity",
+          "stimulation",
+          "security",
+          "selfDirection",
+          "hedonism",
+          "tradition",
+          "achievement"
+        ],
+        "top3": [
+          "power",
+          "benevolence",
+          "universalism"
+        ],
+        "bottom2": [
+          "tradition",
+          "achievement"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-026",
@@ -849,7 +1488,32 @@
         "autoRenewAversion": 0.4,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 554
+      "affordableMonthlyTwd": 554,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "tradition",
+          "selfDirection",
+          "conformity",
+          "universalism",
+          "security",
+          "power",
+          "benevolence",
+          "achievement",
+          "stimulation",
+          "hedonism"
+        ],
+        "top3": [
+          "tradition",
+          "selfDirection",
+          "conformity"
+        ],
+        "bottom2": [
+          "stimulation",
+          "hedonism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-027",
@@ -881,7 +1545,32 @@
         "autoRenewAversion": 0.4,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 620
+      "affordableMonthlyTwd": 620,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "universalism",
+          "tradition",
+          "conformity",
+          "benevolence",
+          "security",
+          "power",
+          "stimulation",
+          "selfDirection",
+          "achievement",
+          "hedonism"
+        ],
+        "top3": [
+          "universalism",
+          "tradition",
+          "conformity"
+        ],
+        "bottom2": [
+          "achievement",
+          "hedonism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-028",
@@ -913,7 +1602,32 @@
         "autoRenewAversion": 0.7,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 790
+      "affordableMonthlyTwd": 790,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "hedonism",
+          "power",
+          "conformity",
+          "achievement",
+          "selfDirection",
+          "tradition",
+          "security",
+          "benevolence",
+          "stimulation",
+          "universalism"
+        ],
+        "top3": [
+          "hedonism",
+          "power",
+          "conformity"
+        ],
+        "bottom2": [
+          "stimulation",
+          "universalism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-029",
@@ -945,7 +1659,32 @@
         "autoRenewAversion": 0.3,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 247
+      "affordableMonthlyTwd": 247,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "universalism",
+          "tradition",
+          "benevolence",
+          "conformity",
+          "power",
+          "stimulation",
+          "selfDirection",
+          "hedonism",
+          "security",
+          "achievement"
+        ],
+        "top3": [
+          "universalism",
+          "tradition",
+          "benevolence"
+        ],
+        "bottom2": [
+          "security",
+          "achievement"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-030",
@@ -977,7 +1716,32 @@
         "autoRenewAversion": 0.4,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 183
+      "affordableMonthlyTwd": 183,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "stimulation",
+          "achievement",
+          "hedonism",
+          "security",
+          "benevolence",
+          "universalism",
+          "conformity",
+          "tradition",
+          "power",
+          "selfDirection"
+        ],
+        "top3": [
+          "stimulation",
+          "achievement",
+          "hedonism"
+        ],
+        "bottom2": [
+          "power",
+          "selfDirection"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-031",
@@ -1009,7 +1773,32 @@
         "autoRenewAversion": 0.7,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 525
+      "affordableMonthlyTwd": 525,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "security",
+          "hedonism",
+          "power",
+          "stimulation",
+          "universalism",
+          "tradition",
+          "benevolence",
+          "conformity",
+          "achievement",
+          "selfDirection"
+        ],
+        "top3": [
+          "security",
+          "hedonism",
+          "power"
+        ],
+        "bottom2": [
+          "achievement",
+          "selfDirection"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-032",
@@ -1041,7 +1830,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 621
+      "affordableMonthlyTwd": 621,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "achievement",
+          "benevolence",
+          "conformity",
+          "power",
+          "stimulation",
+          "tradition",
+          "security",
+          "hedonism",
+          "selfDirection",
+          "universalism"
+        ],
+        "top3": [
+          "achievement",
+          "benevolence",
+          "conformity"
+        ],
+        "bottom2": [
+          "selfDirection",
+          "universalism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-033",
@@ -1073,7 +1887,32 @@
         "autoRenewAversion": 0.6,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 59
+      "affordableMonthlyTwd": 59,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "achievement",
+          "hedonism",
+          "stimulation",
+          "power",
+          "selfDirection",
+          "universalism",
+          "security",
+          "benevolence",
+          "tradition",
+          "conformity"
+        ],
+        "top3": [
+          "achievement",
+          "hedonism",
+          "stimulation"
+        ],
+        "bottom2": [
+          "tradition",
+          "conformity"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-034",
@@ -1105,7 +1944,32 @@
         "autoRenewAversion": 0.7,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 169
+      "affordableMonthlyTwd": 169,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "security",
+          "hedonism",
+          "conformity",
+          "tradition",
+          "benevolence",
+          "universalism",
+          "selfDirection",
+          "power",
+          "achievement",
+          "stimulation"
+        ],
+        "top3": [
+          "security",
+          "hedonism",
+          "conformity"
+        ],
+        "bottom2": [
+          "achievement",
+          "stimulation"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-035",
@@ -1137,7 +2001,32 @@
         "autoRenewAversion": 0.4,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 752
+      "affordableMonthlyTwd": 752,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "security",
+          "selfDirection",
+          "stimulation",
+          "tradition",
+          "power",
+          "benevolence",
+          "universalism",
+          "achievement",
+          "conformity",
+          "hedonism"
+        ],
+        "top3": [
+          "security",
+          "selfDirection",
+          "stimulation"
+        ],
+        "bottom2": [
+          "conformity",
+          "hedonism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-036",
@@ -1169,7 +2058,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 311
+      "affordableMonthlyTwd": 311,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "tradition",
+          "security",
+          "universalism",
+          "benevolence",
+          "selfDirection",
+          "hedonism",
+          "achievement",
+          "power",
+          "stimulation",
+          "conformity"
+        ],
+        "top3": [
+          "tradition",
+          "security",
+          "universalism"
+        ],
+        "bottom2": [
+          "stimulation",
+          "conformity"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-037",
@@ -1201,7 +2115,32 @@
         "autoRenewAversion": 0.4,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 891
+      "affordableMonthlyTwd": 891,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "security",
+          "selfDirection",
+          "achievement",
+          "benevolence",
+          "hedonism",
+          "tradition",
+          "conformity",
+          "stimulation",
+          "universalism",
+          "power"
+        ],
+        "top3": [
+          "security",
+          "selfDirection",
+          "achievement"
+        ],
+        "bottom2": [
+          "universalism",
+          "power"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-038",
@@ -1233,7 +2172,32 @@
         "autoRenewAversion": 0.3,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 773
+      "affordableMonthlyTwd": 773,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "universalism",
+          "selfDirection",
+          "hedonism",
+          "benevolence",
+          "conformity",
+          "security",
+          "tradition",
+          "stimulation",
+          "power",
+          "achievement"
+        ],
+        "top3": [
+          "universalism",
+          "selfDirection",
+          "hedonism"
+        ],
+        "bottom2": [
+          "power",
+          "achievement"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-039",
@@ -1265,7 +2229,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 736
+      "affordableMonthlyTwd": 736,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "universalism",
+          "benevolence",
+          "tradition",
+          "hedonism",
+          "stimulation",
+          "selfDirection",
+          "conformity",
+          "power",
+          "achievement",
+          "security"
+        ],
+        "top3": [
+          "universalism",
+          "benevolence",
+          "tradition"
+        ],
+        "bottom2": [
+          "achievement",
+          "security"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-040",
@@ -1297,7 +2286,32 @@
         "autoRenewAversion": 0.6,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 124
+      "affordableMonthlyTwd": 124,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "hedonism",
+          "security",
+          "selfDirection",
+          "power",
+          "conformity",
+          "achievement",
+          "stimulation",
+          "tradition",
+          "benevolence",
+          "universalism"
+        ],
+        "top3": [
+          "hedonism",
+          "security",
+          "selfDirection"
+        ],
+        "bottom2": [
+          "benevolence",
+          "universalism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-041",
@@ -1329,7 +2343,32 @@
         "autoRenewAversion": 0.3,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 517
+      "affordableMonthlyTwd": 517,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "universalism",
+          "tradition",
+          "selfDirection",
+          "conformity",
+          "benevolence",
+          "stimulation",
+          "hedonism",
+          "security",
+          "power",
+          "achievement"
+        ],
+        "top3": [
+          "universalism",
+          "tradition",
+          "selfDirection"
+        ],
+        "bottom2": [
+          "power",
+          "achievement"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-042",
@@ -1361,7 +2400,32 @@
         "autoRenewAversion": 0.7,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 1088
+      "affordableMonthlyTwd": 1088,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "conformity",
+          "tradition",
+          "benevolence",
+          "security",
+          "universalism",
+          "selfDirection",
+          "power",
+          "achievement",
+          "hedonism",
+          "stimulation"
+        ],
+        "top3": [
+          "conformity",
+          "tradition",
+          "benevolence"
+        ],
+        "bottom2": [
+          "hedonism",
+          "stimulation"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-043",
@@ -1393,7 +2457,32 @@
         "autoRenewAversion": 0.4,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 643
+      "affordableMonthlyTwd": 643,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "stimulation",
+          "selfDirection",
+          "universalism",
+          "benevolence",
+          "tradition",
+          "power",
+          "hedonism",
+          "security",
+          "conformity",
+          "achievement"
+        ],
+        "top3": [
+          "stimulation",
+          "selfDirection",
+          "universalism"
+        ],
+        "bottom2": [
+          "conformity",
+          "achievement"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-044",
@@ -1425,7 +2514,32 @@
         "autoRenewAversion": 0.2,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 1782
+      "affordableMonthlyTwd": 1782,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "tradition",
+          "selfDirection",
+          "benevolence",
+          "universalism",
+          "conformity",
+          "stimulation",
+          "achievement",
+          "security",
+          "hedonism",
+          "power"
+        ],
+        "top3": [
+          "tradition",
+          "selfDirection",
+          "benevolence"
+        ],
+        "bottom2": [
+          "hedonism",
+          "power"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-045",
@@ -1457,7 +2571,32 @@
         "autoRenewAversion": 0.3,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 717
+      "affordableMonthlyTwd": 717,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "tradition",
+          "selfDirection",
+          "stimulation",
+          "universalism",
+          "hedonism",
+          "benevolence",
+          "conformity",
+          "achievement",
+          "power",
+          "security"
+        ],
+        "top3": [
+          "tradition",
+          "selfDirection",
+          "stimulation"
+        ],
+        "bottom2": [
+          "power",
+          "security"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-046",
@@ -1489,7 +2628,32 @@
         "autoRenewAversion": 1,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 325
+      "affordableMonthlyTwd": 325,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "benevolence",
+          "selfDirection",
+          "conformity",
+          "tradition",
+          "security",
+          "power",
+          "universalism",
+          "hedonism",
+          "achievement",
+          "stimulation"
+        ],
+        "top3": [
+          "benevolence",
+          "selfDirection",
+          "conformity"
+        ],
+        "bottom2": [
+          "achievement",
+          "stimulation"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-047",
@@ -1521,7 +2685,32 @@
         "autoRenewAversion": 1,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 1015
+      "affordableMonthlyTwd": 1015,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "conformity",
+          "power",
+          "tradition",
+          "benevolence",
+          "security",
+          "stimulation",
+          "achievement",
+          "hedonism",
+          "selfDirection",
+          "universalism"
+        ],
+        "top3": [
+          "conformity",
+          "power",
+          "tradition"
+        ],
+        "bottom2": [
+          "selfDirection",
+          "universalism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-048",
@@ -1553,7 +2742,32 @@
         "autoRenewAversion": 1,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 106
+      "affordableMonthlyTwd": 106,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "security",
+          "benevolence",
+          "tradition",
+          "conformity",
+          "selfDirection",
+          "power",
+          "hedonism",
+          "stimulation",
+          "achievement",
+          "universalism"
+        ],
+        "top3": [
+          "security",
+          "benevolence",
+          "tradition"
+        ],
+        "bottom2": [
+          "achievement",
+          "universalism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-049",
@@ -1585,7 +2799,32 @@
         "autoRenewAversion": 1,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 437
+      "affordableMonthlyTwd": 437,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "security",
+          "conformity",
+          "tradition",
+          "power",
+          "achievement",
+          "benevolence",
+          "hedonism",
+          "universalism",
+          "stimulation",
+          "selfDirection"
+        ],
+        "top3": [
+          "security",
+          "conformity",
+          "tradition"
+        ],
+        "bottom2": [
+          "stimulation",
+          "selfDirection"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-050",
@@ -1617,7 +2856,32 @@
         "autoRenewAversion": 0.7,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 533
+      "affordableMonthlyTwd": 533,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "universalism",
+          "tradition",
+          "achievement",
+          "benevolence",
+          "conformity",
+          "selfDirection",
+          "security",
+          "power",
+          "stimulation",
+          "hedonism"
+        ],
+        "top3": [
+          "universalism",
+          "tradition",
+          "achievement"
+        ],
+        "bottom2": [
+          "stimulation",
+          "hedonism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-051",
@@ -1649,7 +2913,32 @@
         "autoRenewAversion": 0.4,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 1558
+      "affordableMonthlyTwd": 1558,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "stimulation",
+          "power",
+          "universalism",
+          "achievement",
+          "selfDirection",
+          "conformity",
+          "security",
+          "hedonism",
+          "benevolence",
+          "tradition"
+        ],
+        "top3": [
+          "stimulation",
+          "power",
+          "universalism"
+        ],
+        "bottom2": [
+          "benevolence",
+          "tradition"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-052",
@@ -1681,7 +2970,32 @@
         "autoRenewAversion": 0.4,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 525
+      "affordableMonthlyTwd": 525,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "benevolence",
+          "tradition",
+          "universalism",
+          "conformity",
+          "selfDirection",
+          "power",
+          "achievement",
+          "stimulation",
+          "security",
+          "hedonism"
+        ],
+        "top3": [
+          "benevolence",
+          "tradition",
+          "universalism"
+        ],
+        "bottom2": [
+          "security",
+          "hedonism"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-053",
@@ -1713,7 +3027,32 @@
         "autoRenewAversion": 0.2,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 475
+      "affordableMonthlyTwd": 475,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "conformity",
+          "benevolence",
+          "tradition",
+          "security",
+          "power",
+          "universalism",
+          "hedonism",
+          "selfDirection",
+          "achievement",
+          "stimulation"
+        ],
+        "top3": [
+          "conformity",
+          "benevolence",
+          "tradition"
+        ],
+        "bottom2": [
+          "achievement",
+          "stimulation"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-054",
@@ -1745,7 +3084,32 @@
         "autoRenewAversion": 0.2,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 442
+      "affordableMonthlyTwd": 442,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "selfDirection",
+          "stimulation",
+          "universalism",
+          "conformity",
+          "hedonism",
+          "tradition",
+          "benevolence",
+          "achievement",
+          "security",
+          "power"
+        ],
+        "top3": [
+          "selfDirection",
+          "stimulation",
+          "universalism"
+        ],
+        "bottom2": [
+          "security",
+          "power"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-055",
@@ -1777,7 +3141,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 1410
+      "affordableMonthlyTwd": 1410,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "power",
+          "hedonism",
+          "security",
+          "selfDirection",
+          "achievement",
+          "universalism",
+          "conformity",
+          "tradition",
+          "benevolence",
+          "stimulation"
+        ],
+        "top3": [
+          "power",
+          "hedonism",
+          "security"
+        ],
+        "bottom2": [
+          "benevolence",
+          "stimulation"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-056",
@@ -1809,7 +3198,32 @@
         "autoRenewAversion": 1,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 911
+      "affordableMonthlyTwd": 911,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "conformity",
+          "tradition",
+          "security",
+          "selfDirection",
+          "power",
+          "hedonism",
+          "benevolence",
+          "stimulation",
+          "universalism",
+          "achievement"
+        ],
+        "top3": [
+          "conformity",
+          "tradition",
+          "security"
+        ],
+        "bottom2": [
+          "universalism",
+          "achievement"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-057",
@@ -1841,7 +3255,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 1571
+      "affordableMonthlyTwd": 1571,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "universalism",
+          "selfDirection",
+          "stimulation",
+          "benevolence",
+          "security",
+          "hedonism",
+          "achievement",
+          "tradition",
+          "power",
+          "conformity"
+        ],
+        "top3": [
+          "universalism",
+          "selfDirection",
+          "stimulation"
+        ],
+        "bottom2": [
+          "power",
+          "conformity"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-058",
@@ -1873,7 +3312,32 @@
         "autoRenewAversion": 1,
         "prefersOneOffAnnual": true
       },
-      "affordableMonthlyTwd": 99
+      "affordableMonthlyTwd": 99,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "hedonism",
+          "selfDirection",
+          "stimulation",
+          "achievement",
+          "power",
+          "universalism",
+          "conformity",
+          "security",
+          "tradition",
+          "benevolence"
+        ],
+        "top3": [
+          "hedonism",
+          "selfDirection",
+          "stimulation"
+        ],
+        "bottom2": [
+          "tradition",
+          "benevolence"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-059",
@@ -1905,7 +3369,32 @@
         "autoRenewAversion": 0.4,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 877
+      "affordableMonthlyTwd": 877,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "power",
+          "benevolence",
+          "achievement",
+          "security",
+          "conformity",
+          "hedonism",
+          "selfDirection",
+          "universalism",
+          "stimulation",
+          "tradition"
+        ],
+        "top3": [
+          "power",
+          "benevolence",
+          "achievement"
+        ],
+        "bottom2": [
+          "stimulation",
+          "tradition"
+        ],
+        "derivedFrom": "traits"
+      }
     },
     {
       "id": "samp-060",
@@ -1937,7 +3426,32 @@
         "autoRenewAversion": 0,
         "prefersOneOffAnnual": false
       },
-      "affordableMonthlyTwd": 2034
+      "affordableMonthlyTwd": 2034,
+      "values": {
+        "schema": "schwartz10",
+        "order": [
+          "benevolence",
+          "conformity",
+          "security",
+          "tradition",
+          "universalism",
+          "stimulation",
+          "power",
+          "achievement",
+          "hedonism",
+          "selfDirection"
+        ],
+        "top3": [
+          "benevolence",
+          "conformity",
+          "security"
+        ],
+        "bottom2": [
+          "hedonism",
+          "selfDirection"
+        ],
+        "derivedFrom": "traits"
+      }
     }
   ]
 }

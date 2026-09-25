@@ -66,6 +66,7 @@
 | `oinggFit.featuresOfInterest` | 對應到 Oingg 現有功能（除權息行事曆／公告、特別股頁、ETF 篩選與排行、選股範本、持股管理、交易日誌、各類排行、個股財報／杜邦／Piotroski 等） |
 | `purchaseBehavior` | 誰做決定、偏好的付款週期、試用期待、主要抗拒理由 |
 | `rolePlayNotes` | 給 LLM 角色扮演用的說話風格 |
+| `values` | Schwartz 10 個基本價值的**排序**，附 `top3` / `bottom2` 與判斷依據。手寫的 20 位是逐句找證據排的（`evidence`），抽樣的 60 位由 `traits` 推導（`derivedFrom: "traits"`）——兩種可信度不同，見 `persona-cognitive-profiles.md` §8 |
 | `priceSensitivityHypothesis` | **設計者的假設，不要餵給受測模型**，只用來事後比對結果 |
 
 ## 建議測試流程

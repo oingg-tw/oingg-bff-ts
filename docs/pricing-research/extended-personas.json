@@ -127,6 +127,13 @@
         "underPressure": "被問到責任歸屬時會從效率語言切換成防衛：「這個數字如果錯了，是我在客戶面前丟臉」",
         "evidence": "把工具支出換算成可計費工時、以客戶分攤計價、要求統編發票與白標——都是 Te 的外部效率計算"
       },
+      "values": {
+        "schema": "schwartz10",
+        "order": ["achievement", "power", "selfDirection", "security", "benevolence", "stimulation", "hedonism", "universalism", "conformity", "tradition"],
+        "top3": ["achievement", "power", "selfDirection"],
+        "bottom2": ["conformity", "tradition"],
+        "evidence": "「省下的是可計費工時，不是訂閱費」＝成就；要求白標、「報告不能出現別家品牌」＝權力（自身品牌的支配）。Fi 劣勢對應普世排序偏低，而壓力下正是從那裡反噬（責任歸屬）。"
+      },
       "priceSensitivityHypothesis": {
         "level": "低（以每客戶分攤與工時衡量）",
         "rationale": "Advisor 層（年費 14,900）目前在 12 位退休族 persona 裡零覆蓋。她是唯一會把價格除以客戶數的人，也是唯一可能覺得「太便宜反而不敢用在客戶面前」的人。若連她都對 14,900 猶豫，代表這個層級的價值主張本身有問題，不是價格問題。"
@@ -255,6 +262,13 @@
         "underPressure": "焦慮以「時間不夠了」的形式出現——他算得出九年後的數字，所以對「太早付費」與「太晚開始」同時敏感",
         "evidence": "自建退休模型、以 60 歲為終點反推現在的配置、關心的是九年後的狀態而非當下報價"
       },
+      "values": {
+        "schema": "schwartz10",
+        "order": ["selfDirection", "security", "benevolence", "achievement", "universalism", "conformity", "tradition", "stimulation", "hedonism", "power"],
+        "top3": ["selfDirection", "security", "benevolence"],
+        "bottom2": ["hedonism", "power"],
+        "evidence": "「我的 Excel 已經能算了」＝自我導向；「60 歲時被動收入能覆蓋生活費」＝安全；「小孩大學學費」＝仁慈。Ni 主導與自我導向一致。"
+      },
       "priceSensitivityHypothesis": {
         "level": "中低",
         "rationale": "12 位 persona 全是 56–75 歲的提領期，累積期完全沒有覆蓋。他有薪資、負擔得起，而且若現在訂閱會付十五年以上——理論上 LTV 最高的一群，卻是最沒被測到的一群。他的反對點不是價格而是時機（「我還沒退休」），那是文案問題不是定價問題，值得分開測。"
@@ -366,6 +380,13 @@
         "inferior": "Fe",
         "underPressure": "被情感訴求推銷時會變冷淡而挑剔——他對「孝順」這類文案反感，只接受功能論證",
         "evidence": "以節省自身時間為唯一判準、先自己試過才付、拒絕為豐富度付費"
+      },
+      "values": {
+        "schema": "schwartz10",
+        "order": ["benevolence", "selfDirection", "security", "achievement", "universalism", "conformity", "hedonism", "stimulation", "tradition", "power"],
+        "top3": ["benevolence", "selfDirection", "security"],
+        "bottom2": ["tradition", "power"],
+        "evidence": "「他買的是不用再解釋一次」「不要讓母親被詐騙群組騙走」＝仁慈本身就是購買動機；Ti 主導對應自我導向次高（自己判斷介面夠不夠簡單）。"
       },
       "priceSensitivityHypothesis": {
         "level": "中（但衡量的是「省下的解釋時間」）",
@@ -484,6 +505,13 @@
         "underPressure": "用過去的失敗經驗預測未來——任何新工具都會先被對照到上一次的挫折",
         "evidence": "以既往經驗為決策主軸、對功能多寡感到威脅而非吸引、重視「有人教」"
       },
+      "values": {
+        "schema": "schwartz10",
+        "order": ["security", "tradition", "conformity", "benevolence", "universalism", "hedonism", "selfDirection", "achievement", "power", "stimulation"],
+        "top3": ["security", "tradition", "conformity"],
+        "bottom2": ["power", "stimulation"],
+        "evidence": "「換工具很麻煩」「功能太多我會怕」＝傳統與安全；「不要再有付了卻沒用的罪惡感」是從眾式的自我責備，不是成就落差。Si 主導與傳統一致。"
+      },
       "priceSensitivityHypothesis": {
         "level": "中高（但真正的阻力是信任不是價格）",
         "rationale": "既有 12 人沒有任何一位訂閱過又退訂，所以續費提醒、平滑降級、贏回流失用戶這整塊規格完全沒有 persona 可以測。她的反對意見不是「太貴」而是「我會不會又變成沒在用」——這正是 30/7/1 提醒與七天無條件退費要解決的心理，值得單獨測文案。"
@@ -589,6 +617,13 @@
         "inferior": "Ti",
         "underPressure": "遇到術語會直接放棄而非追問——她不會問「這是什麼意思」，她會關掉分頁",
         "evidence": "資訊來源全靠搜尋與影片、以「看不看得懂」作為留下與否的唯一判準"
+      },
+      "values": {
+        "schema": "schwartz10",
+        "order": ["security", "benevolence", "conformity", "tradition", "universalism", "hedonism", "achievement", "selfDirection", "stimulation", "power"],
+        "top3": ["security", "benevolence", "conformity"],
+        "bottom2": ["stimulation", "power"],
+        "evidence": "「退休金完全不夠，想補一點」＝安全；「我又不是什麼大戶」＝以群體位置自我定位的從眾；同時照顧父親＝仁慈。Fe 主導與從眾／仁慈一致。"
       },
       "priceSensitivityHypothesis": {
         "level": "極高（現階段幾乎不可能付費）",
@@ -720,6 +755,13 @@
         "inferior": "Ne",
         "underPressure": "面對不熟的付款流程會整個退出，而不是詢問替代方案——他不會抱怨，他會直接不買",
         "evidence": "以訂雜誌劃撥的既有經驗類比訂閱付款、對線上刷卡的不安來自程序陌生而非金額"
+      },
+      "values": {
+        "schema": "schwartz10",
+        "order": ["tradition", "security", "conformity", "selfDirection", "benevolence", "achievement", "universalism", "hedonism", "stimulation", "power"],
+        "top3": ["tradition", "security", "conformity"],
+        "bottom2": ["stimulation", "power"],
+        "evidence": "「付款方式跟訂雜誌一樣單純」「自動扣款我不接受」＝傳統高於便利；「不要出錯」＝安全。他付得起——擋住他的是傳統不是價格，這是他跟 ext-05 的關鍵差別。"
       },
       "priceSensitivityHypothesis": {
         "level": "低（付得起）／但付款方式是硬門檻",
@@ -860,6 +902,13 @@
         "underPressure": "漲價或方案調整時會從「這工具不錯」切換成「你是不是在算計我」，用累積的付費紀錄當道德籌碼：「我都付兩年了」",
         "evidence": "以每季固定流程使用工具、用結果（汰掉一檔後來大跌的股票）驗證價值、對價格做倍數比較"
       },
+      "values": {
+        "schema": "schwartz10",
+        "order": ["achievement", "security", "selfDirection", "tradition", "power", "conformity", "benevolence", "universalism", "hedonism", "stimulation"],
+        "top3": ["achievement", "security", "selfDirection"],
+        "bottom2": ["hedonism", "stimulation"],
+        "evidence": "「股利覆蓋生活費的比例逐年提高」「汰換掉體質變差的持股」＝成就；「兩年下來已經習慣了，換工具要重建全部設定」＝轉換成本被體驗為秩序（傳統）而非金錢；「我又不是顧問」＝拒絕不屬於自己位置的定價。"
+      },
       "priceSensitivityHypothesis": {
         "level": "低（續約）／高（升級）",
         "rationale": "18 位 persona 全是尚未付費或已經退訂的，沒有任何人處在「正在用、用得好、面臨續約或升級」的狀態——而財務模型的 NRR 120% 目標**就是靠擴張營收**達成的。他是唯一能測 Pro→Advisor 升級決策的人，而且他的需求（多帳戶、匯出）剛好落在 Advisor 的功能裡但他自認不是顧問，正好測「中間有沒有缺一個方案」。續約與新購是兩種不同的心理：當初問「值不值得試」，續約問「值不值得繼續」。他也是唯一能測漲價反應與舊價保留政策的人。"
@@ -985,6 +1034,13 @@
         "inferior": "Si",
         "underPressure": "想換又怕麻煩時會不斷找新的比較維度來延後決定——他的風險不是拒絕，是無限期擱置",
         "evidence": "把選股當興趣而非必要、主動尋找矛盾（兩邊數字對不起來）、用切換成本語言分析自己的處境"
+      },
+      "values": {
+        "schema": "schwartz10",
+        "order": ["selfDirection", "achievement", "universalism", "stimulation", "security", "hedonism", "power", "benevolence", "conformity", "tradition"],
+        "top3": ["selfDirection", "achievement", "universalism"],
+        "bottom2": ["conformity", "tradition"],
+        "evidence": "「方法論與原始財報可回溯（他真的會去點開看）」＝自我導向與普世；「長期打敗 0050」＝成就；「換過去要重建三年的清單」是成本計算，不是傳統依附——與 ext-07 的同型抗拒理由不同。"
       },
       "priceSensitivityHypothesis": {
         "level": "中（不是對金額敏感，是對「換不換」敏感）",
