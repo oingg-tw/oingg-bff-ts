@@ -43,11 +43,22 @@ export interface UserPreferencesPort {
   saveDashboardCards(firebaseUid: string, visibleCardIds: string[]): Promise<StoredDashboardCardSettings>;
 
   getStockDetailPreferences(firebaseUid: string): Promise<StoredStockDetailPreferences | null>;
-  /** 兩個欄位一起整包覆寫，沒有部分更新——web-nuxt 的設定 popover 一向同時存兩者。 */
+  /**
+   * `mode` 與 `visibleCardIds` 一起整包覆寫，沒有部分更新——web-nuxt 的設定 popover 一向同時存兩者。
+   *
+   * `pinnedMetricSlugs` 是**唯一的例外**：傳 `undefined` 代表「不要動這一欄」，傳 `[]` 代表「使用者
+   * 取消了所有釘選」。這個例外存在的理由是部署順序——這一欄 2026-09-25 才加，而 web-nuxt 現有的
+   * client 只送兩個欄位；若把它做成必填，他們在改好之前每一次 PUT 都會 400，而若把缺席當成 `[]`，
+   * 他們每存一次設定就會把釘選清空。「不送就不動」讓兩邊誰先上都不會壞。
+   *
+   * 他們改完之後三個欄位一律都送，那條分支就不會再被走到；**它是過渡用的，不是給未來的部分更新
+   * 預留空間**——`mode`/`visibleCardIds` 的整包覆寫語意沒有改。
+   */
   saveStockDetailPreferences(
     firebaseUid: string,
     mode: StockDetailPageMode,
     visibleCardIds: string[],
+    pinnedMetricSlugs: string[] | undefined,
   ): Promise<StoredStockDetailPreferences>;
 
   getPreferredStocksPreferences(firebaseUid: string): Promise<StoredPreferredStocksPreferences | null>;
@@ -79,6 +90,8 @@ export interface StoredDashboardCardSettings {
 export interface StoredStockDetailPreferences {
   mode: StockDetailPageMode;
   visibleCardIds: string[];
+  /** 這一欄可為 null（既有的列沒有它），跟 visibleCardIds 不同——理由見 schema.prisma 的註解。 */
+  pinnedMetricSlugs: string[] | null;
 }
 
 export interface StoredPreferredStocksPreferences {

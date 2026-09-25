@@ -299,6 +299,13 @@ model StockDetailPreferences {
   firebaseUid    String              @id @map("firebase_uid")
   mode           StockDetailPageMode
   visibleCardIds Json                @map("visible_card_ids")
+  /// 使用者釘在個股頁側邊欄的指標頁 slug，順序就是側邊欄的排列順序。
+  ///
+  /// **這一欄可為 null，而 visibleCardIds 不行，差別不是疏漏。** visibleCardIds 從這張表誕生時就存在，
+  /// 所以「列存在」就保證它有值；pinnedMetricSlugs 是 2026-09-25 才加的，既有的列沒有它。若給它
+  /// NOT NULL DEFAULT '[]'，每個已經存過偏好的使用者會瞬間變成「我把所有釘選都取消了」——而他們
+  /// 從來沒釘過任何東西，前端該套用預設而不是空清單。null 與 [] 的區別在這個欄位上是承重的。
+  pinnedMetricSlugs Json?            @map("pinned_metric_slugs")
   updatedAt      DateTime            @default(now()) @updatedAt @map("updated_at")
 
   @@map("stock_detail_preferences")

@@ -61,6 +61,15 @@ export const updateDashboardCardsSchema = z.object({ visibleCardIds: z.array(z.s
 export const updateStockDetailPreferencesSchema = z.object({
   mode: z.enum(["CARD", "ACCOUNTING"]),
   visibleCardIds: z.array(z.string()),
+  /**
+   * 選填：**沒送就不動既有值**，送 `[]` 才是「取消所有釘選」。這是過渡設計，理由見
+   * application/ports/userPreferences.ts 的 saveStockDetailPreferences 註解——它讓 bff-ts 與
+   * web-nuxt 誰先上線都不會壞。
+   *
+   * 50 是 web-nuxt 要求的上限（他們最多 35 個可釘）。內容不驗證：值是他們的頁面 slug，vocabulary
+   * 在他們的 hub-slugs.ts、會隨新頁面增減，在這裡驗等於每加一頁就要動 bff-ts。
+   */
+  pinnedMetricSlugs: z.array(z.string()).max(50, { message: '"pinnedMetricSlugs" must contain at most 50 items' }).optional(),
 });
 export const updatePreferredStocksPreferencesSchema = z.object({
   columnPresetId: z.enum(["ALL", "CONTRACT_TERMS", "VALUATION", "CALL_RISK"]),
@@ -160,6 +169,7 @@ export function createUserRouter(deps: UserRouterDeps): Router {
       firebaseUid,
       body.mode,
       body.visibleCardIds,
+      body.pinnedMetricSlugs,
       deps,
     );
     res.json({ stockDetailPreferences });

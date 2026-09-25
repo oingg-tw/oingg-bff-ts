@@ -48,9 +48,14 @@ const stockDetailPreferencesSchema = z
   .object({
     mode: z.enum(["CARD", "ACCOUNTING"]).nullable(),
     visibleCardIds: z.array(z.string()).nullable(),
+    pinnedMetricSlugs: z.array(z.string()).nullable(),
   })
   .openapi("StockDetailPreferences", {
-    example: { mode: "CARD", visibleCardIds: ["profile", "per-river", "pbr-river", "eps", "revenue"] },
+    example: {
+      mode: "CARD",
+      visibleCardIds: ["profile", "per-river", "pbr-river", "eps", "revenue"],
+      pinnedMetricSlugs: ["roe", "current-ratio", "pe-ratio"],
+    },
   });
 const stockDetailPreferencesResponseSchema = z.object({ stockDetailPreferences: stockDetailPreferencesSchema });
 
@@ -270,7 +275,13 @@ registry.registerPath({
   method: "put",
   path: "/users/me/stock-detail-preferences",
   summary: "更新目前登入使用者的個股詳細頁顯示偏好",
-  description: "mode 跟 visibleCardIds 一起整包覆蓋（沒有只改其中一個的端點）——前端的設定彈窗本來就是兩者一起存。",
+  description:
+    "mode 跟 visibleCardIds 一起整包覆蓋（沒有只改其中一個的端點）——前端的設定彈窗本來就是兩者一起存。" +
+    "**pinnedMetricSlugs（2026-09-25 新增）是選填，而且三個狀態各有不同意思**：沒送＝不動既有值、" +
+    "送 `[]`＝使用者取消了所有釘選、送陣列＝就是側邊欄的釘選順序。" +
+    "「沒送就不動」是過渡設計，為的是讓 bff-ts 與 web-nuxt 誰先上線都不會壞——若做成必填，舊 client 每次 PUT 都會 400；" +
+    "若把沒送當成 `[]`，舊 client 每存一次設定就會清空使用者的釘選。web-nuxt 改成三個欄位一起送之後那條分支就不會再走到。" +
+    "**順序有意義且原樣儲存**，這個服務不排序、不去重。slug 的內容不驗證（值是 web-nuxt 的頁面 slug，vocabulary 在他們的 hub-slugs.ts、會隨新頁面增減），上限 50 個。",
   tags: ["User"],
   security: [{ bearerAuth: [] }],
   request: {
@@ -285,7 +296,7 @@ registry.registerPath({
       description: "更新後的顯示偏好，包在 \"stockDetailPreferences\" 這個 key 底下（跟 GET 同一個 shape）。",
       content: { "application/json": { schema: stockDetailPreferencesResponseSchema } },
     },
-    400: errorResponse("mode 不在允許的選項內，或 visibleCardIds 沒給／不是字串陣列。"),
+    400: errorResponse("mode 不在允許的選項內、visibleCardIds 沒給／不是字串陣列，或 pinnedMetricSlugs 不是字串陣列／超過 50 個。"),
     401: unauthorized,
   },
 });
