@@ -39,6 +39,13 @@ export const RATE_LIMIT_WINDOW_MS = 60_000;
 export const RATE_LIMIT_MAX_REQUESTS = 300;
 
 /**
+ * 寄信的對外呼叫也要有界限，理由跟 ANALYSIS_SERVICE_TIMEOUT_MS 一樣：沒有上限的話，供應商一次卡住就
+ * 把對應的 bff-ts 請求一起拖死。寄信比讀取更該短——它會掛在排程任務或使用者操作的後面，而一封提醒信
+ * 晚幾秒送出沒有任何代價，卡住 30 秒卻會讓整批提醒逾時。
+ */
+export const EMAIL_TIMEOUT_MS = 8_000;
+
+/**
  * Reverse trial: every user gets the full paid experience for their first 14 days, with no card. It's
  * measured from the User row's `createdAt`, so nothing is stored per trial and nothing can expire
  * halfway through a session. A live constant rather than an env var — changing it should move everyone

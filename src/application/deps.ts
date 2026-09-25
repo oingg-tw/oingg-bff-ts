@@ -1,5 +1,6 @@
 import type { ColumnPresetsPort } from "@/application/ports/columnPresets.js";
 import type { ColumnPresetTemplatesPort } from "@/application/ports/columnPresetTemplates.js";
+import type { EmailGatewayPort } from "@/application/ports/emailGateway.js";
 import type { EtfScreenerGatewayPort } from "@/application/ports/etfScreenerGateway.js";
 import type { HoldingsPort } from "@/application/ports/holdings.js";
 import type { IndustriesGatewayPort } from "@/application/ports/industriesGateway.js";
@@ -48,6 +49,13 @@ export interface AppDeps {
   subscriptions: SubscriptionsPort;
   /** 從 analysis-ts 同步進來、存在這個服務自己 DB 裡的指標型錄（拉進來的那一端是下面的 gateway）。 */
   metricCatalog: MetricCatalogPort;
+
+  // --- 對外通知 ---
+  /**
+   * 寄信。**不是代理層**——它不對 analysis-ts 說話，而是這個服務自己對使用者說話，所以放在這裡而不是
+   * gateway 那一區。只收列舉好的信件種類，收不到自由文字，理由見該 port 的說明（投信投顧法）。
+   */
+  emailGateway: EmailGatewayPort;
 
   // --- 代理層：對 analysis-ts 的出站呼叫，一個切片一個 gateway ---
   macroGateway: MacroGatewayPort;

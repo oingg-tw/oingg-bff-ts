@@ -7,6 +7,7 @@ import { analysisMetricCatalogGateway } from "@/infrastructure/analysisApi/metri
 import { analysisScreenerGateway } from "@/infrastructure/analysisApi/screener/analysisScreenerClient.js";
 import { analysisSecuritiesGateway } from "@/infrastructure/analysisApi/securities/securities.client.js";
 import { analysisStockGateway } from "@/infrastructure/analysisApi/stock/stock.gateway.js";
+import { createResendEmailClient } from "@/infrastructure/email/resendEmailClient.js";
 import { firebaseTokenVerifier } from "@/infrastructure/firebase/tokenVerifier.js";
 import { prismaSystemHealth } from "@/infrastructure/prisma/systemHealth.js";
 import { prismaColumnPresets } from "@/infrastructure/prisma/repositories/columnPresets.repository.js";
@@ -43,6 +44,7 @@ export function createAppDeps(): AppDeps {
     columnPresetTemplates: prismaColumnPresetTemplates,
     subscriptions: prismaSubscriptions,
     metricCatalog: prismaMetricCatalog,
+    emailGateway: createResendEmailClient(),
     macroGateway: analysisMacroGateway,
     marketGateway: analysisMarketGateway,
     stockGateway: analysisStockGateway,
