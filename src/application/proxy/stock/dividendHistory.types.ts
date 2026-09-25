@@ -8,15 +8,19 @@ export interface DividendEvent {
   fiscalQuarter: number | null;
   cashDividend: number;
   /**
-   * The two sources `cashDividend` is made of, added upstream 2026-09-25.
+   * The two sources `cashDividend` is made of, added upstream 2026-09-25. **Always numbers, never
+   * null** — upstream coalesces a blank announcement cell to 0 and its response schema requires both.
    *
-   * **`0` and `null` mean different things and must stay distinguishable.** `0` is upstream saying
-   * this component is genuinely absent for this company-year; `null` is upstream not sending the
-   * field at all. analysis-ts's contract says these are always numbers, but observed reality on
-   * 2026-09-25 was both fields disappearing from every year of every company for a while (probably a
-   * deploy window, reported). The old code declared them `number` and ran `Number(undefined)`, which
-   * is `NaN`, which JSON serialises to `null` — so it emitted null anyway while promising it could
-   * not. Declaring the null makes the type honest instead of accidentally right.
+   * `0` therefore states a fact: the announcement had no amount in that column for this company-year.
+   * It does not mean "unknown", so do not let it drift into null downstream.
+   *
+   * These were briefly declared nullable here, which was the wrong fix for a real observation. During
+   * the rename on 2026-09-25 both fields read as `undefined` for every company and year, and because
+   * the client used `Number(...)`, `NaN` went out and serialised to null while the type promised a
+   * number. But the cause was bff-ts reading a field name upstream had stopped serving — a **version
+   * skew between the two services, not a data state.** A contract violation has to be loud at the
+   * boundary rather than absorbed into a value, so the client now throws 502 and names the field; see
+   * requireNumber in dividendHistory.client.ts.
    *
    * The second one was renamed twice on 2026-09-25, so do not be surprised by the old names in any
    * older notes: `cashDividendFromCapitalReserve`, then `cashDividendFromLegalAndCapitalReserve`, now
@@ -50,8 +54,8 @@ export interface DividendEvent {
    * Also do not read `cashDividendFromEarnings > eps` as a data error: upstream counted 498 such
    * company-years in 110–113, plus 164 that paid while loss-making (80 of those using reserves).
    */
-  cashDividendFromEarnings: number | null;
-  cashDividendFromLegalReserveAndCapitalSurplus: number | null;
+  cashDividendFromEarnings: number;
+  cashDividendFromLegalReserveAndCapitalSurplus: number;
   stockDividend: number;
   exDividendDate: string | null;
   exRightsDate: string | null;
@@ -93,8 +97,8 @@ export interface DividendHistoryEntry {
    * **The two rounded parts can sum to 0.01 away from `cashDividend`** — upstream rounds each
    * source independently. Do not use their sum as a cross-check on the total; use the total.
    */
-  cashDividendFromEarnings: number | null;
-  cashDividendFromLegalReserveAndCapitalSurplus: number | null;
+  cashDividendFromEarnings: number;
+  cashDividendFromLegalReserveAndCapitalSurplus: number;
   stockDividend: number;
   totalDividend: number;
   distributionCount: number;

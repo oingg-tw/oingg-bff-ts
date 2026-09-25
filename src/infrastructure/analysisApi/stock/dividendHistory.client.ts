@@ -11,15 +11,33 @@ function toStringOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+/**
+ * 上游保證是數字的欄位，缺席時**大聲失敗**而不是靜默變成 null 或 0。
+ *
+ * 2026-09-25 的教訓：上游把公積欄位改名，bff-ts 還在讀舊名，於是 `Number(undefined)` 產生 NaN、
+ * 序列化成 null，而型別宣告說它不可能是 null。當時我一度把型別改成可為 null——那是**用型別吸收契約
+ * 違反**，方向錯了：analysis-ts 的回應 schema 要求這些欄位必填、空白的公告格子在他們那層就併成 0，
+ * 所以「欄位不見了」只可能是兩邊版本錯開，不是一種資料狀態。
+ *
+ * 版本錯開要在邊界上看得見。當天我是靠手動打上游比對才發現的；換成這裡丟 502，一個請求就會講出是
+ * 哪個欄位不見了。代價是改版空窗期這支端點會整支失敗，那是正確的——資料確實無法以宣告的形狀提供，
+ * 而下游對 502 本來就有降級行為。
+ */
+function requireNumber(value: unknown, field: string): number {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    logger.error({ field, received: typeof value }, "Dividend history is missing a field upstream guarantees — likely a field rename that bff-ts has not followed");
+    throw new AppError(`Dividend history response is missing the numeric field ${field}`, 502);
+  }
+  return value;
+}
+
 function normalizeEvent(raw: unknown): DividendEvent {
   const r = raw as Record<string, unknown>;
   return {
     fiscalQuarter: toNumberOrNull(r.fiscalQuarter),
     cashDividend: Number(r.cashDividend),
-    // toNumberOrNull 而不是 Number()：欄位缺席時 Number(undefined) 是 NaN，序列化成 null 但型別說是
-    // number——那是意外對了。用 toNumberOrNull 讓 null 成為一個被宣告的狀態，而 0 保持是 0。
-    cashDividendFromEarnings: toNumberOrNull(r.cashDividendFromEarnings),
-    cashDividendFromLegalReserveAndCapitalSurplus: toNumberOrNull(r.cashDividendFromLegalReserveAndCapitalSurplus),
+    cashDividendFromEarnings: requireNumber(r.cashDividendFromEarnings, "cashDividendFromEarnings"),
+    cashDividendFromLegalReserveAndCapitalSurplus: requireNumber(r.cashDividendFromLegalReserveAndCapitalSurplus, "cashDividendFromLegalReserveAndCapitalSurplus"),
     stockDividend: Number(r.stockDividend),
     exDividendDate: toStringOrNull(r.exDividendDate),
     exRightsDate: toStringOrNull(r.exRightsDate),
@@ -36,10 +54,8 @@ function normalizeEntry(raw: unknown): DividendHistoryEntry {
     fiscalYear: Number(r.fiscalYear),
     rocFiscalYear: Number(r.rocFiscalYear),
     cashDividend: Number(r.cashDividend),
-    // toNumberOrNull 而不是 Number()：欄位缺席時 Number(undefined) 是 NaN，序列化成 null 但型別說是
-    // number——那是意外對了。用 toNumberOrNull 讓 null 成為一個被宣告的狀態，而 0 保持是 0。
-    cashDividendFromEarnings: toNumberOrNull(r.cashDividendFromEarnings),
-    cashDividendFromLegalReserveAndCapitalSurplus: toNumberOrNull(r.cashDividendFromLegalReserveAndCapitalSurplus),
+    cashDividendFromEarnings: requireNumber(r.cashDividendFromEarnings, "cashDividendFromEarnings"),
+    cashDividendFromLegalReserveAndCapitalSurplus: requireNumber(r.cashDividendFromLegalReserveAndCapitalSurplus, "cashDividendFromLegalReserveAndCapitalSurplus"),
     stockDividend: Number(r.stockDividend),
     totalDividend: Number(r.totalDividend),
     distributionCount: Number(r.distributionCount),

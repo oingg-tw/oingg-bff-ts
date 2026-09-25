@@ -156,6 +156,29 @@ describe("fetchDividendHistory", () => {
     expect(year?.cashDividend).toBe(0.9);
   });
 
+  /**
+   * **這一條是那天真正的 bug 的迴歸測試。** 上游改名、bff-ts 還讀舊名時，`Number(undefined)` 產生
+   * NaN 並序列化成 null，而型別說那個欄位不可能是 null——版本錯開被型別吸收掉，只能靠手動打上游比對
+   * 才發現。現在它會在邊界上丟 502 並指名是哪個欄位。
+   *
+   * 兩層都測：年度列與 events[] 各自都會讀那兩個欄位，只補一層的檢查等於只有一半的警報。
+   */
+  it("上游少了保證存在的數字欄位時丟 502 並指名欄位，而不是靜默變 null", async () => {
+    const { cashDividendFromLegalReserveAndCapitalSurplus: _omitted, ...yearWithoutReserve } = RAW_YEAR;
+    mockFetchOnce({ symbol: "2330", entries: [{ ...yearWithoutReserve, events: [] }] });
+    await expect(fetchDividendHistory("2330")).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining("cashDividendFromLegalReserveAndCapitalSurplus"),
+    });
+
+    const { cashDividendFromEarnings: _omitted2, ...eventWithoutEarnings } = RAW_YEAR.events[0]!;
+    mockFetchOnce({ symbol: "2330", entries: [{ ...RAW_YEAR, events: [eventWithoutEarnings] }] });
+    await expect(fetchDividendHistory("2330")).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining("cashDividendFromEarnings"),
+    });
+  });
+
   it("查無資料回空陣列而不是丟錯", async () => {
     mockFetchOnce({ symbol: "9999", entries: [] });
     await expect(fetchDividendHistory("9999")).resolves.toEqual({ symbol: "9999", entries: [] });
