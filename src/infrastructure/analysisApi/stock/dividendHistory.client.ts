@@ -16,6 +16,8 @@ function normalizeEvent(raw: unknown): DividendEvent {
   return {
     fiscalQuarter: toNumberOrNull(r.fiscalQuarter),
     cashDividend: Number(r.cashDividend),
+    cashDividendFromEarnings: Number(r.cashDividendFromEarnings),
+    cashDividendFromCapitalReserve: Number(r.cashDividendFromCapitalReserve),
     stockDividend: Number(r.stockDividend),
     exDividendDate: toStringOrNull(r.exDividendDate),
     exRightsDate: toStringOrNull(r.exRightsDate),
@@ -32,6 +34,8 @@ function normalizeEntry(raw: unknown): DividendHistoryEntry {
     fiscalYear: Number(r.fiscalYear),
     rocFiscalYear: Number(r.rocFiscalYear),
     cashDividend: Number(r.cashDividend),
+    cashDividendFromEarnings: Number(r.cashDividendFromEarnings),
+    cashDividendFromCapitalReserve: Number(r.cashDividendFromCapitalReserve),
     stockDividend: Number(r.stockDividend),
     totalDividend: Number(r.totalDividend),
     distributionCount: Number(r.distributionCount),

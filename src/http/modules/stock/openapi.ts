@@ -349,6 +349,8 @@ registry.registerPath({
 const dividendEventSchema = z.object({
   fiscalQuarter: z.number().nullable(),
   cashDividend: z.number(),
+  cashDividendFromEarnings: z.number(),
+  cashDividendFromCapitalReserve: z.number(),
   stockDividend: z.number(),
   exDividendDate: z.string().nullable(),
   exRightsDate: z.string().nullable(),
@@ -366,6 +368,8 @@ const dividendHistorySchema = z
         fiscalYear: z.number(),
         rocFiscalYear: z.number(),
         cashDividend: z.number(),
+        cashDividendFromEarnings: z.number(),
+        cashDividendFromCapitalReserve: z.number(),
         stockDividend: z.number(),
         totalDividend: z.number(),
         distributionCount: z.number(),
@@ -387,7 +391,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/dividend-history",
   summary: "查詢歷年股利發放紀錄（含現金股利、股票股利，一個年度可能分多次發放）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/dividend-history，2026-09-19 新增。entries 由舊到新排序（跟 capital-stock-history 的新到舊相反）。每個 entries[] 是一個「所屬年度」的彙總（cashDividend/stockDividend/totalDividend/exDividendDate/exRightsDate/paymentDate 是該年度的總計或最後一次發放的日期），events[] 再把同一年度拆成個別發放次數（distributionCount 決定 events 長度；只發放一次時 fiscalQuarter 為 null）。eps/payoutRatio 要等該年度全年財報公告後才會有值（例如目前最新年度可能仍是 null，愈往前的年度愈完整）。yieldAtExDate/closeAtExDate 要等除息日當天收盤價確定才會有值，未來或剛公告的除息日會是 null。查無資料回傳空陣列，不是 404。**不要拿這支端點去驗證 GET /metrics 的 consecutiveDividendYears，兩者資料源不同、深度也不同**（同 exchangePeRatio vs peRatio 的關係）：這支來自 mops 的股利分派公告（export.dividend_distribution），連續配息年數則來自現金流量表的「發放股利」（XBRL dividends_paid_financing）。2026-09-22 實測：股利公告表 2025 年度有 1,469 家，更早的年度全市場只有 30~47 家，所以多數公司目前只查得到 1 個年度；反過來 consecutiveDividendYears 因為 XBRL 從民國 110 年才全面鋪開而普遍是 5（889 家並列，數字等於上限時語意是「至少 N 年」）。兩邊對同一家公司給出不同年數是正常的，不是任一邊算錯。mops-ts 已排定股利分派 10 年全市場回補（1,985 家、民國 106~115），跑完這支會變深，但 consecutiveDividendYears 不會跟著變。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/dividend-history，2026-09-19 新增。entries 由舊到新排序（跟 capital-stock-history 的新到舊相反）。每個 entries[] 是一個「所屬年度」的彙總（cashDividend/stockDividend/totalDividend/exDividendDate/exRightsDate/paymentDate 是該年度的總計或最後一次發放的日期），events[] 再把同一年度拆成個別發放次數（distributionCount 決定 events 長度；只發放一次時 fiscalQuarter 為 null）。**eps 是年報公告的基本每股盈餘（等同 metrics-history 的 eps.FY），不是四個單季 EPS 相加**（上游 2026-09-25 改的），payoutRatio 跟著它算。兩者差在分母：年報用全年加權平均股數、單季序列用期末股本，全市場只有約 65% 的公司在 0.01 元內一致。沒有年報的年度兩者都是 null（一般公司的 2026 年度），上游 114 年年報缺 EPS 科目的 757 家也是 null。**這裡的 payoutRatio 跟 GET /metrics 的 dividendPayoutRatio 不是同一個量**：這支是「該年度宣告的股利 ÷ 同一年度的年報 EPS」，分子分母同一段盈餘；那支是「近四季實際發放的股利 ÷ 近四季淨利」，兩個窗口不同，所以獲利變動時比率會跟著動、即使配息政策沒變。2026-09-25 新增 cashDividendFromEarnings / cashDividendFromCapitalReserve（年度列與 events[] 都有，不會是 null，沒有資本公積成分的公司是 0），說明現金股利的來源；cashDividend 仍是兩者合計、payoutRatio 仍按合計算。**兩個來源各自四捨五入，相加可能跟 cashDividend 差 0.01，所以不要拿相加去驗證合計。** 公告只分「盈餘」與「資本公積」，不區分當年或以前年度的盈餘——`cashDividendFromEarnings` 高於該年度 `eps` 的部分即來自以前年度累積盈餘（上游實測民國 110~113 有 498 個公司年度屬於此類，另有 164 個虧損卻發股利、其中 80 個含資本公積）。yieldAtExDate/closeAtExDate 要等除息日當天收盤價確定才會有值，未來或剛公告的除息日會是 null。查無資料回傳空陣列，不是 404。**不要拿這支端點去驗證 GET /metrics 的 consecutiveDividendYears，兩者資料源不同、深度也不同**（同 exchangePeRatio vs peRatio 的關係）：這支來自 mops 的股利分派公告（export.dividend_distribution），連續配息年數則來自現金流量表的「發放股利」（XBRL dividends_paid_financing）。2026-09-22 實測：股利公告表 2025 年度有 1,469 家，更早的年度全市場只有 30~47 家，所以多數公司目前只查得到 1 個年度；反過來 consecutiveDividendYears 因為 XBRL 從民國 110 年才全面鋪開而普遍是 5（889 家並列，數字等於上限時語意是「至少 N 年」）。兩邊對同一家公司給出不同年數是正常的，不是任一邊算錯。mops-ts 已排定股利分派 10 年全市場回補（1,985 家、民國 106~115），跑完這支會變深，但 consecutiveDividendYears 不會跟著變。",
   tags: ["Stock"],
   request: { params: symbolParam },
   responses: {
