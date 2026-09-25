@@ -12,10 +12,17 @@ export interface DividendEvent {
    * never null — a company with no capital-reserve component gets 0, not null.
    *
    * **`fromEarnings` is not necessarily *this* year's earnings.** The announcement only splits
-   * 盈餘 from 資本公積; it does not say which year's earnings. So `cashDividendFromEarnings` above
-   * the year's `eps` means the excess came from accumulated prior-year earnings — upstream measured
-   * 498 such company-years in 110–113, plus 164 that paid while loss-making (80 of those using
-   * capital reserve). Comparing the two is the only way to see it; there is no field for it.
+   * 盈餘 from 資本公積; it does not say which year's earnings.
+   *
+   * That makes the comparison against `eps` **one-directional, and it fires rarely**. If
+   * `cashDividendFromEarnings` exceeds the year's `eps`, the excess must have come from accumulated
+   * prior-year earnings. If it does not exceed `eps`, **nothing follows** — 3045 台灣大 112 paid 3.63
+   * from earnings against an EPS of 4.33, and that 3.63 may still be partly prior-year; the
+   * announcement cannot tell you. Measured on a 100-company sample, only 11.8% of dividend-paying
+   * company-years are provable this way, so do not describe the split as generally visible.
+   *
+   * Also do not read `cashDividendFromEarnings > eps` as a data error: upstream counted 498 such
+   * company-years in 110–113, plus 164 that paid while loss-making (80 of those using capital reserve).
    */
   cashDividendFromEarnings: number;
   cashDividendFromCapitalReserve: number;
