@@ -113,6 +113,16 @@ export interface MetricBadge {
 export interface MetricDefinition {
   key: string;
   name: string;
+  /**
+   * 英文縮寫（ROIC、PER、PBR、EBIT Margin…）。2026-09-26 加入，起因是使用者要求「指標要有 ROIC」，
+   * 決定的做法是 `name` 維持中文、縮寫放這裡，而不是把中文名稱換成縮寫。
+   *
+   * 所以它的用途是**搜尋與副標**（搜「ROIC」要找到「投入資本報酬率」），不是顯示名稱的替代品——
+   * 下游若拿它當主標題，中文使用者會看不懂那是什麼指標。
+   *
+   * 選填，而且會長期選填：上游目前 64 支有、其餘 undefined，沒有承諾補齊時程。不要假設它一定存在。
+   */
+  nameEn?: string | null;
   path: string;
   /** Metric-level definition, same tooltip purpose as MetricField.description but for the metric as a whole. */
   description?: string | null;

@@ -54,6 +54,7 @@ describe("fetchMetricCatalog", () => {
           {
             key: "roe",
             name: "股東權益報酬率 (ROE)",
+            nameEn: null,
             path: "roe",
             description: null,
             source: null,
@@ -829,3 +830,66 @@ describe("fetchMetricCatalog", () => {
     expect(result[0]?.metrics[0]?.fields).toEqual([]);
   });
 });
+
+/**
+ * 2026-09-26 上游（commit 747feb18）在 metric 層級加了 `nameEn`（英文縮寫），起因是使用者要求「指標要有
+ * ROIC」，決定的做法是 `name` 維持中文、縮寫放 `nameEn`。
+ *
+ * 這個 normalizer 是**逐欄位**的，所以沒手動接就會被靜默丟掉——dividendHistory 與 formulaVersion 都是這樣
+ * 漏掉的。這裡兩個方向都釘住：有帶要穿過去、沒帶要是 null 而不是讓整份型錄同步失敗。
+ */
+describe("fetchMetricCatalog 的 nameEn", () => {
+  it("上游帶的英文縮寫會穿過 normalizer", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              { metricCode: "roic", name: "投入資本報酬率", nameEn: "ROIC", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: false, formulaVersion: 1 },
+            ],
+          },
+        ],
+      },
+    });
+
+    const metric = (await fetchMetricCatalog())[0]?.metrics[0];
+
+    expect(metric?.nameEn).toBe("ROIC");
+    // name 不得被縮寫取代——中文名稱才是主標，nameEn 只給搜尋與副標用。
+    expect(metric?.name).toBe("投入資本報酬率");
+  });
+
+  /**
+   * 沒有縮寫的指標要是 null，而且**不能讓整份同步失敗**。把選填欄位當必填曾經真的炸過一次整份型錄
+   * （badge.threshold 那次，2026-09-20），代價是全站的篩選 UI 都空掉，所以這一條是那次的迴歸測試。
+   */
+  it("上游沒帶 nameEn 時是 null，其他指標照樣同步成功", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              { metricCode: "roic", name: "投入資本報酬率", nameEn: "ROIC", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: false, formulaVersion: 1 },
+              { metricCode: "somethingNew", name: "還沒有縮寫的指標", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: false, formulaVersion: 1 },
+            ],
+          },
+        ],
+      },
+    });
+
+    const metrics = (await fetchMetricCatalog())[0]?.metrics ?? [];
+
+    expect(metrics).toHaveLength(2);
+    expect(metrics[0]?.nameEn).toBe("ROIC");
+    expect(metrics[1]?.nameEn).toBeNull();
+    // 欄位要存在（值是 null），不是整個鍵消失——下游用 "nameEn" in metric 判斷會被騙。
+    expect(metrics[1]).toHaveProperty("nameEn");
+  });
+});
+

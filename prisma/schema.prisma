@@ -81,6 +81,11 @@ model MetricDefinition {
   key         String                    @map("key")
   categoryKey String                    @map("category_key")
   name        String
+  /// 英文縮寫（ROIC、PER、EBIT Margin…），analysis-ts 2026-09-26 commit 747feb18 開始送。
+  /// 起因是使用者要求「指標要有 ROIC」，決定的做法是 name 維持中文、縮寫放這裡——所以這一欄的用途是
+  /// 讓使用者搜「ROIC」能找到「投入資本報酬率」，不是拿來當顯示名稱取代 name。
+  /// 選填：上游只有 28+36 支有，其餘 undefined，補齊的節奏由他們決定。
+  nameEn      String?                   @map("name_en")
   path        String
   /// Definition tooltip text for this metric — analysis-ts started actually sending this 2026-09-19 (the
   /// column existed since launch but was always null before that — they never populated the field).

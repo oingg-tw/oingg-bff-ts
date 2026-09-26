@@ -88,6 +88,21 @@ const metricBadgeSchema = z.object({
 const metricDefinitionSchema = z.object({
   key: z.string(),
   name: z.string(),
+  /**
+   * 英文縮寫。2026-09-26 新增（analysis-ts commit 747feb18），起因是使用者要求「指標要有 ROIC」，
+   * 決定的做法是中文名稱不動、縮寫放這一欄。
+   */
+  nameEn: z
+    .string()
+    .nullish()
+    .openapi({
+      description:
+        "這個指標的英文縮寫（ROIC、PER、PBR、EBIT Margin…）。2026-09-26 新增。**用途是搜尋與副標，不是顯示名稱的替代品**——" +
+        "`name` 仍是主要的中文名稱（例如 roic 的 name 是「投入資本報酬率」、nameEn 是「ROIC」），把 nameEn 當主標會讓中文使用者看不懂那是什麼指標。" +
+        "典型用法是讓使用者搜「ROIC」也能找到「投入資本報酬率」。" +
+        "**選填而且會長期選填**：目前 64 支有值（2026-09-26 一次補了 28 支，含 eps=EPS、roe=ROE、roic=ROIC、peRatio/exchangePeRatio=PER、" +
+        "pbRatio/exchangePbRatio=PBR、evEbitda=EV/EBITDA 等），其餘是 null，上游沒有承諾補齊時程。不要假設它一定存在。",
+    }),
   path: z.string(),
   description: z.string().nullish(),
   source: z.string().nullish(),

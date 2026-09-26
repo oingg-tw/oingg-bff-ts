@@ -57,6 +57,7 @@ export async function listMetricCatalog(): Promise<MetricCategory[]> {
     metrics: category.metrics.map((metric) => ({
       key: metric.key,
       name: metric.name,
+      nameEn: metric.nameEn,
       path: metric.path,
       description: metric.description,
       source: metric.source,
@@ -120,11 +121,17 @@ export async function replaceMetricCatalog(categories: MetricCategory[]): Promis
     position,
   }));
 
+  /**
+   * 加欄位時要改**四個**地方，不是一個：這裡的物件、下面 INSERT 的欄位清單、VALUES 的 tuple、以及
+   * ON CONFLICT DO UPDATE SET。因為寫入是 raw SQL，**物件多一個屬性而 SQL 沒有，typecheck 不會報錯**，
+   * 同步會成功、欄位卻永遠是 NULL。2026-09-26 加 nameEn 時就是這樣：四項檢查全綠、實測 0/156 有值。
+   */
   const metricRows = categories.flatMap((category) =>
     category.metrics.map((metric, position) => ({
       key: metric.key,
       categoryKey: category.key,
       name: metric.name,
+      nameEn: metric.nameEn ?? null,
       path: metric.path,
       description: metric.description ?? null,
       source: metric.source ?? null,
@@ -168,15 +175,15 @@ export async function replaceMetricCatalog(categories: MetricCategory[]): Promis
 
     if (metricRows.length > 0) {
       await tx.$executeRaw`
-        INSERT INTO metric_definition (key, category_key, name, path, description, source, limitations, misreadings, unit, formula_latex, reference_url, academic_source_url, badge, sources, has_provenance, formula_version, position)
+        INSERT INTO metric_definition (key, category_key, name, name_en, path, description, source, limitations, misreadings, unit, formula_latex, reference_url, academic_source_url, badge, sources, has_provenance, formula_version, position)
         VALUES ${Prisma.join(
           metricRows.map(
             (m) =>
-              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.path}, ${m.description}, ${m.source}, ${m.limitations}, ${m.misreadings}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.academicSourceUrl}, ${m.badge}::jsonb, ${m.sources}, ${m.hasProvenance}, ${m.formulaVersion}, ${m.position})`,
+              Prisma.sql`(${m.key}, ${m.categoryKey}, ${m.name}, ${m.nameEn}, ${m.path}, ${m.description}, ${m.source}, ${m.limitations}, ${m.misreadings}, ${m.unit}, ${m.formulaLatex}, ${m.referenceUrl}, ${m.academicSourceUrl}, ${m.badge}::jsonb, ${m.sources}, ${m.hasProvenance}, ${m.formulaVersion}, ${m.position})`,
           ),
         )}
         ON CONFLICT (key) DO UPDATE SET
-          category_key = EXCLUDED.category_key, name = EXCLUDED.name, path = EXCLUDED.path,
+          category_key = EXCLUDED.category_key, name = EXCLUDED.name, name_en = EXCLUDED.name_en, path = EXCLUDED.path,
           description = EXCLUDED.description, source = EXCLUDED.source,
           limitations = EXCLUDED.limitations, misreadings = EXCLUDED.misreadings, unit = EXCLUDED.unit,
           formula_latex = EXCLUDED.formula_latex, reference_url = EXCLUDED.reference_url,

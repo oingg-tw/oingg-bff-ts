@@ -68,6 +68,12 @@ interface RawPitMetric {
   metricCode: string;
   /** Renamed from displayName 2026-09-13 — confirmed live, analysis-ts did not announce this ahead of time. */
   name: string;
+  /**
+   * 英文縮寫，2026-09-26（他們的 commit 747feb18）起有值。選填，目前 64 支有——不要提升成必填，
+   * 那會讓沒有縮寫的指標整批同步失敗（badge 的必填欄位曾經就是這樣炸掉整份型錄的，見
+   * project_badge_threshold_warning_sync_outage）。
+   */
+  nameEn?: string;
   unit: string;
   /** Renamed from validTokens 2026-09-14, alongside the token->timeframe query-param rename (see fetchMetricHistory/fetchMetricsHistory) — same "timeframe" terminology throughout. */
   validTimeframes: string[];
@@ -217,6 +223,7 @@ function toMetricCategories(raw: RawPitCategory[]): MetricCategory[] {
     metrics: category.metrics.map((metric, metricIndex) => ({
       key: metric.metricCode,
       name: metric.name,
+      nameEn: metric.nameEn ?? null,
       path: metric.metricCode,
       description: metric.description ?? null,
       source: null,

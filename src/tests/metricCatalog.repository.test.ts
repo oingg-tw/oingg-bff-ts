@@ -341,3 +341,80 @@ describe("replaceMetricCatalog", () => {
     expect(totalCalls).toBe(6);
   });
 });
+
+/**
+ * **這一組是 2026-09-26 一個真 bug 的迴歸測試，而那個 bug 四項檢查全綠還是溜過去了。**
+ *
+ * 加 `nameEn` 時我改了 metricRows 的物件對映，卻沒改下面那句 raw SQL 的欄位清單。物件多一個屬性而 SQL
+ * 沒有，**TypeScript 不會報錯**——同步回 200、metricCount 156、測試全過，實測 0/156 有值。
+ *
+ * 所以這裡不驗「有沒有呼叫」，而是驗**產生的 SQL 本身**：欄位清單要有那一欄，值要真的被綁進去。
+ * 之後任何人往 metric_definition 加欄位，照這個形狀加一條，就不會重蹈。
+ */
+describe("replaceMetricCatalog 產生的 SQL 真的帶上每一個欄位", () => {
+  // 這一組讀的是 mock.calls[1]，所以每條測試都要從乾淨的 mock 開始——前一條測試的呼叫留著的話，
+  // 索引 1 會指到別人的 SQL（第一次寫就是這樣拿到上一條測試產生的 900 個值）。
+  beforeEach(() => {
+    mockTx.$executeRaw.mockClear();
+  });
+
+  /**
+   * `mockTx.$executeRaw` 宣告成 `vi.fn(async () => 0)`，參數被推成空 tuple，所以直接寫 `calls[1][0]`
+   * 會讓 `npm run typecheck` 紅（測試照樣綠）。先轉成明確的 tuple 型別再取，不要靠索引硬取。
+   */
+  type RawCall = [strings: string[], fragment?: { values?: unknown[] }];
+
+  function metricInsert() {
+    // 三句 INSERT 依序是 category / metric / field，取中間那句。
+    const call = mockTx.$executeRaw.mock.calls[1] as unknown as RawCall | undefined;
+    const strings = call?.[0] ?? [];
+    // 內插進來的是**一個** Prisma.Sql 片段（Prisma.join 的結果），不是攤平的值，所以要往裡面取一層。
+    return { sql: [...strings].join(" "), values: call?.[1]?.values ?? [] };
+  }
+
+  it("metric 的 INSERT 欄位清單涵蓋 schema 上所有可寫欄位", async () => {
+    await replaceMetricCatalog(SAMPLE_CATALOG);
+    const { sql } = metricInsert();
+
+    for (const column of [
+      "key", "category_key", "name", "name_en", "path", "description", "source",
+      "limitations", "misreadings", "unit", "formula_latex", "reference_url",
+      "academic_source_url", "badge", "sources", "has_provenance", "formula_version", "position",
+    ]) {
+      expect(sql, `INSERT 的欄位清單少了 ${column}`).toContain(column);
+    }
+  });
+
+  it("ON CONFLICT 也要更新 name_en，不然只有新增的列會有值", async () => {
+    await replaceMetricCatalog(SAMPLE_CATALOG);
+    const { sql } = metricInsert();
+
+    // 型錄是逐次 upsert 的（不是 delete+recreate，見 replaceMetricCatalog 的說明），所以既有的列走
+    // ON CONFLICT 那一支。漏在這裡的欄位，症狀是「新指標有值、舊指標永遠是 null」，更難發現。
+    expect(sql).toContain("name_en = EXCLUDED.name_en");
+  });
+
+  it("nameEn 的值真的被綁進 SQL，不只是欄位名出現在字串裡", async () => {
+    await replaceMetricCatalog([
+      {
+        ...SAMPLE_CATALOG[0]!,
+        metrics: [{ ...SAMPLE_CATALOG[0]!.metrics[0]!, key: "roic", name: "投入資本報酬率", nameEn: "ROIC" }],
+      },
+    ]);
+    const { values } = metricInsert();
+
+    expect(values).toContain("ROIC");
+    // 中文名稱不得被縮寫取代——兩個都要在。
+    expect(values).toContain("投入資本報酬率");
+  });
+
+  it("沒有 nameEn 的指標綁 null 而不是 undefined", async () => {
+    await replaceMetricCatalog(SAMPLE_CATALOG);
+    const { values } = metricInsert();
+
+    // undefined 在 Prisma.sql 裡的行為跟 null 不同，而 SAMPLE_CATALOG 的指標沒有 nameEn。
+    expect(values).toContain(null);
+    expect(values).not.toContain(undefined);
+  });
+});
+
