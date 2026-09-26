@@ -73,6 +73,8 @@ interface RawPitMetric {
    * project_badge_threshold_warning_sync_outage）。
    */
   nameEn?: string;
+  /** 區分同名指標的後綴（「即時」／「交易所」／「Greenblatt」／「非製造業版」），156 支裡 7 支有。 */
+  nameSuffix?: string;
   unit: string;
   /** Renamed from validTokens 2026-09-14, alongside the token->timeframe query-param rename (see fetchMetricHistory/fetchMetricsHistory) — same "timeframe" terminology throughout. */
   validTimeframes: string[];
@@ -223,6 +225,7 @@ function toMetricCategories(raw: RawPitCategory[]): MetricCategory[] {
       key: metric.metricCode,
       name: metric.name,
       nameEn: metric.nameEn ?? null,
+      nameSuffix: metric.nameSuffix ?? null,
       path: metric.metricCode,
       description: metric.description ?? null,
       source: null,

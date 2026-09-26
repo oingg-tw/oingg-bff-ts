@@ -121,6 +121,19 @@ export interface MetricDefinition {
    * 選填，而且會長期選填：上游目前 64 支有、其餘 undefined，沒有承諾補齊時程。不要假設它一定存在。
    */
   nameEn?: string | null;
+  /**
+   * 區分同名指標的後綴：「即時」（liveMarketCap／livePegRatio／liveGrahamNumber）、「交易所」
+   * （exchangePeRatio／exchangePbRatio）、「Greenblatt」（greenblattEarningsYield）、
+   * 「非製造業版」（altmanZDoublePrimeScore）。
+   *
+   * **這是必要的區分欄位，不是裝飾。** 2026-09-27 實測：6 組指標的 `name` 完全相同（市值、本益比、
+   * 股價淨值比、本益成長比、盈餘收益率、葛拉漢倍數），而 `nameEn` 也無法區分（peRatio 與
+   * exchangePeRatio 都是 "PER"）。所以顯示時要用「name + nameSuffix」才唯一，只顯示 name 會讓
+   * 指標選擇 UI 出現兩個看起來一樣的選項。
+   *
+   * 選填：156 支裡只有 7 支有。沒有後綴的指標本來就不跟別人撞名。
+   */
+  nameSuffix?: string | null;
   path: string;
   /** Metric-level definition, same tooltip purpose as MetricField.description but for the metric as a whole. */
   description?: string | null;

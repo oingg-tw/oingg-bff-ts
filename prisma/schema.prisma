@@ -86,6 +86,11 @@ model MetricDefinition {
   /// 讓使用者搜「ROIC」能找到「投入資本報酬率」，不是拿來當顯示名稱取代 name。
   /// 選填：上游只有 28+36 支有，其餘 undefined，補齊的節奏由他們決定。
   nameEn      String?                   @map("name_en")
+  /// 區分同名指標的後綴（「即時」、「交易所」、「Greenblatt」、「非製造業版」）。
+  /// **不是可有可無的裝飾**：2026-09-27 實測上游有 6 組指標的 name 完全相同（市值／本益比／股價淨值比／
+  /// 本益成長比／盈餘收益率／葛拉漢倍數），而 nameEn 也一樣（兩個都是 PBR、兩個都是 PEG），
+  /// 所以這個後綴是唯一能區分它們的欄位。少了它，前端的指標選擇 UI 會出現兩個一模一樣的選項。
+  nameSuffix  String?                   @map("name_suffix")
   path        String
   /// Definition tooltip text for this metric — analysis-ts started actually sending this 2026-09-19 (the
   /// column existed since launch but was always null before that — they never populated the field).

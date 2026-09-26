@@ -368,21 +368,47 @@ describe("replaceMetricCatalog 產生的 SQL 真的帶上每一個欄位", () =>
     // 三句 INSERT 依序是 category / metric / field，取中間那句。
     const call = mockTx.$executeRaw.mock.calls[1] as unknown as RawCall | undefined;
     const strings = call?.[0] ?? [];
+    const sql = [...strings].join(" ");
     // 內插進來的是**一個** Prisma.Sql 片段（Prisma.join 的結果），不是攤平的值，所以要往裡面取一層。
-    return { sql: [...strings].join(" "), values: call?.[1]?.values ?? [] };
+    const values = call?.[1]?.values ?? [];
+
+    /**
+     * **只取 INSERT 的欄位清單，不要對整段 SQL 做字串比對。**
+     * 第一版寫成 `expect(sql).toContain("name_suffix")`，而 ON CONFLICT 那一段本來就有
+     * `name_suffix = EXCLUDED.name_suffix`——所以欄位清單漏掉它時測試照樣綠。實測確認過：
+     * 把 name_suffix 從欄位清單拿掉，13 條測試全部通過。這個洞讓「四處都要改」的防線變成假的。
+     */
+    const columnList = /INSERT INTO metric_definition \(([^)]*)\)/.exec(sql)?.[1] ?? "";
+    return { sql, values, columns: columnList.split(",").map((c) => c.trim()).filter(Boolean) };
   }
+
+  const WRITABLE_COLUMNS = [
+    "key", "category_key", "name", "name_en", "name_suffix", "path", "description", "source",
+    "limitations", "misreadings", "unit", "formula_latex", "reference_url",
+    "academic_source_url", "badge", "sources", "has_provenance", "formula_version", "position",
+  ];
 
   it("metric 的 INSERT 欄位清單涵蓋 schema 上所有可寫欄位", async () => {
     await replaceMetricCatalog(SAMPLE_CATALOG);
-    const { sql } = metricInsert();
+    const { columns } = metricInsert();
 
-    for (const column of [
-      "key", "category_key", "name", "name_en", "path", "description", "source",
-      "limitations", "misreadings", "unit", "formula_latex", "reference_url",
-      "academic_source_url", "badge", "sources", "has_provenance", "formula_version", "position",
-    ]) {
-      expect(sql, `INSERT 的欄位清單少了 ${column}`).toContain(column);
+    for (const column of WRITABLE_COLUMNS) {
+      expect(columns, `INSERT 的欄位清單少了 ${column}`).toContain(column);
     }
+    // 反向也要守：清單裡不該有 WRITABLE_COLUMNS 以外的東西，否則這份清單會慢慢過期而沒人發現。
+    expect(columns.filter((c) => !WRITABLE_COLUMNS.includes(c))).toEqual([]);
+  });
+
+  /**
+   * 欄位數必須等於每一列綁定的值數。這一條抓的是「欄位加了但值沒加」與「值加了但欄位沒加」兩種——
+   * 兩者 Postgres 都會在執行時報錯，但那要等到真的跑同步才會發現，而同步只在啟動或手動觸發時跑。
+   */
+  it("欄位數與每列綁定的值數相等", async () => {
+    await replaceMetricCatalog(SAMPLE_CATALOG);
+    const { columns, values } = metricInsert();
+    const rowCount = SAMPLE_CATALOG.reduce((n, c) => n + c.metrics.length, 0);
+
+    expect(values.length).toBe(columns.length * rowCount);
   });
 
   it("ON CONFLICT 也要更新 name_en，不然只有新增的列會有值", async () => {
@@ -392,6 +418,7 @@ describe("replaceMetricCatalog 產生的 SQL 真的帶上每一個欄位", () =>
     // 型錄是逐次 upsert 的（不是 delete+recreate，見 replaceMetricCatalog 的說明），所以既有的列走
     // ON CONFLICT 那一支。漏在這裡的欄位，症狀是「新指標有值、舊指標永遠是 null」，更難發現。
     expect(sql).toContain("name_en = EXCLUDED.name_en");
+    expect(sql).toContain("name_suffix = EXCLUDED.name_suffix");
   });
 
   it("nameEn 的值真的被綁進 SQL，不只是欄位名出現在字串裡", async () => {

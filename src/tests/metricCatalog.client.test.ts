@@ -55,6 +55,7 @@ describe("fetchMetricCatalog", () => {
             key: "roe",
             name: "股東權益報酬率 (ROE)",
             nameEn: null,
+            nameSuffix: null,
             path: "roe",
             description: null,
             source: null,
@@ -887,6 +888,65 @@ describe("fetchMetricCatalog 的 nameEn", () => {
     expect(metrics[1]?.nameEn).toBeNull();
     // 欄位要存在（值是 null），不是整個鍵消失——下游用 "nameEn" in metric 判斷會被騙。
     expect(metrics[1]).toHaveProperty("nameEn");
+  });
+});
+
+/**
+ * `nameSuffix` 區分同名指標。2026-09-27 接上，起因是實測發現 **6 組指標的 `name` 完全相同**
+ * （市值、本益比、股價淨值比、本益成長比、盈餘收益率、葛拉漢倍數），而 `nameEn` 也區分不了
+ * （peRatio 與 exchangePeRatio 都是 "PER"）。所以這不是裝飾欄位，是唯一的區分方式——丟掉它會讓
+ * 前端的指標選擇 UI 出現 6 組看不出差別的選項。
+ */
+describe("fetchMetricCatalog 的 nameSuffix", () => {
+  it("同名的兩支指標靠 nameSuffix 區分，name 與 nameEn 都相同也不會混在一起", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "valuation",
+            categoryDisplayName: "市場評價",
+            metrics: [
+              { metricCode: "peRatio", name: "本益比", nameEn: "PER", unit: "倍", validTimeframes: ["TTM"], sources: ["公開發行公司損益表（XBRL）"], hasProvenance: false, formulaVersion: 3 },
+              { metricCode: "exchangePeRatio", name: "本益比", nameEn: "PER", nameSuffix: "交易所", unit: "倍", validTimeframes: ["EOD"], sources: ["證交所／櫃買中心每日收盤價"], hasProvenance: false, formulaVersion: 1 },
+            ],
+          },
+        ],
+      },
+    });
+
+    const metrics = (await fetchMetricCatalog())[0]?.metrics ?? [];
+
+    // 兩支的 name 與 nameEn 一模一樣 —— 這正是為什麼需要 nameSuffix。
+    expect(metrics[0]?.name).toBe(metrics[1]?.name);
+    expect(metrics[0]?.nameEn).toBe(metrics[1]?.nameEn);
+    expect(metrics[0]?.nameSuffix).toBeNull();
+    expect(metrics[1]?.nameSuffix).toBe("交易所");
+    // 組合起來才唯一，這是下游該顯示的東西。
+    const labels = metrics.map((m) => (m.nameSuffix ? `${m.name}（${m.nameSuffix}）` : m.name));
+    expect(new Set(labels).size).toBe(2);
+  });
+
+  it("沒有後綴的指標是 null，鍵仍然存在", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        categories: [
+          {
+            categoryKey: "profitability",
+            categoryDisplayName: "獲利能力",
+            metrics: [
+              { metricCode: "roic", name: "投入資本報酬率", nameEn: "ROIC", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: false, formulaVersion: 1 },
+            ],
+          },
+        ],
+      },
+    });
+
+    const metric = (await fetchMetricCatalog())[0]?.metrics[0];
+
+    expect(metric?.nameSuffix).toBeNull();
+    expect(metric).toHaveProperty("nameSuffix");
   });
 });
 

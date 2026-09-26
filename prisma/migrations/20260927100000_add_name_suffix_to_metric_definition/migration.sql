@@ -1,0 +1,13 @@
+-- 區分同名指標的後綴（「即時」、「交易所」、「Greenblatt」、「非製造業版」）。
+--
+-- 為什麼需要：2026-09-27 實測上游有 6 組指標的 name 完全相同——市值（marketCap / liveMarketCap）、
+-- 本益比（peRatio / exchangePeRatio）、股價淨值比（pbRatio / exchangePbRatio）、
+-- 本益成長比（pegRatio / livePegRatio）、盈餘收益率（earningsYield / greenblattEarningsYield）、
+-- 葛拉漢倍數（grahamNumber / liveGrahamNumber）。nameEn 也無法區分（兩邊都是 "PBR"、都是 "PEG"），
+-- 所以這個後綴是唯一的區分方式。少了它，前端指標選擇 UI 上會有 6 組看不出差別的選項。
+--
+-- 可為 NULL 且無預設：156 支裡只有 7 支有後綴，沒有後綴的指標本來就不跟別人撞名。空字串跟 NULL
+-- 在下游意思不同（前者會渲染出一個空的括號），給預設值等於替上游編造資料。
+--
+-- 不需要回填：型錄每次啟動都會從 analysis-ts 重新同步整份（也可用 POST /metrics/sync 觸發）。
+ALTER TABLE "metric_definition" ADD COLUMN "name_suffix" TEXT;

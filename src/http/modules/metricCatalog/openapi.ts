@@ -114,6 +114,22 @@ const metricDefinitionSchema = z.object({
         "**選填而且會長期選填**：目前 64 支有值（2026-09-26 一次補了 28 支，含 eps=EPS、roe=ROE、roic=ROIC、peRatio/exchangePeRatio=PER、" +
         "pbRatio/exchangePbRatio=PBR、evEbitda=EV/EBITDA 等），其餘是 null，上游沒有承諾補齊時程。不要假設它一定存在。",
     }),
+  /**
+   * 區分同名指標的後綴。2026-09-27 加入，因為實測發現 6 組指標的 name 完全相同而 nameEn 也無法區分。
+   */
+  nameSuffix: z
+    .string()
+    .nullish()
+    .openapi({
+      description:
+        "區分同名指標的後綴：「即時」（liveMarketCap／livePegRatio／liveGrahamNumber）、「交易所」（exchangePeRatio／exchangePbRatio）、" +
+        "「Greenblatt」（greenblattEarningsYield）、「非製造業版」（altmanZDoublePrimeScore）。2026-09-27 新增。" +
+        "**顯示指標時請用「name + nameSuffix」，只用 name 會出現看不出差別的重複選項。** " +
+        "2026-09-27 實測 6 組指標的 name 完全相同——市值、本益比、股價淨值比、本益成長比、盈餘收益率、葛拉漢倍數——" +
+        "而 nameEn 也區分不了（peRatio 與 exchangePeRatio 都是 PER、pegRatio 與 livePegRatio 都是 PEG、" +
+        "grahamNumber 與 liveGrahamNumber 都是 Graham Multiplier），所以這一欄是唯一的區分方式。" +
+        "選填：156 支裡只有 7 支有，沒有後綴的指標本來就不跟別人撞名（null 代表不需要後綴，不是缺資料）。",
+    }),
   path: z.string(),
   description: z.string().nullish(),
   source: z.string().nullish(),
