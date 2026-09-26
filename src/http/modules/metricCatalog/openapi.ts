@@ -72,13 +72,25 @@ const metricBadgeThresholdSchema: z.ZodType<MetricBadgeThresholdDoc> = z.lazy(()
 );
 
 const metricBadgeSchema = z.object({
-  id: z.string(),
+  /**
+   * 選填，而且**實測從來沒有出現過**：2026-09-26 掃過全部 33 個徽章，沒有一個帶 id。
+   * 原本宣告成必填，那是錯的——client 的驗證一直是當選填處理（`b.id === undefined || ...`），
+   * 只有這份文件說它一定存在，下游照文件寫 `badge.id` 會拿到 undefined。
+   * 不移除是因為 client 本來就容忍它存在，移掉反而讓上游哪天真的送 id 時被靜默丟掉。
+   */
+  id: z.string().optional().openapi({
+    description: "徽章的識別碼。**選填，而且 analysis-ts 目前從未送出過**（2026-09-26 實測 33 個徽章都沒有），不要依賴它——要唯一識別一個徽章請用它所屬的 metricCode。",
+  }),
   name: z.string(),
   nameEn: z.string(),
   author: z.string(),
   summary: z.string(),
   detail: z.string(),
-  /** Absent when the threshold spans multiple periods instead of one (e.g. eps's allPositiveFieldIds). */
+  /**
+   * Absent when the threshold spans multiple periods instead of one (e.g. eps's allPositiveFieldIds).
+   * 2026-09-26 實測：33 個徽章目前**全部都有** timeframe，所以那個情況現在沒有實例——維持選填，因為
+   * eps 那種跨期門檻的形狀還在，不是上游承諾了必填。
+   */
   timeframe: z.string().optional(),
   threshold: metricBadgeThresholdSchema,
   /** Public page verifying the threshold/formula — added 2026-09-20, 21/23 badge metrics have it (grossMargin/netProfitMargin deliberately excluded, book-only source). */
