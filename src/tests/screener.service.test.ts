@@ -207,7 +207,7 @@ describe("runScreener", () => {
       page: 1,
       pageSize: 50,
       totalPages: 1,
-      results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "10.98", knowledgeDate: "26Q2", nullReason: null } } }],
+      results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "10.98", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 1 } } }],
     });
 
     const result = await runScreener(
@@ -222,7 +222,7 @@ describe("runScreener", () => {
 
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)", unit: "percent" }]);
     expect(result.results).toEqual([
-      { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "10.98", knowledgeDate: "26Q2", nullReason: null } } },
+      { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "10.98", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 1 } } },
     ]);
   });
 
@@ -258,8 +258,8 @@ describe("runScreener", () => {
     expect(stockGateway.getLatestClosePrices).toHaveBeenCalledWith(["2330", "2317"]);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
     expect(result.results).toEqual([
-      { symbol: "2330", name: "台積電", values: { "stock.price": { value: "2350.0000", knowledgeDate: "2026-08-28", nullReason: null } } },
-      { symbol: "2317", name: "鴻海", values: { "stock.price": { value: null, knowledgeDate: null, nullReason: null } } },
+      { symbol: "2330", name: "台積電", values: { "stock.price": { value: "2350.0000", knowledgeDate: "2026-08-28", nullReason: null, formulaVersion: null } } },
+      { symbol: "2317", name: "鴻海", values: { "stock.price": { value: null, knowledgeDate: null, nullReason: null, formulaVersion: null } } },
     ]);
   });
 
@@ -387,8 +387,8 @@ describe("runRanking", () => {
   it("resolves the ranked field and extra columns against the local catalog for the response's columns", async () => {
     vi.mocked(screenerGateway.runRanking).mockResolvedValue({
       results: [
-        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", knowledgeDate: "26Q2", nullReason: null } } },
-        { symbol: "2317", name: "鴻海", values: { "roe.roeTtmPct": { value: "25.1", knowledgeDate: "26Q1", nullReason: null } } },
+        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 1 } } },
+        { symbol: "2317", name: "鴻海", values: { "roe.roeTtmPct": { value: "25.1", knowledgeDate: "26Q1", nullReason: null, formulaVersion: 1 } } },
       ],
     });
 
@@ -399,8 +399,8 @@ describe("runRanking", () => {
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)", unit: "percent" }]);
     // Different symbols can legitimately have different knowledgeDate for the same field (one filed later).
     expect(result.results).toEqual([
-      { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", knowledgeDate: "26Q2", nullReason: null } } },
-      { symbol: "2317", name: "鴻海", values: { "roe.roeTtmPct": { value: "25.1", knowledgeDate: "26Q1", nullReason: null } } },
+      { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 1 } } },
+      { symbol: "2317", name: "鴻海", values: { "roe.roeTtmPct": { value: "25.1", knowledgeDate: "26Q1", nullReason: null, formulaVersion: 1 } } },
     ]);
   });
 
@@ -431,8 +431,8 @@ describe("runRanking", () => {
           symbol: "2330",
           name: "台積電",
           values: {
-            "roe.roeTtmPct": { value: "30.5", knowledgeDate: "26Q2", nullReason: null },
-            "grossMargin.grossMarginTtm": { value: "55.2", knowledgeDate: "26Q2", nullReason: null },
+            "roe.roeTtmPct": { value: "30.5", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 1 },
+            "grossMargin.grossMarginTtm": { value: "55.2", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 1 },
           },
         },
       ],
@@ -453,7 +453,7 @@ describe("runRanking", () => {
 
   it('merges "stock.price" into results the same way runScreener does', async () => {
     vi.mocked(screenerGateway.runRanking).mockResolvedValue({
-      results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", knowledgeDate: "26Q2", nullReason: null } } }],
+      results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 1 } } }],
     });
     vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
       new Map([["2330", { close: "2410.0000", tradeDate: "2026-08-28" }]]),
@@ -504,8 +504,8 @@ describe("runRanking", () => {
         direction: "asc",
         columns: [{ field: "exchangePeRatio.EOD", metricName: "exchangePeRatio", fieldName: "EOD", unit: null }],
         results: [
-          { symbol: "1240", name: "撼訊", values: { "exchangePeRatio.EOD": { value: "10.61", knowledgeDate: "2026-08-28", nullReason: null } } },
-          { symbol: "2330", name: "台積電", values: { "exchangePeRatio.EOD": { value: "27.82", knowledgeDate: "2026-08-28", nullReason: null } } },
+          { symbol: "1240", name: "撼訊", values: { "exchangePeRatio.EOD": { value: "10.61", knowledgeDate: "2026-08-28", nullReason: null, formulaVersion: null } } },
+          { symbol: "2330", name: "台積電", values: { "exchangePeRatio.EOD": { value: "27.82", knowledgeDate: "2026-08-28", nullReason: null, formulaVersion: null } } },
         ],
       });
     });
@@ -633,13 +633,13 @@ describe("runScreenerValues", () => {
   // for it — never silently drop a symbol the caller already has on screen.
   it("returns a row for every requested symbol, with empty values for one analysis-ts didn't return", async () => {
     vi.mocked(screenerGateway.getValues).mockResolvedValue({
-      results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", knowledgeDate: "26Q2", nullReason: null } } }],
+      results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 1 } } }],
     });
 
     const result = await runScreenerValues(["2330", "9999"], [{ field: "roe.roeTtmPct" }], deps);
 
     expect(result.results).toEqual([
-      { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", knowledgeDate: "26Q2", nullReason: null } } },
+      { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 1 } } },
       { symbol: "9999", name: null, values: {} },
     ]);
   });
@@ -679,7 +679,7 @@ describe("runScreenerValues", () => {
     expect(screenerGateway.getValues).toHaveBeenCalledWith(["2330"], []);
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
     expect(result.results).toEqual([
-      { symbol: "2330", name: "台積電", values: { "stock.price": { value: "2350.0000", knowledgeDate: "2026-08-28", nullReason: null } } },
+      { symbol: "2330", name: "台積電", values: { "stock.price": { value: "2350.0000", knowledgeDate: "2026-08-28", nullReason: null, formulaVersion: null } } },
     ]);
   });
 

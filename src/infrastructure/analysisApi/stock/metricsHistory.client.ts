@@ -21,6 +21,8 @@ function normalizeValue(raw: unknown): MetricsHistoryValue | null {
     nullReason: typeof r.nullReason === "string" ? r.nullReason : null,
     knowledgeDate: String(r.knowledgeDate),
     knowledgeDateIsFallback: r.knowledgeDateIsFallback === true,
+    // 缺席記 warning 而不是丟錯，理由同 FlatHistoryEntry.formulaVersion：缺了只少一個過期提示。
+    formulaVersion: typeof r.formulaVersion === "number" && Number.isFinite(r.formulaVersion) ? r.formulaVersion : null,
   };
 }
 

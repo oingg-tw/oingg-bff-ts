@@ -38,11 +38,12 @@ import type { ScreenerGatewayPort } from "@/application/ports/screenerGateway.js
 function normalizeValues(values: Record<string, unknown>): Record<string, ScreenerValue> {
   const normalized: Record<string, ScreenerValue> = {};
   for (const [field, raw] of Object.entries(values)) {
-    const v = raw as { value?: unknown; knowledgeDate?: unknown; nullReason?: unknown } | null;
+    const v = raw as { value?: unknown; knowledgeDate?: unknown; nullReason?: unknown; formulaVersion?: unknown } | null;
     normalized[field] = {
       value: v?.value === null || v?.value === undefined ? null : String(v.value),
       knowledgeDate: v?.knowledgeDate === null || v?.knowledgeDate === undefined ? null : String(v.knowledgeDate),
       nullReason: v?.nullReason === null || v?.nullReason === undefined ? null : String(v.nullReason),
+      formulaVersion: typeof v?.formulaVersion === "number" && Number.isFinite(v.formulaVersion) ? v.formulaVersion : null,
     };
   }
   return normalized;

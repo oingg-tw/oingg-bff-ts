@@ -14,6 +14,14 @@ const screenerValueSchema = z.object({
   value: z.unknown().nullable(),
   knowledgeDate: z.string().nullable(),
   nullReason: z.string().nullable(),
+  formulaVersion: z.number().nullable().openapi({
+    description:
+      "這個值是用第幾版公式算出來的（2026-09-26 新增）。**拿去跟 GET /metrics 同一個指標的 formulaVersion " +
+      "比對**：相同代表已經是最新算法的結果；這裡比較舊代表算法改過但這一列還沒重算到——值本身仍然自洽、" +
+      "可以正常顯示，**但不應該快取**。null 有兩種來源，都不是缺漏：上游查無這一列，或者這個值根本不是由" +
+      "型錄裡的公式算出來的（stock.price 是報價原樣帶入；GET /screener/ranking 的排名路徑由 bff-ts 自己" +
+      "組裝，上游那支端點沒有帶版本號）——後者是「沒有版本號可談」，不要當成過期。",
+  }),
 });
 
 const screenerColumnSchema = z.object({

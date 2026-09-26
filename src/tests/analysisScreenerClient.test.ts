@@ -45,8 +45,8 @@ describe("fetchScreenerResults", () => {
             symbol: "1210",
             companyName: "華瓊",
             values: {
-              "roe.roeTtmPct": { value: 13.33, knowledgeDate: "26Q2", nullReason: null },
-              "debtRatio.debtRatioPct": { value: 55.78, knowledgeDate: "26Q2", nullReason: null },
+              "roe.roeTtmPct": { value: 13.33, knowledgeDate: "26Q2", nullReason: null, formulaVersion: 2 },
+              "debtRatio.debtRatioPct": { value: 55.78, knowledgeDate: "26Q2", nullReason: null, formulaVersion: 2 },
             },
           },
         ],
@@ -69,8 +69,8 @@ describe("fetchScreenerResults", () => {
           symbol: "1210",
           name: "華瓊",
           values: {
-            "roe.roeTtmPct": { value: "13.33", knowledgeDate: "26Q2", nullReason: null },
-            "debtRatio.debtRatioPct": { value: "55.78", knowledgeDate: "26Q2", nullReason: null },
+            "roe.roeTtmPct": { value: "13.33", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 2 },
+            "debtRatio.debtRatioPct": { value: "55.78", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 2 },
           },
         },
       ],
@@ -97,13 +97,13 @@ describe("fetchScreenerResults", () => {
         page: 1,
         pageSize: 50,
         totalPages: 1,
-        results: [{ symbol: "2330", values: { "per.peRatio": { value: null, knowledgeDate: null, nullReason: null } } }],
+        results: [{ symbol: "2330", values: { "per.peRatio": { value: null, knowledgeDate: null, nullReason: null, formulaVersion: null } } }],
       },
     });
 
     const result = await fetchScreenerResults([], [{ field: "per.peRatio" }], { page: 1, pageSize: 50 });
 
-    expect(result.results[0]?.values["per.peRatio"]).toEqual({ value: null, knowledgeDate: null, nullReason: null });
+    expect(result.results[0]?.values["per.peRatio"]).toEqual({ value: null, knowledgeDate: null, nullReason: null, formulaVersion: null });
   });
 
   // Regression coverage for the asOfDate -> knowledgeDate rename + nullReason addition (analysis-ts,
@@ -120,7 +120,7 @@ describe("fetchScreenerResults", () => {
         results: [
           {
             symbol: "2891",
-            values: { "altmanZScore.TTM": { value: null, knowledgeDate: "2026-06-30", nullReason: "not_applicable_industry" } },
+            values: { "altmanZScore.TTM": { value: null, knowledgeDate: "2026-06-30", nullReason: "not_applicable_industry", formulaVersion: 4 } },
           },
         ],
       },
@@ -132,6 +132,8 @@ describe("fetchScreenerResults", () => {
       value: null,
       knowledgeDate: "2026-06-30",
       nullReason: "not_applicable_industry",
+      // 值是 null 但版本號還在：公式確實跑過、結論就是不適用。不要把「值 null」讀成「沒有版本可談」。
+      formulaVersion: 4,
     });
   });
 
@@ -204,7 +206,7 @@ describe("fetchScreenerRanking", () => {
           {
             symbol: "2330",
             companyName: "台積電",
-            values: { "roe.roeTtmPct": { value: 34.78, knowledgeDate: "26Q2", nullReason: null } },
+            values: { "roe.roeTtmPct": { value: 34.78, knowledgeDate: "26Q2", nullReason: null, formulaVersion: 2 } },
           },
         ],
       },
@@ -214,7 +216,7 @@ describe("fetchScreenerRanking", () => {
 
     expect(result).toEqual({
       results: [
-        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", knowledgeDate: "26Q2", nullReason: null } } },
+        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 2 } } },
       ],
     });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
@@ -278,7 +280,7 @@ describe("fetchScreenerValues", () => {
           {
             symbol: "2330",
             companyName: "台積電",
-            values: { "roe.roeTtmPct": { value: 34.78, knowledgeDate: "26Q2", nullReason: null } },
+            values: { "roe.roeTtmPct": { value: 34.78, knowledgeDate: "26Q2", nullReason: null, formulaVersion: 2 } },
           },
           { symbol: "2317", companyName: "鴻海", values: {} },
         ],
@@ -289,7 +291,7 @@ describe("fetchScreenerValues", () => {
 
     expect(result).toEqual({
       results: [
-        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", knowledgeDate: "26Q2", nullReason: null } } },
+        { symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "34.78", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 2 } } },
         { symbol: "2317", name: "鴻海", values: {} },
       ],
     });
@@ -476,5 +478,47 @@ describe("fetchDistribution", () => {
     mockFetchOnce({ ok: true, body: { ...DISTRIBUTION_BODY, bins: "not an array" } });
 
     await expect(fetchDistribution("dividendYield.EOD", undefined, undefined)).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+/**
+ * screener 這一層的 value 是**字串**（見上面的正規化測試），但 formulaVersion 是數字——別跟著一起字串化，
+ * 下游要拿它跟 GET /metrics 的數字比對。
+ */
+describe("screener 的 formulaVersion", () => {
+  it("穿過 normalizeRows，而且不會跟著 value 一起被字串化", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        count: 1,
+        page: 1,
+        pageSize: 50,
+        totalPages: 1,
+        results: [{ symbol: "2330", values: { "roe.roeTtmPct": { value: 34.78, knowledgeDate: "26Q2", nullReason: null, formulaVersion: 6 } } }],
+      },
+    });
+
+    const cell = (await fetchScreenerResults([], [{ field: "roe.roeTtmPct" }], { page: 1, pageSize: 50 })).results[0]?.values["roe.roeTtmPct"];
+
+    expect(cell?.value).toBe("34.78");
+    expect(cell?.formulaVersion).toBe(6);
+  });
+
+  it("上游沒帶版本號時給 null 而不是省略欄位", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        count: 1,
+        page: 1,
+        pageSize: 50,
+        totalPages: 1,
+        results: [{ symbol: "2330", values: { "roe.roeTtmPct": { value: 34.78, knowledgeDate: "26Q2", nullReason: null } } }],
+      },
+    });
+
+    const cell = (await fetchScreenerResults([], [{ field: "roe.roeTtmPct" }], { page: 1, pageSize: 50 })).results[0]?.values["roe.roeTtmPct"];
+
+    expect(cell).toHaveProperty("formulaVersion");
+    expect(cell?.formulaVersion).toBeNull();
   });
 });

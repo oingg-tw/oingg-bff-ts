@@ -38,6 +38,16 @@ export interface ScreenerValue {
    * screener endpoints).
    */
   nullReason: string | null;
+  /**
+   * 這個值用第幾版公式算的（analysis-ts 2026-09-26 新增）。跟 `GET /metrics` 的 `formulaVersion`
+   * 比對，格子較舊代表算法改了但這一列還沒重算——值仍自洽、可顯示，但不應快取。
+   *
+   * 這一層上游的契約本來就是 nullable（查無此列時是 null），所以不像 metric-history 那樣需要
+   * 為「缺席」另做決定。另外 `runValuationRanking` 是 bff-ts 自己組出這個結構、不經過
+   * analysis-ts 的 screener 端點，那條路徑一律是 null——那不是缺漏，是「這個值不是由型錄裡的
+   * 公式算出來的」，所以沒有版本號可談。
+   */
+  formulaVersion: number | null;
 }
 
 export interface ScreenerResultRow {

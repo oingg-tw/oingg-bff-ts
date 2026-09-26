@@ -37,9 +37,9 @@ const RAW_BODY = {
       fiscalYear: 2026,
       fiscalQuarter: 2,
       values: {
-        netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
-        epsGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
-        shareCountChangeRate: { value: 0, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
+        netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
+        epsGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
+        shareCountChangeRate: { value: 0, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
       },
     },
   ],
@@ -95,7 +95,7 @@ describe("fetchMetricsHistory", () => {
       fiscalYear: 2024,
       fiscalQuarter: 4,
       values: {
-        roe: { value: null, nullReason: "缺少前四季損益表資料", knowledgeDate: "2025-02-10", knowledgeDateIsFallback: false },
+        roe: { value: null, nullReason: "缺少前四季損益表資料", knowledgeDate: "2025-02-10", knowledgeDateIsFallback: false, formulaVersion: 3 },
       },
     };
     mockFetchOnce({ ok: true, body: { ...RAW_BODY, entries: [entry] } });
@@ -128,8 +128,8 @@ describe("fetchMetricsHistory", () => {
             fiscalYear: 2025,
             fiscalQuarter: 4,
             values: {
-              netIncomeGrowthRate: { value: 10, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false },
-              epsGrowthRate: { value: 10, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false },
+              netIncomeGrowthRate: { value: 10, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
+              epsGrowthRate: { value: 10, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
               // shareCountChangeRate not yet backfilled for this period — simply absent, not present as null.
             },
           },
@@ -137,17 +137,17 @@ describe("fetchMetricsHistory", () => {
             fiscalYear: 2026,
             fiscalQuarter: 1,
             values: {
-              netIncomeGrowthRate: { value: 20, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false },
-              epsGrowthRate: { value: 20, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false },
+              netIncomeGrowthRate: { value: 20, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3 },
+              epsGrowthRate: { value: 20, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3 },
             },
           },
           {
             fiscalYear: 2026,
             fiscalQuarter: 2,
             values: {
-              netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
-              epsGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
-              shareCountChangeRate: { value: 0, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
+              netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
+              epsGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
+              shareCountChangeRate: { value: 0, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
             },
           },
         ],
@@ -186,7 +186,7 @@ describe("fetchMetricsHistory", () => {
             fiscalYear: 2024,
             fiscalQuarter: 2,
             values: {
-              assetTurnover: { value: 0.41, nullReason: null, knowledgeDate: "2024-08-13", knowledgeDateIsFallback: false },
+              assetTurnover: { value: 0.41, nullReason: null, knowledgeDate: "2024-08-13", knowledgeDateIsFallback: false, formulaVersion: 3 },
               fixedAssetTurnover: null,
             },
           },
@@ -194,8 +194,8 @@ describe("fetchMetricsHistory", () => {
             fiscalYear: 2024,
             fiscalQuarter: 3,
             values: {
-              assetTurnover: { value: 0.43, nullReason: null, knowledgeDate: "2024-11-12", knowledgeDateIsFallback: false },
-              fixedAssetTurnover: { value: 0.86, nullReason: null, knowledgeDate: "2024-11-12", knowledgeDateIsFallback: false },
+              assetTurnover: { value: 0.43, nullReason: null, knowledgeDate: "2024-11-12", knowledgeDateIsFallback: false, formulaVersion: 3 },
+              fixedAssetTurnover: { value: 0.86, nullReason: null, knowledgeDate: "2024-11-12", knowledgeDateIsFallback: false, formulaVersion: 3 },
             },
           },
         ],
@@ -246,5 +246,64 @@ describe("fetchMetricsHistory", () => {
     mockFetchOnce({ ok: true, body: { symbol: "2330" } });
 
     await expect(fetchMetricsHistory("2330", ["roe"], "TTM")).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+/**
+ * 同一個欄位在這一層要分兩種「沒有版本號」，混在一起處理會讓下游誤判：
+ *   - values[metricCode] 整格是 null → 那個指標在這一期從來沒回填過，連格子都不存在（見上面的 null 值測試）
+ *   - 格子存在但 formulaVersion 是 null → 上游這一次沒送這個欄位
+ * 前者不是「過期」，後者才是「不知道是否過期」。
+ */
+describe("fetchMetricsHistory 的 formulaVersion", () => {
+  it("每個 metricCode 的格子各自帶自己的版本號", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        ...RAW_BODY,
+        entries: [
+          {
+            fiscalYear: 2026,
+            fiscalQuarter: 2,
+            values: {
+              netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 5 },
+              // 同一期不同指標可以是不同版本：重算是逐指標進行的，不是整批一起跳。
+              epsGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 2 },
+            },
+          },
+        ],
+      },
+    });
+
+    const values = (await fetchMetricsHistory("2330", ["netIncomeGrowthRate", "epsGrowthRate"], "Q")).entries[0]?.values;
+
+    expect(values?.netIncomeGrowthRate?.formulaVersion).toBe(5);
+    expect(values?.epsGrowthRate?.formulaVersion).toBe(2);
+  });
+
+  it("整格是 null 跟格子裡版本號是 null 是兩回事", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        ...RAW_BODY,
+        entries: [
+          {
+            fiscalYear: 2026,
+            fiscalQuarter: 2,
+            values: {
+              netIncomeGrowthRate: null,
+              epsGrowthRate: { value: 12.3, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },
+            },
+          },
+        ],
+      },
+    });
+
+    const values = (await fetchMetricsHistory("2330", ["netIncomeGrowthRate", "epsGrowthRate"], "Q")).entries[0]?.values;
+
+    expect(values?.netIncomeGrowthRate).toBeNull();
+    expect(values?.epsGrowthRate).not.toBeNull();
+    expect(values?.epsGrowthRate?.formulaVersion).toBeNull();
+    expect(values?.epsGrowthRate?.value).toBe(12.3);
   });
 });

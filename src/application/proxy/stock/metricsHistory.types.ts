@@ -3,6 +3,15 @@ export interface MetricsHistoryValue {
   nullReason: string | null;
   knowledgeDate: string;
   knowledgeDateIsFallback: boolean;
+  /**
+   * 這個值用第幾版公式算的，語意與可為 null 的理由跟 FlatHistoryEntry.formulaVersion 完全相同
+   * （跟 GET /metrics 的版本號比對，格子較舊＝還沒重算＝可顯示但不可快取）。
+   *
+   * 注意這一層有兩種「沒有版本號」，意思不同：
+   *   values[code] 整格是 null   該 metricCode 在這一期從未回填過，連格子都不存在 → 沒有版本號可談
+   *   格子存在但 formulaVersion 是 null   上游沒送這個欄位，通常是版本錯開
+   */
+  formulaVersion: number | null;
 }
 
 export interface MetricsHistoryEntry {

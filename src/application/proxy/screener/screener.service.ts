@@ -104,7 +104,9 @@ async function mergeStockPrices(rows: ScreenerResultRow[], wantsStockPrice: bool
   const pricesBySymbol = await deps.stockGateway.getLatestClosePrices(rows.map((row) => row.symbol));
   for (const row of rows) {
     const price = pricesBySymbol.get(row.symbol);
-    row.values[STOCK_PRICE_FIELD] = { value: price?.close ?? null, knowledgeDate: price?.tradeDate ?? null, nullReason: null };
+    // formulaVersion 是 null 而不是某個數字：股價不是型錄裡的公式算出來的，是報價原樣帶進來的，
+    // 所以「第幾版公式」對它沒有意義。下游看到 null 就知道不必拿它跟型錄的版本號比。
+    row.values[STOCK_PRICE_FIELD] = { value: price?.close ?? null, knowledgeDate: price?.tradeDate ?? null, nullReason: null, formulaVersion: null };
   }
 }
 
@@ -368,7 +370,9 @@ async function runValuationRanking(
   const results: ScreenerResultRow[] = rankings.map((row) => ({
     symbol: row.symbol,
     name: row.name,
-    values: { [field]: { value: String(row.value), knowledgeDate: tradeDate, nullReason: null } },
+    // 同 mergeStockPrices：這條路徑的值來自 analysis-ts 的估值排行端點而不是 screener，那支端點沒有
+    // 帶版本號，所以這裡也給 null——不是漏接，是「無法得知」，而 null 正好是那個意思。
+    values: { [field]: { value: String(row.value), knowledgeDate: tradeDate, nullReason: null, formulaVersion: null } },
   }));
   await mergeStockPrices(results, wantsStockPrice, deps);
 

@@ -827,6 +827,21 @@ registry.registerPath({
   },
 });
 
+/**
+ * formulaVersion 的說明在這個檔案裡有兩處要用（單數 metric-history 的扁平列、複數 metrics-history 的
+ * values），抽成一個常數是為了不讓兩份文案各自漂移——這個欄位的重點是「什麼時候不該快取」，說法不一致
+ * 會讓下游對著兩種講法猜。
+ *
+ * analysis-ts 的原話（2026-09-26，commit b6d07abe）：「兩者不一致，代表這個值以較舊的算法計算、還沒
+ * 重算到。它仍是自洽的結果，可以正常顯示，但不應快取。」
+ */
+const VERSION_FIELD_DOC =
+  "這個值是用第幾版公式算出來的。**拿去跟 GET /metrics 同一個指標的 formulaVersion 比對**：相同代表" +
+  "已經是最新算法的結果；這裡比較舊代表算法改過但這一列還沒重算到——值本身仍然自洽、可以正常顯示，" +
+  "**但不應該快取**，因為重算完成後它會變。重算完成後兩者會一致。2026-09-26 新增。" +
+  "bff-ts 這一層宣告為 nullable，雖然上游契約說必填：缺席只會讓下游少一個「可能過期」的提示，" +
+  "不會讓任何使用者看到錯的數字，不值得為此讓整支端點失敗；真的缺席時 bff-ts 會記一筆 warning。";
+
 const metricHistoryEntrySchema = z.object({
   fiscalYear: z.number(),
   fiscalQuarter: z.number(),
@@ -834,6 +849,7 @@ const metricHistoryEntrySchema = z.object({
   nullReason: z.string().nullable(),
   knowledgeDate: z.string(),
   knowledgeDateIsFallback: z.boolean(),
+  formulaVersion: z.number().nullable().openapi({ description: VERSION_FIELD_DOC }),
 });
 
 const metricHistorySchema = z
@@ -853,8 +869,8 @@ const metricHistorySchema = z
       total: 23,
       hasMore: false,
       entries: [
-        { fiscalYear: 2025, fiscalQuarter: 2, value: 13.55, nullReason: null, knowledgeDate: "2025-08-12", knowledgeDateIsFallback: false },
-        { fiscalYear: 2025, fiscalQuarter: 3, value: 15.93, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false },
+        { fiscalYear: 2025, fiscalQuarter: 2, value: 13.55, nullReason: null, knowledgeDate: "2025-08-12", knowledgeDateIsFallback: false, formulaVersion: 3 },
+        { fiscalYear: 2025, fiscalQuarter: 3, value: 15.93, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
       ],
     },
   });
@@ -885,6 +901,13 @@ const metricsHistoryValueSchema = z.object({
   nullReason: z.string().nullable(),
   knowledgeDate: z.string(),
   knowledgeDateIsFallback: z.boolean(),
+  formulaVersion: z.number().nullable().openapi({
+    description:
+      VERSION_FIELD_DOC +
+      "注意這一層有**兩種**「沒有版本號」，不要混在一起處理：values[metricCode] 整格是 null，代表那個" +
+      "指標在這一期從來沒被回填過（連格子都不存在）；格子存在但 formulaVersion 是 null，才是上游這一次" +
+      "沒送這個欄位。",
+  }),
 });
 
 const metricsHistoryEntrySchema = z.object({

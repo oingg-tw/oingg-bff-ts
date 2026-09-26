@@ -28,7 +28,20 @@ function normalizeFlatHistoryEntry(raw: unknown): FlatHistoryEntry {
     nullReason: toStringOrNull(r.nullReason),
     knowledgeDate: String(r.knowledgeDate),
     knowledgeDateIsFallback: r.knowledgeDateIsFallback === true,
+    formulaVersion: toFormulaVersion(r.formulaVersion),
   };
+}
+
+/**
+ * 缺席時回 null 並記一筆 warning——理由見 FlatHistoryEntry.formulaVersion 的說明（缺了只少一個過期
+ * 提示，不該讓整支端點失敗）。記 log 是為了讓版本錯開不會完全無聲。
+ */
+function toFormulaVersion(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  logger.warn({ received: typeof value }, "History entry has no formulaVersion — upstream guarantees it, so this is probably a version skew");
+  return null;
 }
 
 function isFlatHistoryResponse(body: unknown): body is { entries: unknown[] } {
