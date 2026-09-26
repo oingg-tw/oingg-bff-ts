@@ -146,11 +146,81 @@ describe("fetchStockPrices", () => {
     expect(result.has("2330")).toBe(false);
   });
 
-  it("throws a 500 AppError locally (never calls fetch) when asked for more than 100 symbols", async () => {
-    const symbols = Array.from({ length: 101 }, (_, i) => String(i));
+  /**
+   * 這幾條取代了原本「超過 100 檔就丟 500」那一條測試——**那條測試把 bug 當成規格釘住了**。
+   *
+   * 上游的 100 檔上限是「每個 request」的上限，不是這個函式能處理的上限。而 bff-ts 的 pageSize 上限是
+   * 200（MAX_PAGE_SIZE），所以任何 pageSize > 100 又要 stock.price 欄位的 POST /screener 都會回 500。
+   * 2026-09-26 實測確認：五種 filter、八個頁碼，全部 500。/screener/values 帶超過 100 檔也一樣。
+   */
+  it("超過 100 檔時分批請求，而不是丟錯", async () => {
+    const symbols = Array.from({ length: 200 }, (_, i) => String(1000 + i));
+    const calls: string[] = [];
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      const batch = (url.searchParams.get("symbols") ?? "").split(",");
+      calls.push(url.searchParams.get("symbols") ?? "");
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ prices: Object.fromEntries(batch.map((s) => [s, { close: s, tradeDate: "2026-09-25" }])) }),
+      });
+    }) as unknown as typeof fetch;
 
-    await expect(fetchStockPrices(symbols)).rejects.toMatchObject({ statusCode: 500 });
-    expect(globalThis.fetch).toBe(ORIGINAL_FETCH);
+    const result = await fetchStockPrices(symbols);
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.split(",")).toHaveLength(100);
+    expect(calls[1]?.split(",")).toHaveLength(100);
+    // 每一檔都要在合併後的 Map 裡：分批最容易出的錯是只回傳最後一批。
+    expect(result.size).toBe(200);
+    expect(result.get("1000")?.close).toBe("1000");
+    expect(result.get("1199")?.close).toBe("1199");
+  });
+
+  it("剛好 100 檔時只發一次請求", async () => {
+    const symbols = Array.from({ length: 100 }, (_, i) => String(1000 + i));
+    mockFetchOnce({ ok: true, body: { prices: {} } });
+
+    await fetchStockPrices(symbols);
+
+    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  // 沒有整除的情況：最後一批比較短，不該被補足也不該被丟掉。
+  it("101 檔切成 100 + 1", async () => {
+    const symbols = Array.from({ length: 101 }, (_, i) => String(1000 + i));
+    const sizes: number[] = [];
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      const batch = (new URL(String(input)).searchParams.get("symbols") ?? "").split(",");
+      sizes.push(batch.length);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ prices: Object.fromEntries(batch.map((s) => [s, { close: s, tradeDate: "2026-09-25" }])) }),
+      });
+    }) as unknown as typeof fetch;
+
+    const result = await fetchStockPrices(symbols);
+
+    expect(sizes).toEqual([100, 1]);
+    expect(result.size).toBe(101);
+  });
+
+  // 一批失敗就整個失敗：回一份少了 100 檔股價的 Map，下游會把它讀成「這些公司沒有報價」。
+  it("其中一批失敗時整個請求失敗，不回傳只有一半的 Map", async () => {
+    const symbols = Array.from({ length: 200 }, (_, i) => String(1000 + i));
+    let n = 0;
+    globalThis.fetch = vi.fn(() => {
+      n += 1;
+      return Promise.resolve(
+        n === 1
+          ? { ok: true, status: 200, json: () => Promise.resolve({ prices: {} }) }
+          : { ok: false, status: 500, json: () => Promise.resolve({}) },
+      );
+    }) as unknown as typeof fetch;
+
+    await expect(fetchStockPrices(symbols)).rejects.toMatchObject({ statusCode: 502 });
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {

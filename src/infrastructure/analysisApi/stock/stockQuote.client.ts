@@ -89,24 +89,41 @@ export async function fetchStockQuote(symbol: string): Promise<StockQuote | null
 }
 
 /**
- * Batched close-price lookup for the screener's "stock.price" column. `symbols=` is an explicit,
- * bounded list (bff always passes exactly the current page's symbols, ≤ pageSize) — analysis-ts
- * confirmed this endpoint deliberately has no limit/count_only truncation for that reason: a symbol not
- * found is simply absent from the returned `prices` object (not silently dropped from a truncated
- * response), so "present = has data, absent = no data" is a safe rule here. The 100-symbol cap is a hard
- * 400 if exceeded, never a silent partial response — bff's page sizes never get close to it.
+ * Batched close-price lookup for the screener's "stock.price" column. `symbols=` is an explicit, bounded
+ * list — analysis-ts confirmed this endpoint deliberately has no limit/count_only truncation for that
+ * reason: a symbol not found is simply absent from the returned `prices` object (not silently dropped
+ * from a truncated response), so "present = has data, absent = no data" is a safe rule here, and it stays
+ * safe across the batching below because merging batches only ever adds keys.
+ *
+ * The cap is per *request*, so this function chunks instead of refusing. It used to throw a 500 above 100
+ * symbols, on the stated assumption that "bff's page sizes never get close to it" — that assumption was
+ * simply wrong: MAX_PAGE_SIZE is 200, twice the cap. Any `POST /screener` with `pageSize` over 100 that
+ * asked for the `stock.price` column returned a 500 (measured live 2026-09-26, every page, every filter).
+ * `/screener/values` had the same ceiling (MAX_VALUES_SYMBOLS is 200). `GET /screener/ranking` did not —
+ * MAX_RANKING_LIMIT is 50 — so it was never affected, but it shares this code path and would have been the
+ * moment that limit was raised. Chunking here rather than in mergeStockPrices fixes every caller at once:
+ * this is the only place that knows what the upstream limit is, so it's the only place that should care.
+ *
+ * Note the contrast with fetchExDividendNotices, which keeps its 100-symbol limit as a hard 400: there the
+ * caller supplies the symbol list, so the cap is part of that endpoint's public contract. Here bff-ts
+ * builds the list itself out of its own page size, so there is no caller to report the limit to — a
+ * refusal could only ever be bff-ts's own bug, which is exactly what it was.
  */
 export async function fetchStockPrices(symbols: string[]): Promise<Map<string, ClosePrice>> {
   if (symbols.length === 0) {
     return new Map();
   }
-  if (symbols.length > MAX_SYMBOLS_PER_PRICES_REQUEST) {
-    throw new AppError(
-      `Requested ${symbols.length} symbols at once, but the stock prices endpoint caps at ${MAX_SYMBOLS_PER_PRICES_REQUEST}`,
-      500,
-    );
+
+  const batches: string[][] = [];
+  for (let i = 0; i < symbols.length; i += MAX_SYMBOLS_PER_PRICES_REQUEST) {
+    batches.push(symbols.slice(i, i + MAX_SYMBOLS_PER_PRICES_REQUEST));
   }
 
+  const results = await Promise.all(batches.map(fetchOneBatchOfStockPrices));
+  return new Map(results.flatMap((batch) => [...batch]));
+}
+
+async function fetchOneBatchOfStockPrices(symbols: string[]): Promise<Map<string, ClosePrice>> {
   const url = buildAnalysisServiceUrl("/stocks/prices", { symbols: symbols.join(",") });
   const response = await fetchAnalysisService(url);
   assertAnalysisServiceOk(response, url, "Stock prices endpoint");
