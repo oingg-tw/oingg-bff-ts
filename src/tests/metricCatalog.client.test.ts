@@ -474,7 +474,6 @@ describe("fetchMetricCatalog", () => {
   // hardcoded GURU_BADGES table into analysis-ts's MetricDefinitionSpec. Present only on the ~11 metrics
   // that table covered (Piotroski excluded by mutual agreement) — absent entirely elsewhere, resolves to null.
   const SAMPLE_BADGE = {
-    id: "graham-number",
     name: "Graham Number",
     nameEn: "Graham Number",
     author: "Benjamin Graham",
@@ -518,7 +517,6 @@ describe("fetchMetricCatalog", () => {
     const { timeframe: _timeframe, ...badgeWithoutTimeframe } = SAMPLE_BADGE;
     const epsBadge = {
       ...badgeWithoutTimeframe,
-      id: "sp500-earnings-eligibility",
       threshold: { description: "近四季 EPS 合計為正", denominator: 1, allPositiveFieldIds: ["eps.TTM", "eps.Q"] },
     };
     mockFetchOnce({
@@ -619,7 +617,6 @@ describe("fetchMetricCatalog", () => {
                 sources: ["公開發行公司現金流量表（XBRL）"], hasProvenance: true, formulaVersion: 1,
                 badge: {
                   ...SAMPLE_BADGE,
-                  id: "dividend-payout-ratio-safety",
                   threshold: { description: "40%-60%", denominator: 1, comparator: "in_range" as const, valueMin: 40, valueMax: 60 },
                 },
               },

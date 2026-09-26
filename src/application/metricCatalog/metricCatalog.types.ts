@@ -80,8 +80,6 @@ export interface MetricBadgePercentileRank {
  * table covered (see MetricDefinition.badge).
  */
 export interface MetricBadge {
-  /** analysis-ts dropped this field 2026-09-13 (badges are already 1:1 with the metric they're attached to, so a separate id was redundant) — kept optional here rather than removed outright, in case it comes back. */
-  id?: string;
   name: string;
   nameEn: string;
   author: string;

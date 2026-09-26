@@ -71,16 +71,15 @@ const metricBadgeThresholdSchema: z.ZodType<MetricBadgeThresholdDoc> = z.lazy(()
     .openapi("MetricBadgeThreshold"),
 );
 
+/**
+ * **沒有 `id` 欄位是刻意的，不要補回來。** analysis-ts 2026-09-12 把徽章與指標的名稱欄位抽成共用型別時，
+ * 確認 `id` 跟 `metricCode` 完全重複就從規格刪掉了，他們的型別與 OpenAPI 現在都沒有這一欄。
+ * 要唯一識別一個徽章請用它所屬的 metricCode（徽章與指標是一對一）。
+ *
+ * 這裡曾經宣告成必填（錯的，實測 33 個徽章都沒有），2026-09-26 一度改成選填＋註明從未送出，
+ * 確認上游已永久移除後才整個刪除——留一個永遠 undefined 的欄位只會讓下游照文件寫出拿不到值的程式碼。
+ */
 const metricBadgeSchema = z.object({
-  /**
-   * 選填，而且**實測從來沒有出現過**：2026-09-26 掃過全部 33 個徽章，沒有一個帶 id。
-   * 原本宣告成必填，那是錯的——client 的驗證一直是當選填處理（`b.id === undefined || ...`），
-   * 只有這份文件說它一定存在，下游照文件寫 `badge.id` 會拿到 undefined。
-   * 不移除是因為 client 本來就容忍它存在，移掉反而讓上游哪天真的送 id 時被靜默丟掉。
-   */
-  id: z.string().optional().openapi({
-    description: "徽章的識別碼。**選填，而且 analysis-ts 目前從未送出過**（2026-09-26 實測 33 個徽章都沒有），不要依賴它——要唯一識別一個徽章請用它所屬的 metricCode。",
-  }),
   name: z.string(),
   nameEn: z.string(),
   author: z.string(),

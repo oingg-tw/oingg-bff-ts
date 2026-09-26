@@ -52,7 +52,6 @@ function isRawBadge(value: unknown): value is MetricBadge {
   }
   const b = value as MetricBadge;
   return (
-    (b.id === undefined || typeof b.id === "string") &&
     typeof b.name === "string" &&
     typeof b.nameEn === "string" &&
     typeof b.author === "string" &&
