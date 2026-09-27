@@ -35,7 +35,7 @@ const RAW_2330 = {
   cashDividends: -20.5,
   capitalIssued: 0,
   shareCountEffect: 0,
-  other: 0.05,
+  other: 0.06,
   closingBvps: 208.99,
 };
 
@@ -52,19 +52,38 @@ describe("fetchBookValueBreakdown", () => {
   });
 
   /**
-   * 這一列的恆等式殘差恰好是 0.01（165.37 + 66.24 − 2.18 − 20.5 + 0 + 0 + 0.05 = 208.98 vs 208.99）。
-   * **client 不得替它「修正」** —— 七個加項各自四捨五入到 2 位小數，±0.02 的殘差是正常的，
-   * 而擅自調整任何一項會製造一個上游沒有的數字。實測 40 家 197 列有 18.8% 的列是這樣。
+   * 恆等式精確到分（上游 2026-09-27 commit b1ce115f 從根本修掉，讓 other 吸收進位差額）。
+   *
+   * **比較方式本身是這條測試的重點**：用 `Math.round(x * 100)` 比整數分，**不要用
+   * `Math.abs(sum - closing) > 0.01`**。後者在浮點下不可用——0.01 存不進 binary float，殘差為零的列
+   * 會算出 0.010000000000019327 之類的值。我和 web-nuxt 各自都被這個騙過一次（我還因此在型別註解裡
+   * 寫過「容差用 0.02」），所以這裡用會壞的那種寫法對照著釘住。
    */
-  it("恆等式差 0.01 時照原樣帶出，不做校正", async () => {
+  it("恆等式精確到分，而且要用整數分比較而不是浮點容差", async () => {
     mockFetchOnce({ symbol: "2330", entries: [RAW_2330] });
 
     const e = (await fetchBookValueBreakdown("2330")).entries[0]!;
-    const sum = e.openingBvps + e.netIncome + e.otherComprehensiveIncome + e.cashDividends + e.capitalIssued + e.shareCountEffect + e.other;
+    const cents = (x: number) => Math.round(x * 100);
+    const sumCents =
+      cents(e.openingBvps) + cents(e.netIncome) + cents(e.otherComprehensiveIncome) +
+      cents(e.cashDividends) + cents(e.capitalIssued) + cents(e.shareCountEffect) + cents(e.other);
 
-    expect(e.closingBvps).toBe(208.99);
-    expect(Math.abs(sum - e.closingBvps)).toBeLessThanOrEqual(0.02);
-    expect(Math.abs(sum - e.closingBvps)).toBeGreaterThan(0);
+    expect(sumCents).toBe(cents(e.closingBvps));
+  });
+
+  /*
+   * 原本這裡還斷言「同一份資料的浮點殘差不是 0」，想把「浮點會壞」也釘住。**那條斷言本身是脆的**：
+   * 浮點殘差是不是 0 取決於具體數值，這一列剛好是 0，所以測試紅了。示範浮點問題屬於註解，不屬於斷言——
+   * 用一組湊巧的數字去證明一個一般性的陷阱，只會製造一條下次換 fixture 就壞掉的測試。
+   */
+
+  /**
+   * other 會吸收進位差額，所以「沒有未分類項目」的公司這一欄不再保證是 0。
+   * 這條擋的是「other 非 0 就代表有特殊權益調整」那種讀法。
+   */
+  it("other 可以是進位差額量級的小數，不代表有特殊權益調整", async () => {
+    mockFetchOnce({ symbol: "2330", entries: [{ ...RAW_2330, fiscalYear: 2023, other: 0.02 }] });
+    expect((await fetchBookValueBreakdown("2330")).entries[0]?.other).toBe(0.02);
   });
 
   /** 現金股利是負值。看起來瑣碎，但它擋的是「順手取絕對值」那類改動。 */
