@@ -6,6 +6,7 @@ import { fetchCompanyList } from "@/infrastructure/analysisApi/stock/companyList
 import { fetchCompanyProfile } from "@/infrastructure/analysisApi/stock/companyProfile.client.js";
 import { fetchDailyPriceHistory } from "@/infrastructure/analysisApi/stock/dailyPriceHistory.client.js";
 import { fetchDividendHistory } from "@/infrastructure/analysisApi/stock/dividendHistory.client.js";
+import { fetchBookValueBreakdown } from "@/infrastructure/analysisApi/stock/bookValueBreakdown.client.js";
 import { fetchDupontHistory } from "@/infrastructure/analysisApi/stock/dupontHistory.client.js";
 import { fetchExDividendCalendar } from "@/infrastructure/analysisApi/stock/exDividendCalendar.client.js";
 import { fetchExDividendNotices } from "@/infrastructure/analysisApi/stock/exDividendNotices.client.js";
@@ -53,6 +54,7 @@ export const analysisStockGateway: StockGatewayPort = {
   getRoeHistory: fetchRoeHistory,
   getRoaHistory: fetchRoaHistory,
   getDupontHistory: fetchDupontHistory,
+  getBookValueBreakdown: fetchBookValueBreakdown,
   getMonthlyRevenueHistory: fetchMonthlyRevenueHistory,
   getForeignShareholdingHistory: fetchForeignShareholdingHistory,
   getDailyPriceHistory: fetchDailyPriceHistory,

@@ -290,6 +290,13 @@ export function createStockRouter(deps: StockProxyDeps): Router {
     res.json(history);
   });
 
+  // 沒有 query 參數，所以沒有 zod schema 也沒有 service 層 —— 依 CLAUDE.md，純轉發不留空殼。
+  stockRouter.get("/:symbol/book-value-breakdown", async (req, res) => {
+    const { symbol } = req.params;
+    const breakdown = await deps.stockGateway.getBookValueBreakdown(symbol);
+    res.json(breakdown);
+  });
+
   stockRouter.get("/:symbol/monthly-revenue-history", async (req, res) => {
     const { symbol } = req.params;
     const query = parseBody(monthlyRevenueHistoryQuerySchema, req.query);

@@ -46,3 +46,24 @@ export function assertAnalysisServiceOk(response: Response, url: URL, label: str
     throw new AppError(`${label} returned ${response.status}`, 502);
   }
 }
+
+/**
+ * 讀一個「上游保證一定是數字」的欄位，缺了就在邊界上丟 502 而不是靜默給 null 或 0。
+ *
+ * 2026-09-25 從 dividendHistory.client.ts 的私有函式抽上來（book-value-breakdown 是第二個呼叫端）。
+ * 當初的脈絡：上游改名而 bff-ts 還讀舊名時，`Number(undefined)` 產生 NaN、序列化成 null，而型別說那個
+ * 欄位不可為 null——版本錯開被型別吸收掉，只能靠手動打上游比對才發現。丟 502 讓一個請求就講出是哪個
+ * 欄位不見了。代價是改版空窗期那支端點會整支失敗，那是正確的：資料確實無法以宣告的形狀提供。
+ *
+ * **不要用在「上游可能為 null」的欄位上**——那種欄位的型別本來就該是 `number | null`，用
+ * `typeof value === "number" && Number.isFinite(value) ? value : null` 判斷（別用 `Number()`，
+ * `Number(null)` 是 0 不是 NaN，見 dailyPriceHistory.client.ts 的說明）。
+ */
+export function requireNumber(value: unknown, field: string, label: string): number {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    logger.error({ field, received: typeof value }, `${label} is missing a field upstream guarantees — likely a field rename that bff-ts has not followed`);
+    throw new AppError(`${label} response is missing the numeric field ${field}`, 502);
+  }
+  return value;
+}
+

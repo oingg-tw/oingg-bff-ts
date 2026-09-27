@@ -5,6 +5,7 @@ import type { CompanyListResult } from "@/application/proxy/stock/companyList.ty
 import type { CompanyProfile } from "@/application/proxy/stock/companyProfile.types.js";
 import type { DailyPriceHistoryResult } from "@/application/proxy/stock/dailyPriceHistory.types.js";
 import type { DividendHistoryResult } from "@/application/proxy/stock/dividendHistory.types.js";
+import type { BookValueBreakdownResult } from "@/application/proxy/stock/bookValueBreakdown.types.js";
 import type { DupontHistoryBasis, DupontHistoryResult } from "@/application/proxy/stock/dupontHistory.types.js";
 import type { ExDividendCalendarResult } from "@/application/proxy/stock/exDividendCalendar.types.js";
 import type { ExDividendNoticeEntry } from "@/application/proxy/stock/exDividendNotices.types.js";
@@ -73,6 +74,12 @@ export interface StockGatewayPort {
   getRoeHistory(symbol: string, basis: RoeRoaHistoryBasis, limit?: number): Promise<RoeHistoryResult>;
   getRoaHistory(symbol: string, basis: RoeRoaHistoryBasis, limit?: number): Promise<RoaHistoryResult>;
   getDupontHistory(symbol: string, basis: DupontHistoryBasis, limit?: number): Promise<DupontHistoryResult>;
+
+  /**
+   * 每股淨值變動拆解，一年一列（analysis-ts 2026-09-27 新增）。沒有參數可調，上游給全部年度。
+   * 每一列是恆等式：opening + 6 個變動項 = closing，驗它的容差要 0.02 不是 0.01（見型別說明）。
+   */
+  getBookValueBreakdown(symbol: string): Promise<BookValueBreakdownResult>;
   getMonthlyRevenueHistory(symbol: string, limit?: number): Promise<MonthlyRevenueHistoryResult>;
   getForeignShareholdingHistory(symbol: string, limit?: number): Promise<ForeignShareholdingHistoryResult>;
   getDailyPriceHistory(symbol: string, limit?: number): Promise<DailyPriceHistoryResult>;

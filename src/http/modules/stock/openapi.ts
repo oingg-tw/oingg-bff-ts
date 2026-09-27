@@ -1239,6 +1239,54 @@ const NO_TRADE_DOC =
   "**畫圖時請把 null 當成無資料跳過、不要連線，也不要當成 0** —— 2026-09-27 之前 bff-ts 錯把它正規化成 0，" +
   "那些日子在圖上是掉到零的斷崖（實測抽 51 檔有 4 檔中招，1538 連續四天）。";
 
+const bookValueBreakdownEntrySchema = z.object({
+  fiscalYear: z.number(),
+  openingBvps: z.number(),
+  netIncome: z.number(),
+  otherComprehensiveIncome: z.number(),
+  cashDividends: z.number(),
+  capitalIssued: z.number(),
+  shareCountEffect: z.number(),
+  other: z.number(),
+  closingBvps: z.number(),
+});
+
+const bookValueBreakdownSchema = z
+  .object({ symbol: z.string(), entries: z.array(bookValueBreakdownEntrySchema) })
+  .openapi("BookValueBreakdown", {
+    example: {
+      symbol: "2330",
+      entries: [
+        { fiscalYear: 2025, openingBvps: 165.37, netIncome: 66.24, otherComprehensiveIncome: -2.18, cashDividends: -20.5, capitalIssued: 0, shareCountEffect: 0, other: 0.05, closingBvps: 208.99 },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/book-value-breakdown",
+  summary: "查詢每股淨值的逐年變動拆解（瀑布圖用）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/book-value-breakdown（他們 2026-09-27 新增）。一年一列、由舊到新，單位是元／股。" +
+    "**每一列是恆等式**：openingBvps 加上 netIncome、otherComprehensiveIncome、cashDividends、capitalIssued、shareCountEffect、other 六項等於 closingBvps。" +
+    "**要驗這個恆等式請用 0.02 的容差，不要用 0.01**——七個加項各自四捨五入到 2 位小數，殘差自然會到 ±0.02；" +
+    "2026-09-27 抽 40 家、197 列實測，18.8% 的列殘差是 0.01 或 0.02，沒有一列更大，所以門檻設 0.01 會誤判約兩成的列而那些列其實沒有問題。" +
+    "cashDividends 是**負值**（2330 的 2025 年度是 −20.5）。" +
+    "shareCountEffect 跟 capitalIssued 是兩件事：前者是配股／分割／減資讓分母變了而權益總額沒變的那一塊，後者是現金增資、可轉債轉換這種真的有錢進來的。" +
+    "other 是歸不進其他項的殘餘（庫藏股、非控制權益調整等）。" +
+    "所有欄位都是必填的數字、不會是 null（實測 40 家 197 列零個 null，上游也明確保證），所以缺欄位時 bff-ts 回 502 並指名欄位，不會靜默給 0。" +
+    "沒有 limit 之類的參數，上游給全部年度（2330 是 7 列、5904 是 5 列）。查無資料回傳空陣列，不是 404。",
+  tags: ["Stock"],
+  request: { params: symbolParam },
+  responses: {
+    200: {
+      description: "逐年的每股淨值變動拆解，查無資料時 entries 為空陣列。",
+      content: { "application/json": { schema: bookValueBreakdownSchema } },
+    },
+    502: unauthorized502,
+  },
+});
+
 const dailyPriceHistoryEntrySchema = z.object({
   tradeDate: z.string(),
   open: z.number().nullable().openapi({ description: NO_TRADE_DOC }),

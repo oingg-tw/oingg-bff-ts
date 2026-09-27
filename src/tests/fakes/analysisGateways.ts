@@ -64,6 +64,7 @@ export function fakeStockGateway(overrides: Partial<StockGatewayPort> = {}): Sto
     getRoeHistory: vi.fn(),
     getRoaHistory: vi.fn(),
     getDupontHistory: vi.fn(),
+    getBookValueBreakdown: vi.fn(),
     getMonthlyRevenueHistory: vi.fn(),
     getForeignShareholdingHistory: vi.fn(),
     getDailyPriceHistory: vi.fn(),

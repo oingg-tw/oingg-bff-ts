@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, requireNumber } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { DividendEvent, DividendHistoryEntry, DividendHistoryResult } from "@/application/proxy/stock/dividendHistory.types.js";
 
@@ -23,21 +23,13 @@ function toStringOrNull(value: unknown): string | null {
  * 哪個欄位不見了。代價是改版空窗期這支端點會整支失敗，那是正確的——資料確實無法以宣告的形狀提供，
  * 而下游對 502 本來就有降級行為。
  */
-function requireNumber(value: unknown, field: string): number {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    logger.error({ field, received: typeof value }, "Dividend history is missing a field upstream guarantees — likely a field rename that bff-ts has not followed");
-    throw new AppError(`Dividend history response is missing the numeric field ${field}`, 502);
-  }
-  return value;
-}
-
 function normalizeEvent(raw: unknown): DividendEvent {
   const r = raw as Record<string, unknown>;
   return {
     fiscalQuarter: toNumberOrNull(r.fiscalQuarter),
     cashDividend: Number(r.cashDividend),
-    cashDividendFromEarnings: requireNumber(r.cashDividendFromEarnings, "cashDividendFromEarnings"),
-    cashDividendFromLegalReserveAndCapitalSurplus: requireNumber(r.cashDividendFromLegalReserveAndCapitalSurplus, "cashDividendFromLegalReserveAndCapitalSurplus"),
+    cashDividendFromEarnings: requireNumber(r.cashDividendFromEarnings, "cashDividendFromEarnings", "Dividend history"),
+    cashDividendFromLegalReserveAndCapitalSurplus: requireNumber(r.cashDividendFromLegalReserveAndCapitalSurplus, "cashDividendFromLegalReserveAndCapitalSurplus", "Dividend history"),
     stockDividend: Number(r.stockDividend),
     exDividendDate: toStringOrNull(r.exDividendDate),
     exRightsDate: toStringOrNull(r.exRightsDate),
@@ -54,8 +46,8 @@ function normalizeEntry(raw: unknown): DividendHistoryEntry {
     fiscalYear: Number(r.fiscalYear),
     rocFiscalYear: Number(r.rocFiscalYear),
     cashDividend: Number(r.cashDividend),
-    cashDividendFromEarnings: requireNumber(r.cashDividendFromEarnings, "cashDividendFromEarnings"),
-    cashDividendFromLegalReserveAndCapitalSurplus: requireNumber(r.cashDividendFromLegalReserveAndCapitalSurplus, "cashDividendFromLegalReserveAndCapitalSurplus"),
+    cashDividendFromEarnings: requireNumber(r.cashDividendFromEarnings, "cashDividendFromEarnings", "Dividend history"),
+    cashDividendFromLegalReserveAndCapitalSurplus: requireNumber(r.cashDividendFromLegalReserveAndCapitalSurplus, "cashDividendFromLegalReserveAndCapitalSurplus", "Dividend history"),
     stockDividend: Number(r.stockDividend),
     totalDividend: Number(r.totalDividend),
     distributionCount: Number(r.distributionCount),
