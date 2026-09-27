@@ -36,6 +36,7 @@ const RAW_BODY = {
     {
       fiscalYear: 2026,
       fiscalQuarter: 2,
+      dataType: "2",
       values: {
         netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
         epsGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
@@ -94,6 +95,7 @@ describe("fetchMetricsHistory", () => {
     const entry = {
       fiscalYear: 2024,
       fiscalQuarter: 4,
+      dataType: "2",
       values: {
         roe: { value: null, nullReason: "缺少前四季損益表資料", knowledgeDate: "2025-02-10", knowledgeDateIsFallback: false, formulaVersion: 3 },
       },
@@ -127,6 +129,7 @@ describe("fetchMetricsHistory", () => {
           {
             fiscalYear: 2025,
             fiscalQuarter: 4,
+            dataType: "2",
             values: {
               netIncomeGrowthRate: { value: 10, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
               epsGrowthRate: { value: 10, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
@@ -136,6 +139,7 @@ describe("fetchMetricsHistory", () => {
           {
             fiscalYear: 2026,
             fiscalQuarter: 1,
+            dataType: "2",
             values: {
               netIncomeGrowthRate: { value: 20, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3 },
               epsGrowthRate: { value: 20, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3 },
@@ -144,6 +148,7 @@ describe("fetchMetricsHistory", () => {
           {
             fiscalYear: 2026,
             fiscalQuarter: 2,
+            dataType: "2",
             values: {
               netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
               epsGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
@@ -185,6 +190,7 @@ describe("fetchMetricsHistory", () => {
           {
             fiscalYear: 2024,
             fiscalQuarter: 2,
+            dataType: "2",
             values: {
               assetTurnover: { value: 0.41, nullReason: null, knowledgeDate: "2024-08-13", knowledgeDateIsFallback: false, formulaVersion: 3 },
               fixedAssetTurnover: null,
@@ -193,6 +199,7 @@ describe("fetchMetricsHistory", () => {
           {
             fiscalYear: 2024,
             fiscalQuarter: 3,
+            dataType: "2",
             values: {
               assetTurnover: { value: 0.43, nullReason: null, knowledgeDate: "2024-11-12", knowledgeDateIsFallback: false, formulaVersion: 3 },
               fixedAssetTurnover: { value: 0.86, nullReason: null, knowledgeDate: "2024-11-12", knowledgeDateIsFallback: false, formulaVersion: 3 },
@@ -265,6 +272,7 @@ describe("fetchMetricsHistory 的 formulaVersion", () => {
           {
             fiscalYear: 2026,
             fiscalQuarter: 2,
+            dataType: "2",
             values: {
               netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 5 },
               // 同一期不同指標可以是不同版本：重算是逐指標進行的，不是整批一起跳。
@@ -290,6 +298,7 @@ describe("fetchMetricsHistory 的 formulaVersion", () => {
           {
             fiscalYear: 2026,
             fiscalQuarter: 2,
+            dataType: "2",
             values: {
               netIncomeGrowthRate: null,
               epsGrowthRate: { value: 12.3, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false },

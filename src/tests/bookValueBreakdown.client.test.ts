@@ -36,6 +36,7 @@ const RAW_2330 = {
   capitalIssued: 0,
   shareCountEffect: 0,
   other: 0.06,
+  dataType: "2" as const,
   closingBvps: 208.99,
 };
 
@@ -97,7 +98,7 @@ describe("fetchBookValueBreakdown", () => {
     mockFetchOnce({
       symbol: "5904",
       entries: [
-        { ...RAW_2330, fiscalYear: 2025, openingBvps: 6.75, netIncome: 2.95, otherComprehensiveIncome: 0, cashDividends: -2.27, capitalIssued: 0, shareCountEffect: -0.03, other: 0.21, closingBvps: 7.62 },
+        { ...RAW_2330, fiscalYear: 2025, openingBvps: 6.75, netIncome: 2.95, otherComprehensiveIncome: 0, cashDividends: -2.27, capitalIssued: 0, shareCountEffect: -0.03, other: 0.21, dataType: "2" as const, closingBvps: 7.62 },
       ],
     });
 
@@ -137,3 +138,35 @@ describe("fetchBookValueBreakdown", () => {
     await expect(fetchBookValueBreakdown("2330")).rejects.toMatchObject({ statusCode: 502 });
   });
 });
+
+/**
+ * 這支端點的 dataType 是**必填**（只有年度資料、沒有日頻指標），缺了丟 502。
+ * 不預設成 "2"：那會把 31 家轉換公司的個別報表年度悄悄標成合併，而下游要這個欄位的整個用途就是區分兩者。
+ */
+describe("book-value-breakdown 的 dataType", () => {
+  it("轉換公司逐年帶不同的報表類型", async () => {
+    mockFetchOnce({
+      symbol: "2941",
+      entries: [
+        { ...RAW_2330, fiscalYear: 2022, dataType: "2" },
+        { ...RAW_2330, fiscalYear: 2023, dataType: "1" },
+      ],
+    });
+
+    const entries = (await fetchBookValueBreakdown("2941")).entries;
+
+    expect(entries.map((e) => e.dataType)).toEqual(["2", "1"]);
+  });
+
+  it("缺 dataType 或值不合法時丟 502，不預設成合併", async () => {
+    for (const bad of [undefined, null, "3", "2 "]) {
+      const { dataType: _omitted, ...rest } = RAW_2330;
+      mockFetchOnce({ symbol: "2330", entries: [bad === undefined ? rest : { ...rest, dataType: bad }] });
+      await expect(fetchBookValueBreakdown("2330"), `dataType=${String(bad)}`).rejects.toMatchObject({
+        statusCode: 502,
+        message: expect.stringContaining("dataType"),
+      });
+    }
+  });
+});
+

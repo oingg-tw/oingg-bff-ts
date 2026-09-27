@@ -850,6 +850,7 @@ const metricHistoryEntrySchema = z.object({
   knowledgeDate: z.string(),
   knowledgeDateIsFallback: z.boolean(),
   formulaVersion: z.number().nullable().openapi({ description: VERSION_FIELD_DOC }),
+  dataType: z.enum(["1", "2"]).nullable().openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個體報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" + "**null 的意思是「這個指標不適用報表類型」而不是「不知道」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。季頻指標（Q／TTM／FY）缺這個欄位才代表版本錯開。" }),
 });
 
 const metricHistorySchema = z
@@ -913,6 +914,8 @@ const metricsHistoryValueSchema = z.object({
 const metricsHistoryEntrySchema = z.object({
   fiscalYear: z.number(),
   fiscalQuarter: z.number(),
+  /** 期層級而不是 values[metricCode] 裡面：報表類型是逐期決定的，同一期的每個指標都一樣。 */
+  dataType: z.enum(["1", "2"]).nullable().openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個體報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" + "**null 的意思是「這個指標不適用報表類型」而不是「不知道」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。季頻指標（Q／TTM／FY）缺這個欄位才代表版本錯開。" }),
   values: z.record(z.string(), metricsHistoryValueSchema.nullable()),
 });
 
@@ -1067,6 +1070,7 @@ const dupontHistoryEntrySchema = z.object({
   dupontExtendedRoeNullReason: z.string().nullable(),
   knowledgeDate: z.string(),
   knowledgeDateIsFallback: z.boolean(),
+  dataType: z.enum(["1", "2"]).nullable().openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個體報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" + "**null 的意思是「這個指標不適用報表類型」而不是「不知道」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。季頻指標（Q／TTM／FY）缺這個欄位才代表版本錯開。" }),
 });
 
 const dupontHistorySchema = z
@@ -1248,6 +1252,8 @@ const bookValueBreakdownEntrySchema = z.object({
   capitalIssued: z.number(),
   shareCountEffect: z.number(),
   other: z.number(),
+  /** 這支端點只有年度資料、沒有日頻指標，所以是必填；缺了 bff-ts 回 502，不預設成 "2"。 */
+  dataType: z.enum(["1", "2"]).openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個體報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" }),
   closingBvps: z.number(),
 });
 

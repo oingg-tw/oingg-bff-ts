@@ -18,6 +18,21 @@ export interface MetricsHistoryEntry {
   fiscalYear: number;
   fiscalQuarter: number;
   /**
+   * 這一期用的財務報表類型：`"2"` = 合併報表、`"1"` = 個體報表（MOPS 的 dataType 編號，**跟
+   * companyProfile 的 `financialReportType` 方向相反**，見那邊的說明）。2026-09-27 新增。
+   *
+   * **為什麼逐期而不是逐公司**：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史
+   * 接成一條線，所以同一條數列裡轉換點之前是合併、之後是個別。公司層級的 `metricDataType` 只說得出
+   * 「現在」用哪一種，說不出哪一期是哪一種。一般公司每一期恆為 `"2"`、249 家個別申報者恆為 `"1"`。
+   *
+   * **選填的理由不是「可能漏送」**：日頻指標（exchangePeRatio、live* 等）走這支端點時沒有報表類型的
+   * 概念，所以上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 沒有 dataType，但有 tradeDate）。
+   * 所以 null 的意思是「這個指標不適用報表類型」，不是「不知道」——季頻指標（Q/TTM/FY）缺這個欄位才是
+   * 版本錯開。
+   */
+  dataType: "1" | "2" | null;
+
+  /**
    * Keyed by the requested metricCode — one entry per fiscal period, all requested metrics together.
    * A metricCode's entry here is the literal JSON `null` (not an object) when that metric has no
    * backfilled data at all for this period — confirmed live, 2026-09-10, e.g. a metricCode backfilled

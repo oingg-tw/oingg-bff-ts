@@ -26,6 +26,17 @@ function normalizeValue(raw: unknown): MetricsHistoryValue | null {
   };
 }
 
+/**
+ * `dataType` 只接受 `"1"` 或 `"2"`，其他一律回 null。
+ *
+ * 不用 `String(r.dataType)`：那會把缺席的欄位變成字串 `"undefined"`，而 `"undefined"` 是個合法字串、
+ * 型別上過關、下游拿它去比 `=== "1"` 得到 false——症狀是「全部看起來都是合併報表」。這跟今天
+ * `Number(null)` 變成 0 是同一類錯（見 dailyPriceHistory.client.ts）。
+ */
+function toDataType(value: unknown): "1" | "2" | null {
+  return value === "1" || value === "2" ? value : null;
+}
+
 function normalizeEntry(raw: unknown): MetricsHistoryEntry {
   const r = raw as Record<string, unknown>;
   const rawValues = (r.values ?? {}) as Record<string, unknown>;
@@ -33,7 +44,8 @@ function normalizeEntry(raw: unknown): MetricsHistoryEntry {
   for (const [metricCode, value] of Object.entries(rawValues)) {
     values[metricCode] = normalizeValue(value);
   }
-  return { fiscalYear: Number(r.fiscalYear), fiscalQuarter: Number(r.fiscalQuarter), values };
+  // dataType 在期層級而不是 values[metricCode] 裡面：報表類型是逐期決定的，同一期的每個指標都一樣。
+  return { fiscalYear: Number(r.fiscalYear), fiscalQuarter: Number(r.fiscalQuarter), dataType: toDataType(r.dataType), values };
 }
 
 function isMetricsHistoryResponse(body: unknown): body is { entries: unknown[] } {

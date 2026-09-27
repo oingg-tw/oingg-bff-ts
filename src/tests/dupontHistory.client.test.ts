@@ -47,7 +47,7 @@ const Q_BODY = {
       dupontExtendedRoePct: 9.65,
       dupontExtendedRoeNullReason: null,
       knowledgeDate: "2026-05-12",
-      knowledgeDateIsFallback: false,
+      knowledgeDateIsFallback: false, dataType: "2",
     },
   ],
 };
@@ -74,7 +74,7 @@ const TTM_BODY = {
       dupontExtendedRoePct: 32.47,
       dupontExtendedRoeNullReason: null,
       knowledgeDate: "2026-05-12",
-      knowledgeDateIsFallback: false,
+      knowledgeDateIsFallback: false, dataType: "2",
     },
   ],
 };

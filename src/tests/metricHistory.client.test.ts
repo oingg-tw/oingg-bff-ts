@@ -33,8 +33,8 @@ const RAW_BODY = {
   total: 23,
   hasMore: false,
   entries: [
-    { fiscalYear: 2025, fiscalQuarter: 2, value: 13.55, nullReason: null, knowledgeDate: "2025-08-12", knowledgeDateIsFallback: false, formulaVersion: 3 },
-    { fiscalYear: 2025, fiscalQuarter: 3, value: 15.93, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
+    { fiscalYear: 2025, fiscalQuarter: 2, value: 13.55, nullReason: null, knowledgeDate: "2025-08-12", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2" },
+    { fiscalYear: 2025, fiscalQuarter: 3, value: 15.93, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2" },
   ],
 };
 
@@ -120,7 +120,7 @@ describe("fetchMetricHistory", () => {
   });
 
   it("preserves a null value with its nullReason", async () => {
-    const entry = { fiscalYear: 2024, fiscalQuarter: 4, value: null, nullReason: "缺少前四季損益表資料", knowledgeDate: "2025-02-10", knowledgeDateIsFallback: false, formulaVersion: 3 };
+    const entry = { fiscalYear: 2024, fiscalQuarter: 4, value: null, nullReason: "缺少前四季損益表資料", knowledgeDate: "2025-02-10", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2" };
     mockFetchOnce({ ok: true, body: { ...RAW_BODY, entries: [entry] } });
 
     const result = await fetchMetricHistory("2330", "peRatio", "TTM");
@@ -215,3 +215,75 @@ describe("fetchMetricHistory 的 formulaVersion", () => {
     expect(result.entries[0]?.formulaVersion).toBeNull();
   });
 });
+
+/**
+ * `dataType` 逐期標示這一期用合併（"2"）還是個體（"1"）報表。2026-09-27 加入，因為 analysis-ts 把 31 家
+ * 「賣掉子公司後只申報個別報表」的公司的兩段歷史接成了一條線——**同一條數列裡轉換點之前是合併、之後是
+ * 個別**，而公司層級的 metricDataType 只說得出「現在」是哪一種。
+ *
+ * web-nuxt 要這個欄位的理由不是「圖上會有斷點」（實測 2941 轉換點 +35% 跟它自己其他年度的 −20%／−29%
+ * 同一個量級，斷點的擔憂不成立），而是口徑一致性：那個站到處在標示資料限制，默默把兩種口徑接成一條線
+ * 跟那個立場矛盾。
+ */
+describe("fetchMetricHistory 的 dataType", () => {
+  it("轉換公司的數列上，轉換點前後是不同的報表類型", async () => {
+    // 貼近上游實際回應（2941，實測 2022 是 "2"、2023 起是 "1"）
+    mockFetchOnce({
+      ok: true,
+      body: {
+        symbol: "2941", metricCode: "eps", basis: "FY", total: 5, hasMore: false,
+        entries: [
+          { fiscalYear: 2022, fiscalQuarter: 4, value: 3.09, nullReason: null, knowledgeDate: "2023-03-20", knowledgeDateIsFallback: false, formulaVersion: 2, dataType: "2" },
+          { fiscalYear: 2023, fiscalQuarter: 4, value: 4.16, nullReason: null, knowledgeDate: "2024-03-20", knowledgeDateIsFallback: false, formulaVersion: 2, dataType: "1" },
+        ],
+      },
+    });
+
+    const entries = (await fetchMetricHistory("2941", "eps", "TTM")).entries;
+
+    expect(entries.map((e) => e.dataType)).toEqual(["2", "1"]);
+  });
+
+  /**
+   * **選填的理由不是「可能漏送」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送
+   * 這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。所以 null 代表「不適用」，
+   * 不是「不知道」——這一條擋的是「順手把它改成必填」那種改動。
+   */
+  it("日頻指標沒有 dataType 時是 null，不丟錯", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        symbol: "2330", metricCode: "eps", basis: "TTM", total: 1, hasMore: false,
+        entries: [
+          { fiscalYear: 2026, fiscalQuarter: 2, value: 1.1, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 2, tradeDate: "2026-09-24" },
+        ],
+      },
+    });
+
+    const e = (await fetchMetricHistory("2330", "eps", "TTM")).entries[0];
+
+    expect(e?.dataType).toBeNull();
+    expect(e).toHaveProperty("dataType");
+    expect(e?.value).toBe(1.1);
+  });
+
+  /**
+   * `"undefined"` 是個合法字串，型別上過關，而下游拿它比 `=== "1"` 得到 false——症狀是「全部看起來都是
+   * 合併報表」。這是 `String(r.dataType)` 會造成的，跟 `Number(null)` 變成 0 同一類（見
+   * dailyPriceHistory.client.ts）。
+   */
+  it("dataType 不是 \"1\"/\"2\" 時退成 null，不會變成 \"undefined\" 這種字串", async () => {
+    for (const bad of [undefined, null, "3", 1, "合併"]) {
+      mockFetchOnce({
+        ok: true,
+        body: {
+          symbol: "2330", metricCode: "eps", basis: "TTM", total: 1, hasMore: false,
+          entries: [{ fiscalYear: 2026, fiscalQuarter: 2, value: 1.1, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 2, dataType: bad }],
+        },
+      });
+      const e = (await fetchMetricHistory("2330", "eps", "TTM")).entries[0];
+      expect(e?.dataType, `dataType=${String(bad)} 應該退成 null`).toBeNull();
+    }
+  });
+});
+

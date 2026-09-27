@@ -21,13 +21,26 @@ const NUMERIC_FIELDS = [
   "closingBvps",
 ] as const;
 
+/**
+ * `dataType` 在這支端點是必填（只有年度資料、沒有日頻指標），所以缺了或不是 "1"/"2" 就丟 502——
+ * 跟九個數字欄位同一個判斷。不預設成 "2"：那會把 31 家轉換公司的個別報表期悄悄標成合併，
+ * 而下游的整個用途就是要區分這兩者。
+ */
+function requireDataType(value: unknown): "1" | "2" {
+  if (value !== "1" && value !== "2") {
+    logger.error({ received: typeof value === "string" ? value : typeof value }, "Book value breakdown entry has no usable dataType — upstream guarantees it, so this is probably a version skew");
+    throw new AppError("Book value breakdown response is missing the dataType field", 502);
+  }
+  return value;
+}
+
 function normalizeEntry(raw: unknown): BookValueBreakdownEntry {
   const r = raw as Record<string, unknown>;
   const out = {} as Record<(typeof NUMERIC_FIELDS)[number], number>;
   for (const field of NUMERIC_FIELDS) {
     out[field] = requireNumber(r[field], field, "Book value breakdown");
   }
-  return out as unknown as BookValueBreakdownEntry;
+  return { ...(out as unknown as Omit<BookValueBreakdownEntry, "dataType">), dataType: requireDataType(r.dataType) };
 }
 
 function isBookValueBreakdownResponse(body: unknown): body is { entries: unknown[] } {

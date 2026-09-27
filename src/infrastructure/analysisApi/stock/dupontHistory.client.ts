@@ -12,6 +12,17 @@ function toStringOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+/**
+ * `dataType` 只接受 `"1"` 或 `"2"`，其他一律回 null。
+ *
+ * 不用 `String(r.dataType)`：那會把缺席的欄位變成字串 `"undefined"`，而 `"undefined"` 是個合法字串、
+ * 型別上過關、下游拿它去比 `=== "1"` 得到 false——症狀是「全部看起來都是合併報表」。這跟今天
+ * `Number(null)` 變成 0 是同一類錯（見 dailyPriceHistory.client.ts）。
+ */
+function toDataType(value: unknown): "1" | "2" | null {
+  return value === "1" || value === "2" ? value : null;
+}
+
 function normalizeEntry(raw: unknown): DupontHistoryEntry {
   const r = raw as Record<string, unknown>;
   return {
@@ -29,6 +40,7 @@ function normalizeEntry(raw: unknown): DupontHistoryEntry {
     dupontExtendedRoeNullReason: toStringOrNull(r.dupontExtendedRoeNullReason),
     knowledgeDate: String(r.knowledgeDate),
     knowledgeDateIsFallback: r.knowledgeDateIsFallback === true,
+    dataType: toDataType(r.dataType),
   };
 }
 

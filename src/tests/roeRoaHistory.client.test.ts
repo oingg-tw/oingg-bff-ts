@@ -33,8 +33,8 @@ const ROE_BODY = {
   total: 20,
   hasMore: true,
   entries: [
-    { fiscalYear: 2025, fiscalQuarter: 4, value: 31.7, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3 },
-    { fiscalYear: 2026, fiscalQuarter: 1, value: 32.74, nullReason: null, knowledgeDate: "2026-05-12", knowledgeDateIsFallback: false, formulaVersion: 3 },
+    { fiscalYear: 2025, fiscalQuarter: 4, value: 31.7, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2" },
+    { fiscalYear: 2026, fiscalQuarter: 1, value: 32.74, nullReason: null, knowledgeDate: "2026-05-12", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2" },
   ],
 };
 
@@ -45,7 +45,7 @@ const ROA_BODY = {
   total: 20,
   hasMore: true,
   entries: [
-    { fiscalYear: 2025, fiscalQuarter: 4, value: 21.65, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3 },
+    { fiscalYear: 2025, fiscalQuarter: 4, value: 21.65, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2" },
   ],
 };
 
