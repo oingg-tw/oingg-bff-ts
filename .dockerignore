@@ -1,0 +1,22 @@
+# 只讓 Dockerfile 明確 COPY 的東西進 build context。
+# 這裡以「先全部排除、再放行必要的」寫法，因為漏掉一條排除會把秘密送進映像，
+# 而漏掉一條放行只會在 build 時立刻失敗。
+*
+
+!package.json
+!pnpm-lock.yaml
+!tsconfig.json
+!tsconfig.build.json
+!prisma
+!src
+
+# src/ 底下不需要進映像的：測試與 Prisma 產出的 client（build 階段會自己重新 generate）
+src/tests
+src/generated
+
+# 即使上面的 * 已經排除，仍明確列出這幾個，讓意圖看得見：
+.env
+.env.*
+serviceAccountKey.json
+*.pem
+*.key
