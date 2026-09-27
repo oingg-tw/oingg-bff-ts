@@ -3,14 +3,24 @@ import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService 
 import { logger } from "@/shared/logger.js";
 import type { DailyPriceHistoryEntry, DailyPriceHistoryResult } from "@/application/proxy/stock/dailyPriceHistory.types.js";
 
+/**
+ * **不要用 `Number(...)`。** 沒成交的交易日 OHLC 是 null，而 `Number(null)` 是 **0**（不是 NaN），
+ * 所以那些列會變成「收盤 0 元」送給前端，畫成股價圖是掉到零的斷崖。2026-09-27 修掉，當時實測抽 51 檔
+ * 有 4 檔中招、1538 連續四天。
+ */
+function toNumberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 function normalizeEntry(raw: unknown): DailyPriceHistoryEntry {
   const r = raw as Record<string, unknown>;
   return {
     tradeDate: String(r.tradeDate),
-    open: Number(r.open),
-    high: Number(r.high),
-    low: Number(r.low),
-    close: Number(r.close),
+    open: toNumberOrNull(r.open),
+    high: toNumberOrNull(r.high),
+    low: toNumberOrNull(r.low),
+    close: toNumberOrNull(r.close),
+    // volume 不走 toNumberOrNull：即使 OHLC 全 null 它仍是實數，而型別上它不可為 null。
     volume: Number(r.volume),
   };
 }

@@ -1233,13 +1233,19 @@ registry.registerPath({
   },
 });
 
+const NO_TRADE_DOC =
+  "**是交易日但當天沒有成交時是 null**，而同一列的 volume 仍可能非 0（零股或盤後，analysis-ts 未查證）。" +
+  "這支端點刻意保留這些交易日，因為前端需要分辨「那天有開盤但沒成交」與「那天不是交易日」。" +
+  "**畫圖時請把 null 當成無資料跳過、不要連線，也不要當成 0** —— 2026-09-27 之前 bff-ts 錯把它正規化成 0，" +
+  "那些日子在圖上是掉到零的斷崖（實測抽 51 檔有 4 檔中招，1538 連續四天）。";
+
 const dailyPriceHistoryEntrySchema = z.object({
   tradeDate: z.string(),
-  open: z.number(),
-  high: z.number(),
-  low: z.number(),
-  close: z.number(),
-  volume: z.number(),
+  open: z.number().nullable().openapi({ description: NO_TRADE_DOC }),
+  high: z.number().nullable().openapi({ description: NO_TRADE_DOC }),
+  low: z.number().nullable().openapi({ description: NO_TRADE_DOC }),
+  close: z.number().nullable().openapi({ description: NO_TRADE_DOC }),
+  volume: z.number().openapi({ description: "成交量。**即使 OHLC 全是 null 也可能非 0**，所以不要用 volume 判斷當天有沒有成交。" }),
 });
 
 const dailyPriceHistorySchema = z
