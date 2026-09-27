@@ -128,7 +128,12 @@ const metricDefinitionSchema = z.object({
         "2026-09-27 實測 6 組指標的 name 完全相同——市值、本益比、股價淨值比、本益成長比、盈餘收益率、葛拉漢倍數——" +
         "而 nameEn 也區分不了（peRatio 與 exchangePeRatio 都是 PER、pegRatio 與 livePegRatio 都是 PEG、" +
         "grahamNumber 與 liveGrahamNumber 都是 Graham Multiplier），所以這一欄是唯一的區分方式。" +
-        "選填：156 支裡只有 7 支有，沒有後綴的指標本來就不跟別人撞名（null 代表不需要後綴，不是缺資料）。",
+        "選填：156 支裡只有 7 支有，沒有後綴的指標本來就不跟別人撞名（null 代表不需要後綴，不是缺資料）。" +
+        "**三個欄位的分工（2026-09-27 向 analysis-ts 確認）**：唯一鍵只有 metricCode；人看得懂的唯一標籤是 name + nameSuffix；" +
+        "nameEn 是純英文名稱或慣用縮寫，**刻意不保證唯一**（搜「PER」同時命中 peRatio 與 exchangePeRatio 是預期行為，" +
+        "命中後靠 nameSuffix 區分）。nameSuffix 目前只有中文值；若之後英文 UI 需要英文後綴，analysis-ts 會另加 nameSuffixEn 欄位，" +
+        "**不會塞進 nameEn**——使用者的既有規則是名稱欄位（name／nameEn／displayName）後面不接任何限定語、門檻或狀態，" +
+        "一律放進專屬欄位，所以不要提議 \"PER (Exchange)\" 這種寫法。",
     }),
   path: z.string(),
   description: z.string().nullish(),

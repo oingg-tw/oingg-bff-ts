@@ -34,7 +34,7 @@ const RAW_CATEGORIES = [
     categoryKey: "profitability",
     categoryDisplayName: "獲利能力",
     metrics: [
-      { metricCode: "roe", name: "股東權益報酬率 (ROE)", unit: "%", validTimeframes: ["Q", "Q_ANN", "TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
+      { metricCode: "roe", name: "股東權益報酬率", nameEn: "ROE", unit: "%", validTimeframes: ["Q", "Q_ANN", "TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
     ],
   },
 ];
@@ -53,8 +53,8 @@ describe("fetchMetricCatalog", () => {
         metrics: [
           {
             key: "roe",
-            name: "股東權益報酬率 (ROE)",
-            nameEn: null,
+            name: "股東權益報酬率",
+            nameEn: "ROE",
             nameSuffix: null,
             path: "roe",
             description: null,
@@ -279,13 +279,13 @@ describe("fetchMetricCatalog", () => {
             metrics: [
               {
                 metricCode: "roe",
-                name: "股東權益報酬率 (ROE)",
+                name: "股東權益報酬率",
                 unit: "%",
                 validTimeframes: ["TTM"],
                 formulaLatex: "\\mathrm{ROE} = \\frac{\\mathrm{NetIncome}}{\\mathrm{Equity}} \\times 100",
                 sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1,
               },
-              { metricCode: "roa", name: "資產報酬率 (ROA)", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
+              { metricCode: "roa", name: "資產報酬率", nameEn: "ROA", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
             ],
           },
         ],
@@ -329,7 +329,7 @@ describe("fetchMetricCatalog", () => {
             metrics: [
               {
                 metricCode: "roe",
-                name: "股東權益報酬率 (ROE)",
+                name: "股東權益報酬率",
                 unit: "%",
                 validTimeframes: ["TTM"],
                 description: "衡量股東投入資本的獲利效率。",
@@ -338,7 +338,7 @@ describe("fetchMetricCatalog", () => {
                 sources: ["公開發行公司資產負債表（XBRL）"],
                 hasProvenance: true, formulaVersion: 1,
               },
-              { metricCode: "roa", name: "資產報酬率 (ROA)", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
+              { metricCode: "roa", name: "資產報酬率", nameEn: "ROA", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
             ],
           },
         ],
@@ -391,7 +391,7 @@ describe("fetchMetricCatalog", () => {
                 referenceUrl: "https://en.wikipedia.org/wiki/Dividend_payout_ratio",
                 sources: ["公開發行公司現金流量表（XBRL）"], hasProvenance: true, formulaVersion: 1,
               },
-              { metricCode: "roa", name: "資產報酬率 (ROA)", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
+              { metricCode: "roa", name: "資產報酬率", nameEn: "ROA", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
             ],
           },
         ],
@@ -435,13 +435,13 @@ describe("fetchMetricCatalog", () => {
             metrics: [
               {
                 metricCode: "sue",
-                name: "標準化未預期盈餘 (SUE)",
+                name: "標準化未預期盈餘",
                 unit: "",
                 validTimeframes: ["Q"],
                 academicSourceUrl: "https://doi.org/10.2307/2491062",
                 sources: ["公開發行公司損益表（XBRL）"], hasProvenance: true, formulaVersion: 1,
               },
-              { metricCode: "roa", name: "資產報酬率 (ROA)", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
+              { metricCode: "roa", name: "資產報酬率", nameEn: "ROA", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
             ],
           },
         ],
@@ -501,7 +501,7 @@ describe("fetchMetricCatalog", () => {
                 badge: SAMPLE_BADGE,
                 sources: ["公開發行公司資產負債表（XBRL）", "公開發行公司損益表（XBRL）"], hasProvenance: true, formulaVersion: 1,
               },
-              { metricCode: "roa", name: "資產報酬率 (ROA)", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
+              { metricCode: "roa", name: "資產報酬率", nameEn: "ROA", unit: "%", validTimeframes: ["TTM"], sources: ["公開發行公司資產負債表（XBRL）"], hasProvenance: true, formulaVersion: 1 },
             ],
           },
         ],
