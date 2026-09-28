@@ -473,8 +473,8 @@ export async function fetchEtfRanking(
 /**
  * TAIEX (加權股價指數) daily closing series from analysis-ts's GET /market/taiex-daily-price — added
  * 2026-09-14 for web-nuxt's Beta card "個股 vs 大盤" comparison chart. Oldest to newest (confirmed live),
- * `limit` bounds 1-8000, default 250 on analysis-ts's side (mirrored in market.service.ts's
- * getTaiexDailyPrice for a fast local 400, same convention as this file's other endpoints).
+ * `limit` bounds 1-8000, default 250 on analysis-ts's side (mirrored in the route's zod schema for a
+ * fast local 400 — MARKET_LIMIT_BOUNDS.taiexDailyPrice, same convention as this file's other endpoints).
  */
 export async function fetchTaiexDailyPrice(limit: number, interval?: TaiexDailyPriceInterval): Promise<TaiexDailyPriceResult> {
   // `interval` is only sent when given, so a caller that omits it keeps the exact upstream request (and
@@ -495,8 +495,9 @@ export async function fetchTaiexDailyPrice(limit: number, interval?: TaiexDailyP
  * MarketGatewayPort 的實作。上面的 fetchX 函式已經做完正規化與 400/502 判定，所以這裡只是把它們對應到
  * port 的方法名。
  *
- * 這個切片跟 macro 不同，上層的 market.service.ts 沒有被刪掉：那裡有真正的 limit 上下界與 metric/order
- * 列舉驗證，不是 `getX(a) => fetchX(a)` 的空殼。
+ * 這一層是純對應（`getX(a) => fetchX(a)`），因為它真的只是把 port 的方法名接到上面的 fetchX——limit
+ * 上下界與 metric/order 列舉驗證住在 http/modules/market/route.ts 的 zod schema（2026-09-28 從
+ * market.service.ts 搬過去，那個檔案除了這些檢查之外沒有別的東西）。
  */
 export const analysisMarketGateway: MarketGatewayPort = {
   getMarginShortRatioRanking: fetchMarginShortRatioRanking,

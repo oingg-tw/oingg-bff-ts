@@ -1,18 +1,23 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/http/swagger/registry.js";
+import { MARKET_LIMIT_BOUNDS } from "@/http/modules/market/route.js";
 
 const badRequest = (description: string) => errorResponse(description);
 const upstream502 = errorResponse("analysis-ts 服務無法連線或回應格式異常。");
 const nameField = z.string().nullable();
 const marketField = z.enum(["TWSE", "TPEx"]);
 
-function limitQuery(defaultValue: number, min: number, max: number) {
+/**
+ * 界限只從 route.ts 的 MARKET_LIMIT_BOUNDS 來（那裡也是實際驗證用的那一份）。以前這裡是手寫的字面數字，
+ * 跟 service 的常數是兩份——TAIEX 上限 2000→8000 那次就得記得改兩個地方。
+ */
+function limitQuery(bounds: { readonly default: number; readonly min: number; readonly max: number }) {
   return z.object({
     limit: z
       .coerce.number()
       .int()
       .optional()
-      .openapi({ default: defaultValue, minimum: min, maximum: max }),
+      .openapi({ default: bounds.default, minimum: bounds.min, maximum: bounds.max }),
   });
 }
 
@@ -47,7 +52,7 @@ registry.registerPath({
   summary: "券資比排行（融券今日餘額 ÷ 融資今日餘額 x 100）——籌碼面軋空熱度指標",
   description: "比值愈高愈可能軋空。融資餘額是 0 或查無融券資料的公司直接排除（不當 0 或無限大處理），只涵蓋真正的上市公司（排除 ETF／衍生性商品）。",
   tags: ["Market"],
-  request: { query: limitQuery(20, 1, 100) },
+  request: { query: limitQuery(MARKET_LIMIT_BOUNDS.marginShortRatioRanking) },
   responses: {
     200: { description: "券資比排行清單。", content: { "application/json": { schema: marginShortResultSchema } } },
     400: badRequest("limit 不是 1~100 之間的整數。"),
@@ -95,7 +100,7 @@ registry.registerPath({
   summary: "上市公司重大訊息公告——依公告日期新到舊",
   description: "announcementTime 是 twse-ts 原始的 HHMMSS 數字字串（未補零，例如 \"70003\"），照原樣傳遞不重新格式化。",
   tags: ["Market"],
-  request: { query: limitQuery(20, 1, 50) },
+  request: { query: limitQuery(MARKET_LIMIT_BOUNDS.materialAnnouncements) },
   responses: {
     200: { description: "重大訊息公告清單。", content: { "application/json": { schema: materialAnnouncementsResultSchema } } },
     400: badRequest("limit 不是 1~50 之間的整數。"),
@@ -246,7 +251,7 @@ registry.registerPath({
   description:
     "只涵蓋真正的上市/上櫃公司（已比對 company_profile 排除非公司標的）。TPEx 目前沒有 announcementCount/dispositionMeasures/linkInformation 這幾個欄位，會是 null（不是查詢失敗）。reasonTimes 是從 reason 解析出的次數（例如「連續五次」→5），reasonShort 是從 reason 解析出的中文短標籤，部分處置原因本身沒有次數/款次概念時兩者都是 null，不是解析失敗——⚠️ reasonShort 的 TPEx 端款次編號是比對 TWSE 規則名稱推斷的，未來可能修正。dispositionStartDate/dispositionEndDate 是把 dispositionPeriod 拆成的兩個西元日期欄位，dispositionPeriod 原始字串仍保留。sixDayChangePercent 是以 announceDate 為基準日往前推 6 個交易日的累積漲跌幅，資料不足 6 個交易日時是 null。",
   tags: ["Market"],
-  request: { query: limitQuery(20, 1, 50) },
+  request: { query: limitQuery(MARKET_LIMIT_BOUNDS.disposedStocks) },
   responses: {
     200: { description: "處置股清單。", content: { "application/json": { schema: disposedStocksResultSchema } } },
     400: badRequest("limit 不是 1~50 之間的整數。"),
@@ -297,7 +302,7 @@ registry.registerPath({
   description:
     "只涵蓋真正的上市/上櫃公司（已比對 company_profile 排除非公司標的）。criteriaDetails 是 analysis-ts 把 criteria 中文說明解析成的結構化資料（陣列，因為原始文字有時會串接兩個子句）。observationDays 只有「N個營業日內已有M次」格式才有值，解析失敗時是空陣列，criteria 原始文字不受影響。sixDayChangePercent 是以 tradeDate 為基準日往前推 6 個交易日的累積漲跌幅，資料不足 6 個交易日時是 null。",
   tags: ["Market"],
-  request: { query: limitQuery(20, 1, 50) },
+  request: { query: limitQuery(MARKET_LIMIT_BOUNDS.attentionStocks) },
   responses: {
     200: { description: "注意股清單。", content: { "application/json": { schema: attentionStocksResultSchema } } },
     400: badRequest("limit 不是 1~50 之間的整數。"),
@@ -380,7 +385,7 @@ registry.registerPath({
   description:
     "是「兩個方向一起回」的形狀（gainers/losers）。上市跟上櫃各自用自己最新的兩個交易日算，不強迫用同一天，所以 tradeDate/previousTradeDate 是每一列自己帶，不是頂層共用欄位。已排除 ETF／衍生性商品。資料來自 daily_price（本來就有完整市場鏡像），不受 twse-ts/tpex-ts 專屬 export dataset 的部署進度影響。",
   tags: ["Market"],
-  request: { query: limitQuery(20, 1, 50) },
+  request: { query: limitQuery(MARKET_LIMIT_BOUNDS.priceChangeRanking) },
   responses: {
     200: { description: "gainers/losers 兩組清單，各最多 limit 檔。", content: { "application/json": { schema: priceChangeRankingResultSchema } } },
     400: badRequest("limit 不是 1~50 之間的整數。"),
@@ -472,7 +477,7 @@ registry.registerPath({
   tags: ["Market"],
   request: {
     query: z.object({
-      limit: z.coerce.number().int().optional().openapi({ default: 250, minimum: 1, maximum: 8000 }),
+      limit: limitQuery(MARKET_LIMIT_BOUNDS.taiexDailyPrice).shape.limit,
       interval: z.enum(["daily", "weekly", "monthly"]).optional().openapi({ default: "daily" }),
     }),
   },
