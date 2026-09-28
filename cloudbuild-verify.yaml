@@ -1,0 +1,13 @@
+# 驗證 Dockerfile 建得起來，不推送任何映像（所以不需要 Artifact Registry，也不會留下要清的東西）。
+# 用法見 docs/部署.md。真正要部署時用的是另一條含 push 與 gcloud run deploy 的指令。
+#
+# 需要 --service-account：2026-09-28 起 Google 不再為新專案自動配置 Cloud Build 服務帳戶，
+# 少了那個旗標即使呼叫者是 owner 也會 PERMISSION_DENIED。
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "oingg-bff-ts:verify", "."]
+options:
+  # 沒有指定 bucket 時必須用 CLOUD_LOGGING_ONLY，否則 Cloud Build 會要求一個 logs bucket。
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+timeout: 1800s

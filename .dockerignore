@@ -5,6 +5,11 @@
 
 !package.json
 !pnpm-lock.yaml
+# pnpm-workspace.yaml 一定要進 context：它帶 allowBuilds（pnpm 10+ 預設不跑相依套件的 build script，
+# 沒有這份設定的話 install 會以 ERR_PNPM_IGNORED_BUILDS 回非零）與 blockExoticSubdeps: false
+# （ultimate-express 依賴的 uWebSockets.js 只發佈在 GitHub，不在 npm registry）。
+# 2026-09-28 第一次真的建置就是漏了這一行而失敗——正是上面那句「漏掉一條放行只會在 build 時立刻失敗」。
+!pnpm-workspace.yaml
 !tsconfig.json
 !tsconfig.build.json
 !prisma

@@ -7,7 +7,7 @@ FROM node:24-slim AS deps
 WORKDIR /app
 RUN corepack enable
 # pnpm 版本由 package.json 的 packageManager 欄位決定（pnpm@11.22.0），corepack 會照著裝。
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # prisma/ 必須在 install 之前就位：package.json 的 postinstall 會跑 prisma generate，
 # 而它需要 schema.prisma。產出的 client 是純 TypeScript（output 在 src/generated/prisma），
 # 所以它接著會被下面的 tsc 一起編譯進 dist。
@@ -30,7 +30,7 @@ RUN pnpm run build
 FROM node:24-slim AS prod-deps
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 FROM node:24-slim AS runtime
