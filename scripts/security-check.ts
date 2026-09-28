@@ -151,14 +151,17 @@ const RESOURCES: ResourceSpec[] = [
     basePath: "/screener/presets",
     createBody: () => ({
       name: `security-check-${randomUUID()}`,
-      filters: [{ field: "per.peRatio", min: 1, max: 20, exclude: false }],
+      // 2026-09-08 起欄位定址是 metricCode.token，舊的 "per.peRatio" 會被 400 擋掉（Unknown filter field）。
+      // 而這支腳本把「建立失敗」記成 WARN 跳過，所以那次遷移之後這兩項 BOLA 檢查其實一直沒在跑，
+      // 2026-09-28 才發現。改欄位格式時這裡要跟著改，否則覆蓋率會無聲消失。
+      filters: [{ field: "peRatio.TTM", min: 1, max: 20, exclude: false }],
     }),
     extraGetSuffixes: ["/run"],
   },
   {
     name: "ColumnPreset",
     basePath: "/screener/column-presets",
-    createBody: () => ({ name: `security-check-${randomUUID()}`, columns: [{ field: "per.peRatio" }] }),
+    createBody: () => ({ name: `security-check-${randomUUID()}`, columns: [{ field: "peRatio.TTM" }] }),
   },
 ];
 
