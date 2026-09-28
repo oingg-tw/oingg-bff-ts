@@ -11,6 +11,7 @@ export function fakeColumnPresets(overrides: Partial<ColumnPresetsPort> = {}): C
   return {
     list: vi.fn().mockResolvedValue([]),
     find: vi.fn().mockResolvedValue(null),
+    findByName: vi.fn().mockResolvedValue(null),
     findDefault: vi.fn().mockResolvedValue(null),
     create: vi.fn(),
     update: vi.fn(),

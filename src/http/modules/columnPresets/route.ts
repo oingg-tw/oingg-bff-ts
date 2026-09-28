@@ -1,4 +1,4 @@
-import { Router } from "ultimate-express";
+import { Router, type NextFunction, type Response } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
@@ -28,6 +28,26 @@ function parseId(raw: string): string {
 }
 
 const columnFieldSchema = z.object({ field: z.string().trim().min(1) });
+
+/**
+ * 名稱已經被用掉就直接回 409，**在額度 guard 之前**——理由與 watchlist 的 rejectExistingSymbol 相同，
+ * 見 quota.middleware.ts。body 解析兩次是刻意的，同一個理由。
+ */
+function rejectExistingName(deps: ColumnPresetsDeps) {
+  return async function existingNameGuard(req: AuthenticatedRequest, _res: Response, next: NextFunction): Promise<void> {
+    try {
+      const firebaseUid = requireUser(req);
+      const body = parseBody(createColumnPresetSchema, req.body);
+      if (await deps.columnPresets.findByName(firebaseUid, body.name)) {
+        next(new AppError(`You already have a column preset named "${body.name}"`, 409));
+        return;
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
 
 export const createColumnPresetSchema = z.object({
   name: z.string().trim().min(1, '"name" is required'),
@@ -63,8 +83,10 @@ export function createColumnPresetsRouter(
   });
 
   // Creation only — see the same note on POST /screener/presets.
+  // rejectExistingName 必須排在 enforceQuota 之前，理由見 quota.middleware.ts 的掛載順序說明。
   columnPresetsRouter.post(
     "/",
+    rejectExistingName(deps),
     enforceQuota("columnPresets", (uid) => deps.columnPresets.count(uid), deps),
     async (req: AuthenticatedRequest, res) => {
       const firebaseUid = requireUser(req);

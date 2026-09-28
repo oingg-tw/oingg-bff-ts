@@ -28,6 +28,7 @@ function fakeWatchlist(overrides: Partial<WatchlistPort> = {}): WatchlistPort {
   return {
     list: vi.fn().mockResolvedValue([]),
     find: vi.fn().mockResolvedValue(null),
+    findBySymbol: vi.fn().mockResolvedValue(null),
     count: vi.fn().mockResolvedValue(0),
     create: vi.fn().mockResolvedValue({ ok: true, item: SAMPLE_ITEM }),
     updateNote: vi.fn().mockResolvedValue(null),

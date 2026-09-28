@@ -37,6 +37,21 @@ export type QuotaMiddlewareDeps = EntitlementDeps;
  * every error body would give the frontend two sources for one fact, and they'd drift. The message
  * still spells the numbers out for logs and for any caller that shows it raw.
  */
+/**
+ * **掛載順序有一條規則：會被 409 拒絕的請求必須在這支 guard 之前就被回答。**
+ *
+ * 這支 middleware 只知道「你用了幾個」，不知道這次請求會不會真的新增一列。所以在額度剛好用滿的狀態下，
+ * 一筆**不會新增任何列**的重複請求也會被它判成 403 quota_exceeded——而那是錯的兩次：使用者被告知要升級
+ * 才能重新加入一個他已經擁有的東西，而下游收到 403 之後會把樂觀加入的項目收回，於是畫面上少掉一個合法
+ * 項目。2026-09-29 在 watchlist 上實測到這個行為（滿 10 檔時重複加入既有股票回 403 而不是 409）。
+ *
+ * 所以 watchlist 與 columnPresets 的建立路由都在這支 guard **之前**放一個自然鍵查詢（findBySymbol /
+ * findByName），重複就先回 409。screenerPresets 不需要：它的名稱是自動產生的（未命名、未命名 2…），
+ * 建立時不存在「重複」這個結果。
+ *
+ * 這些前置查詢**不是**唯一性的保證——真正的保證是 DB 的 unique 約束，而 create() 仍然會把 P2002 翻譯成
+ * `{ ok: false, reason: "duplicate" }`。前置查詢只負責讓兩個錯誤的**先後順序**是對的。
+ */
 export function enforceQuota(
   resource: QuotaResource,
   count: (firebaseUid: string) => Promise<number>,

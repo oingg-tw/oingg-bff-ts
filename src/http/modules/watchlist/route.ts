@@ -1,4 +1,4 @@
-import { Router } from "ultimate-express";
+import { Router, type NextFunction, type Response } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
@@ -38,6 +38,29 @@ export const updateWatchlistItemSchema = z.object({
 });
 
 /**
+ * 已經在清單裡的 symbol 直接回 409，**在額度 guard 之前**——理由見 quota.middleware.ts。
+ *
+ * body 會被解析兩次（這裡與 handler 各一次）。那是刻意的：讓這支 guard 不依賴 handler 有沒有先跑過，
+ * 代價只是一次 zod 解析。順帶的好處是重複請求不會再去打 analysis-ts 確認代號存在（assertSymbolExists
+ * 在 handler 裡），少一次跨服務往返。
+ */
+function rejectExistingSymbol(deps: WatchlistDeps) {
+  return async function existingSymbolGuard(req: AuthenticatedRequest, _res: Response, next: NextFunction): Promise<void> {
+    try {
+      const firebaseUid = requireUser(req);
+      const body = parseBody(addWatchlistItemSchema, req.body);
+      if (await deps.watchlist.findBySymbol(firebaseUid, body.symbol)) {
+        next(new AppError(`"${body.symbol}" is already in your watchlist`, 409));
+        return;
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+/**
  * 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。
  * 這是 http 層不再依賴 infrastructure 的關鍵——它只認得 application 匯出的型別。
  */
@@ -53,7 +76,9 @@ export function createWatchlistRouter(deps: WatchlistDeps & StockProxyDeps & Aut
 
   // 只擋新增：額度用完的人（例如反向試用剛結束）保留已經加進去的每一檔，只是不能再加——降級是唯讀不是
   // 刪除，理由見 billing/quota.ts。跟 POST /screener/presets 同一個寫法。
-  watchlistRouter.post("/", enforceQuota("watchlistItems", (uid) => deps.watchlist.count(uid), deps), async (req: AuthenticatedRequest, res) => {
+  //
+  // rejectExistingSymbol 必須排在 enforceQuota **之前**，理由見 quota.middleware.ts 的掛載順序說明。
+  watchlistRouter.post("/", rejectExistingSymbol(deps), enforceQuota("watchlistItems", (uid) => deps.watchlist.count(uid), deps), async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
     const body = parseBody(addWatchlistItemSchema, req.body);
 

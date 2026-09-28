@@ -11,6 +11,15 @@ export interface WatchlistPort {
   find(firebaseUid: string, id: string): Promise<WatchlistItem | null>;
 
   /**
+   * 按 symbol 找，給「這次請求會不會真的新增一列」用的——**存在的話就不該被新增額度判決**。
+   * 2026-09-29 新增，理由與順序見 http/middleware/quota.middleware.ts 的說明。
+   *
+   * 這**不是**唯一性的保證：真正的保證是 DB 的 `@@unique([firebaseUid, symbol])`，而 create() 仍然會回
+   * `{ ok: false, reason: "duplicate" }`。這支只負責讓「重複」比「額度滿」先被回答。
+   */
+  findBySymbol(firebaseUid: string, symbol: string): Promise<WatchlistItem | null>;
+
+  /**
    * 回傳 discriminated union 而不是讓 Prisma 的 unique violation 往上冒。
    *
    * 重構前 watchlist.service.ts 自己 `catch` 了 `Prisma.PrismaClientKnownRequestError` 再比對錯誤碼

@@ -17,6 +17,12 @@ export interface ColumnPresetsPort {
   /** null 代表那一列不存在（或不屬於這個使用者）——兩者對呼叫端是同一件事，刻意不區分。 */
   find(firebaseUid: string, id: string): Promise<ColumnPresetRow | null>;
 
+  /**
+   * 按名稱找，跟 WatchlistPort.findBySymbol 同一個用途與同一個非目的：讓「名稱重複」在「額度滿」之前
+   * 被回答。名稱比對大小寫敏感，跟 DB 的 `@@unique([firebaseUid, name])` 一致。
+   */
+  findByName(firebaseUid: string, name: string): Promise<ColumnPresetRow | null>;
+
   /** 這個使用者自己標為預設的那一組；沒標過就是 null。同一個使用者至多一列 isDefault，由寫入端維持。 */
   findDefault(firebaseUid: string): Promise<ColumnPresetRow | null>;
 

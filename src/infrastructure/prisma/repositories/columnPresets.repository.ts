@@ -173,6 +173,15 @@ export async function reorderColumnPresets(firebaseUid: string, orderedIds: stri
   });
 }
 
+export async function findColumnPresetByName(firebaseUid: string, name: string): Promise<ColumnPresetRow | null> {
+  const prisma = getPrismaClient();
+  const row = await prisma.columnPreset.findUnique({
+    where: { firebaseUid_name: { firebaseUid, name } },
+    include: { columns: { orderBy: COLUMNS_ORDER } },
+  });
+  return row ? toRow(row) : null;
+}
+
 /** Cheap COUNT for the quota guard — see countPresets in screenerPresets.repository.ts. */
 export async function countColumnPresets(firebaseUid: string): Promise<number> {
   const prisma = getPrismaClient();
@@ -211,4 +220,5 @@ export const prismaColumnPresets: ColumnPresetsPort = {
   remove: deleteColumnPreset,
   reorder: reorderColumnPresets,
   count: countColumnPresets,
+  findByName: findColumnPresetByName,
 };
