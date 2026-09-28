@@ -23,16 +23,90 @@ export function buildAnalysisServiceUrl(path: string, searchParams?: Record<stri
  * analysis-ts requires an `X-Api-Key` header on every domainApi request as of 2026-09-04 (health check
  * and /batch/compute are the only exceptions, neither of which bff-ts calls) — attached here, the single
  * place every outbound request already flows through, so every call site gets it automatically.
+ *
+ * 2026-09-28: production analysis-ts 會部署成「只允許授權的服務帳戶呼叫」（沒有 allUsers），所以除了
+ * X-Api-Key 之外還要帶一個 Google ID token。兩層都送、不是二選一。同樣加在這裡，理由跟上面一樣。
  */
 export async function fetchAnalysisService(url: URL, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
   headers.set("X-Api-Key", requireEnv("BFF_API_KEY"));
+  const idToken = await analysisServiceIdToken();
+  if (idToken) {
+    headers.set("Authorization", `Bearer ${idToken}`);
+  }
   try {
     return await fetch(url, { ...init, headers, signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
     logger.error({ err: error, url: url.toString() }, "Could not reach the analysis service");
     throw new AppError("Could not reach the analysis service", 502);
   }
+}
+
+/**
+ * Cloud Run 的 metadata server。只在 Google 的運算環境裡存在——本機、CI 都沒有，所以下面靠
+ * ANALYSIS_SERVICE_AUDIENCE 有沒有設來決定要不要走這條路，而不是靠「試著連連看」。
+ */
+const METADATA_IDENTITY_URL =
+  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity";
+
+/** 提早 5 分鐘換新：ID token 有效期一小時，留足夠餘裕吸收時鐘偏差與換發失敗的重試。 */
+const ID_TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
+
+let cachedIdToken: { token: string; audience: string; expiresAt: number } | undefined;
+
+/** 只給測試用：清掉快取，否則第二個測試會看到第一個測試留下的 token。 */
+export function resetAnalysisServiceIdTokenCache(): void {
+  cachedIdToken = undefined;
+}
+
+/**
+ * 取一個給 analysis-ts 用的 Google ID token，**沒有設 ANALYSIS_SERVICE_AUDIENCE 就回 undefined**。
+ *
+ * 那個「沒設就什麼都不做」是刻意的：本機開發打的是 http://localhost:5000，那裡沒有 IAM 也沒有 metadata
+ * server，如果這裡改成「總是嘗試」，每一個本機請求都會先去撞一個不存在的主機、等它逾時。所以開關是
+ * 明確的設定而不是環境偵測。
+ *
+ * **取不到就丟 502（fail closed）**，不會退化成「不帶 token 硬送」：那只會把一個明確的本地錯誤換成
+ * 上游一個難解讀的 403，而且會讓「我們以為有授權其實沒有」這種狀態靜默存在。
+ *
+ * audience 必須是對方 Cloud Run 服務的 URL（不含路徑）；那個字串由 analysis-ts 部署後提供，不自己組。
+ */
+async function analysisServiceIdToken(): Promise<string | undefined> {
+  const audience = process.env.ANALYSIS_SERVICE_AUDIENCE;
+  if (!audience) {
+    return undefined;
+  }
+
+  const now = Date.now();
+  if (cachedIdToken && cachedIdToken.audience === audience && cachedIdToken.expiresAt > now) {
+    return cachedIdToken.token;
+  }
+
+  const url = new URL(METADATA_IDENTITY_URL);
+  url.searchParams.set("audience", audience);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { "Metadata-Flavor": "Google" },
+      signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS),
+    });
+  } catch (error) {
+    logger.error({ err: error, audience }, "Could not reach the metadata server for an ID token");
+    throw new AppError("Could not obtain credentials for the analysis service", 502);
+  }
+  if (!response.ok) {
+    logger.error({ status: response.status, audience }, "Metadata server refused to issue an ID token");
+    throw new AppError("Could not obtain credentials for the analysis service", 502);
+  }
+
+  const token = (await response.text()).trim();
+  if (!token) {
+    throw new AppError("Metadata server returned an empty ID token", 502);
+  }
+  // 不解 JWT 去讀 exp：那需要一個 base64url + JSON 的解析，而失效只會讓我們多換一次 token。
+  // 固定 55 分鐘（一小時減去餘裕）比解析出來的精確值便宜，而且錯的方向是安全的那一邊。
+  cachedIdToken = { token, audience, expiresAt: now + 60 * 60_000 - ID_TOKEN_REFRESH_MARGIN_MS };
+  return token;
 }
 
 /**
