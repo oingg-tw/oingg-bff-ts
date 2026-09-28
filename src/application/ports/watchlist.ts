@@ -29,4 +29,15 @@ export interface WatchlistPort {
 
   /** false 代表沒有刪到任何列，同樣不區分「不存在」與「不是你的」。 */
   remove(firebaseUid: string, id: string): Promise<boolean>;
+
+  /**
+   * 為什麼這個 port 有 count()：POST /watchlist 的額度檢查在 middleware 擋，需要一個便宜的 COUNT 而不是
+   * 把整份清單撈出來數（跟 ScreenerPresetsPort.count 同一個理由與同一個寫法）。
+   *
+   * 2026-09-28 加上。在那之前 FREE 方案帳面上的 10 檔上限**完全沒有被強制**：`enforceQuota` 只掛在
+   * screenerPresets 與 columnPresets 兩條路由，而 `GET /billing/entitlement` 卻照實回報
+   * `watchlistItems: 10`——實測一個 FREE 帳號連續加 12 檔全部 201。那條線是付費牆目前唯一真的在驅動
+   * 付費的維度（見 application/billing/quota.ts 的說明），所以缺的不是一個小功能。
+   */
+  count(firebaseUid: string): Promise<number>;
 }

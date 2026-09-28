@@ -110,4 +110,33 @@ describe("enforceQuota", () => {
     expect(next).toHaveBeenCalledWith(expect.any(Error));
     expect(next.mock.calls[0]?.[0]).toBeInstanceOf(Error);
   });
+
+  /**
+   * watchlistItems 這一條單獨釘住，因為它跟另外兩個資源不是同一個量級的東西：FREE 的 10 檔是付費牆目前
+   * 唯一真的在驅動付費的維度（見 application/billing/quota.ts 的長註解），而 2026-09-28 之前
+   * `enforceQuota` 根本沒有掛在 watchlist 的路由上——帳面有上限、實際收無限多筆。
+   *
+   * **這個測試守的是數字與資源鍵，擋不住「又忘了掛上去」**（那要 route 層的測試，這個 repo 沒有那種慣例）。
+   * 掛載本身是用臨時帳號實測驗的：FREE 帳號加到第 11 筆要拿到 403。
+   */
+  it("FREE 的觀察清單上限是 10，第 11 筆被擋下來並帶出 quota_exceeded", async () => {
+    deps = { subscriptions: fakeSubscriptions(), user: fakeUserPort({ find: vi.fn().mockResolvedValue(OLD_USER) }) };
+    const next = vi.fn();
+
+    await enforceQuota("watchlistItems", vi.fn().mockResolvedValue(10), deps)(requestFor("uid"), {} as Response, next as NextFunction);
+
+    const error = next.mock.calls[0]?.[0] as AppError | undefined;
+    expect(error?.statusCode).toBe(403);
+    expect(error?.code).toBe(QUOTA_EXCEEDED_CODE);
+    expect(error?.details).toMatchObject({ resource: "watchlistItems", limit: 10, used: 10, tier: "FREE" });
+  });
+
+  it("第 10 筆（還沒滿）放行", async () => {
+    deps = { subscriptions: fakeSubscriptions(), user: fakeUserPort({ find: vi.fn().mockResolvedValue(OLD_USER) }) };
+    const next = vi.fn();
+
+    await enforceQuota("watchlistItems", vi.fn().mockResolvedValue(9), deps)(requestFor("uid"), {} as Response, next as NextFunction);
+
+    expect(next).toHaveBeenCalledWith();
+  });
 });

@@ -68,9 +68,15 @@ export async function deleteWatchlistItem(firebaseUid: string, id: string): Prom
  * `{ ok: false, reason: "duplicate" }`——重構前這個 catch 住在 service 層，等於 application 知道自己被
  * Prisma 實作；換掉驅動時那個 catch 會安靜地失效，409 變 500 而且沒有測試會紅。翻譯是這一層的責任。
  */
+export async function countWatchlistItems(firebaseUid: string): Promise<number> {
+  const prisma = getPrismaClient();
+  return prisma.watchlistItem.count({ where: { firebaseUid } });
+}
+
 export const prismaWatchlist: WatchlistPort = {
   list: listWatchlistItems,
   find: findWatchlistItem,
+  count: countWatchlistItems,
   async create(firebaseUid, symbol, note) {
     try {
       return { ok: true, item: await createWatchlistItem(firebaseUid, symbol, note) };
