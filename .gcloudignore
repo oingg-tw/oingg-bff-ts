@@ -1,0 +1,31 @@
+# 這份檔案決定 `gcloud builds submit` 會把哪些東西**上傳到 Google 的暫存 bucket**。
+# 它跟 .dockerignore 是兩件事：.dockerignore 只管什麼進得了映像，這一份管什麼離開這台機器。
+#
+# 沒有這個檔案時 gcloud 會自動套用 .gitignore 的規則，結果多半也是對的——但「服務帳戶私鑰有沒有被
+# 上傳到雲端 bucket」不應該取決於隱含行為，所以這裡明確寫出來。改動後請用
+# `gcloud meta list-files-for-upload` 確認實際清單，不要只看規則。
+#
+# 寫法是「明確排除」而不是 .dockerignore 那種「全部排除再放行」：.gcloudignore 用的是 gitignore 語法，
+# 裡面 `*` 會匹配任何層級的檔名，被排除的目錄底下無法用 `!` 重新放行，那種寫法會靜默漏掉東西。
+
+# 機密：這幾行是這個檔案存在的理由
+.env
+.env.*
+serviceAccountKey.json
+*.pem
+*.key
+
+# 版控與相依：Dockerfile 會自己 pnpm install
+.git
+.gitignore
+node_modules
+
+# 建置產出與本機雜物：build 階段會重新產生
+dist
+coverage
+src/generated
+*.log
+
+# 進不了映像、也不需要上傳的
+src/tests
+docs
