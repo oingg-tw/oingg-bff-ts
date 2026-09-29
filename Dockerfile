@@ -3,7 +3,12 @@
 # Node 24 對齊本機（v24.19.0）。用 -slim 而不是 -alpine：這個服務走 Prisma 的 driver adapter
 # （@prisma/adapter-pg + pg），沒有原生 query engine 二進位檔，所以 alpine 的 musl 不是問題；
 # 但 firebase-admin 的相依鏈在 glibc 上踩到的坑比較少，而 slim 跟 alpine 的大小差距不值得為此冒險。
-FROM node:24-slim AS deps
+# **基底必須是 trixie（Debian 13, glibc 2.41），不能用 bookworm（glibc 2.36）。**
+# ultimate-express 依賴 uWebSockets.js，它的預編譯原生檔 uws_linux_x64_137.node 需要 GLIBC_2.38。
+# 用 node:24-slim（bookworm）建置會成功、推送會成功、容器會在啟動的第一個 import 就死：
+#   Error: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.38' not found
+# 2026-09-29 第一次真的部署時踩到——建置綠燈完全沒有提示，因為那個檔案是執行期才載入的。
+FROM node:24-trixie-slim AS deps
 WORKDIR /app
 RUN corepack enable
 # pnpm 版本由 package.json 的 packageManager 欄位決定（pnpm@11.22.0），corepack 會照著裝。
@@ -27,13 +32,13 @@ RUN pnpm run build
 
 # 只裝 production 相依，而且 --ignore-scripts 跳過 postinstall 的 prisma generate：
 # 產生出來的 client 已經編譯進 dist 了，runtime 不需要 prisma CLI（它是 devDependency）。
-FROM node:24-slim AS prod-deps
+FROM node:24-trixie-slim AS prod-deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
-FROM node:24-slim AS runtime
+FROM node:24-trixie-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 # package.json 一定要在 runtime 出現：它的 "type": "module" 決定 Node 把 dist/*.js 當 ESM 讀。
@@ -41,7 +46,7 @@ ENV NODE_ENV=production
 COPY package.json ./
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
-# node:24-slim 內建的非 root 使用者，不自己建一個。
+# node:24-trixie-slim 內建的非 root 使用者，不自己建一個。
 USER node
 # Cloud Run 會注入 PORT（預設 8080），src/shared/env.ts 讀 process.env.PORT ?? 3000，所以不必寫死。
 # 這裡不放 EXPOSE：Cloud Run 不看它，而寫一個跟實際注入值可能不同的數字只會誤導讀的人。
