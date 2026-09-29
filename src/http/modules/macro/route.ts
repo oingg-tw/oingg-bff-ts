@@ -30,6 +30,9 @@ const fromMonthQuerySchema = z.object({
     .optional(),
 });
 
+/** 跟 cbc-policy-rate 完全相同的驗證（同樣是 "YYYY-MM-DD" 的事件序列下界），所以共用那一份 schema。 */
+export const usPolicyRateQuerySchema = cbcPolicyRateQuerySchema;
+
 export const businessCycleIndicatorQuerySchema = fromMonthQuerySchema;
 export const monetaryAggregateQuerySchema = fromMonthQuerySchema;
 export const govBondYield10yHistoryQuerySchema = fromMonthQuerySchema;
@@ -91,6 +94,11 @@ export function createMacroRouter(deps: MacroDeps): Router {
   macroRouter.get("/cbc-policy-rate", async (req, res) => {
     const query = parseBody(cbcPolicyRateQuerySchema, req.query);
     res.json(await deps.macroGateway.getCbcPolicyRate(query.from));
+  });
+
+  macroRouter.get("/us-policy-rate", async (req, res) => {
+    const query = parseBody(usPolicyRateQuerySchema, req.query);
+    res.json(await deps.macroGateway.getUsPolicyRate(query.from));
   });
 
   macroRouter.get("/business-cycle-indicator", async (req, res) => {

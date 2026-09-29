@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchBusinessCycleIndicator,
   fetchCbcPolicyRate,
+  fetchUsPolicyRate,
   fetchCpi,
   fetchGdp,
   fetchGovBondYield10y,
@@ -44,6 +45,66 @@ const RAW_BODY = {
     { effectiveDate: "2022-06-17", discountRate: 1.5, collateralAccommodationRate: 1.875, unsecuredAccommodationRate: 3.75, changeBp: 12.5 },
   ],
 };
+
+// 上游 2026-09-29 的實際回應（我自己打過確認，不是照通知抄）：targetUpper/targetLower 是百分比數字，
+// changeBp 是目標區間上緣的變動基點，**只有完整歷史的第一筆是 null**。
+const US_RAW_BODY = {
+  entries: [
+    { effectiveDate: "1982-09-27", targetUpper: 10.25, targetLower: 10.25, changeBp: null },
+    { effectiveDate: "2008-12-16", targetUpper: 0.25, targetLower: 0, changeBp: -75 },
+    { effectiveDate: "2026-09-17", targetUpper: 4, targetLower: 3.75, changeBp: 25 },
+  ],
+};
+
+describe("fetchUsPolicyRate", () => {
+  it("原樣轉發數字，不帶 from 時不加任何 query 參數", async () => {
+    mockFetchOnce({ ok: true, body: US_RAW_BODY });
+
+    const result = await fetchUsPolicyRate();
+
+    expect(result).toEqual(US_RAW_BODY);
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/macro/us-policy-rate");
+  });
+
+  /**
+   * 這一條守的是 `Number(null)` 那個陷阱：它會變成 0，而「沒有更早的可比較」與「這次沒有調整」在圖上
+   * 是完全不同的意思——後者會在 1982 年畫出一個不存在的持平點。所以 changeBp 必須是 toNumberOrNull。
+   */
+  it("完整歷史第一筆的 changeBp 維持 null，不會變成 0", async () => {
+    mockFetchOnce({ ok: true, body: US_RAW_BODY });
+
+    const result = await fetchUsPolicyRate();
+
+    expect(result.entries[0]?.changeBp).toBeNull();
+    expect(result.entries[0]?.changeBp).not.toBe(0);
+  });
+
+  /** 2008-12-16 之前 upper 與 lower 相等（單一目標值），這一列不能被當成異常處理掉。 */
+  it("區間制之前 upper 與 lower 相等時原樣保留", async () => {
+    mockFetchOnce({ ok: true, body: US_RAW_BODY });
+
+    const result = await fetchUsPolicyRate();
+
+    expect(result.entries[0]?.targetUpper).toBe(10.25);
+    expect(result.entries[0]?.targetLower).toBe(10.25);
+  });
+
+  it("有給 from 時才轉發", async () => {
+    mockFetchOnce({ ok: true, body: { entries: [] } });
+
+    await fetchUsPolicyRate("2024-06-01");
+
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.searchParams.get("from")).toBe("2024-06-01");
+  });
+
+  it("上游非 2xx 時丟 502", async () => {
+    mockFetchOnce({ ok: false, status: 500, body: {} });
+
+    await expect(fetchUsPolicyRate()).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
 
 describe("fetchCbcPolicyRate", () => {
   it("requests /macro/cbc-policy-rate with no query params by default and passes numbers through unchanged", async () => {

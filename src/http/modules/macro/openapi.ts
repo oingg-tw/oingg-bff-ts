@@ -3,6 +3,7 @@ import { errorResponse, registry } from "@/http/swagger/registry.js";
 import {
   businessCycleIndicatorQuerySchema,
   cbcPolicyRateQuerySchema,
+  usPolicyRateQuerySchema,
   CPI_CATEGORIES,
   cpiQuerySchema,
   GDP_CATEGORIES,
@@ -48,6 +49,43 @@ registry.registerPath({
   request: { query: cbcPolicyRateQuerySchema.openapi("CbcPolicyRateQuery", { example: { from: "2020-01-01" } }) },
   responses: {
     200: { description: "利率調整事件清單，由舊到新。", content: { "application/json": { schema: cbcPolicyRateResultSchema } } },
+    400: errorResponse('from 不是 "YYYY-MM-DD" 格式。'),
+    502: upstream502,
+  },
+});
+
+// --- us-policy-rate ---
+const usPolicyRateEntrySchema = z.object({
+  effectiveDate: z.string(),
+  targetUpper: z.number(),
+  targetLower: z.number(),
+  changeBp: nullableNumber,
+});
+
+const usPolicyRateResultSchema = z
+  .object({ entries: z.array(usPolicyRateEntrySchema) })
+  .openapi("UsPolicyRateResult", {
+    example: {
+      entries: [
+        { effectiveDate: "2024-09-19", targetUpper: 5, targetLower: 4.75, changeBp: -50 },
+        { effectiveDate: "2026-09-17", targetUpper: 4, targetLower: 3.75, changeBp: 25 },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/macro/us-policy-rate",
+  summary: "美國聯準會政策利率目標區間的調整事件序列——給大盤疊加美國升降息事件、或跟台灣利率對照用",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /macro/us-policy-rate（2026-09-29 新增，上游資料源是 gov-ts 的 export.us_policy_rate）。**事件型序列**：一列代表一次調整，不是逐日資料；由舊到新排序，不帶 from 時回傳 1982-09-27 起全部歷史（實測 186 筆，最新一筆 2026-09-17）。targetUpper／targetLower 是百分比數字（4 代表 4%），原樣轉發上游的 JSON 數字。" +
+    "**2008-12-16 之前只有單一目標值**，那段期間 targetUpper 與 targetLower 相等；那天從 1% 改成 0~0.25% 的區間，依上緣計為 -75。" +
+    "changeBp 是**目標區間上緣**相對前一次調整的變動，單位是基點（25 = 一碼、-50 = 降息兩碼）——**整段歷史的第一筆（1982-09-27）是 null**（沒有更早的可比較）；帶 from 縮小窗口時，窗口內第一筆的 changeBp 仍會有值，理由跟 /macro/cbc-policy-rate 相同。from 選填，\"YYYY-MM-DD\"，只回生效日 >= 這天的事件，格式錯誤會 400（本服務先擋，不打上游）。" +
+    "**這是政策利率，不是公債殖利率，不能直接當無風險利率用**——要無風險利率請看 GET /macro/gov-bond-yield-10y（台灣十年期公債）。跟 /macro/cbc-policy-rate 並排時注意兩者的欄位語意不同：台灣那支是三個政策工具利率（重貼現率等），這支是一個目標區間的上下緣。",
+  tags: ["Macro"],
+  request: { query: usPolicyRateQuerySchema.openapi("UsPolicyRateQuery", { example: { from: "2024-06-01" } }) },
+  responses: {
+    200: { description: "美國政策利率調整事件清單，由舊到新。", content: { "application/json": { schema: usPolicyRateResultSchema } } },
     400: errorResponse('from 不是 "YYYY-MM-DD" 格式。'),
     502: upstream502,
   },

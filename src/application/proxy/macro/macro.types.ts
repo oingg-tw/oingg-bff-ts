@@ -20,6 +20,24 @@ export interface CbcPolicyRateResult {
   entries: CbcPolicyRateEntry[];
 }
 
+/**
+ * 美國聯準會的政策利率目標區間。2026-09-29 新增，跟 CbcPolicyRate 對稱的事件序列（不是日頻）。
+ *
+ * 2008-12-16 之前只有單一目標值（upper 與 lower 相等）；那天從 1% 改成 0~0.25% 的區間，依上緣計為 -75。
+ * `changeBp` 是**目標區間上緣**相對前一次調整的變化（25 = 升息一碼），完整歷史的第一筆是 null。
+ */
+export interface UsPolicyRateEntry {
+  effectiveDate: string;
+  targetUpper: number;
+  targetLower: number;
+  changeBp: number | null;
+}
+
+/** Oldest to newest — 186 events from 1982-09-27 as of 2026-09-29 when unfiltered. */
+export interface UsPolicyRateResult {
+  entries: UsPolicyRateEntry[];
+}
+
 // --- 總經特區 series (analysis-ts commit 50aeae18, 2026-09-22) ---
 //
 // Shared conventions across the six series below, confirmed live: every result is `{ entries }` oldest to

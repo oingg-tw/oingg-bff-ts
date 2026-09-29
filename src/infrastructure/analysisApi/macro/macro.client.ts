@@ -5,7 +5,9 @@ import type {
   BusinessCycleIndicatorEntry,
   BusinessCycleIndicatorResult,
   CbcPolicyRateEntry,
+  UsPolicyRateEntry,
   CbcPolicyRateResult,
+  UsPolicyRateResult,
   CpiCategory,
   CpiEntry,
   CpiResult,
@@ -87,6 +89,28 @@ function normalizeCbcPolicyRateEntry(raw: unknown): CbcPolicyRateEntry {
 export async function fetchCbcPolicyRate(from?: string): Promise<CbcPolicyRateResult> {
   const { entries } = await getEntriesBody("/macro/cbc-policy-rate", { from }, "CBC policy rate endpoint");
   return { entries: entries.map(normalizeCbcPolicyRateEntry) };
+}
+
+function normalizeUsPolicyRateEntry(raw: unknown): UsPolicyRateEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    effectiveDate: String(r.effectiveDate),
+    targetUpper: Number(r.targetUpper),
+    targetLower: Number(r.targetLower),
+    changeBp: toNumberOrNull(r.changeBp),
+  };
+}
+
+/**
+ * 美國聯準會政策利率的事件序列，來自 analysis-ts 的 GET /macro/us-policy-rate（2026-09-29 新增，資料源
+ * 是 gov-ts 的 export.us_policy_rate）。跟 fetchCbcPolicyRate 同一個形狀與同一組慣例。
+ *
+ * `changeBp` 用 toNumberOrNull 而不是 Number：完整歷史的第一筆（1982-09-27）是 null，而 `Number(null)`
+ * 會變成 0——那會把「沒有前一次可比」說成「這次沒有調整」，是兩件完全不同的事。
+ */
+export async function fetchUsPolicyRate(from?: string): Promise<UsPolicyRateResult> {
+  const { entries } = await getEntriesBody("/macro/us-policy-rate", { from }, "US policy rate endpoint");
+  return { entries: entries.map(normalizeUsPolicyRateEntry) };
 }
 
 function normalizeBusinessCycleIndicatorEntry(raw: unknown): BusinessCycleIndicatorEntry {
@@ -277,6 +301,7 @@ export async function fetchGdp(from?: string, category?: GdpCategory): Promise<G
  */
 export const analysisMacroGateway: MacroGatewayPort = {
   getCbcPolicyRate: fetchCbcPolicyRate,
+  getUsPolicyRate: fetchUsPolicyRate,
   getBusinessCycleIndicator: fetchBusinessCycleIndicator,
   getMonetaryAggregate: fetchMonetaryAggregate,
   getGovBondYield10y: fetchGovBondYield10y,

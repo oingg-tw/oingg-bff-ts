@@ -2,8 +2,8 @@
 # 把部署也塞進來會讓「建置失敗」與「部署失敗」在同一份日誌裡難以分辨。
 steps:
   - name: gcr.io/cloud-builders/docker
-    args: ["build", "-t", "asia-southeast1-docker.pkg.dev/oingg-bff/bff/oingg-bff-ts:5bda326", "."]
-images: ["asia-southeast1-docker.pkg.dev/oingg-bff/bff/oingg-bff-ts:5bda326"]
+    args: ["build", "-t", "asia-southeast1-docker.pkg.dev/oingg-bff/bff/oingg-bff-ts:3e91bbd", "."]
+images: ["asia-southeast1-docker.pkg.dev/oingg-bff/bff/oingg-bff-ts:3e91bbd"]
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: E2_HIGHCPU_8
