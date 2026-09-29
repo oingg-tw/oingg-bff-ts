@@ -34,6 +34,38 @@ const fromMonthQuerySchema = z.object({
 export const usPolicyRateQuerySchema = cbcPolicyRateQuerySchema;
 export const ecbPolicyRateQuerySchema = cbcPolicyRateQuerySchema;
 
+/**
+ * 風險溢酬的窗口參數。四個都選填，但**年與月必須成對**——上游也會擋（400），這裡先擋是為了省一次
+ * 跨服務往返，跟這個切片其他端點的日期格式驗證同一個理由。
+ *
+ * 用 z.coerce.number()：query 進來一律是字串。非數字會被 coerce 成 NaN 再被 int() 擋下。
+ */
+const yearMonthPart = (name: string) =>
+  z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : v),
+    z.coerce.number({ error: `"${name}" must be an integer` }).int(`"${name}" must be an integer`).optional(),
+  );
+
+export const equityRiskPremiumQuerySchema = z
+  .object({
+    startYear: yearMonthPart("startYear"),
+    startMonth: yearMonthPart("startMonth").refine((v) => v === undefined || (v >= 1 && v <= 12), {
+      message: '"startMonth" must be between 1 and 12',
+    }),
+    endYear: yearMonthPart("endYear"),
+    endMonth: yearMonthPart("endMonth").refine((v) => v === undefined || (v >= 1 && v <= 12), {
+      message: '"endMonth" must be between 1 and 12',
+    }),
+  })
+  .refine((q) => (q.startYear === undefined) === (q.startMonth === undefined), {
+    message: '"startYear" and "startMonth" must be given together, or not at all',
+    path: ["startMonth"],
+  })
+  .refine((q) => (q.endYear === undefined) === (q.endMonth === undefined), {
+    message: '"endYear" and "endMonth" must be given together, or not at all',
+    path: ["endMonth"],
+  });
+
 export const businessCycleIndicatorQuerySchema = fromMonthQuerySchema;
 export const monetaryAggregateQuerySchema = fromMonthQuerySchema;
 export const govBondYield10yHistoryQuerySchema = fromMonthQuerySchema;
@@ -100,6 +132,11 @@ export function createMacroRouter(deps: MacroDeps): Router {
   macroRouter.get("/us-policy-rate", async (req, res) => {
     const query = parseBody(usPolicyRateQuerySchema, req.query);
     res.json(await deps.macroGateway.getUsPolicyRate(query.from));
+  });
+
+  macroRouter.get("/equity-risk-premium", async (req, res) => {
+    const query = parseBody(equityRiskPremiumQuerySchema, req.query);
+    res.json(await deps.macroGateway.getEquityRiskPremium(query));
   });
 
   macroRouter.get("/ecb-policy-rate", async (req, res) => {

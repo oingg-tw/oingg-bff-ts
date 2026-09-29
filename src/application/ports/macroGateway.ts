@@ -2,6 +2,8 @@ import type {
   BusinessCycleIndicatorResult,
   CbcPolicyRateResult,
   EcbPolicyRateResult,
+  EquityRiskPremiumQuery,
+  EquityRiskPremiumResult,
   UsPolicyRateResult,
   CpiCategory,
   CpiResult,
@@ -29,6 +31,7 @@ export interface MacroGatewayPort {
   getCbcPolicyRate(from?: string): Promise<CbcPolicyRateResult>;
   getUsPolicyRate(from?: string): Promise<UsPolicyRateResult>;
   getEcbPolicyRate(from?: string): Promise<EcbPolicyRateResult>;
+  getEquityRiskPremium(query: EquityRiskPremiumQuery): Promise<EquityRiskPremiumResult>;
   getBusinessCycleIndicator(from?: string): Promise<BusinessCycleIndicatorResult>;
   getMonetaryAggregate(from?: string): Promise<MonetaryAggregateResult>;
   getGovBondYield10y(): Promise<GovBondYield10yResult>;
