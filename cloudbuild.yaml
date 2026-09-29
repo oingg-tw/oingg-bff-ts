@@ -9,11 +9,19 @@ substitutions:
   _REPOSITORY: bff
   _SERVICE: oingg-bff-ts
   # analysis-ts 的 Cloud Run 網址。同時是 FILTERS_SERVICE_URL 與 ID token 的 audience——
-  # 兩者必須一致，所以只寫一次。他們換網址時只改這一行。
-  _ANALYSIS_URL: https://oingg-analysis-ts-717539760564.asia-southeast1.run.app
-  # BFF_API_KEY 住在 analysis-ts 的專案，跨專案引用**必須用專案號碼**，用 project id 會被拒為
-  # "not a valid secret name"（2026-09-29 實測）。bff-ts-runtime 已被授予該 secret 的 accessor。
+  # 兩者必須一致，所以只寫一次。
+  #
+  # **這裡指的是他們的 dev**（2026-09-29 起）。他們有兩個部署，而且不會互相同步：
+  #   dev  oingg-analysis-ts-dev-...  讀寫 DEV 分支，跟他們本機回填同步
+  #   prd  oingg-analysis-ts-...      讀 PRD 分支，資料是一次性複製、之後不會自動更新
+  # bff-ts 這個服務是 dev 環境（使用者的計畫是 dev 先給人用、再發佈正式），所以接 dev。
+  # 之後真的要部署 bff-ts 的正式環境時，改的是這一行與下面那個密鑰名稱，兩個要一起換——
+  # 用正式的金鑰打 dev 會 401，反之亦然（他們實測過）。
+  _ANALYSIS_URL: https://oingg-analysis-ts-dev-717539760564.asia-southeast1.run.app
+  # 跨專案引用**必須用專案號碼**，用 project id 會被拒為 "not a valid secret name"（2026-09-29 實測）。
   _ANALYSIS_PROJECT_NUMBER: "717539760564"
+  # dev 與正式各一把：BFF-API-KEY-DEV / BFF-API-KEY。bff-ts-runtime 兩把都有 accessor。
+  _ANALYSIS_API_KEY_SECRET: BFF-API-KEY-DEV
 
 steps:
   # 測試關卡在最前面：沒過就不會建置也不會部署（Cloud Build 的 step 依序執行，失敗即中止）。
@@ -66,7 +74,7 @@ steps:
       - --set-env-vars=NODE_ENV=production,FILTERS_SERVICE_URL=${_ANALYSIS_URL},ANALYSIS_SERVICE_AUDIENCE=${_ANALYSIS_URL},CORS_ORIGINS=http://localhost:3000,FIREBASE_SERVICE_ACCOUNT_PATH=/secrets/firebase/key.json
       # 最後一項是**檔案掛載**不是環境變數（Firebase 的服務帳戶金鑰是 JSON 檔）。掛載點不能放在
       # /app：Cloud Run 掛 secret 是掛 volume，會遮蔽該目錄原有內容，/app/dist 與 node_modules 會消失。
-      - --set-secrets=DATABASE_URL=DATABASE_URL:latest,BFF_API_KEY=projects/${_ANALYSIS_PROJECT_NUMBER}/secrets/BFF-API-KEY:latest,FILTERS_SYNC_SECRET=FILTERS_SYNC_SECRET:latest,API_DOCS_USER=API_DOCS_USER:latest,API_DOCS_PASSWORD=API_DOCS_PASSWORD:latest,RESEND_API_KEY=RESEND_API_KEY:latest,/secrets/firebase/key.json=firebase-sa-key:latest
+      - --set-secrets=DATABASE_URL=DATABASE_URL:latest,BFF_API_KEY=projects/${_ANALYSIS_PROJECT_NUMBER}/secrets/${_ANALYSIS_API_KEY_SECRET}:latest,FILTERS_SYNC_SECRET=FILTERS_SYNC_SECRET:latest,API_DOCS_USER=API_DOCS_USER:latest,API_DOCS_PASSWORD=API_DOCS_PASSWORD:latest,RESEND_API_KEY=RESEND_API_KEY:latest,/secrets/firebase/key.json=firebase-sa-key:latest
       - --min-instances=0
       - --max-instances=4
       - --quiet
