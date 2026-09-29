@@ -4,6 +4,7 @@ import {
   fetchCbcPolicyRate,
   fetchUsPolicyRate,
   fetchEcbPolicyRate,
+  fetchEquityRiskPremium,
   fetchCpi,
   fetchGdp,
   fetchGovBondYield10y,
@@ -69,6 +70,81 @@ const ECB_RAW_BODY = {
     { effectiveDate: "2014-06-11", depositFacilityRate: -0.1, mainRefinancingRate: 0.15, marginalLendingRate: 0.4, mainRefinancingIsMinimumBid: false, depositFacilityChangeBp: -10, mainRefinancingChangeBp: -10, marginalLendingChangeBp: -35 },
   ],
 };
+
+// 2026-09-29 直接打上游取樣的真實回應（不是依 schema 構造）。
+const ERP_RAW_BODY = {
+  windowStart: "1999-01", windowEnd: "2026-07", months: 331,
+  marketReturnGeometric: 7.4362, marketReturnArithmetic: 9.5851, avgRiskFreeRate: 1.9256,
+  erpGeometric: 5.5106, erpArithmetic: 7.6595,
+  requestedWindow: {}, clippedToAvailableData: false,
+  dataCoverage: { taiexDateRange: { min: "1999-01", max: "2026-09" }, riskFreeRateDateRange: { min: "1994-12", max: "2026-07" } },
+  fieldStatuses: {}, warnings: [],
+  supplySide: {
+    erp: 5.1015, expectedInflation: 1.151, realEarningsGrowth: 4.2091, peGrowth: 0,
+    dividendYield: 1.5929, riskFreeRate: 1.9, inflationMonths: 331, gdpQuarters: 110,
+    dividendYieldTradeDate: "2026-09-24", dividendYieldCompanyCount: 829, dividendYieldMarketCapCoverage: 98.3966,
+  },
+};
+
+describe("fetchEquityRiskPremium", () => {
+  it("原樣轉發，沒有窗口參數時不加任何 query", async () => {
+    mockFetchOnce({ ok: true, body: ERP_RAW_BODY });
+
+    const result = await fetchEquityRiskPremium({});
+
+    expect(result).toEqual(ERP_RAW_BODY);
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/macro/equity-risk-premium");
+  });
+
+  it("只轉發有給的窗口參數", async () => {
+    mockFetchOnce({ ok: true, body: ERP_RAW_BODY });
+
+    await fetchEquityRiskPremium({ startYear: 2015, startMonth: 1 });
+
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.searchParams.get("startYear")).toBe("2015");
+    expect(url.searchParams.get("startMonth")).toBe("1");
+    // 沒給的不能出現——多送一個 key 會讓上游回應的 requestedWindow 跟著多一欄。
+    expect(url.searchParams.has("endYear")).toBe(false);
+    expect(url.searchParams.has("endMonth")).toBe(false);
+  });
+
+  /** supplySide **整塊**可以是 null（兩種資料完全沒有重疊月份），不是每個欄位各自 null。 */
+  it("supplySide 整塊是 null 時保持 null，不會變成一個全 null 的物件", async () => {
+    mockFetchOnce({ ok: true, body: { ...ERP_RAW_BODY, supplySide: null } });
+
+    expect((await fetchEquityRiskPremium({})).supplySide).toBeNull();
+  });
+
+  /**
+   * peGrowth 是模型固定的 0，不是缺值——所以它走 Number 而不是 toNumberOrNull。如果哪天有人「順手統一」
+   * 成 toNumberOrNull，0 仍然是 0（Number(0) 與 toNumberOrNull(0) 相同），這個測試守的是它**不會變成 null**。
+   */
+  it("peGrowth 的 0 是模型假設不是缺值，保持為 0", async () => {
+    mockFetchOnce({ ok: true, body: ERP_RAW_BODY });
+
+    const ss = (await fetchEquityRiskPremium({})).supplySide;
+    expect(ss?.peGrowth).toBe(0);
+    expect(ss?.peGrowth).not.toBeNull();
+  });
+
+  it("supplySide 裡個別欄位為 null 時保持 null", async () => {
+    mockFetchOnce({ ok: true, body: { ...ERP_RAW_BODY, supplySide: { ...ERP_RAW_BODY.supplySide, erp: null, dividendYield: null } } });
+
+    const ss = (await fetchEquityRiskPremium({})).supplySide;
+    expect(ss?.erp).toBeNull();
+    expect(ss?.dividendYield).toBeNull();
+    // 同一塊裡沒壞的欄位要留著
+    expect(ss?.expectedInflation).toBe(1.151);
+  });
+
+  it("上游非 2xx 時丟 502", async () => {
+    mockFetchOnce({ ok: false, status: 500, body: {} });
+
+    await expect(fetchEquityRiskPremium({})).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
 
 describe("fetchEcbPolicyRate", () => {
   it("原樣轉發，不帶 from 時不加 query 參數", async () => {

@@ -6,6 +6,10 @@ import type {
   BusinessCycleIndicatorResult,
   CbcPolicyRateEntry,
   EcbPolicyRateEntry,
+  EquityRiskPremiumDateRange,
+  EquityRiskPremiumQuery,
+  EquityRiskPremiumResult,
+  EquityRiskPremiumSupplySide,
   UsPolicyRateEntry,
   CbcPolicyRateResult,
   EcbPolicyRateResult,
@@ -141,6 +145,79 @@ function normalizeEcbPolicyRateEntry(raw: unknown): EcbPolicyRateEntry {
 export async function fetchEcbPolicyRate(from?: string): Promise<EcbPolicyRateResult> {
   const { entries } = await getEntriesBody("/macro/ecb-policy-rate", { from }, "ECB policy rate endpoint");
   return { entries: entries.map(normalizeEcbPolicyRateEntry) };
+}
+
+function normalizeDateRange(raw: unknown): EquityRiskPremiumDateRange {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  return { min: toStringOrNull(r.min), max: toStringOrNull(r.max) };
+}
+
+function normalizeSupplySide(raw: unknown): EquityRiskPremiumSupplySide | null {
+  // **整塊可以是 null**（加權指數與公債殖利率完全沒有重疊月份時），不是每個欄位各自 null。
+  if (raw === null || raw === undefined) {
+    return null;
+  }
+  const r = raw as Record<string, unknown>;
+  return {
+    erp: toNumberOrNull(r.erp),
+    expectedInflation: toNumberOrNull(r.expectedInflation),
+    realEarningsGrowth: toNumberOrNull(r.realEarningsGrowth),
+    // peGrowth 是模型固定的 0（本益比成長不算公司供給的報酬），不是缺值——所以走 Number 不是
+    // toNumberOrNull：它若變成 null 會讓下游誤以為「這一項算不出來」，而實際上它永遠算得出來且等於 0。
+    peGrowth: Number(r.peGrowth),
+    dividendYield: toNumberOrNull(r.dividendYield),
+    riskFreeRate: toNumberOrNull(r.riskFreeRate),
+    inflationMonths: Number(r.inflationMonths),
+    gdpQuarters: Number(r.gdpQuarters),
+    dividendYieldTradeDate: toStringOrNull(r.dividendYieldTradeDate),
+    dividendYieldCompanyCount: Number(r.dividendYieldCompanyCount),
+    dividendYieldMarketCapCoverage: toNumberOrNull(r.dividendYieldMarketCapCoverage),
+  };
+}
+
+/**
+ * 股票風險溢酬，來自 analysis-ts 的 GET /macro/equity-risk-premium。
+ *
+ * **這支跟 macro 其他端點不同**：回傳的是一組算出來的結論而不是 `{ entries }`，所以不能用
+ * getEntriesBody，自己組 URL 與解析。四個窗口參數**只在有給的時候才轉發**（省略時上游用完整重疊區間，
+ * 而多送一個 undefined 會讓回應的 requestedWindow 多出一個 key）。
+ *
+ * `fieldStatuses` 是 `Record<string, unknown>` 而不是逐欄位正規化：它只在有值為 null 時才出現對應的
+ * key，內容是上游的 metricStatus 形狀。這一層對它沒有任何判斷，原樣轉發比宣告一個會過期的形狀安全。
+ */
+export async function fetchEquityRiskPremium(query: EquityRiskPremiumQuery): Promise<EquityRiskPremiumResult> {
+  const searchParams: Record<string, string> = {};
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined) {
+      searchParams[key] = String(value);
+    }
+  }
+
+  const url = buildAnalysisServiceUrl("/macro/equity-risk-premium", Object.keys(searchParams).length > 0 ? searchParams : undefined);
+  const response = await fetchAnalysisService(url);
+  assertAnalysisServiceOk(response, url, "Equity risk premium endpoint");
+
+  const body = (await response.json()) as Record<string, unknown>;
+  const coverage = (body.dataCoverage ?? {}) as Record<string, unknown>;
+  return {
+    windowStart: toStringOrNull(body.windowStart),
+    windowEnd: toStringOrNull(body.windowEnd),
+    months: Number(body.months),
+    marketReturnGeometric: toNumberOrNull(body.marketReturnGeometric),
+    marketReturnArithmetic: toNumberOrNull(body.marketReturnArithmetic),
+    avgRiskFreeRate: toNumberOrNull(body.avgRiskFreeRate),
+    erpGeometric: toNumberOrNull(body.erpGeometric),
+    erpArithmetic: toNumberOrNull(body.erpArithmetic),
+    requestedWindow: (body.requestedWindow ?? {}) as EquityRiskPremiumResult["requestedWindow"],
+    clippedToAvailableData: body.clippedToAvailableData === true,
+    dataCoverage: {
+      taiexDateRange: normalizeDateRange(coverage.taiexDateRange),
+      riskFreeRateDateRange: normalizeDateRange(coverage.riskFreeRateDateRange),
+    },
+    fieldStatuses: (body.fieldStatuses ?? {}) as Record<string, unknown>,
+    warnings: Array.isArray(body.warnings) ? body.warnings.map(String) : [],
+    supplySide: normalizeSupplySide(body.supplySide),
+  };
 }
 
 function normalizeBusinessCycleIndicatorEntry(raw: unknown): BusinessCycleIndicatorEntry {
@@ -333,6 +410,7 @@ export const analysisMacroGateway: MacroGatewayPort = {
   getCbcPolicyRate: fetchCbcPolicyRate,
   getUsPolicyRate: fetchUsPolicyRate,
   getEcbPolicyRate: fetchEcbPolicyRate,
+  getEquityRiskPremium: fetchEquityRiskPremium,
   getBusinessCycleIndicator: fetchBusinessCycleIndicator,
   getMonetaryAggregate: fetchMonetaryAggregate,
   getGovBondYield10y: fetchGovBondYield10y,

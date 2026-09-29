@@ -64,6 +64,62 @@ export interface UsPolicyRateResult {
   entries: UsPolicyRateEntry[];
 }
 
+/**
+ * 股票風險溢酬。**這支跟 macro 其他端點不同：回傳的是一組算出來的結論，不是時間序列。**
+ *
+ * 兩種算法並列，刻意不合併成一個數字：
+ *   歷史法   erpGeometric / erpArithmetic ——「過去實際賺到的」減同期無風險利率
+ *   供給面   supplySide.erp ——Ibbotson & Chen (2003)：通膨＋實質盈餘成長＋股利－無風險利率
+ * 兩者在 2026-09-29 的完整窗口分別是 5.51% 與 5.10%，差距不大；但歷史法的算術版是 7.66%，
+ * **跟幾何版差 2.15 個百分點**，而選哪一個會改變任何 CAPM 折現的結果。
+ *
+ * 幾乎每個數值欄位都可為 null（窗口內沒有重疊資料時），`supplySide` **整塊**也可以是 null。
+ * `peGrowth` 永遠是 0——那是模型的假設（本益比擴張不算公司供給的報酬），不是「沒有資料」。
+ */
+export interface EquityRiskPremiumQuery {
+  startYear?: number;
+  startMonth?: number;
+  endYear?: number;
+  endMonth?: number;
+}
+
+export interface EquityRiskPremiumSupplySide {
+  erp: number | null;
+  expectedInflation: number | null;
+  realEarningsGrowth: number | null;
+  peGrowth: number;
+  dividendYield: number | null;
+  riskFreeRate: number | null;
+  inflationMonths: number;
+  gdpQuarters: number;
+  dividendYieldTradeDate: string | null;
+  dividendYieldCompanyCount: number;
+  dividendYieldMarketCapCoverage: number | null;
+}
+
+export interface EquityRiskPremiumDateRange {
+  min: string | null;
+  max: string | null;
+}
+
+export interface EquityRiskPremiumResult {
+  windowStart: string | null;
+  windowEnd: string | null;
+  months: number;
+  marketReturnGeometric: number | null;
+  marketReturnArithmetic: number | null;
+  avgRiskFreeRate: number | null;
+  erpGeometric: number | null;
+  erpArithmetic: number | null;
+  requestedWindow: { startYear?: number; startMonth?: number; endYear?: number; endMonth?: number };
+  /** 只有「呼叫端指定了窗口、而那個窗口被裁切」時才是 true；不帶參數時預設窗口本來就是交集，必然 false。 */
+  clippedToAvailableData: boolean;
+  dataCoverage: { taiexDateRange: EquityRiskPremiumDateRange; riskFreeRateDateRange: EquityRiskPremiumDateRange };
+  fieldStatuses: Record<string, unknown>;
+  warnings: string[];
+  supplySide: EquityRiskPremiumSupplySide | null;
+}
+
 // --- 總經特區 series (analysis-ts commit 50aeae18, 2026-09-22) ---
 //
 // Shared conventions across the six series below, confirmed live: every result is `{ entries }` oldest to

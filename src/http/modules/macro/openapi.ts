@@ -5,6 +5,7 @@ import {
   cbcPolicyRateQuerySchema,
   usPolicyRateQuerySchema,
   ecbPolicyRateQuerySchema,
+  equityRiskPremiumQuerySchema,
   CPI_CATEGORIES,
   cpiQuerySchema,
   GDP_CATEGORIES,
@@ -88,6 +89,78 @@ registry.registerPath({
   responses: {
     200: { description: "美國政策利率調整事件清單，由舊到新。", content: { "application/json": { schema: usPolicyRateResultSchema } } },
     400: errorResponse('from 不是 "YYYY-MM-DD" 格式。'),
+    502: upstream502,
+  },
+});
+
+// --- equity-risk-premium ---
+const erpDateRangeSchema = z.object({ min: z.string().nullable(), max: z.string().nullable() });
+
+const erpSupplySideSchema = z.object({
+  erp: nullableNumber,
+  expectedInflation: nullableNumber,
+  realEarningsGrowth: nullableNumber,
+  peGrowth: z.number(),
+  dividendYield: nullableNumber,
+  riskFreeRate: nullableNumber,
+  inflationMonths: z.number(),
+  gdpQuarters: z.number(),
+  dividendYieldTradeDate: z.string().nullable(),
+  dividendYieldCompanyCount: z.number(),
+  dividendYieldMarketCapCoverage: nullableNumber,
+});
+
+const equityRiskPremiumResultSchema = z
+  .object({
+    windowStart: z.string().nullable(),
+    windowEnd: z.string().nullable(),
+    months: z.number(),
+    marketReturnGeometric: nullableNumber,
+    marketReturnArithmetic: nullableNumber,
+    avgRiskFreeRate: nullableNumber,
+    erpGeometric: nullableNumber,
+    erpArithmetic: nullableNumber,
+    requestedWindow: z.object({
+      startYear: z.number().optional(),
+      startMonth: z.number().optional(),
+      endYear: z.number().optional(),
+      endMonth: z.number().optional(),
+    }),
+    clippedToAvailableData: z.boolean(),
+    dataCoverage: z.object({ taiexDateRange: erpDateRangeSchema, riskFreeRateDateRange: erpDateRangeSchema }),
+    fieldStatuses: z.record(z.string(), z.unknown()),
+    warnings: z.array(z.string()),
+    supplySide: erpSupplySideSchema.nullable(),
+  })
+  .openapi("EquityRiskPremiumResult", {
+    example: {
+      windowStart: "1999-01", windowEnd: "2026-07", months: 331,
+      marketReturnGeometric: 7.4362, marketReturnArithmetic: 9.5851, avgRiskFreeRate: 1.9256,
+      erpGeometric: 5.5106, erpArithmetic: 7.6595,
+      requestedWindow: {}, clippedToAvailableData: false,
+      dataCoverage: { taiexDateRange: { min: "1999-01", max: "2026-09" }, riskFreeRateDateRange: { min: "1994-12", max: "2026-07" } },
+      fieldStatuses: {}, warnings: [],
+      supplySide: { erp: 5.1015, expectedInflation: 1.151, realEarningsGrowth: 4.2091, peGrowth: 0, dividendYield: 1.5929, riskFreeRate: 1.9, inflationMonths: 331, gdpQuarters: 110, dividendYieldTradeDate: "2026-09-24", dividendYieldCompanyCount: 829, dividendYieldMarketCapCoverage: 98.3966 },
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/macro/equity-risk-premium",
+  summary: "股票風險溢酬（歷史法與供給面模型兩種算法並列）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /macro/equity-risk-premium（2026-09-29 轉發）。**這支跟 /macro 其他端點不同：回傳的是一組算出來的結論，不是時間序列。**" +
+    "**兩種算法刻意並列，不要自己挑一個當「正確答案」**：`erpGeometric`／`erpArithmetic` 是歷史法（加權指數年化報酬減同期十年期公債殖利率平均）；`supplySide.erp` 是 Ibbotson & Chen (2003) 的供給面模型（通膨＋實質盈餘成長＋股利，本益比成長設 0，再減無風險利率）。2026-09-29 完整窗口實測：歷史法幾何 5.51%、供給面 5.10%、歷史法算術 7.66%。" +
+    "**幾何與算術差 2.15 個百分點，而這個差會直接改變任何 CAPM 折現的結果**——要用哪一個是取捨不是細節：算術平均適合單期期望值，幾何平均適合多期複利，長期折現多半用幾何。" +
+    "`supplySide.peGrowth` **永遠是 0**，那是模型的假設（本益比擴張不算公司供給的報酬），不是「算不出來」。`supplySide` **整塊可以是 null**（加權指數與公債殖利率完全沒有重疊月份時），其中 `erp` 與 `dividendYield` 也可各自為 null（上市公司有市值的不到九成時不算殖利率，原因會寫在 warnings）。" +
+    "四個窗口參數 startYear／startMonth／endYear／endMonth 全部選填，但**年與月必須成對**（只給一邊會 400，本服務先擋不打上游）；全部省略時窗口是兩種資料的完整重疊區間。**`clippedToAvailableData` 只描述「呼叫端指定的窗口被裁切」**——不帶參數時預設窗口本來就是交集，所以必然是 false，不要把它當成「資料完整」的指標。" +
+    "要看完整可用範圍請同時看 `dataCoverage` 的**兩個** range：實測加權指數到 2026-09、公債殖利率只到 2026-07，所以 windowEnd 是 2026-07——只看其中一個會以為窗口莫名其妙短了兩個月。" +
+    "`supplySide.dividendYield` 是**最新交易日的市值加權**（沒有長期歷史可平均），跟通膨／成長用整段窗口平均不同；`realEarningsGrowth` 用實質 GDP 成長近似盈餘成長，上游自己標明那會因新股稀釋而**高估**。",
+  tags: ["Macro"],
+  request: { query: equityRiskPremiumQuerySchema.openapi("EquityRiskPremiumQuery", { example: { startYear: 2015, startMonth: 1, endYear: 2020, endMonth: 12 } }) },
+  responses: {
+    200: { description: "風險溢酬計算結果。", content: { "application/json": { schema: equityRiskPremiumResultSchema } } },
+    400: errorResponse("年與月沒有成對給、或不是整數／月份不在 1~12。"),
     502: upstream502,
   },
 });
