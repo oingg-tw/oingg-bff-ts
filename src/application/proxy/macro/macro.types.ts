@@ -33,6 +33,32 @@ export interface UsPolicyRateEntry {
   changeBp: number | null;
 }
 
+/**
+ * 歐洲央行三大政策利率的調整事件。2026-09-29 新增，跟 UsPolicyRate／CbcPolicyRate 同一族。
+ *
+ * **三個利率都可以是 null**（不是每次調整三者都公布），而 `depositFacilityRate` **可以是負的**
+ * （2014-06 ~ 2022-07 的負利率時期）——所以下游畫圖時 y 軸不能假設非負。
+ *
+ * `mainRefinancingIsMinimumBid` 是**純 boolean 不可為 null**：true 代表那段期間（2000-06-28 ~
+ * 2008-10-14）的 MRO 是變動利率標售的「最低投標利率」而不是固定標售利率。數字本身仍然連續可畫，
+ * 這個旗標只是告訴讀者那一段的語意不同。
+ */
+export interface EcbPolicyRateEntry {
+  effectiveDate: string;
+  depositFacilityRate: number | null;
+  mainRefinancingRate: number | null;
+  marginalLendingRate: number | null;
+  mainRefinancingIsMinimumBid: boolean;
+  depositFacilityChangeBp: number | null;
+  mainRefinancingChangeBp: number | null;
+  marginalLendingChangeBp: number | null;
+}
+
+/** Oldest to newest — 一列是一次調整，不是逐日序列。查無資料時 entries 是空陣列。 */
+export interface EcbPolicyRateResult {
+  entries: EcbPolicyRateEntry[];
+}
+
 /** Oldest to newest — 186 events from 1982-09-27 as of 2026-09-29 when unfiltered. */
 export interface UsPolicyRateResult {
   entries: UsPolicyRateEntry[];

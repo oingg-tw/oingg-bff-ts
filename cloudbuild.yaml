@@ -1,0 +1,89 @@
+# push 到 main 時由觸發器 deploy-on-push-to-main（asia-east1）執行。
+# 檔名必須是 cloudbuild.yaml：那個觸發器是 autodetect，找不到這個檔名就會退回用 Dockerfile 做
+# 預設建置——那條路沒有測試關卡也沒有部署步驟，而且會用一個預設的映像名稱。
+#
+# 結構抄自 oingg-twse-ts 的同名檔案（四個 step、$SHORT_SHA 與 latest 雙標籤），刻意保持一致：
+# 兩個 repo 的部署讀起來一樣，出事時不必先搞懂這一個的寫法有什麼不同。
+substitutions:
+  _REGION: asia-southeast1
+  _REPOSITORY: bff
+  _SERVICE: oingg-bff-ts
+  # analysis-ts 的 Cloud Run 網址。同時是 FILTERS_SERVICE_URL 與 ID token 的 audience——
+  # 兩者必須一致，所以只寫一次。
+  #
+  # **這裡指的是他們的 dev**（2026-09-29 起）。他們有兩個部署，而且不會互相同步：
+  #   dev  oingg-analysis-ts-dev-...  讀寫 DEV 分支，跟他們本機回填同步
+  #   prd  oingg-analysis-ts-...      讀 PRD 分支，資料是一次性複製、之後不會自動更新
+  # bff-ts 這個服務是 dev 環境（使用者的計畫是 dev 先給人用、再發佈正式），所以接 dev。
+  # 之後真的要部署 bff-ts 的正式環境時，改的是這一行與下面那個密鑰名稱，兩個要一起換——
+  # 用正式的金鑰打 dev 會 401，反之亦然（他們實測過）。
+  _ANALYSIS_URL: https://oingg-analysis-ts-dev-717539760564.asia-southeast1.run.app
+  # 跨專案引用**必須用專案號碼**，用 project id 會被拒為 "not a valid secret name"（2026-09-29 實測）。
+  _ANALYSIS_PROJECT_NUMBER: "717539760564"
+  # dev 與正式各一把：BFF-API-KEY-DEV / BFF-API-KEY。bff-ts-runtime 兩把都有 accessor。
+  _ANALYSIS_API_KEY_SECRET: BFF-API-KEY-DEV
+
+steps:
+  # 測試關卡在最前面：沒過就不會建置也不會部署（Cloud Build 的 step 依序執行，失敗即中止）。
+  # 這是這份設定最重要的一步——它讓「push 到 main」不等於「把壞的東西送上去」。
+  - id: test
+    name: node:24-trixie-slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        npm install -g pnpm@11
+        # postinstall 會跑 prisma generate，而 prisma.config.ts 載入時要解析得出這兩個變數
+        # （解析不出來會直接炸，不是等到真的連線才失敗）。generate 本身不需要連得上資料庫。
+        export DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+        export DIRECT_URL="$$DATABASE_URL"
+        pnpm install --frozen-lockfile
+        npx tsc --noEmit
+        pnpm run lint
+        pnpm run lint:deps
+        npx vitest run
+
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$SHORT_SHA
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}"]
+
+  - id: deploy
+    name: gcr.io/cloud-builders/gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$SHORT_SHA
+      - --region=${_REGION}
+      - --service-account=bff-ts-runtime@$PROJECT_ID.iam.gserviceaccount.com
+      # 刻意**不寫** --allow-unauthenticated／--no-allow-unauthenticated：兩者都會覆寫服務現有的
+      # IAM 政策。組織政策 iam.allowedPolicyMemberDomains 目前擋著 allUsers，所以每次部署都會噴
+      # 一個設定失敗的警告；而如果之後加了例外把它開放，帶 --no-allow-unauthenticated 又會把它關回去。
+      # 不帶這個旗標 = 沿用服務目前的存取設定，由人決定、不由每次部署決定。
+      - --set-env-vars=NODE_ENV=production,FILTERS_SERVICE_URL=${_ANALYSIS_URL},ANALYSIS_SERVICE_AUDIENCE=${_ANALYSIS_URL},CORS_ORIGINS=http://localhost:3000,FIREBASE_SERVICE_ACCOUNT_PATH=/secrets/firebase/key.json
+      # 最後一項是**檔案掛載**不是環境變數（Firebase 的服務帳戶金鑰是 JSON 檔）。掛載點不能放在
+      # /app：Cloud Run 掛 secret 是掛 volume，會遮蔽該目錄原有內容，/app/dist 與 node_modules 會消失。
+      - --set-secrets=DATABASE_URL=DATABASE_URL:latest,BFF_API_KEY=projects/${_ANALYSIS_PROJECT_NUMBER}/secrets/${_ANALYSIS_API_KEY_SECRET}:latest,FILTERS_SYNC_SECRET=FILTERS_SYNC_SECRET:latest,API_DOCS_USER=API_DOCS_USER:latest,API_DOCS_PASSWORD=API_DOCS_PASSWORD:latest,RESEND_API_KEY=RESEND_API_KEY:latest,/secrets/firebase/key.json=firebase-sa-key:latest
+      - --min-instances=0
+      - --max-instances=4
+      - --quiet
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$SHORT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+timeout: 1800s

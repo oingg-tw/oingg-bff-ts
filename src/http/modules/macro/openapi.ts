@@ -4,6 +4,7 @@ import {
   businessCycleIndicatorQuerySchema,
   cbcPolicyRateQuerySchema,
   usPolicyRateQuerySchema,
+  ecbPolicyRateQuerySchema,
   CPI_CATEGORIES,
   cpiQuerySchema,
   GDP_CATEGORIES,
@@ -86,6 +87,48 @@ registry.registerPath({
   request: { query: usPolicyRateQuerySchema.openapi("UsPolicyRateQuery", { example: { from: "2024-06-01" } }) },
   responses: {
     200: { description: "美國政策利率調整事件清單，由舊到新。", content: { "application/json": { schema: usPolicyRateResultSchema } } },
+    400: errorResponse('from 不是 "YYYY-MM-DD" 格式。'),
+    502: upstream502,
+  },
+});
+
+// --- ecb-policy-rate ---
+const ecbPolicyRateEntrySchema = z.object({
+  effectiveDate: z.string(),
+  depositFacilityRate: nullableNumber,
+  mainRefinancingRate: nullableNumber,
+  marginalLendingRate: nullableNumber,
+  mainRefinancingIsMinimumBid: z.boolean(),
+  depositFacilityChangeBp: nullableNumber,
+  mainRefinancingChangeBp: nullableNumber,
+  marginalLendingChangeBp: nullableNumber,
+});
+
+const ecbPolicyRateResultSchema = z
+  .object({ entries: z.array(ecbPolicyRateEntrySchema) })
+  .openapi("EcbPolicyRateResult", {
+    example: {
+      entries: [
+        { effectiveDate: "2022-07-27", depositFacilityRate: 0, mainRefinancingRate: 0.5, marginalLendingRate: 0.75, mainRefinancingIsMinimumBid: false, depositFacilityChangeBp: 50, mainRefinancingChangeBp: 50, marginalLendingChangeBp: 50 },
+        { effectiveDate: "2024-06-12", depositFacilityRate: 3.75, mainRefinancingRate: 4.25, marginalLendingRate: 4.5, mainRefinancingIsMinimumBid: false, depositFacilityChangeBp: -25, mainRefinancingChangeBp: -25, marginalLendingChangeBp: -25 },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/macro/ecb-policy-rate",
+  summary: "歐洲央行三大政策利率的調整事件序列（存款機制／主要再融資／邊際貸款）",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /macro/ecb-policy-rate（2026-09-29 新增，上游資料源是 gov-ts）。**事件型序列**：一列代表一次調整，不是逐日資料；由舊到新排序，查無資料時 entries 是空陣列。三個利率都是百分比數字（2.5 代表 2.5%），原樣轉發上游的 JSON 數字。" +
+    "**三個利率都可能是 null**（不是每次調整三者都公布），而且 **depositFacilityRate 可以是負的**——2014-06 到 2022-07 是負利率時期，所以畫圖時 y 軸不能假設非負，這是這支跟 /macro/cbc-policy-rate、/macro/us-policy-rate 最大的不同。" +
+    "三個 *ChangeBp 是各自利率相對前一次調整的變動（單位基點），**沒有前一次可比時是 null**（整段歷史的第一筆，以及某個利率首次出現的那一筆）。" +
+    "**mainRefinancingIsMinimumBid** 是必定存在的布林值：true 代表那段期間（約 2000-06-28 ~ 2008-10-14）的 MRO 是變動利率標售的「最低投標利率」而不是固定標售利率——數字本身連續可畫，這個旗標只是說明那一段的語意不同，適合在圖上標註而不是拿來切斷線段。" +
+    "from 選填，\"YYYY-MM-DD\"，只回生效日 >= 這天的事件，格式錯誤會 400（本服務先擋，不打上游）。",
+  tags: ["Macro"],
+  request: { query: ecbPolicyRateQuerySchema.openapi("EcbPolicyRateQuery", { example: { from: "2022-01-01" } }) },
+  responses: {
+    200: { description: "歐洲央行政策利率調整事件清單，由舊到新。", content: { "application/json": { schema: ecbPolicyRateResultSchema } } },
     400: errorResponse('from 不是 "YYYY-MM-DD" 格式。'),
     502: upstream502,
   },
