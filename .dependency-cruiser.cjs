@@ -100,8 +100,8 @@ module.exports = {
     {
       name: "no-orphans",
       severity: "warn",
-      comment: "沒有任何人 import 的檔案——搬移過程中忘了刪的舊檔會在這裡現形。",
-      from: { orphan: true, pathNot: "\\.d\\.ts$|^src/index\\.ts$|\\.openapi\\.ts$" },
+      comment: "沒有任何人 import 的檔案——搬移過程中忘了刪的舊檔會在這裡現形。例外是由工具而非 import 載入的進入點：src/index.ts（node 直接執行）、*.openapi.ts（swagger registry 以副作用註冊）、src/tests/setup.ts（vitest 的 setupFiles）——三者在這個規則眼裡都是孤兒，但刪掉任何一個都會壞事。",
+      from: { orphan: true, pathNot: "\\.d\\.ts$|^src/index\\.ts$|\\.openapi\\.ts$|^src/tests/setup\\.ts$" },
       to: {},
     },
   ],
