@@ -12,6 +12,8 @@ export default defineConfig({
   test: {
     // Makes describe/it/expect global, so test files don't need to import them.
     globals: true,
+    // 在任何測試檔 import 之前設好 requireEnv() 需要的變數——理由見該檔案的說明。
+    setupFiles: ["src/tests/setup.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "json-summary"],
