@@ -3,6 +3,7 @@ import {
   fetchBusinessCycleIndicator,
   fetchCbcPolicyRate,
   fetchUsPolicyRate,
+  fetchEcbPolicyRate,
   fetchCpi,
   fetchGdp,
   fetchGovBondYield10y,
@@ -55,6 +56,82 @@ const US_RAW_BODY = {
     { effectiveDate: "2026-09-17", targetUpper: 4, targetLower: 3.75, changeBp: 25 },
   ],
 };
+
+// 依 analysis-ts 的 zod schema 構造（2026-09-29 他們剛上線、gov-ts 的表還沒推到可查詢的環境，
+// 所以無法從真實回應取樣——這三列涵蓋的是 schema 允許的三種形狀，不是我看過的資料）。
+const ECB_RAW_BODY = {
+  entries: [
+    // 整段歷史的第一筆：三個 changeBp 都沒有前值可比
+    { effectiveDate: "1999-01-01", depositFacilityRate: 2, mainRefinancingRate: 3, marginalLendingRate: 4.5, mainRefinancingIsMinimumBid: false, depositFacilityChangeBp: null, mainRefinancingChangeBp: null, marginalLendingChangeBp: null },
+    // 最低投標利率時期，而且某個利率當期沒有公布
+    { effectiveDate: "2000-06-28", depositFacilityRate: 3.25, mainRefinancingRate: null, marginalLendingRate: 5.25, mainRefinancingIsMinimumBid: true, depositFacilityChangeBp: 0, mainRefinancingChangeBp: null, marginalLendingChangeBp: 0 },
+    // 負利率時期
+    { effectiveDate: "2014-06-11", depositFacilityRate: -0.1, mainRefinancingRate: 0.15, marginalLendingRate: 0.4, mainRefinancingIsMinimumBid: false, depositFacilityChangeBp: -10, mainRefinancingChangeBp: -10, marginalLendingChangeBp: -35 },
+  ],
+};
+
+describe("fetchEcbPolicyRate", () => {
+  it("原樣轉發，不帶 from 時不加 query 參數", async () => {
+    mockFetchOnce({ ok: true, body: ECB_RAW_BODY });
+
+    const result = await fetchEcbPolicyRate();
+
+    expect(result).toEqual(ECB_RAW_BODY);
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/macro/ecb-policy-rate");
+  });
+
+  /**
+   * 六個數值欄位都可能是 null，而 `Number(null)` 是 0。在利率圖上那會變成兩個具體的謊：一條不存在
+   * 的零利率線，以及一個「這次沒有調整」的假訊號。
+   */
+  it("null 的利率與 changeBp 都維持 null，不會變成 0", async () => {
+    mockFetchOnce({ ok: true, body: ECB_RAW_BODY });
+
+    const [first, second] = (await fetchEcbPolicyRate()).entries;
+
+    expect(first?.depositFacilityChangeBp).toBeNull();
+    expect(first?.mainRefinancingChangeBp).toBeNull();
+    expect(second?.mainRefinancingRate).toBeNull();
+    expect(second?.mainRefinancingChangeBp).toBeNull();
+    // 而真實的 0 要留下來：第二列三個利率都沒變，changeBp 是 0 不是 null，兩者意思不同。
+    expect(second?.depositFacilityChangeBp).toBe(0);
+  });
+
+  /** 負利率時期（2014-06~2022-07）：depositFacilityRate 是負數，不能被當成異常處理掉。 */
+  it("負的存款機制利率原樣保留", async () => {
+    mockFetchOnce({ ok: true, body: ECB_RAW_BODY });
+
+    expect((await fetchEcbPolicyRate()).entries[2]?.depositFacilityRate).toBe(-0.1);
+  });
+
+  /**
+   * `=== true` 而不是 `Boolean()`：上游漏掉這個欄位時 `Boolean(undefined)` 也是 false，讀起來跟
+   * 「上游明確說 false」無法區分。這裡用一個缺欄位的畸形回應把那個差別釘住。
+   */
+  it("缺少 mainRefinancingIsMinimumBid 時得到 false，而不是被 truthy 判斷放行", async () => {
+    const { mainRefinancingIsMinimumBid: _omitted, ...withoutFlag } = ECB_RAW_BODY.entries[1]!;
+    mockFetchOnce({ ok: true, body: { entries: [{ ...withoutFlag, mainRefinancingIsMinimumBid: "yes" }] } });
+
+    // 任何非布林值（包含 truthy 的字串）都不算 true——只有上游真的送 true 才是 true。
+    expect((await fetchEcbPolicyRate()).entries[0]?.mainRefinancingIsMinimumBid).toBe(false);
+  });
+
+  it("有給 from 時才轉發", async () => {
+    mockFetchOnce({ ok: true, body: { entries: [] } });
+
+    await fetchEcbPolicyRate("2022-01-01");
+
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.searchParams.get("from")).toBe("2022-01-01");
+  });
+
+  it("上游非 2xx 時丟 502（gov-ts 的表還沒推上去時上游會 500）", async () => {
+    mockFetchOnce({ ok: false, status: 500, body: {} });
+
+    await expect(fetchEcbPolicyRate()).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
 
 describe("fetchUsPolicyRate", () => {
   it("原樣轉發數字，不帶 from 時不加任何 query 參數", async () => {

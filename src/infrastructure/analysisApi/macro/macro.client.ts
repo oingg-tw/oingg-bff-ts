@@ -5,8 +5,10 @@ import type {
   BusinessCycleIndicatorEntry,
   BusinessCycleIndicatorResult,
   CbcPolicyRateEntry,
+  EcbPolicyRateEntry,
   UsPolicyRateEntry,
   CbcPolicyRateResult,
+  EcbPolicyRateResult,
   UsPolicyRateResult,
   CpiCategory,
   CpiEntry,
@@ -111,6 +113,34 @@ function normalizeUsPolicyRateEntry(raw: unknown): UsPolicyRateEntry {
 export async function fetchUsPolicyRate(from?: string): Promise<UsPolicyRateResult> {
   const { entries } = await getEntriesBody("/macro/us-policy-rate", { from }, "US policy rate endpoint");
   return { entries: entries.map(normalizeUsPolicyRateEntry) };
+}
+
+function normalizeEcbPolicyRateEntry(raw: unknown): EcbPolicyRateEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    effectiveDate: String(r.effectiveDate),
+    depositFacilityRate: toNumberOrNull(r.depositFacilityRate),
+    mainRefinancingRate: toNumberOrNull(r.mainRefinancingRate),
+    marginalLendingRate: toNumberOrNull(r.marginalLendingRate),
+    // `=== true` 不是 Boolean()：畸形回應下 Boolean(undefined) 是 false，讀起來跟「上游明確說 false」
+    // 一模一樣。同一條規則在 isEmerging 上有過血淚（見 CLAUDE.md）。
+    mainRefinancingIsMinimumBid: r.mainRefinancingIsMinimumBid === true,
+    depositFacilityChangeBp: toNumberOrNull(r.depositFacilityChangeBp),
+    mainRefinancingChangeBp: toNumberOrNull(r.mainRefinancingChangeBp),
+    marginalLendingChangeBp: toNumberOrNull(r.marginalLendingChangeBp),
+  };
+}
+
+/**
+ * 歐洲央行三大政策利率的事件序列，來自 analysis-ts 的 GET /macro/ecb-policy-rate（2026-09-29 新增）。
+ * 跟 fetchUsPolicyRate 同一個形狀與同一組慣例。
+ *
+ * 六個數值欄位全部走 toNumberOrNull：三個利率不是每次調整都公布，三個 changeBp 的第一筆沒有前值可比。
+ * `Number(null)` 會把這兩種「沒有」都變成 0——在利率圖上那是一條假的零線與一個假的「未調整」。
+ */
+export async function fetchEcbPolicyRate(from?: string): Promise<EcbPolicyRateResult> {
+  const { entries } = await getEntriesBody("/macro/ecb-policy-rate", { from }, "ECB policy rate endpoint");
+  return { entries: entries.map(normalizeEcbPolicyRateEntry) };
 }
 
 function normalizeBusinessCycleIndicatorEntry(raw: unknown): BusinessCycleIndicatorEntry {
@@ -302,6 +332,7 @@ export async function fetchGdp(from?: string, category?: GdpCategory): Promise<G
 export const analysisMacroGateway: MacroGatewayPort = {
   getCbcPolicyRate: fetchCbcPolicyRate,
   getUsPolicyRate: fetchUsPolicyRate,
+  getEcbPolicyRate: fetchEcbPolicyRate,
   getBusinessCycleIndicator: fetchBusinessCycleIndicator,
   getMonetaryAggregate: fetchMonetaryAggregate,
   getGovBondYield10y: fetchGovBondYield10y,
