@@ -206,7 +206,11 @@ describe("fetchExDividendCalendar ETF 欄位", () => {
     }
   });
 
-  /** 加總不到 100 的列（主動型 ETF）不得被當成異常攔掉——00404A 只揭露 31.67%，其餘沒有歸屬。 */
+  /**
+   * 加總不等於 100 的列不得被當成異常攔掉。**兩種量級都要過**：00404A 只揭露 31.67%（真的沒揭露），
+   * 00962 是 100.01（四捨五入）。第一次量的時候我用 `abs(sum-100) > 0.01` 當判準，剛好把 100.01 那一類
+   * 藏起來，於是對外講了「被動型全部加總 100」這個錯的結論——挑容忍值就是在挑要不要看見某一類資料。
+   */
   it("composition 加總不到 100 時照原樣帶出", async () => {
     const partial = { dividendIncomePct: 28.61, interestIncomePct: 0, incomeEqualizationPct: 3.06, realizedCapitalGainPct: 0, otherIncomePct: 0 };
     mockFetchOnce({ ok: true, body: { entries: [{ ...RAW_ETF_ROW, symbol: "00404A", composition: partial }] } });
@@ -214,6 +218,15 @@ describe("fetchExDividendCalendar ETF 欄位", () => {
 
     expect(c?.dividendIncomePct).toBe(28.61);
     expect(c?.incomeEqualizationPct).toBe(3.06);
+  });
+
+  it("composition 加總 100.01（四捨五入）時照原樣帶出", async () => {
+    const over = { dividendIncomePct: 63.64, interestIncomePct: 0, incomeEqualizationPct: 36.37, realizedCapitalGainPct: 0, otherIncomePct: 0 };
+    mockFetchOnce({ ok: true, body: { entries: [{ ...RAW_ETF_ROW, symbol: "00962", composition: over }] } });
+    const c = (await fetchExDividendCalendar("2026-09")).entries[0]?.composition;
+
+    expect((c?.dividendIncomePct ?? 0) + (c?.incomeEqualizationPct ?? 0)).toBeCloseTo(100.01, 10);
+    expect(c?.dividendIncomePct).toBe(63.64);
   });
 
   /** COMMON 列四個欄位都是 null（實測 110/110），而 securityType 本身仍要帶出來供下游判斷。 */
@@ -230,17 +243,36 @@ describe("fetchExDividendCalendar ETF 欄位", () => {
   });
 
   /**
-   * announced 列的 distributionPerUnit 是 null（金額還沒公布），但 composition 有值——而那個值是**上一次**
-   * 配息的組成。bff-ts 不清掉它（代理端點零轉換），所以這裡守的是「原樣轉發」而不是「幫下游過濾」；
-   * 要不要顯示由下游依 status 判斷，說明寫在 OpenAPI 的 ExDividendComposition。
+   * announced 列現在是金額 null、composition 整個 null——上游 2026-09-30 起在金額未公布的 ETF 列一律回 null，
+   * 因為 sitca 確認 FundClear 的預告列放的是**上一次**配息的組成（不是預測）。實測 2026-06~10 的 410 筆 ETF，
+   * 沒有一筆是「金額未公布但仍有組成」。
+   *
+   * 這裡仍然驗「原樣轉發」而不是「bff-ts 自己判斷」：如果上游哪天又送來有值的組成，我們照送、不擅自清掉
+   * （代理端點零轉換），由文件告知下游怎麼讀。
    */
-  it("announced 列的金額是 null 但 composition 原樣轉發", async () => {
-    const announced = { ...RAW_ETF_ROW, status: "announced", exDate: "2026-10-05", paymentDate: null, recordDate: "2026-10-11", distributionPerUnit: null };
+  it("金額未公布的列 composition 是 null，且照上游原樣轉發", async () => {
+    const announced = { ...RAW_ETF_ROW, status: "announced", exDate: "2026-10-05", paymentDate: null, recordDate: "2026-10-11", distributionPerUnit: null, composition: null };
     mockFetchOnce({ ok: true, body: { entries: [announced] } });
     const entry = (await fetchExDividendCalendar("2026-09")).entries[0];
 
     expect(entry?.distributionPerUnit).toBeNull();
-    expect(entry?.composition?.dividendIncomePct).toBe(42.4);
+    expect(entry?.composition).toBeNull();
+  });
+
+  /**
+   * **第三種狀態，也是最容易被 `if (composition)` 漏掉的那一種**：金額公布了（dpu 有值、status realized）
+   * 但組成還沒公告，物件存在而五項全 null。00406A 主動中信台灣收益兩次配息都是這樣，不是暫態。
+   * 這一條守的是 bff-ts 不把這種物件整個塌成 null——那會讓下游分不出「沒有組成」與「組成還沒公告」。
+   */
+  it("金額有值但組成未公告時保留物件、五項皆 null", async () => {
+    const allNull = { dividendIncomePct: null, interestIncomePct: null, incomeEqualizationPct: null, realizedCapitalGainPct: null, otherIncomePct: null };
+    const row = { ...RAW_ETF_ROW, symbol: "00406A", companyName: "主動中信台灣收益", distributionPerUnit: 0.138, composition: allNull };
+    mockFetchOnce({ ok: true, body: { entries: [row] } });
+    const entry = (await fetchExDividendCalendar("2026-09")).entries[0];
+
+    expect(entry?.distributionPerUnit).toBe(0.138);
+    expect(entry?.composition).not.toBeNull();
+    expect(entry?.composition?.dividendIncomePct).toBeNull();
   });
 
   /**
