@@ -793,6 +793,21 @@ registry.registerPath({
   },
 });
 
+const exDividendCompositionSchema = z
+  .object({
+    dividendIncomePct: z.number().nullable(),
+    interestIncomePct: z.number().nullable(),
+    incomeEqualizationPct: z.number().nullable(),
+    realizedCapitalGainPct: z.number().nullable(),
+    otherIncomePct: z.number().nullable(),
+  })
+  .openapi("ExDividendComposition", {
+    description:
+      "ETF 配息組成（百分比）。**null 是「未揭露」、0 是「揭露了而且是零」，兩者意思不同**，而 0 在這裡很常見不是例外（2026-09 的 96 筆 ETF 有 90 筆的 incomeEqualizationPct 是 0），所以不要用 falsy 判斷——那會把「這次配息沒有動用收益平準金」講成「不知道」。" +
+      "**五項加起來不一定是 100，而且加不滿的是哪些列不是隨機的**：2026-06~09 共 396 筆 ETF 實測，被動型 347 筆全部加總 100，主動型 49 筆有 8 筆不是（6 筆加不滿，例如 99.2、72.13、31.67，另 2 筆五項全 null）。所以要把它畫成完整的圓餅圖之前必須先檢查加總，剩下的部分**不能假設是零**——00404A 主動聯博動能50 只揭露 31.67%，其餘 68% 沒有歸屬。" +
+      "**announced（未來）列上的這個物件是「上一次配息」的組成，不是預測。** 00939 的組成每一次都不同（100/0 → 35.87/64.13 → 41.06/58.94 → 42.4/57.6），而它 2026-10-05 的 announced 列帶的是 2026-09-01 的 42.4/57.6 逐字照抄。**這種列從 payload 本身看不出問題**（五項剛好加起來 100），所以請搭配 status 判斷：只在 realized 列把這個組成當作有意義的數字。bff-ts 依「代理端點零轉換」原樣轉發、不把它清成 null；已向 analysis-ts 確認這是否為刻意行為。",
+  });
+
 const exDividendCalendarEntrySchema = exDividendNoticeEntrySchema.extend({
   symbol: z.string(),
   companyName: z.string().nullable(),
@@ -802,6 +817,13 @@ const exDividendCalendarEntrySchema = exDividendNoticeEntrySchema.extend({
   paymentDate: z.string().nullable(),
   /** Dividend fiscal year (西元) — realized rows only, null on announced. */
   fiscalYear: z.number().int().nullable(),
+  /** "ETF" or "COMMON". The three fields below are ETF-only (null on every COMMON row). */
+  securityType: z.enum(["ETF", "COMMON"]).nullable(),
+  /** "YYYY-MM-DD" 基準日 — ETF rows only. */
+  recordDate: z.string().nullable(),
+  /** 每單位分配金額 — an ETF row's only amount; its cashDividend is always null. */
+  distributionPerUnit: z.number().nullable(),
+  composition: exDividendCompositionSchema.nullable(),
 });
 
 registry.registerPath({
@@ -809,7 +831,7 @@ registry.registerPath({
   path: "/stocks/ex-dividend-calendar",
   summary: "查詢整月全市場的除息/除權事件（股利行事曆用，不限單一代號）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /stocks/ex-dividend-calendar（2026-09-10 新增）。跟 ex-dividend-notices 的差別：這支是攤平的全市場清單（一次回傳整個月所有代號的事件，不用先知道代號），不是照代號分組，也沒有「只顯示未來事件」的過濾——查歷史月份或未來月份都會照實回傳當月真實發生（或已排定）的事件。month 格式必須是 \"YYYY-MM\"（例如 \"2026-09\"），格式錯誤或缺少會 400。每筆 entry 除了跟 ex-dividend-notices 一樣的欄位（exDate/exType/stockDividendRatio 等）外，多了 symbol 跟 companyName——companyName 可能是 null（ETF 不在 analysis-ts 的公司名稱對照表裡，例如 00939/00984D）。**status／paymentDate／fiscalYear（2026-09-22 新增，三個都必填）**：status 是 announced（除息日 >= 今天的證交所／櫃買中心預告）或 realized（除息日 < 今天的公開資訊觀測站股利分派公告），兩種來源不同、欄位也不同——paymentDate（\"YYYY-MM-DD\" 發放日）跟 fiscalYear（股利所屬年度，西元）只有 realized 列有值，announced 一律 null；反過來 realized 列的認購／增資相關欄位（subscriptionRatio、subscriptionPricePerShare、sharesOffered、sharesEmpOwner、sharesholderOwner、stockHoldingRatio）一律 null，因為公告來源不帶這些。這次擴張同時讓過去月份開始有資料（例如 2026-08 回 268 筆、含上櫃），之前歷史月份會是空的。查無資料的月份（例如太久遠或太未來）回傳空陣列，不是錯誤。",
+    "資料來自 oingg-analysis-ts 的 GET /stocks/ex-dividend-calendar（2026-09-10 新增）。跟 ex-dividend-notices 的差別：這支是攤平的全市場清單（一次回傳整個月所有代號的事件，不用先知道代號），不是照代號分組，也沒有「只顯示未來事件」的過濾——查歷史月份或未來月份都會照實回傳當月真實發生（或已排定）的事件。month 格式必須是 \"YYYY-MM\"（例如 \"2026-09\"），格式錯誤或缺少會 400。每筆 entry 除了跟 ex-dividend-notices 一樣的欄位（exDate/exType/stockDividendRatio 等）外，多了 symbol 跟 companyName。companyName 型別上仍可為 null，但**上游現在連 ETF 都有名字**（2026-09-30 重測 2026-06~09 的 396 筆 ETF 全部有值）——這裡原本寫「ETF 不在公司名稱對照表裡」，那句 2026-09-10 是對的、之後就不是了，留著只會讓人以為可以靠它判斷是不是 ETF。要判斷請用 securityType。**securityType／recordDate／distributionPerUnit／composition（上游 2026-09-23 新增，bff-ts 2026-09-30 才接上）**：securityType 是 \"ETF\" 或 \"COMMON\"，後三個欄位只有 ETF 列有值（2026-09 實測 110 筆 COMMON 全 null、96 筆 ETF 全有值）。**distributionPerUnit 是 ETF 列唯一的金額**——ETF 的 cashDividend 一律是 null（96/96），所以只讀 cashDividend 的行事曆會讓當月將近一半的列沒有金額（2026-09 是 96/206）。announced 列的 distributionPerUnit 是 null，那是「金額真的還沒公布」（2026-10 的 14 筆 announced ETF 全部 null），跟「被我們漏掉」不同。composition 的 null/0 差異與「加總不一定是 100」「announced 列帶的是上一次的組成」請看 ExDividendComposition 的說明，那幾件事從 payload 本身看不出來。**status／paymentDate／fiscalYear（2026-09-22 新增，三個都必填）**：status 是 announced（除息日 >= 今天的證交所／櫃買中心預告）或 realized（除息日 < 今天的公開資訊觀測站股利分派公告），兩種來源不同、欄位也不同——paymentDate（\"YYYY-MM-DD\" 發放日）跟 fiscalYear（股利所屬年度，西元）只有 realized 列有值，announced 一律 null；反過來 realized 列的認購／增資相關欄位（subscriptionRatio、subscriptionPricePerShare、sharesOffered、sharesEmpOwner、sharesholderOwner、stockHoldingRatio）一律 null，因為公告來源不帶這些。這次擴張同時讓過去月份開始有資料（例如 2026-08 回 268 筆、含上櫃），之前歷史月份會是空的。查無資料的月份（例如太久遠或太未來）回傳空陣列，不是錯誤。",
   tags: ["Stock"],
   request: {
     query: exDividendCalendarQuerySchema.openapi("ExDividendCalendarQuery", { example: { month: "2026-09" } }),

@@ -4,7 +4,9 @@ import { logger } from "@/shared/logger.js";
 import type {
   ExDividendCalendarEntry,
   ExDividendCalendarResult,
+  ExDividendCalendarSecurityType,
   ExDividendCalendarStatus,
+  ExDividendCompositionBreakdown,
 } from "@/application/proxy/stock/exDividendCalendar.types.js";
 import type { ExDividendType } from "@/application/proxy/stock/exDividendNotices.types.js";
 
@@ -18,6 +20,39 @@ function isExDividendType(value: unknown): value is ExDividendType {
 
 function isCalendarStatus(value: unknown): value is ExDividendCalendarStatus {
   return value === "announced" || value === "realized";
+}
+
+/**
+ * Unknown values become null rather than throwing, unlike exType/status above. Those two gate fields the
+ * whole row's meaning depends on; this one is a label, and a new upstream security type (回饋型? 槓桿型?)
+ * shouldn't take down the whole month's calendar. The logged warning is how we find out.
+ */
+function toSecurityTypeOrNull(value: unknown, symbol: string): ExDividendCalendarSecurityType | null {
+  if (value === "ETF" || value === "COMMON") {
+    return value;
+  }
+  if (value !== null && value !== undefined) {
+    logger.warn({ symbol, securityType: value }, "Ex-dividend calendar entry has an unrecognized securityType");
+  }
+  return null;
+}
+
+/**
+ * 逐欄位取值，**null 與 0 都原樣保留**——`toNumberOrNull` 對 0 回 0（不是 null），而 0 在這裡是
+ * 「揭露了而且是零」，跟「未揭露」意思不同。不要換成 `Number()` 或任何 falsy 判斷。
+ */
+function toCompositionOrNull(value: unknown): ExDividendCompositionBreakdown | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const c = value as Record<string, unknown>;
+  return {
+    dividendIncomePct: toNumberOrNull(c.dividendIncomePct),
+    interestIncomePct: toNumberOrNull(c.interestIncomePct),
+    incomeEqualizationPct: toNumberOrNull(c.incomeEqualizationPct),
+    realizedCapitalGainPct: toNumberOrNull(c.realizedCapitalGainPct),
+    otherIncomePct: toNumberOrNull(c.otherIncomePct),
+  };
 }
 
 function normalizeEntry(raw: unknown): ExDividendCalendarEntry {
@@ -45,6 +80,10 @@ function normalizeEntry(raw: unknown): ExDividendCalendarEntry {
     sharesEmpOwner: toNumberOrNull(r.sharesEmpOwner),
     sharesholderOwner: toNumberOrNull(r.sharesholderOwner),
     stockHoldingRatio: toNumberOrNull(r.stockHoldingRatio),
+    securityType: toSecurityTypeOrNull(r.securityType, symbol),
+    recordDate: typeof r.recordDate === "string" ? r.recordDate : null,
+    distributionPerUnit: toNumberOrNull(r.distributionPerUnit),
+    composition: toCompositionOrNull(r.composition),
   };
 }
 
@@ -57,9 +96,14 @@ function isCalendarResponse(body: unknown): body is { entries: unknown[] } {
  * GET /stocks/ex-dividend-calendar?month=YYYY-MM (added 2026-09-10) — same field shape as
  * GET /stocks/ex-dividend-notices (fetchExDividendNotices) but a flat array covering every symbol for the
  * given month, not grouped/filtered to one symbol's future events. Confirmed live: no future-only filter
- * (a month can be entirely in the past or future and still return its real events), companyName is null
- * for ETFs (not in analysis-ts's company reference table), and an out-of-range/no-data month returns
- * `entries: []`, not an error.
+ * (a month can be entirely in the past or future and still return its real events) and an out-of-range/no-data
+ * month returns `entries: []`, not an error. The note that used to be here — companyName is null for ETFs —
+ * was true on 2026-09-10 and is not any more (396/396 ETF rows named across 2026-06~09, re-measured
+ * 2026-09-30); the field stays nullable but don't build on it being absent.
+ *
+ * securityType/recordDate/distributionPerUnit/composition were added upstream 2026-09-23 and went unwired
+ * here for a week — the cost of a per-field normalizer, and the reason a field-set diff against upstream is
+ * worth running rather than trusting that a new field arrives on its own.
  */
 export async function fetchExDividendCalendar(month: string): Promise<ExDividendCalendarResult> {
   const url = buildAnalysisServiceUrl("/stocks/ex-dividend-calendar", { month });
