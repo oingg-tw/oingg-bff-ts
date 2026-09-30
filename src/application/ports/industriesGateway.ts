@@ -2,6 +2,7 @@ import type {
   IndustryFlatList,
   IndustryTree,
   SecuritiesSectorList,
+  SectorDividendSummary,
 } from "@/application/proxy/industries/industries.types.js";
 
 /**
@@ -18,4 +19,5 @@ export interface IndustriesGatewayPort {
   getIndustryTree(code?: string): Promise<IndustryTree>;
   getIndustryFlatList(): Promise<IndustryFlatList>;
   getSecuritiesSectors(): Promise<SecuritiesSectorList>;
+  getSectorDividendSummary(): Promise<SectorDividendSummary>;
 }

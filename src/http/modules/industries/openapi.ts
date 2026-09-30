@@ -115,3 +115,54 @@ registry.registerPath({
     502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
   },
 });
+
+const sectorMetricStatsSchema = z
+  .object({
+    count: z.number().int(),
+    mean: z.number().nullable(),
+    median: z.number().nullable(),
+  })
+  .openapi("SectorMetricStats", {
+    description:
+      "一個類股在一個指標上的統計。**count 是這裡最重要的欄位，不是附註**：它是「這個類股裡有多少家算得出這個指標」，而 mean／median 是對那 count 家算的，**不是對 companyCount 家算的**。count 為 0 時 mean 與 median 是 null（不會是 0）——2026-09-30 實測 34 個類股沒有任何一軸是 0，所以這條規則目前沒有活資料在驗證它，但不要省掉 null 處理。",
+  });
+
+const sectorDividendSummaryRowSchema = z.object({
+  sectorCode: z.string(),
+  sectorName: z.string(),
+  companyCount: z.number().int(),
+  dividendYield: sectorMetricStatsSchema,
+  dividendGrowthRate3y: sectorMetricStatsSchema,
+});
+
+const sectorDividendSummarySchema = z
+  .object({
+    dividendYieldTradeDate: z.string().nullable(),
+    sectors: z.array(sectorDividendSummaryRowSchema),
+  })
+  .openapi("SectorDividendSummary", {
+    example: {
+      dividendYieldTradeDate: "2026-09-30",
+      sectors: [
+        { sectorCode: "01", sectorName: "水泥工業", companyCount: 7, dividendYield: { count: 7, mean: 5.48, median: 6.44 }, dividendGrowthRate3y: { count: 7, mean: 2.9, median: 7.72 } },
+      ],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/industries/sector-dividend-summary",
+  summary: "查詢各類股的股利統計（殖利率、三年股利成長率的家數／平均／中位數），供產業分析散佈圖使用",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /industries/sector-dividend-summary（2026-09-30 新增）。沒有查詢參數，一次回傳全部類股，依 sectorCode 排序；sectorCode 就是 GET /industries/securities-sectors 的 code（證交所類股，不是財政部稅籍分類）。母體是上市加上櫃、不含興櫃，2026-09-30 實測 34 個類股、companyCount 合計 1,976（跟全市場 2,349 不同，別當同一個母體比較）。dividendYieldTradeDate 是殖利率取自哪一天的收盤，整份回應共用一個日期、不是逐類股。" +
+    "**這支端點要畫成散佈圖之前有三件事必須處理，全部是 2026-09-30 對 34 個類股的實測，而且從單看一列的資料是看不出來的：**" +
+    "**(1) 兩個軸的 count 不同，所以一個點的 x 與 y 是對不同子母體算的。** 綠能環保 46 家、殖利率 n=38 但成長率 n=5；油電燃氣業 12 家、成長率 n=2 而那 2 家的平均是 -45.87；半導體業 206 家、n=161 與 n=120。兩軸都有值的涵蓋率中位數只有 60%，最低 10.9%，34 個類股裡有 10 個至少一軸的 n<10。把 n=2 的點跟 n=161 的點畫成同樣大小、同等權重會誤導——**請用 count 做透明度、點大小或最小 n 門檻**。門檻取捨（實測）：n>=5 留 30 個類股、n>=10 留 24 個、n>=20 留 19 個、n>=30 留 13 個。唯一兩軸都 100% 涵蓋的是水泥工業（7/7）。" +
+    "**(2) mean 與 median 在成長率這一軸有 7 個類股正負號相反**（食品工業、電機機械、建材營造業、電子零組件業、其他電子業、文化創意業、運動休閒），而成長率的正負號就是它要講的整句話（配息在成長還是在縮）。所以選 mean 還是 median 不是美觀問題，會對 34 個類股裡的 7 個給出**相反的結論**。少數極端值就足以翻轉 mean：造紙工業 mean -60.40／median -44.97、玻璃陶瓷 -20.28／-3.45、橡膠工業 -24.82／-10.61。要描述「這個類股典型的樣子」請用 median。" +
+    "**(3) companyCount 不是 mean/median 的分母。** 它是類股的公司家數，各軸自己的 count 才是。拿 companyCount 當分母去反推總額會算錯。" +
+    "bff-ts 這邊不做任何計算（代理端點零轉換），也不快取，每次即時轉發。",
+  tags: ["Industries"],
+  responses: {
+    200: { description: "全部類股的股利統計。", content: { "application/json": { schema: sectorDividendSummarySchema } } },
+    502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
+  },
+});
