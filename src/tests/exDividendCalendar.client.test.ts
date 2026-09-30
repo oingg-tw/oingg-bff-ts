@@ -73,7 +73,11 @@ describe("fetchExDividendCalendar", () => {
 
     const result = await fetchExDividendCalendar("2026-09");
 
-    expect(result).toEqual(RAW_BODY);
+    // RAW_BODY 是 2026-09-10 拿到的真實回應，刻意保留當時的形狀（不補新欄位，否則它就不再是那天的樣本）。
+    // 2026-09-23 上游新增的四個欄位在那份樣本裡不存在，所以這一層補 null——而這條仍然在驗「除了那四個
+    // 以外一個欄位都沒掉」，因為其餘欄位是逐字 deep-equal。
+    const ETF_FIELDS_ABSENT = { securityType: null, recordDate: null, distributionPerUnit: null, composition: null };
+    expect(result).toEqual({ entries: RAW_BODY.entries.map((e) => ({ ...e, ...ETF_FIELDS_ABSENT })) });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/stocks/ex-dividend-calendar?month=2026-09");
   });
@@ -133,5 +137,133 @@ describe("fetchExDividendCalendar", () => {
     mockFetchOnce({ ok: true, body: { entries: [{ ...RAW_BODY.entries[0], exType: "not-a-real-type" }] } });
 
     await expect(fetchExDividendCalendar("2026-09")).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+/**
+ * 上游 2026-09-23 加了 securityType/recordDate/distributionPerUnit/composition，bff-ts 到 2026-09-30 才接上
+ * ——中間一週 ETF 列在我們這一層一個金額都沒有（ETF 的 cashDividend 一律是 null），而且不會有任何錯誤。
+ * 這是逐欄位 normalizer 的固定代價，所以這裡守的是**那四個欄位真的穿過這一層**，尤其是 0 不能被當成缺值。
+ *
+ * 用的是實際回應（00939 統一台灣高息動能 2026-09-01，與 2026-10-05 的 announced 列）。
+ */
+const RAW_ETF_ROW = {
+  symbol: "00939",
+  companyName: "統一台灣高息動能",
+  status: "realized",
+  paymentDate: "2026-09-23",
+  fiscalYear: null,
+  exDate: "2026-09-01",
+  exType: "息",
+  cashDividend: null,
+  stockDividendRatio: null,
+  subscriptionRatio: null,
+  subscriptionPricePerShare: null,
+  sharesOffered: null,
+  sharesEmpOwner: null,
+  sharesholderOwner: null,
+  stockHoldingRatio: null,
+  securityType: "ETF",
+  recordDate: "2026-09-07",
+  distributionPerUnit: 0.125,
+  composition: { dividendIncomePct: 42.4, interestIncomePct: 0, incomeEqualizationPct: 0, realizedCapitalGainPct: 57.6, otherIncomePct: 0 },
+};
+
+describe("fetchExDividendCalendar ETF 欄位", () => {
+  it("四個 ETF 欄位一路帶到回應", async () => {
+    mockFetchOnce({ ok: true, body: { entries: [RAW_ETF_ROW] } });
+    const entry = (await fetchExDividendCalendar("2026-09")).entries[0];
+
+    expect(entry?.securityType).toBe("ETF");
+    expect(entry?.recordDate).toBe("2026-09-07");
+    expect(entry?.distributionPerUnit).toBe(0.125);
+    expect(entry?.composition?.dividendIncomePct).toBe(42.4);
+  });
+
+  /**
+   * **這一條是重點。** 0 是「揭露了而且是零」，null 是「未揭露」；把 0 正規化成 null 會把「這次配息沒有動用
+   * 收益平準金」講成「不知道」，而收益平準金佔比正是這個市場最在意的一件事。實測 96 筆 ETF 有 90 筆的
+   * incomeEqualizationPct 是 0，所以這是常態不是邊角。
+   */
+  it("composition 裡的 0 保留成 0，不變成 null", async () => {
+    mockFetchOnce({ ok: true, body: { entries: [RAW_ETF_ROW] } });
+    const c = (await fetchExDividendCalendar("2026-09")).entries[0]?.composition;
+
+    expect(c?.incomeEqualizationPct).toBe(0);
+    expect(c?.incomeEqualizationPct).not.toBeNull();
+    expect(c?.interestIncomePct).toBe(0);
+    expect(c?.otherIncomePct).toBe(0);
+  });
+
+  it("composition 五項全 null 時每一項都是 null，不是 0", async () => {
+    const allNull = { dividendIncomePct: null, interestIncomePct: null, incomeEqualizationPct: null, realizedCapitalGainPct: null, otherIncomePct: null };
+    mockFetchOnce({ ok: true, body: { entries: [{ ...RAW_ETF_ROW, symbol: "00406A", composition: allNull }] } });
+    const c = (await fetchExDividendCalendar("2026-09")).entries[0]?.composition;
+
+    expect(c).not.toBeNull();
+    for (const v of Object.values(c ?? {})) {
+      expect(v).toBeNull();
+    }
+  });
+
+  /** 加總不到 100 的列（主動型 ETF）不得被當成異常攔掉——00404A 只揭露 31.67%，其餘沒有歸屬。 */
+  it("composition 加總不到 100 時照原樣帶出", async () => {
+    const partial = { dividendIncomePct: 28.61, interestIncomePct: 0, incomeEqualizationPct: 3.06, realizedCapitalGainPct: 0, otherIncomePct: 0 };
+    mockFetchOnce({ ok: true, body: { entries: [{ ...RAW_ETF_ROW, symbol: "00404A", composition: partial }] } });
+    const c = (await fetchExDividendCalendar("2026-09")).entries[0]?.composition;
+
+    expect(c?.dividendIncomePct).toBe(28.61);
+    expect(c?.incomeEqualizationPct).toBe(3.06);
+  });
+
+  /** COMMON 列四個欄位都是 null（實測 110/110），而 securityType 本身仍要帶出來供下游判斷。 */
+  it("COMMON 列的三個 ETF 欄位是 null，securityType 仍帶出", async () => {
+    const common = { ...RAW_ETF_ROW, symbol: "2330", companyName: "台積電", securityType: "COMMON", recordDate: null, distributionPerUnit: null, composition: null, cashDividend: 22 };
+    mockFetchOnce({ ok: true, body: { entries: [common] } });
+    const entry = (await fetchExDividendCalendar("2026-09")).entries[0];
+
+    expect(entry?.securityType).toBe("COMMON");
+    expect(entry?.recordDate).toBeNull();
+    expect(entry?.distributionPerUnit).toBeNull();
+    expect(entry?.composition).toBeNull();
+    expect(entry?.cashDividend).toBe(22);
+  });
+
+  /**
+   * announced 列的 distributionPerUnit 是 null（金額還沒公布），但 composition 有值——而那個值是**上一次**
+   * 配息的組成。bff-ts 不清掉它（代理端點零轉換），所以這裡守的是「原樣轉發」而不是「幫下游過濾」；
+   * 要不要顯示由下游依 status 判斷，說明寫在 OpenAPI 的 ExDividendComposition。
+   */
+  it("announced 列的金額是 null 但 composition 原樣轉發", async () => {
+    const announced = { ...RAW_ETF_ROW, status: "announced", exDate: "2026-10-05", paymentDate: null, recordDate: "2026-10-11", distributionPerUnit: null };
+    mockFetchOnce({ ok: true, body: { entries: [announced] } });
+    const entry = (await fetchExDividendCalendar("2026-09")).entries[0];
+
+    expect(entry?.distributionPerUnit).toBeNull();
+    expect(entry?.composition?.dividendIncomePct).toBe(42.4);
+  });
+
+  /**
+   * 沒見過的 securityType 回 null 並記 warning，**不丟 502**——那是個標籤，不是整列意義的前提，
+   * 上游多一種類型不該讓整個月的行事曆掛掉（exType/status 才丟 502，那兩個是前提）。
+   */
+  it("沒見過的 securityType 變成 null 而不是丟 502", async () => {
+    mockFetchOnce({ ok: true, body: { entries: [{ ...RAW_ETF_ROW, securityType: "LEVERAGED" }] } });
+    const entry = (await fetchExDividendCalendar("2026-09")).entries[0];
+
+    expect(entry?.securityType).toBeNull();
+    expect(entry?.distributionPerUnit).toBe(0.125);
+  });
+
+  /** 欄位整個缺席時（版本錯開）不炸、給 null——這幾個欄位不像股利來源那樣是「保證存在」的。 */
+  it("上游沒有這四個欄位時回 null 而不是丟錯", async () => {
+    const { securityType: _s, recordDate: _r, distributionPerUnit: _d, composition: _c, ...bare } = RAW_ETF_ROW;
+    mockFetchOnce({ ok: true, body: { entries: [bare] } });
+    const entry = (await fetchExDividendCalendar("2026-09")).entries[0];
+
+    expect(entry?.securityType).toBeNull();
+    expect(entry?.recordDate).toBeNull();
+    expect(entry?.distributionPerUnit).toBeNull();
+    expect(entry?.composition).toBeNull();
   });
 });
