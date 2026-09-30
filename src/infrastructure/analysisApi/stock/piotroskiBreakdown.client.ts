@@ -120,7 +120,7 @@ export async function fetchPiotroskiBreakdown(symbol: string, year?: string, sea
 
   const url = buildAnalysisServiceUrl("/companies/piotroski-breakdown", searchParams);
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Piotroski breakdown endpoint");
+  await assertAnalysisServiceOk(response, url, "Piotroski breakdown endpoint");
 
   const body: unknown = await response.json();
   if (!isPiotroskiBreakdownResponse(body)) {

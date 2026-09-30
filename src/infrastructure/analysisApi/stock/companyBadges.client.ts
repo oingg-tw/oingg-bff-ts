@@ -46,7 +46,7 @@ function normalizeCategory(raw: unknown): CompanyBadgeCategory {
 export async function fetchCompanyBadges(symbol: string): Promise<CompanyBadgesResult> {
   const url = buildAnalysisServiceUrl("/companies/badges", { symbol });
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Company badges endpoint");
+  await assertAnalysisServiceOk(response, url, "Company badges endpoint");
 
   const body: unknown = await response.json();
   const b = body as { symbol?: unknown; categories?: unknown };

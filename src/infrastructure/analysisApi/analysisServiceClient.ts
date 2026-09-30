@@ -110,15 +110,38 @@ async function analysisServiceIdToken(): Promise<string | undefined> {
 }
 
 /**
- * Throws a generic 502 (never including the internal URL) for a non-ok response. Callers needing
- * custom handling for a specific status first (404 → null, 400 → relay analysis-ts's own message)
- * should branch on `response.status` before calling this.
+ * 上游非 2xx 的單一出口。**上游的 400 轉成我們的 400 並帶上它自己的訊息，其餘一律 502**（訊息不含內部 URL）。
+ *
+ * 2026-09-30 把 400 的處理搬進這裡。原本的註解要求「需要中繼 400 的呼叫端自己先分支」，結果是同一個 13 行
+ * 區塊被複製到 10 個 client，另外 19 個沒複製到——於是上游說「year 必須是民國年」，那 19 支回的是
+ * `502 "... returned 400"`，一個純粹的請求錯誤被說成上游壞了，而下游（web-nuxt 的 settle()）把所有失敗
+ * 一律渲染成「目前沒有 OO 資料」，使用者看到的是資料覆蓋率問題。跨三層失真。
+ *
+ * **語意才是重點，不只是訊息好不好看**：4xx 說的是「這個請求有問題」，5xx 說的是「我們壞了」。把上游的
+ * 4xx 包成 5xx 會讓呼叫端重試一個永遠不會成功的請求，也讓監控把我方健康度算錯。
+ *
+ * 需要別的狀態碼有別的行為的呼叫端（404 → null）仍然自己先分支，那是真正的例外；400 不再是例外。
  */
-export function assertAnalysisServiceOk(response: Response, url: URL, label: string): void {
-  if (!response.ok) {
-    logger.error({ url: url.toString(), status: response.status }, `${label} returned a non-2xx status`);
-    throw new AppError(`${label} returned ${response.status}`, 502);
+export async function assertAnalysisServiceOk(response: Response, url: URL, label: string): Promise<void> {
+  if (response.ok) {
+    return;
   }
+
+  // 上游的 400 訊息是逐欄位的中文驗證文字（例如「metricCodes 最多 10 個，收到 11 個。」），直接轉給呼叫端
+  // 比我們重新造一句準確。**注意它用的是上游的詞彙**——可能出現 periodType、timeframe 這些不是 bff-ts
+  // 公開參數名的字。那是既有行為（原本那 10 份複製品就是這樣），沒有因為搬過來而變糟；真要對齊得逐支對照
+  // 公開參數名改寫，那是另一件事。
+  if (response.status === 400) {
+    const body: unknown = await response.json().catch(() => null);
+    const message = readUpstreamValidationMessage(body);
+    if (message === null) {
+      logger.error({ url: url.toString() }, `Invalid ${label} request, no message in response body`);
+    }
+    throw new AppError(message ?? `Invalid ${label} request`, 400);
+  }
+
+  logger.error({ url: url.toString(), status: response.status }, `${label} returned a non-2xx status`);
+  throw new AppError(`${label} returned ${response.status}`, 502);
 }
 
 /**
@@ -141,3 +164,34 @@ export function requireNumber(value: unknown, field: string, label: string): num
   return value;
 }
 
+/**
+ * 從上游的 400 body 取出「真正說得出哪裡錯」的那一句。**上游有兩種 400 形狀**，而只讀頂層 message 會在
+ * 第二種上丟掉唯一有用的資訊：
+ *
+ * ```
+ * 扁平： { message: "metricCodes 最多 10 個，收到 11 個。" }
+ * 嵌套： { message: "Invalid query parameters.", errors: { year: { _errors: ["year 必須是民國年數字字串…"] } } }
+ * ```
+ *
+ * 嵌套那種是 zod 的 error tree，頂層 message 一律是無資訊的 "Invalid query parameters."。所以**先挖欄位層、
+ * 再退回頂層**。原本只有 metricProvenance.client.ts 挖（而且寫死 `errors.metricCode`），其餘 9 份複製品都
+ * 只讀頂層——2026-09-30 把它收進這裡時不綁欄位名，因為觸發嵌套形狀的是 year、season 這些欄位，寫死
+ * metricCode 等於只修了當初那一支。
+ */
+function readUpstreamValidationMessage(body: unknown): string | null {
+  const errors = (body as { errors?: unknown } | null)?.errors;
+  if (errors !== null && typeof errors === "object") {
+    // `_errors` 是 zod 放在每一層的同名陣列；根層的通常是空的，欄位層的才有訊息，所以跳過根層那把。
+    for (const [key, node] of Object.entries(errors as Record<string, unknown>)) {
+      if (key === "_errors") {
+        continue;
+      }
+      const first = (node as { _errors?: unknown[] } | null)?._errors?.[0];
+      if (typeof first === "string" && first !== "") {
+        return first;
+      }
+    }
+  }
+  const topLevel = (body as { message?: unknown } | null)?.message;
+  return typeof topLevel === "string" && topLevel !== "" ? topLevel : null;
+}

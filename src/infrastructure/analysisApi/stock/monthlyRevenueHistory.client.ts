@@ -56,15 +56,7 @@ export async function fetchMonthlyRevenueHistory(symbol: string, limit?: number)
   const url = buildAnalysisServiceUrl("/companies/monthly-revenue-history", searchParams);
   const response = await fetchAnalysisService(url);
 
-  if (response.status === 400) {
-    const body: unknown = await response.json().catch(() => null);
-    const message = (body as { message?: unknown } | null)?.message;
-    if (typeof message !== "string") {
-      logger.error({ url: url.toString() }, "Invalid monthly revenue history request, no message in response body");
-    }
-    throw new AppError(typeof message === "string" ? message : "Invalid monthly revenue history request", 400);
-  }
-  assertAnalysisServiceOk(response, url, "Monthly revenue history endpoint");
+  await assertAnalysisServiceOk(response, url, "Monthly revenue history endpoint");
 
   const body: unknown = await response.json();
   if (!isMonthlyRevenueHistoryResponse(body)) {

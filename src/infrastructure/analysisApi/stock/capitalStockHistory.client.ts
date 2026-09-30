@@ -47,7 +47,7 @@ function isCapitalStockHistoryResponse(body: unknown): body is { symbol?: unknow
 export async function fetchCapitalStockHistory(symbol: string): Promise<CapitalStockHistoryResult> {
   const url = buildAnalysisServiceUrl("/companies/capital-stock-history", { symbol });
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Capital stock history endpoint");
+  await assertAnalysisServiceOk(response, url, "Capital stock history endpoint");
 
   const body: unknown = await response.json();
   if (!isCapitalStockHistoryResponse(body)) {

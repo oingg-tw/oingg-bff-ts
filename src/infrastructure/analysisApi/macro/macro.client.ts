@@ -61,7 +61,7 @@ async function getEntriesBody(
 
   const url = buildAnalysisServiceUrl(path, Object.keys(searchParams).length > 0 ? searchParams : undefined);
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, label);
+  await assertAnalysisServiceOk(response, url, label);
 
   const body: unknown = await response.json();
   const entries = (body as { entries?: unknown } | null)?.entries;
@@ -195,7 +195,7 @@ export async function fetchEquityRiskPremium(query: EquityRiskPremiumQuery): Pro
 
   const url = buildAnalysisServiceUrl("/macro/equity-risk-premium", Object.keys(searchParams).length > 0 ? searchParams : undefined);
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Equity risk premium endpoint");
+  await assertAnalysisServiceOk(response, url, "Equity risk premium endpoint");
 
   const body = (await response.json()) as Record<string, unknown>;
   const coverage = (body.dataCoverage ?? {}) as Record<string, unknown>;
@@ -281,7 +281,7 @@ function normalizeGovBondYield10yHistoryEntry(raw: unknown): GovBondYield10yHist
 export async function fetchGovBondYield10y(): Promise<GovBondYield10yResult> {
   const url = buildAnalysisServiceUrl("/macro/gov-bond-yield-10y");
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Gov bond yield 10y endpoint");
+  await assertAnalysisServiceOk(response, url, "Gov bond yield 10y endpoint");
 
   const body = (await response.json()) as Record<string, unknown> | null;
   if (typeof body !== "object" || body === null || !("yieldPct" in body)) {

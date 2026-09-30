@@ -52,7 +52,7 @@ function normalizeCompany(raw: unknown): IndustryTreeCompany {
 export async function fetchIndustryTree(code?: string): Promise<IndustryTree> {
   const url = buildAnalysisServiceUrl("/industries/tree", code !== undefined ? { code } : undefined);
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Industry tree endpoint");
+  await assertAnalysisServiceOk(response, url, "Industry tree endpoint");
 
   const body: unknown = await response.json();
   if (typeof body !== "object" || body === null || typeof (body as { found?: unknown }).found !== "boolean") {
@@ -98,7 +98,7 @@ function normalizeFlatCompany(raw: unknown): IndustryFlatCompany {
 export async function fetchIndustryFlatList(): Promise<IndustryFlatList> {
   const url = buildAnalysisServiceUrl("/industries/flat");
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Industry flat list endpoint");
+  await assertAnalysisServiceOk(response, url, "Industry flat list endpoint");
 
   const body: unknown = await response.json();
   const companies = (body as { companies?: unknown } | null)?.companies;
@@ -123,7 +123,7 @@ function normalizeSector(raw: unknown): SecuritiesSector {
 export async function fetchSecuritiesSectors(): Promise<SecuritiesSectorList> {
   const url = buildAnalysisServiceUrl("/industries/securities-sectors");
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Securities sectors endpoint");
+  await assertAnalysisServiceOk(response, url, "Securities sectors endpoint");
 
   const body: unknown = await response.json();
   const sectors = (body as { sectors?: unknown } | null)?.sectors;

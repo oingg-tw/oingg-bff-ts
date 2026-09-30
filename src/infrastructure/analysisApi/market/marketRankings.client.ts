@@ -1,6 +1,5 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
-import { logger } from "@/shared/logger.js";
 import type {
   AttentionStockCriteriaDetail,
   AttentionStockEntry,
@@ -230,15 +229,7 @@ async function getJson(path: string, searchParams: Record<string, string>): Prom
   const url = buildAnalysisServiceUrl(path, searchParams);
   const response = await fetchAnalysisService(url);
 
-  if (response.status === 400) {
-    const body: unknown = await response.json().catch(() => null);
-    const message = (body as { message?: unknown } | null)?.message;
-    if (typeof message !== "string") {
-      logger.error({ url: url.toString() }, "Invalid request, no message in response body");
-    }
-    throw new AppError(typeof message === "string" ? message : "Invalid request", 400);
-  }
-  assertAnalysisServiceOk(response, url, "Market ranking endpoint");
+  await assertAnalysisServiceOk(response, url, "Market ranking endpoint");
   return response.json();
 }
 

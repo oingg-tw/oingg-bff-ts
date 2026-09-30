@@ -59,7 +59,7 @@ function isBookValueBreakdownResponse(body: unknown): body is { entries: unknown
 export async function fetchBookValueBreakdown(symbol: string): Promise<BookValueBreakdownResult> {
   const url = buildAnalysisServiceUrl("/companies/book-value-breakdown", { symbol });
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Book value breakdown endpoint");
+  await assertAnalysisServiceOk(response, url, "Book value breakdown endpoint");
 
   const body: unknown = await response.json();
   if (!isBookValueBreakdownResponse(body)) {

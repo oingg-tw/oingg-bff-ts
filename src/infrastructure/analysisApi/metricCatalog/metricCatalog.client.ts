@@ -266,7 +266,7 @@ function toMetricCategories(raw: RawPitCategory[]): MetricCategory[] {
 export async function fetchMetricCatalog(): Promise<MetricCategory[]> {
   const url = buildAnalysisServiceUrl("/metrics");
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Metrics service");
+  await assertAnalysisServiceOk(response, url, "Metrics service");
 
   const body: unknown = await response.json();
   const categories = (body as { categories?: unknown } | null)?.categories;

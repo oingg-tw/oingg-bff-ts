@@ -72,15 +72,7 @@ export async function fetchDupontHistory(
   const url = buildAnalysisServiceUrl("/companies/dupont-history", searchParams);
   const response = await fetchAnalysisService(url);
 
-  if (response.status === 400) {
-    const body: unknown = await response.json().catch(() => null);
-    const message = (body as { message?: unknown } | null)?.message;
-    if (typeof message !== "string") {
-      logger.error({ url: url.toString() }, "Invalid dupont history request, no message in response body");
-    }
-    throw new AppError(typeof message === "string" ? message : "Invalid dupont history request", 400);
-  }
-  assertAnalysisServiceOk(response, url, "Dupont history endpoint");
+  await assertAnalysisServiceOk(response, url, "Dupont history endpoint");
 
   const body: unknown = await response.json();
   if (!isDupontHistoryResponse(body)) {

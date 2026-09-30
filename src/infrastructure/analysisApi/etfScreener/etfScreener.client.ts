@@ -1,6 +1,5 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
-import { logger } from "@/shared/logger.js";
 import type {
   EtfColumnRef,
   EtfField,
@@ -73,15 +72,7 @@ function normalizeEtfScreenerRow(raw: unknown): EtfScreenerResultRow {
  * actionable message (unknown field, wrong filter shape for that field's kind).
  */
 async function handleJsonResponse(response: Response, url: URL): Promise<unknown> {
-  if (response.status === 400) {
-    const body: unknown = await response.json().catch(() => null);
-    const message = (body as { message?: unknown } | null)?.message;
-    if (typeof message !== "string") {
-      logger.error({ url: url.toString() }, "Invalid ETF screener request, no message in response body");
-    }
-    throw new AppError(typeof message === "string" ? message : "Invalid ETF screener request", 400);
-  }
-  assertAnalysisServiceOk(response, url, "ETF screener endpoint");
+  await assertAnalysisServiceOk(response, url, "ETF screener endpoint");
   return response.json();
 }
 

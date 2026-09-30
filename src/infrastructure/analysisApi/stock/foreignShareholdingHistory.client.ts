@@ -39,15 +39,7 @@ export async function fetchForeignShareholdingHistory(symbol: string, limit?: nu
   const url = buildAnalysisServiceUrl(`/stocks/${encodeURIComponent(symbol)}/foreign-shareholding-history`, searchParams);
   const response = await fetchAnalysisService(url);
 
-  if (response.status === 400) {
-    const body: unknown = await response.json().catch(() => null);
-    const message = (body as { message?: unknown } | null)?.message;
-    if (typeof message !== "string") {
-      logger.error({ url: url.toString() }, "Invalid foreign shareholding history request, no message in response body");
-    }
-    throw new AppError(typeof message === "string" ? message : "Invalid foreign shareholding history request", 400);
-  }
-  assertAnalysisServiceOk(response, url, "Foreign shareholding history endpoint");
+  await assertAnalysisServiceOk(response, url, "Foreign shareholding history endpoint");
 
   const body: unknown = await response.json();
   if (!isForeignShareholdingHistoryResponse(body)) {

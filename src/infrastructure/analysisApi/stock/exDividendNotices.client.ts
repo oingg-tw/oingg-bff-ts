@@ -57,7 +57,7 @@ export async function fetchExDividendNotices(symbols: string[]): Promise<Map<str
 
   const url = buildAnalysisServiceUrl("/stocks/ex-dividend-notices", { symbols: symbols.join(",") });
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Ex-dividend notices endpoint");
+  await assertAnalysisServiceOk(response, url, "Ex-dividend notices endpoint");
 
   const body: unknown = await response.json();
   if (!isNoticesResponse(body)) {

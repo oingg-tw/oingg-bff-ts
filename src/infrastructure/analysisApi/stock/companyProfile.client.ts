@@ -69,7 +69,7 @@ export async function fetchCompanyProfile(symbol: string): Promise<CompanyProfil
   if (response.status === 404) {
     return null;
   }
-  assertAnalysisServiceOk(response, url, "Company profile endpoint");
+  await assertAnalysisServiceOk(response, url, "Company profile endpoint");
 
   const body: unknown = await response.json();
   if (typeof body !== "object" || body === null || typeof (body as { symbol?: unknown }).symbol !== "string") {

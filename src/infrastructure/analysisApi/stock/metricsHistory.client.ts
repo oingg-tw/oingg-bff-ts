@@ -81,15 +81,7 @@ export async function fetchMetricsHistory(symbol: string, metricCodes: string[],
   const url = buildAnalysisServiceUrl("/companies/metrics-history", searchParams);
   const response = await fetchAnalysisService(url);
 
-  if (response.status === 400) {
-    const body: unknown = await response.json().catch(() => null);
-    const message = (body as { message?: unknown } | null)?.message;
-    if (typeof message !== "string") {
-      logger.error({ url: url.toString() }, "Invalid metrics history request, no message in response body");
-    }
-    throw new AppError(typeof message === "string" ? message : "Invalid metrics history request", 400);
-  }
-  assertAnalysisServiceOk(response, url, "Metrics history endpoint");
+  await assertAnalysisServiceOk(response, url, "Metrics history endpoint");
 
   const body: unknown = await response.json();
   if (!isMetricsHistoryResponse(body)) {

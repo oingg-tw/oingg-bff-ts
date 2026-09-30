@@ -56,7 +56,7 @@ export async function fetchCompanyList(limit?: number, offset?: number): Promise
 
   const url = buildAnalysisServiceUrl("/companies", searchParams);
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Company list endpoint");
+  await assertAnalysisServiceOk(response, url, "Company list endpoint");
 
   const body: unknown = await response.json();
   if (!isCompanyListResponse(body) || typeof body.count !== "number" || typeof body.limit !== "number" || typeof body.offset !== "number") {

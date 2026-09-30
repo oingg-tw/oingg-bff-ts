@@ -75,7 +75,7 @@ function isDividendHistoryResponse(body: unknown): body is { symbol?: unknown; e
 export async function fetchDividendHistory(symbol: string): Promise<DividendHistoryResult> {
   const url = buildAnalysisServiceUrl("/companies/dividend-history", { symbol });
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Dividend history endpoint");
+  await assertAnalysisServiceOk(response, url, "Dividend history endpoint");
 
   const body: unknown = await response.json();
   if (!isDividendHistoryResponse(body)) {

@@ -23,7 +23,7 @@ function normalizeFieldCatalogEntry(raw: unknown): PreferredStockFieldCatalogEnt
 export async function fetchPreferredStockFieldCatalog(): Promise<PreferredStockFieldCatalogResult> {
   const url = buildAnalysisServiceUrl("/preferred-stocks/field-catalog");
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Preferred stock field catalog endpoint");
+  await assertAnalysisServiceOk(response, url, "Preferred stock field catalog endpoint");
 
   const body = (await response.json()) as { fields?: unknown };
   if (!Array.isArray(body.fields)) {
