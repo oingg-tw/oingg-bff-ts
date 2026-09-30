@@ -47,18 +47,37 @@ export const preferredStocksQuerySchema = z.object({
   symbol: z.string().trim().min(1, '"symbol" must be a non-empty string').optional(),
 });
 
+/**
+ * analysis-ts 的 year/season：**輸入是民國年、回應是西元年**（`year=114` 回 `fiscalYear: 2025`），
+ * 三支端點（financial-statement、piotroski-breakdown、metric-provenance）全是同一個規則，2026-09-30
+ * 逐支實測確認。這裡擋的是四位數的西元年——上游會回 400，而我們的 assertAnalysisServiceOk 會把它轉成
+ * 一句沒有資訊的 502「returned 400」，web-nuxt 的 fallback 再把 502 顯示成「資料不足」，於是一個純粹的
+ * 參數錯誤會長得像資料覆蓋率問題。在邊界上擋掉才講得出哪裡錯。
+ *
+ * 只擋位數不列舉合法值：民國年在這份程式碼的餘命內不會變成四位數，而列舉會重演 metricProvenance
+ * 那次「硬編 enum 擋掉上游新增值」的坑。season 的 1-4 是照抄上游的 enum。
+ */
+const rocYearSeason = {
+  year: z
+    .string()
+    .trim()
+    .regex(/^\d{2,3}$/, { error: '"year" must be a ROC year, e.g. "115" for 2026 (not a Western year)' })
+    .optional(),
+  season: z.enum(["1", "2", "3", "4"], { error: '"season" must be "1", "2", "3", or "4"' }).optional(),
+};
+
+/** year 與 season 必須同時給或同時不給——只給一個上游會拿到半組參數並回一個難解的 400。 */
+const bothOrNeither = (data: { year?: string; season?: string }) => (data.year === undefined) === (data.season === undefined);
+const bothOrNeitherIssue = { message: '"year" and "season" must be given together, or not at all', path: ["year"] };
+
 export const financialStatementQuerySchema = z
   .object({
     statementType: z.enum(["balanceSheet", "incomeStatement", "cashFlowStatement"], {
       error: '"statementType" must be "balanceSheet", "incomeStatement", or "cashFlowStatement"',
     }),
-    year: z.string().trim().min(1, '"year" must be a non-empty string').optional(),
-    season: z.string().trim().min(1, '"season" must be a non-empty string').optional(),
+    ...rocYearSeason,
   })
-  .refine((data) => (data.year === undefined) === (data.season === undefined), {
-    message: '"year" and "season" must be given together, or not at all',
-    path: ["year"],
-  });
+  .refine(bothOrNeither, bothOrNeitherIssue);
 
 export const metricHistoryQuerySchema = z.object({
   metricCode: z.enum(["eps", "peRatio", "pbRatio", "bvps", "stockPrice"], {
@@ -121,13 +140,9 @@ export const dailyPriceHistoryQuerySchema = z.object({
 
 export const piotroskiBreakdownQuerySchema = z
   .object({
-    year: z.string().trim().min(1, '"year" must be a non-empty string').optional(),
-    season: z.string().trim().min(1, '"season" must be a non-empty string').optional(),
+    ...rocYearSeason,
   })
-  .refine((data) => (data.year === undefined) === (data.season === undefined), {
-    message: '"year" and "season" must be given together, or not at all',
-    path: ["year"],
-  });
+  .refine(bothOrNeither, bothOrNeitherIssue);
 
 // Not a fixed enum — analysis-ts's own supported metricCode set for this endpoint keeps growing (started
 // at 3, now 112+, see GET /metrics' hasProvenance field) and validates itself; a bad value here is relayed
@@ -138,13 +153,9 @@ export const piotroskiBreakdownQuerySchema = z
 export const metricProvenanceQuerySchema = z
   .object({
     metricCode: z.string({ error: '"metricCode" is required' }).trim().min(1, '"metricCode" is required'),
-    year: z.string().trim().min(1, '"year" must be a non-empty string').optional(),
-    season: z.string().trim().min(1, '"season" must be a non-empty string').optional(),
+    ...rocYearSeason,
   })
-  .refine((data) => (data.year === undefined) === (data.season === undefined), {
-    message: '"year" and "season" must be given together, or not at all',
-    path: ["year"],
-  });
+  .refine(bothOrNeither, bothOrNeitherIssue);
 
 /**
  * 這個切片沒有留 service：原本的 stock.service.ts 除了 assertSymbolExists 以外，每個函式都是
