@@ -203,11 +203,11 @@ registry.registerPath({
   path: "/stocks/{symbol}/beta",
   summary: "查詢個股 Beta 係數（四個固定期間窗口）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/beta。windows 固定是 1Y_1D／2Y_1W／3Y_1W／5Y_1M 四個窗口、固定這個順序（不是分頁的時間序列；3Y_1W 為 2026-09-16 新增）。查無資料或代號不存在時仍回 200，四個窗口的 value/nullReason/tradeDate/knowledgeDate/knowledgeDateIsFallback 全部是 null，不會是 404。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/beta。windows 固定是 1Y_1D／2Y_1W／3Y_1W／5Y_1M 四個窗口、固定這個順序（不是分頁的時間序列；3Y_1W 為 2026-09-16 新增）。查無資料或代號不存在時仍回 200，四個窗口的 value/nullReason/tradeDate/knowledgeDate/knowledgeDateIsFallback 全部是 null，不會是 404。**涵蓋率 2026-09-30 起會大幅變動**：上游的 beta 原本只查上市那一庫，所以上櫃公司全部沒有 beta 且不報錯（115Q2 實測上市 1,082 家、上櫃 0 家）；commit 534c3022 改成上市加上櫃合併查詢後，有值家數會從 1,082 成長到約 1,960。**不是一次性全量回填**，上櫃公司隨每次 tpex 逐日重算陸續補上——2026-09-30 實測 8050／8054／8059 四個窗口仍全部是 null，所以現在看到上櫃是 null 不代表壞掉。上市公司的值完全不變（2330 四個窗口逐位相同）；**轉板公司（例如 8476）會改用上市加上櫃的完整序列，5Y 這類長窗口的值會跟著改變**。連帶會動的還有 beta 徽章的母體、以及任何用 beta 做的 screener 條件與分布。",
   tags: ["Stock"],
   request: { params: symbolParam },
   responses: {
-    200: { description: "三個窗口的 Beta 係數。", content: { "application/json": { schema: betaResultSchema } } },
+    200: { description: "四個窗口的 Beta 係數。", content: { "application/json": { schema: betaResultSchema } } },
     502: unauthorized502,
   },
 });
