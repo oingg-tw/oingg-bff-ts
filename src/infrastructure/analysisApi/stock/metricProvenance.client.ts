@@ -81,24 +81,7 @@ export async function fetchMetricProvenance(
   const url = buildAnalysisServiceUrl(`/companies/${encodeURIComponent(symbol)}/metric-provenance`, searchParams);
   const response = await fetchAnalysisService(url);
 
-  if (response.status === 400) {
-    const body: unknown = await response.json().catch(() => null);
-    // analysis-ts's 400 here is a nested zod error tree (e.g. { message: "Invalid query parameters.",
-    // errors: { metricCode: { _errors: ["metricCode is required, ..."] } } }), not the flat { message }
-    // shape most of this codebase's other analysis-ts clients relay — the useful detail (e.g. the full
-    // list of currently-supported metricCodes) lives in errors.metricCode._errors[0], not the top-level
-    // message, so dig for it rather than surfacing the generic "Invalid query parameters." wrapper.
-    const fieldError = (
-      body as { errors?: { metricCode?: { _errors?: unknown[] } } } | null
-    )?.errors?.metricCode?._errors?.[0];
-    const topLevelMessage = (body as { message?: unknown } | null)?.message;
-    const message = typeof fieldError === "string" ? fieldError : topLevelMessage;
-    if (typeof message !== "string") {
-      logger.error({ url: url.toString() }, "Invalid metric provenance request, no message in response body");
-    }
-    throw new AppError(typeof message === "string" ? message : "Invalid metric provenance request", 400);
-  }
-  assertAnalysisServiceOk(response, url, "Metric provenance endpoint");
+  await assertAnalysisServiceOk(response, url, "Metric provenance endpoint");
 
   const body: unknown = await response.json();
   if (!isMetricProvenanceResponse(body)) {

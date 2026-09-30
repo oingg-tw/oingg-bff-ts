@@ -91,15 +91,7 @@ export async function fetchFlatMetricHistory(
   const url = buildAnalysisServiceUrl(path, searchParams);
   const response = await fetchAnalysisService(url);
 
-  if (response.status === 400) {
-    const body: unknown = await response.json().catch(() => null);
-    const message = (body as { message?: unknown } | null)?.message;
-    if (typeof message !== "string") {
-      logger.error({ url: url.toString() }, `Invalid ${label} request, no message in response body`);
-    }
-    throw new AppError(typeof message === "string" ? message : `Invalid ${label} request`, 400);
-  }
-  assertAnalysisServiceOk(response, url, `${label} endpoint`);
+  await assertAnalysisServiceOk(response, url, `${label} endpoint`);
 
   const body: unknown = await response.json();
   if (!isFlatHistoryResponse(body)) {

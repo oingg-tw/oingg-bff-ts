@@ -229,10 +229,21 @@ describe("fetchStockPrices", () => {
     await expect(fetchStockPrices(["2330"])).rejects.toMatchObject({ statusCode: 502 });
   });
 
-  it("throws a 502 AppError when the prices endpoint responds with a non-2xx status", async () => {
-    mockFetchOnce({ ok: false, status: 400, body: {} });
+  it("throws a 502 AppError when the prices endpoint fails on its own side", async () => {
+    mockFetchOnce({ ok: false, status: 500, body: {} });
 
     await expect(fetchStockPrices(["2330"])).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  /**
+   * 這條原本用 status 400 驗「非 2xx 就是 502」。2026-09-30 起上游的 400 轉成我們的 400 並帶原訊息，
+   * 所以那個案例改成 500，另外補這一條——**4xx 說的是「這個請求有問題」，5xx 說的是「我們壞了」**，
+   * 把上游的 4xx 包成 5xx 會讓呼叫端重試一個永遠不會成功的請求。
+   */
+  it("relays an upstream 400 as a 400 with its own message", async () => {
+    mockFetchOnce({ ok: false, status: 400, body: { message: "symbols 最多 100 個。" } });
+
+    await expect(fetchStockPrices(["2330"])).rejects.toMatchObject({ statusCode: 400, message: "symbols 最多 100 個。" });
   });
 
   it('throws a 502 AppError when the response has no "prices" object', async () => {

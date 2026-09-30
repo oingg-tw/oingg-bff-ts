@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  assertAnalysisServiceOk,
   buildAnalysisServiceUrl,
   fetchAnalysisService,
   resetAnalysisServiceIdTokenCache,
@@ -120,5 +121,60 @@ describe("fetchAnalysisService", () => {
       statusCode: 502,
       message: "Could not reach the analysis service",
     });
+  });
+});
+
+/**
+ * assertAnalysisServiceOk 是上游非 2xx 的**唯一**出口，所以這裡守的東西對全部 29 個 client 一起生效。
+ *
+ * 2026-09-30 把 400 的處理搬進它之前，同一個區塊被複製到 10 個 client、另外 19 個沒有——那 19 支把上游的
+ * 「year 必須是民國年」變成 `502 "... returned 400"`，再被前端渲染成「目前沒有 OO 資料」。所以這裡真正要守的
+ * 是兩件事：**4xx 不能變成 5xx**，以及**兩種 400 形狀都要挖得出那句有用的話**。
+ */
+describe("assertAnalysisServiceOk", () => {
+  const url = new URL("http://analysis.test/companies/x");
+  const respond = (status: number, body: unknown) =>
+    ({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) }) as Response;
+
+  it("2xx 時什麼都不做", async () => {
+    await expect(assertAnalysisServiceOk(respond(200, {}), url, "Test endpoint")).resolves.toBeUndefined();
+  });
+
+  it("扁平的 400 直接帶出頂層 message", async () => {
+    await expect(assertAnalysisServiceOk(respond(400, { message: "metricCodes 最多 10 個，收到 11 個。" }), url, "Test endpoint"))
+      .rejects.toMatchObject({ statusCode: 400, message: "metricCodes 最多 10 個，收到 11 個。" });
+  });
+
+  /**
+   * 這一條是那次真正的缺口的迴歸測試：zod 的 error tree 頂層 message 一律是無資訊的
+   * "Invalid query parameters."，唯一有用的那句在欄位層。只讀頂層的話，使用者拿到的訊息等於沒有訊息。
+   */
+  it("嵌套的 400 挖出欄位層訊息，而不是無資訊的頂層 message", async () => {
+    const body = {
+      message: "Invalid query parameters.",
+      errors: { _errors: [], year: { _errors: ['year 必須是民國年數字字串，例如 "115"。'] } },
+    };
+    await expect(assertAnalysisServiceOk(respond(400, body), url, "Test endpoint"))
+      .rejects.toMatchObject({ statusCode: 400, message: 'year 必須是民國年數字字串，例如 "115"。' });
+  });
+
+  /** 不綁欄位名：觸發嵌套形狀的是 year/season/metricCode 等不同欄位，寫死一個等於只修一支端點。 */
+  it("欄位名不是 year 也挖得出來", async () => {
+    const body = { message: "Invalid query parameters.", errors: { _errors: [], season: { _errors: ["season 必須是 1~4。"] } } };
+    await expect(assertAnalysisServiceOk(respond(400, body), url, "Test endpoint"))
+      .rejects.toMatchObject({ statusCode: 400, message: "season 必須是 1~4。" });
+  });
+
+  it("400 但 body 挖不出訊息時仍是 400，用通用訊息", async () => {
+    await expect(assertAnalysisServiceOk(respond(400, {}), url, "Test endpoint"))
+      .rejects.toMatchObject({ statusCode: 400, message: "Invalid Test endpoint request" });
+  });
+
+  it("400 以外的非 2xx 一律 502，且訊息不含內部 URL", async () => {
+    for (const status of [401, 404, 500, 503]) {
+      const error = await assertAnalysisServiceOk(respond(status, {}), url, "Test endpoint").catch((e: unknown) => e);
+      expect(error).toMatchObject({ statusCode: 502 });
+      expect(String((error as Error).message)).not.toContain("analysis.test");
+    }
   });
 });

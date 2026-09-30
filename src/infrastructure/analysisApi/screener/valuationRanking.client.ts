@@ -42,7 +42,7 @@ export async function fetchValuationRanking(
 ): Promise<ValuationRankingResult> {
   const url = buildAnalysisServiceUrl("/valuation/ranking", { metric, order, limit: String(limit) });
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Analysis service");
+  await assertAnalysisServiceOk(response, url, "Analysis service");
 
   const body: unknown = await response.json();
   if (!isAnalysisRankingResponse(body)) {

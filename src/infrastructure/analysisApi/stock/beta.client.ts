@@ -34,7 +34,7 @@ function normalizeWindow(raw: unknown): BetaWindow {
 export async function fetchBeta(symbol: string): Promise<BetaResult> {
   const url = buildAnalysisServiceUrl("/companies/beta", { symbol });
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Beta endpoint");
+  await assertAnalysisServiceOk(response, url, "Beta endpoint");
 
   const body: unknown = await response.json();
   const b = body as { symbol?: unknown; windows?: unknown };

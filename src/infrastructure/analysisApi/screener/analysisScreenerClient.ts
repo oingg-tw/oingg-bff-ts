@@ -1,6 +1,5 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
-import { logger } from "@/shared/logger.js";
 import { fetchValuationRanking } from "@/infrastructure/analysisApi/screener/valuationRanking.client.js";
 import type { Pagination } from "@/application/proxy/screener/pagination.js";
 import type {
@@ -86,15 +85,7 @@ async function getJson(path: string, searchParams: Record<string, string>): Prom
  * to hide. Any other non-2xx is treated as an upstream failure (502).
  */
 async function handleJsonResponse(response: Response, url: URL): Promise<unknown> {
-  if (response.status === 400) {
-    const body: unknown = await response.json().catch(() => null);
-    const message = (body as { message?: unknown } | null)?.message;
-    if (typeof message !== "string") {
-      logger.error({ url: url.toString() }, "Invalid screener request, no message in response body");
-    }
-    throw new AppError(typeof message === "string" ? message : "Invalid screener request", 400);
-  }
-  assertAnalysisServiceOk(response, url, "Screener endpoint");
+  await assertAnalysisServiceOk(response, url, "Screener endpoint");
   return response.json();
 }
 

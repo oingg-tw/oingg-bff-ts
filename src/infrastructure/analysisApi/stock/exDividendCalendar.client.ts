@@ -64,7 +64,7 @@ function isCalendarResponse(body: unknown): body is { entries: unknown[] } {
 export async function fetchExDividendCalendar(month: string): Promise<ExDividendCalendarResult> {
   const url = buildAnalysisServiceUrl("/stocks/ex-dividend-calendar", { month });
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Ex-dividend calendar endpoint");
+  await assertAnalysisServiceOk(response, url, "Ex-dividend calendar endpoint");
 
   const body: unknown = await response.json();
   if (!isCalendarResponse(body)) {

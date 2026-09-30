@@ -44,7 +44,7 @@ export async function fetchFinancialStatement(
 
   const url = buildAnalysisServiceUrl("/companies/financial-statement", searchParams);
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Financial statement endpoint");
+  await assertAnalysisServiceOk(response, url, "Financial statement endpoint");
 
   const body: unknown = await response.json();
   if (!isFinancialStatementResponse(body)) {

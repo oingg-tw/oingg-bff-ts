@@ -77,7 +77,7 @@ export async function fetchStockQuote(symbol: string): Promise<StockQuote | null
   if (response.status === 404) {
     return null;
   }
-  assertAnalysisServiceOk(response, url, "Stock quote endpoint");
+  await assertAnalysisServiceOk(response, url, "Stock quote endpoint");
 
   const body: unknown = await response.json();
   if (!isStockQuote(body)) {
@@ -126,7 +126,7 @@ export async function fetchStockPrices(symbols: string[]): Promise<Map<string, C
 async function fetchOneBatchOfStockPrices(symbols: string[]): Promise<Map<string, ClosePrice>> {
   const url = buildAnalysisServiceUrl("/stocks/prices", { symbols: symbols.join(",") });
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Stock prices endpoint");
+  await assertAnalysisServiceOk(response, url, "Stock prices endpoint");
 
   const body: unknown = await response.json();
   if (!isPricesResponse(body)) {

@@ -75,7 +75,7 @@ export async function fetchPreferredStocks(symbol?: string): Promise<PreferredSt
 
   const url = buildAnalysisServiceUrl("/preferred-stocks", searchParams);
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Preferred stocks endpoint");
+  await assertAnalysisServiceOk(response, url, "Preferred stocks endpoint");
 
   const body: unknown = await response.json();
   if (!isPreferredStocksResponse(body)) {

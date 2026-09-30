@@ -44,7 +44,7 @@ export async function fetchSecurityList(limit?: number, offset?: number): Promis
 
   const url = buildAnalysisServiceUrl("/securities", searchParams);
   const response = await fetchAnalysisService(url);
-  assertAnalysisServiceOk(response, url, "Securities list endpoint");
+  await assertAnalysisServiceOk(response, url, "Securities list endpoint");
 
   const body: unknown = await response.json();
   if (!isSecurityListResponse(body) || typeof body.count !== "number" || typeof body.limit !== "number" || typeof body.offset !== "number") {
