@@ -57,13 +57,23 @@ export interface ExDividendCalendarEntry extends ExDividendNoticeEntry {
  * 2026-06~09 (396 ETF rows): all 347 passive-ETF rows sum to 100, while 8 of 49 主動型 rows do not — 6 sum
  * to less (99.2, 72.13, 31.67 …) and 2 have all five fields null. So a breakdown rendered as a whole
  * cannot assume a remainder of zero; 00404A 主動聯博動能50 discloses 31.67% and leaves 68% unaccounted for.
+ * Also with sitca as of 2026-09-30 (a parse gap or a different disclosure format for active ETFs) — treat
+ * the shortfall as unattributed, never as "other".
  *
  * **On an announced (future) row this is the PREVIOUS distribution's composition, not a forecast.**
  * 00939's values changed every event (100/0 → 35.87/64.13 → 41.06/58.94 → 42.4/57.6) and its 2026-10-05
  * announced row carries 2026-09-01's 42.4/57.6 verbatim. The row looks entirely valid — the parts sum to
  * 100 — so nothing downstream can detect it from the payload alone. Pair it with `status`: treat the
- * breakdown as meaningful only on "realized". bff-ts forwards it as-is (代理端點零轉換) rather than nulling
- * it out, and analysis-ts has been asked whether this is intended.
+ * breakdown as meaningful only on "realized".
+ *
+ * Cause located 2026-09-30, **not** in analysis-ts: their endpoint reads sitca's
+ * `export.fundclear_etf_dividend` row by row with no join at all (I had guessed a join missing a date
+ * predicate — wrong). Both of 00939's rows sit in that table with identical composition, written in the same
+ * second, so it comes from sitca's ingest or from FundClear itself. sitca is investigating; analysis-ts
+ * deliberately will not null it on announced rows before the cause is known, since that would overwrite an
+ * upstream value on a guess. bff-ts forwards it as-is either way (代理端點零轉換). If it turns out FundClear
+ * publishes the latest known breakdown on a notice on purpose, the wording here becomes the semantics rather
+ * than a caveat — analysis-ts will say which.
  */
 export interface ExDividendCompositionBreakdown {
   dividendIncomePct: number | null;
