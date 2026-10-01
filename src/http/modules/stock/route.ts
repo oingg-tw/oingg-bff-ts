@@ -108,8 +108,22 @@ export const metricsHistoryQuerySchema = z.object({
   limit: historyLimitSchema,
 });
 
+/**
+ * **2026-10-01 拿掉 Q_ANN：上游不收那個值。** 原本這份寫的是 `["Q","Q_ANN","TTM"]`，而逐值實測發現它
+ * 兩個方向都錯——`Q_ANN` 我放行、上游回 400（「expected one of "Q"|"TTM"」），等於我對外宣告了一個
+ * 不存在的期別；`FY` 我攔下、用我自己的訊息。現在跟上游逐字一致。
+ *
+ * **FY 不在這裡，而且不是漏加的**：上游 2026-10-01 給 roe 新增 FY 期別（`GET /metrics` 的
+ * validTimeframes 變成 `['Q','TTM','FY']`），但那是**複數 `metrics-history` 的期別**——這支單數端點
+ * 上游自己仍只收 Q|TTM（實測 `periodType=FY` 回 400）。要 roe 的年度值請走
+ * `GET /stocks/{symbol}/metrics-history?metricCodes=roe&basis=FY`，那支沒有本地 enum、已經可用。
+ *
+ * 保留 enum 而不是改成由上游驗證（對比 metricsHistoryQuerySchema）：這支的合法集合只有兩個值而且
+ * 跟上游對得上，本地擋掉打錯字不必多一趟往返。**代價是上游加期別時這裡要跟著改**，而那依賴 analysis-ts
+ * 的變更通知點名「哪個欄位的值變了」——這條在 2026-09-30 談定。上游真的在這支加上 FY 時，再比對一次。
+ */
 export const roeRoaHistoryQuerySchema = z.object({
-  basis: z.enum(["Q", "Q_ANN", "TTM"], { error: '"basis" must be "Q", "Q_ANN", or "TTM"' }),
+  basis: z.enum(["Q", "TTM"], { error: '"basis" must be "Q" or "TTM"' }),
   limit: historyLimitSchema,
 });
 
