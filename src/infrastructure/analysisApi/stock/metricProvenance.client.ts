@@ -69,6 +69,8 @@ export async function fetchMetricProvenance(
   metricCode: MetricProvenanceMetricCode,
   year?: string,
   season?: string,
+  periodType?: string,
+  asOfDate?: string,
 ): Promise<MetricProvenanceResult> {
   const searchParams: Record<string, string> = { metricCode };
   if (year !== undefined) {
@@ -76,6 +78,13 @@ export async function fetchMetricProvenance(
   }
   if (season !== undefined) {
     searchParams.season = season;
+  }
+  // 省略時才不送——這幾個選填參數一旦送空字串，上游的語意就從「不限定」變成「指定一個空值」。
+  if (periodType !== undefined) {
+    searchParams.periodType = periodType;
+  }
+  if (asOfDate !== undefined) {
+    searchParams.asOfDate = asOfDate;
   }
 
   const url = buildAnalysisServiceUrl(`/companies/${encodeURIComponent(symbol)}/metric-provenance`, searchParams);
@@ -97,6 +106,9 @@ export async function fetchMetricProvenance(
     fiscalQuarter: toNumberOrNull(body.fiscalQuarter),
     value: toNumberOrNull(body.value),
     entries: normalizeEntries(body.entries),
+    // 上游 2026-10-01 新增。**必須明確接**：它是唯一能讓呼叫端確認「拿到的是我要求的期別」的欄位，
+    // 而逐欄位的 normalizer 會把未宣告的欄位靜默丟掉——漏接它等於拿掉偵測器。
+    periodType: toStringOrNull(body.periodType),
     methodologyNote: toStringOrNull(body.methodologyNote),
   };
 }

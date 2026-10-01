@@ -99,7 +99,9 @@ describe("fetchMetricProvenance", () => {
 
     const result = await fetchMetricProvenance("2330", "roe");
 
-    expect(result).toEqual(ROE_BODY);
+    // ROE_BODY 是 2026-09-15 拿到的真實回應，刻意保留當時的形狀。上游 2026-10-01 新增的 periodType
+    // 不在那份樣本裡，所以這一層補 null——其餘欄位仍是逐字 deep-equal，形狀再變這條還是會亮。
+    expect(result).toEqual({ ...ROE_BODY, periodType: null });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/2330/metric-provenance?metricCode=roe");
   });
@@ -144,7 +146,7 @@ describe("fetchMetricProvenance", () => {
   it("returns found:false with an empty entries array and every other field null for an unknown symbol, without throwing", async () => {
     mockFetchOnce({ ok: true, body: NOT_FOUND_BODY });
 
-    await expect(fetchMetricProvenance("9999999", "roe")).resolves.toEqual(NOT_FOUND_BODY);
+    await expect(fetchMetricProvenance("9999999", "roe")).resolves.toEqual({ ...NOT_FOUND_BODY, periodType: null });
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
@@ -196,5 +198,69 @@ describe("fetchMetricProvenance", () => {
       statusCode: 400,
       message: "Some other validation error.",
     });
+  });
+});
+
+/**
+ * 上游 2026-10-01 同時新增了 query 參數 `periodType`／`asOfDate` 與回應欄位 `periodType`。**沒轉發參數的後果
+ * 不是「沒有效果」，是回 200 加一個錯的答案**（實測：periodType=Q 時上游回 found:false，沒轉發時回
+ * found:true 加 TTM 的值；asOfDate 沒轉發時回最新值而不是指定日的值），而漏接回應欄位會把唯一的偵測器
+ * 拿掉。所以這裡守的是**參數真的出現在送往上游的 URL 上**，以及那個欄位真的穿過 normalizer。
+ *
+ * 這一組是 mock 測試，驗的是「我們送出什麼」而不是「上游怎麼回應」——後者只能實打，見
+ * roeRoaHistory.client.test.ts 裡那條被刪掉的 Q_ANN 測試的教訓。
+ */
+describe("fetchMetricProvenance 的新參數與新欄位", () => {
+  const sentUrl = () => String(vi.mocked(globalThis.fetch).mock.calls[0]?.[0] ?? "");
+
+  it("periodType 與 asOfDate 都會出現在送往上游的 URL 上", async () => {
+    mockFetchOnce({ ok: true, body: ROE_BODY });
+    await fetchMetricProvenance("2330", "roe", undefined, undefined, "FY", "2026-08-01");
+
+    expect(sentUrl()).toContain("periodType=FY");
+    expect(sentUrl()).toContain("asOfDate=2026-08-01");
+  });
+
+  /** 省略時**不得**送出空字串——那會把「不限定」變成「指定一個空值」，上游的語意完全不同。 */
+  it("省略時完全不出現在 URL 上", async () => {
+    mockFetchOnce({ ok: true, body: ROE_BODY });
+    await fetchMetricProvenance("2330", "roe");
+
+    expect(sentUrl()).not.toContain("periodType");
+    expect(sentUrl()).not.toContain("asOfDate");
+  });
+
+  it("回應的 periodType 穿過 normalizer", async () => {
+    mockFetchOnce({ ok: true, body: { ...ROE_BODY, periodType: "TTM" } });
+    const result = await fetchMetricProvenance("2330", "roe");
+
+    expect(result.periodType).toBe("TTM");
+  });
+
+  /** 逐日與月頻指標的 periodType 是 null，而上游沒送這個欄位時也必須是 null、不能是 undefined。 */
+  it("上游沒給 periodType 或給 null 時為 null", async () => {
+    mockFetchOnce({ ok: true, body: { ...ROE_BODY, periodType: null } });
+    expect((await fetchMetricProvenance("2330", "roe")).periodType).toBeNull();
+
+    const { periodType: _omitted, ...withoutField } = { ...ROE_BODY, periodType: "TTM" };
+    mockFetchOnce({ ok: true, body: withoutField });
+    expect((await fetchMetricProvenance("2330", "roe")).periodType).toBeNull();
+  });
+
+  /**
+   * 上游在要求的期別不存在時回 found:false 加說明，**這一層必須原樣帶出**——把它變成 found:true 是
+   * 2026-10-01 當天的實際狀態，也是這組測試存在的理由。
+   */
+  it("上游回 found:false 時原樣帶出，不改成 true", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { ...ROE_BODY, found: false, value: null, entries: [], periodType: "TTM", methodologyNote: "這支指標的溯源表目前只提供 TTM（要求的是 Q）。" },
+    });
+    const result = await fetchMetricProvenance("2330", "roe", undefined, undefined, "Q");
+
+    expect(result.found).toBe(false);
+    expect(result.value).toBeNull();
+    expect(result.periodType).toBe("TTM");
+    expect(result.methodologyNote).toContain("只提供 TTM");
   });
 });

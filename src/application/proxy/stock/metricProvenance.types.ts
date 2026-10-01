@@ -49,5 +49,15 @@ export interface MetricProvenanceResult {
   value: number | null;
   /** Empty array (not null) when found is false. */
   entries: MetricProvenanceEntry[];
+  /**
+   * 這張溯源表描述的是哪個期別（上游 2026-10-01 新增）。`'Q' | 'YTD' | 'TTM' | 'FY'`，逐日或月頻指標是
+   * null（交易所三率、beta、live*、sus）。型別不收斂成聯集：合法集合是上游的、而且每支指標支援的不同。
+   *
+   * **它是查詢參數 `periodType` 的偵測器，兩者必須一起接。** 上游同一次變更同時加了這兩樣，而對一個只接
+   * 其中一邊的中間層，組合效果最糟：只接參數沒接欄位（就是 bff-ts 2026-10-01 當天的狀態），呼叫端拿到
+   * TTM 的值卻以為是自己要求的期別、連 found 旗標都是 true；只接欄位沒接參數，則會看到 periodType:"TTM"
+   * 而以為自己要的就是 TTM。
+   */
+  periodType: string | null;
   methodologyNote: string | null;
 }

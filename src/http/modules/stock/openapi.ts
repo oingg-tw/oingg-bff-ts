@@ -570,12 +570,17 @@ const metricProvenanceEntrySchema = z.object({
 const metricProvenanceSchema = z
   .object({
     symbol: z.string(),
-    metricCode: z.enum(["sue", "chowderNumber", "roe", "accrualsRatio", "dividendPayoutRatio", "altmanZScore"]),
+    // 不列舉：這裡原本寫著試點期的 6 個值（sue/chowderNumber/roe/accrualsRatio/dividendPayoutRatio/
+    // altmanZScore），而端點 2026-10-01 已支援 164 支（型錄全部 161 支 ＋ 3 支已下架的 8 年窗口）。
+    // 支援清單由上游維護、仍在成長，所以照 GET /metrics 的 hasProvenance 判斷，不要信這裡的型別。
+    metricCode: z.string(),
     found: z.boolean(),
     fiscalYear: z.number().nullable(),
     fiscalQuarter: z.number().nullable(),
     value: z.number().nullable(),
     entries: z.array(metricProvenanceEntrySchema),
+    /** 這張溯源表描述的是哪個期別（上游 2026-10-01 新增）。逐日／月頻指標是 null。 */
+    periodType: z.string().nullable(),
     methodologyNote: z.string().nullable(),
   })
   .openapi("MetricProvenance", {
@@ -598,6 +603,7 @@ const metricProvenanceSchema = z
           value: "6432518334",
         },
       ],
+      periodType: "TTM",
       methodologyNote: null,
     },
   });
@@ -607,7 +613,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/metric-provenance",
   summary: "追溯某個指標算出來的數值，是從哪幾筆原始財報/申報資料算出來的",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/{symbol}/metric-provenance，用途是「這個徽章/數字是怎麼算出來的」溯源功能。試點階段原本只支援 3 個 metricCode（sue、chowderNumber、roe），之後持續擴大中（已超過 100 個，實際支援清單請看 GET /metrics 每個指標的 hasProvenance 欄位——bff-ts 這邊不再寫死允許清單，2026-09-15 起改成完全由 analysis-ts 自己驗證，給不支援的 metricCode 會轉發 analysis-ts 自己的 400 訊息，裡面會列出當下實際支援的完整清單）。單純原樣轉發，不做任何計算。`entries` 是這個指標這一期算出來所依賴的每一筆原始資料，`type` 為 \"statementField\" 時代表來自財報科目（`statementType`/`fieldKey` 會有值），為 \"other\" 時代表來自財報以外的資料源（`sourceDescription` 是文字說明，例如「證交所／櫃買中心每日評價指標」或「公開發行公司股本變動申報」），兩者互斥。**`entries[].value` 沒有做任何型別正規化**——大多數是財報金額，序列化成字串避免 bigint 精度問題（例如 \"706561938\"），但至少有一種已在正式環境確認過的情況（chowderNumber 的現金殖利率「市場快照」那筆）是原生浮點數（例如 0.92），不是字串，前端不能假設固定是某一種型別。頂層的 `value`（這個指標本身這一期算出來的數值，例如 roe 的 34.78）則一律是數字。**而且比型別更容易出錯的是刻度：同一個 `entries[]` 陣列裡混著三種單位，回應中沒有任何逐筆的單位欄位。** 2026-10-01 實測 2330 的 chowderNumber，三筆的刻度各不相同：（1）`type: \"other\"`、sourceDescription 是「證交所／櫃買中心每日評價指標」那筆 value 是 `0.92`，單位是**百分比**；（2）`type: \"statementField\"` 的 `dividends_paid_financing` 是 `\"-103721521\"`，單位是**新台幣千元**（而且現金流出是負值）；（3）`type: \"other\"`、sourceDescription 是「公開發行公司股本變動申報」那筆是 `\"25932524521\"`，單位是**股數絕對值、不是千股**（2330 約 259 億股）。**型別不預測刻度**——上面的金額與股數都是字串，卻差了一千倍的量級；若把千元的刻度套到股數上會得到 25.9 兆股。判斷方式是看 `type` 搭配 `statementType`／`fieldKey`／`sourceDescription`，而不是看值的大小或型別：`statementField` 的刻度跟 `GET /stocks/{symbol}/financial-statement` 同一套慣例（金額為新台幣千元，但該端點的每股欄位本身是元），所以**要靠 `fieldKey` 決定、不要假設每一筆 statementField 都是千元**；`other` 則只能看 `sourceDescription`（評價指標＝比率／百分比，股本變動申報＝股數）。`role` 是給人看的中文標籤（例如「2025 年 第 1 季發放現金股利」），可以輔助判讀但不是結構化欄位。**對整欄套同一個刻度是這支端點最容易犯、而且最難從畫面上發現的錯**：一筆千元金額被當成元只會讓數字小一千倍，看起來仍然像一個合理的財務數字。**year 是民國年、回應的 fiscalYear 卻是西元年**（送 `year=114` 拿回 `fiscalYear: 2025`），season 是 \"1\"~\"4\"。送四位數的西元年會被 bff-ts 以 400 擋下並說明原因（2026-09-30 加的：在那之前是上游回 400、這一層轉成一句沒有資訊的 502，而 502 在前端的 fallback 會顯示成「資料不足」，讓一個參數錯誤看起來像資料覆蓋率問題）。不給 year/season 會查最新一季，跟 financial-statement/piotroski-breakdown 相同慣例；查無資料（代號不存在，或指定的 year/season 沒有資料）回應 found:false，`entries` 為空陣列，其餘欄位皆為 null，仍是 200，不是 404。`methodologyNote`（例如 sue 的樣本標準差說明）通常是 null，只有需要額外文字說明計算方法時才會有值。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/{symbol}/metric-provenance，用途是「這個徽章/數字是怎麼算出來的」溯源功能。試點階段原本只支援 3 個 metricCode（sue、chowderNumber、roe），之後持續擴大中（已超過 100 個，實際支援清單請看 GET /metrics 每個指標的 hasProvenance 欄位——bff-ts 這邊不再寫死允許清單，2026-09-15 起改成完全由 analysis-ts 自己驗證，給不支援的 metricCode 會轉發 analysis-ts 自己的 400 訊息，裡面會列出當下實際支援的完整清單）。單純原樣轉發，不做任何計算。`entries` 是這個指標這一期算出來所依賴的每一筆原始資料，`type` 為 \"statementField\" 時代表來自財報科目（`statementType`/`fieldKey` 會有值），為 \"other\" 時代表來自財報以外的資料源（`sourceDescription` 是文字說明，例如「證交所／櫃買中心每日評價指標」或「公開發行公司股本變動申報」），兩者互斥。**`entries[].value` 沒有做任何型別正規化**——大多數是財報金額，序列化成字串避免 bigint 精度問題（例如 \"706561938\"），但至少有一種已在正式環境確認過的情況（chowderNumber 的現金殖利率「市場快照」那筆）是原生浮點數（例如 0.92），不是字串，前端不能假設固定是某一種型別。頂層的 `value`（這個指標本身這一期算出來的數值，例如 roe 的 34.78）則一律是數字。**`periodType` 與 `asOfDate`（上游 2026-10-01 新增，兩個都是選填）**：`periodType` 可以是 `Q`／`YTD`／`TTM`／`FY`，溯源表不提供要求的期別時回 `found:false` 並在 `methodologyNote` 說明原因（例如「這支指標的溯源表目前只提供 TTM（要求的是 Q）」），**不是回一個別的期別的數字**。`asOfDate`（\"YYYY-MM-DD\"）只對逐日與月頻指標有作用——exchangePeRatio、exchangePbRatio、dividendYield、beta、liveMarketCap、livePbRatio、livePeRatio、liveGrahamNumber、livePegRatio、sus——取該日（含）之前最近一筆，季報型指標會忽略它；`live*` 只能追溯最新交易日，給更早的日期回 `found:false`。回應新增頂層欄位 **`periodType`**（`Q`／`YTD`／`TTM`／`FY`／null，逐日與月頻指標是 null），**它是上面那個查詢參數的驗證器：要確認拿到的是你要求的期別，比對這個欄位，不要只看 HTTP 狀態碼。** （2026-10-01 當天 bff-ts 曾短暫處於「參數沒轉發、欄位沒接」的狀態，後果是 `periodType=Q` 拿到 TTM 的值且 `found` 為 true——已修，實測 `periodType=Q` 現在回 `found:false`。）**而且比型別更容易出錯的是刻度：同一個 `entries[]` 陣列裡混著三種單位，回應中沒有任何逐筆的單位欄位。** 2026-10-01 實測 2330 的 chowderNumber，三筆的刻度各不相同：（1）`type: \"other\"`、sourceDescription 是「證交所／櫃買中心每日評價指標」那筆 value 是 `0.92`，單位是**百分比**；（2）`type: \"statementField\"` 的 `dividends_paid_financing` 是 `\"-103721521\"`，單位是**新台幣千元**（而且現金流出是負值）；（3）`type: \"other\"`、sourceDescription 是「公開發行公司股本變動申報」那筆是 `\"25932524521\"`，單位是**股數絕對值、不是千股**（2330 約 259 億股）。**型別不預測刻度**——上面的金額與股數都是字串，卻差了一千倍的量級；若把千元的刻度套到股數上會得到 25.9 兆股。判斷方式是看 `type` 搭配 `statementType`／`fieldKey`／`sourceDescription`，而不是看值的大小或型別：`statementField` 的刻度跟 `GET /stocks/{symbol}/financial-statement` 同一套慣例（金額為新台幣千元，但該端點的每股欄位本身是元），所以**要靠 `fieldKey` 決定、不要假設每一筆 statementField 都是千元**；`other` 則只能看 `sourceDescription`（評價指標＝比率／百分比，股本變動申報＝股數）。`role` 是給人看的中文標籤（例如「2025 年 第 1 季發放現金股利」），可以輔助判讀但不是結構化欄位。**對整欄套同一個刻度是這支端點最容易犯、而且最難從畫面上發現的錯**：一筆千元金額被當成元只會讓數字小一千倍，看起來仍然像一個合理的財務數字。**year 是民國年、回應的 fiscalYear 卻是西元年**（送 `year=114` 拿回 `fiscalYear: 2025`），season 是 \"1\"~\"4\"。送四位數的西元年會被 bff-ts 以 400 擋下並說明原因（2026-09-30 加的：在那之前是上游回 400、這一層轉成一句沒有資訊的 502，而 502 在前端的 fallback 會顯示成「資料不足」，讓一個參數錯誤看起來像資料覆蓋率問題）。不給 year/season 會查最新一季，跟 financial-statement/piotroski-breakdown 相同慣例；查無資料（代號不存在，或指定的 year/season 沒有資料）回應 found:false，`entries` 為空陣列，其餘欄位皆為 null，仍是 200，不是 404。`methodologyNote`（例如 sue 的樣本標準差說明）通常是 null，只有需要額外文字說明計算方法時才會有值。",
   tags: ["Stock"],
   request: {
     params: symbolParam,

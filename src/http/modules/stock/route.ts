@@ -168,9 +168,30 @@ export const piotroskiBreakdownQuerySchema = z
 // hardcoded enum here used to silently block newly-added metricCodes until this file caught up — see
 // metricProvenance.types.ts's MetricProvenanceMetricCode.
 
+/**
+ * `asOfDate` 與 `periodType` 都**必須轉發**，不能只放在 schema 裡：zod 物件不是 strict，未知參數會被靜默
+ * 丟掉，而這兩個參數被丟掉的後果不是「沒有效果」，是**回 200 加一個錯的答案**。2026-10-01 實測：
+ *
+ * ```
+ * asOfDate=2026-08-01    上游 value 32.6（07-31 的值）   沒轉發時 value 28.75（最新值）
+ * periodType=Q           上游 found:false + 說明           沒轉發時 found:true + TTM 的值
+ * ```
+ *
+ * 第二個更糟：上游刻意回「這個期別沒有」，而沒轉發時連 `found` 旗標都是錯的。而且同一次上游變更新增的
+ * 回應欄位 `periodType` 正是唯一能偵測它的訊號——兩個一起漏接就互相掩護，見 metricProvenance.types.ts。
+ *
+ * **兩個都不設 enum**：`periodType` 的合法集合是上游的（目前 Q/YTD/TTM/FY），而每支指標支援哪些期別不同；
+ * `asOfDate` 只對逐日與月頻指標有作用。交給上游驗證，錯值會拿到它逐欄位的原訊息（4xx 原樣中繼）。
+ */
 export const metricProvenanceQuerySchema = z
   .object({
     metricCode: z.string({ error: '"metricCode" is required' }).trim().min(1, '"metricCode" is required'),
+    periodType: z.string().trim().min(1).optional(),
+    asOfDate: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, { error: '"asOfDate" must be in "YYYY-MM-DD" format, e.g. "2026-08-01"' })
+      .optional(),
     ...rocYearSeason,
   })
   .refine(bothOrNeither, bothOrNeitherIssue);
@@ -357,7 +378,14 @@ export function createStockRouter(deps: StockProxyDeps): Router {
   stockRouter.get("/:symbol/metric-provenance", async (req, res) => {
     const { symbol } = req.params;
     const query = parseBody(metricProvenanceQuerySchema, req.query);
-    const provenance = await deps.stockGateway.getMetricProvenance(symbol, query.metricCode, query.year, query.season);
+    const provenance = await deps.stockGateway.getMetricProvenance(
+      symbol,
+      query.metricCode,
+      query.year,
+      query.season,
+      query.periodType,
+      query.asOfDate,
+    );
     res.json(provenance);
   });
 

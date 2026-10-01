@@ -91,5 +91,7 @@ export interface StockGatewayPort {
     metricCode: MetricProvenanceMetricCode,
     year?: string,
     season?: string,
+    periodType?: string,
+    asOfDate?: string,
   ): Promise<MetricProvenanceResult>;
 }
