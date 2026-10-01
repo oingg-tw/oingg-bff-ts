@@ -7,11 +7,22 @@
  * code change here before it actually worked — caught 2026-09-15 when hasProvenance already listed 112
  * metricCodes but this endpoint only accepted 6. Validation is now analysis-ts's own — an unsupported
  * value gets analysis-ts's own 400 message relayed as-is (see metricProvenance.client.ts).
+ *
+ * 2026-10-01 補齊到**全集**：端點的白名單 164 支（型錄 161 支 ＋ 3 支已從目錄下架的 8 年窗口指標），
+ * `hasProvenance` 161/161 全部 true。**所以「讀 hasProvenance 還是直接打」這個選擇現在無關緊要**——
+ * 它恆為 true。這也讓 2026-09-15 那個不列舉的決定第三次付清：三次擴張（6 → 112 → 164）這裡都沒有改過一行。
  */
 export type MetricProvenanceMetricCode = string;
 
 export interface MetricProvenanceEntry {
-  /** Chinese label describing what this entry is for the computation (e.g. "近四季 淨利（第 1/4 季）" — wording updated by analysis-ts 2026-09-21, "TTM" -> "近四季" across all 68 metrics, pure string content, no shape change). */
+  /**
+   * 給人看的中文標籤，說明這一筆在計算裡的角色。**文字會變、不要解析它**：2026-09-21 把 "TTM" 改成
+   * 「近四季」（68 支指標），2026-10-01 又改成「近一年 X（115 年第 2 季…）」，興櫃顯示「114 年下半年」
+   * **而且興櫃的 entry 數量從 4 段變 2 段**（只有半年報）。
+   *
+   * bff-ts 對它零比對、純轉發，所以這些改動在這一層是零影響；但如果下游在抓格式（例如從「第 i/4 季」
+   * 取出 i），那個格式已經不存在了。逐日指標的交易日也寫在這裡（`fiscalYear`/`fiscalQuarter` 是 null）。
+   */
   role: string;
   fiscalYear: number | null;
   fiscalQuarter: number | null;

@@ -95,7 +95,7 @@ registry.registerPath({
   path: "/industries/securities-sectors",
   summary: "查詢證交所類股分類清單（供 screener 的 sectorCodes 篩選使用）",
   description:
-    "跟上面的 GET /industries/tree（財政部稅籍五層分類）是完全不同的分類體系——這裡是證交所/櫃買中心自己的類股代碼（例如「24」是半導體業），二碼代號，沒有樹狀階層。回傳的 code 可直接用在 POST /screener 跟 GET /screener/ranking 的 sectorCodes 參數，多個代碼是聯集（OR），再跟其他篩選條件 AND。沒有查詢參數，一次回傳全部類股。",
+    "跟上面的 GET /industries/tree（財政部稅籍五層分類）是完全不同的分類體系——這裡是證交所/櫃買中心自己的類股代碼（例如「24」是半導體業），二碼代號，沒有樹狀階層。回傳的 code 可直接用在 POST /screener 跟 GET /screener/ranking 的 sectorCodes 參數，多個代碼是聯集（OR），再跟其他篩選條件 AND。沒有查詢參數，一次回傳全部類股。**`companyCount` 的母體（2026-10-01 上游修正後的定義）＝「用這個代碼在 screener 篩得到幾家」，跟 `GET /stocks` 相同（上市＋上櫃＋**含興櫃**，不含公開發行未上市），轉板公司只算一次。** 實測 34 個類股、合計 2,339，與 `GET /stocks` 裡 sectorCode 有值的家數逐類股零筆不符。**修正前它不是這個意思**：上市那一側沒有過濾 source，把約 305 家「公開發行未上市」也算進去，於是合計 2,594、而代號 13 的 33 家全部是這種公司（點進去篩不到任何東西）。如果你看到舊的數字，差異來源是這個。**要「排除興櫃」的家數請改用 `GET /industries/sector-dividend-summary` 的 `companyCount`**（實測逐類股相符、合計 1,976；差額是 363 家興櫃與 10 家 sectorCode 為 null 的 DR）——但那是上游目前的母體選擇而不是契約，拿它當第二來源對帳比直接依賴它安全。**代號 13（電子工業（舊分類））與 19（綜合）2026-10-01 起不再列出**，因為它們篩不到任何公司；但 `sectorCodes` 仍然接受它們，不會變 400，只會篩出 0 家——所以使用者存過的篩選條件不會壞。",
   tags: ["Industries"],
   responses: {
     200: { description: "全部證交所類股清單。", content: { "application/json": { schema: securitiesSectorListSchema } } },
