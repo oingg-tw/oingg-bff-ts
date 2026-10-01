@@ -95,7 +95,17 @@ export async function getPresetOrThrow(
 /**
  * Out-of-the-box condition for a preset created with no filters — ROE (TTM) > 30. Field name updated
  * 2026-09-08 for analysis-ts's pitMetrics rebuild — the old "roe.roeTtmPct" metricKey.fieldKey addressing
- * no longer exists, replaced by "<metricCode>.<basis>" (confirmed live: "roe" allows Q/Q_ANN/TTM bases).
+ * no longer exists, replaced by "<metricCode>.<basis>".
+ *
+ * **這是 repo 裡唯一一個執行期手寫的 `<metricCode>.<basis>` 字串**（其餘都在 OpenAPI 的 example 裡，不影響
+ * 行為），所以上游改欄位定址或移除期別時，它是第一個會壞的地方——而且已經壞過兩次（2026-09-08 的
+ * pitMetrics 改版、以及同月那次 stale default preset 事故，見 git log）。壞的時候症狀是「沒有帶
+ * columnPresetId 的 screener 呼叫全部失敗」，跟這個常數看起來毫無關係。
+ *
+ * 原註解在這裡記了「roe 允許 Q/Q_ANN/TTM」——**那句話後來錯了兩次**：Q_ANN 在 2026-09-14（上游 054ae0b4）
+ * 整批移除，FY 在 2026-10-01 新增。現在不再記錄上游的合法集合，因為那份清單不屬於這裡：真相在
+ * `GET /metrics` 每個 metricCode 的 validTimeframes，而期別的驗證已交給上游（見 route.ts 的
+ * roeRoaHistoryQuerySchema）。這裡只需要 `roe.TTM` 這一個組合持續存在，2026-10-01 實測仍可用。
  */
 const DEFAULT_PRESET_FILTERS: ScreenerFilter[] = [{ field: "roe.TTM", min: 30, max: null, exclude: false }];
 

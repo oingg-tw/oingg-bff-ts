@@ -32,5 +32,11 @@ export function createIndustriesRouter(deps: IndustriesDeps): Router {
     res.json(list);
   });
 
+  // 沒有 query 參數，所以沒有 zod schema——純轉發不留空殼，同 book-value-breakdown。
+  industriesRouter.get("/sector-dividend-summary", async (_req, res) => {
+    const summary = await deps.industriesGateway.getSectorDividendSummary();
+    res.json(summary);
+  });
+
   return industriesRouter;
 }

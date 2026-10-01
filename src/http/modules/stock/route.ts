@@ -108,8 +108,26 @@ export const metricsHistoryQuerySchema = z.object({
   limit: historyLimitSchema,
 });
 
+/**
+ * `basis` 不設 enum，由上游驗證——同 metricsHistoryQuerySchema，而這支是被實證推到這個結論的。
+ *
+ * 這份白名單在 2026-10-01 一天內被證明錯了兩次，而且**第二次證明單一 enum 不可能正確**：
+ *
+ * ```
+ * 原本 ["Q","Q_ANN","TTM"]   Q_ANN 上游 2026-09-14（054ae0b4）整批移除「單季年化」時刪掉了，沒有逐支通知
+ * 改成 ["Q","TTM"]           同日上游給 roe 補上 FY（a20a5c94），這份又變成太窄
+ * ```
+ *
+ * **這個 schema 是 roe-history 與 roa-history 共用的，而兩支的合法集合已經不同了**：roe 收 Q|TTM|FY，
+ * roa 只收 Q|TTM（roa 還沒有 FY）。所以任何一份共用白名單必然在其中一支上是錯的——要嘛擋掉 roe 的 FY，
+ * 要嘛放行 roa 不支援的值。拆成兩份可以解決今天，但 roa 拿到 FY 的那天又要再改一次。
+ *
+ * 交給上游之後：呼叫端拿到的是上游逐欄位的原訊息（2026-09-30 起 4xx 原樣中繼，見 assertAnalysisServiceOk），
+ * 期別增減都不用改這裡。代價是打錯字要多一趟往返，那比「宣告一個上游不收的值」便宜——後者會讓呼叫端
+ * 以為某個口徑存在。
+ */
 export const roeRoaHistoryQuerySchema = z.object({
-  basis: z.enum(["Q", "Q_ANN", "TTM"], { error: '"basis" must be "Q", "Q_ANN", or "TTM"' }),
+  basis: z.string({ error: '"basis" is required' }).trim().min(1, '"basis" is required'),
   limit: historyLimitSchema,
 });
 

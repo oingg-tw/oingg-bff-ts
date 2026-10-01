@@ -140,7 +140,7 @@ const equityRiskPremiumResultSchema = z
       requestedWindow: {}, clippedToAvailableData: false,
       dataCoverage: { taiexDateRange: { min: "1999-01", max: "2026-09" }, riskFreeRateDateRange: { min: "1994-12", max: "2026-07" } },
       fieldStatuses: {}, warnings: [],
-      supplySide: { erp: 5.1015, expectedInflation: 1.151, realEarningsGrowth: 4.2091, peGrowth: 0, dividendYield: 1.5929, riskFreeRate: 1.9, inflationMonths: 331, gdpQuarters: 110, dividendYieldTradeDate: "2026-09-24", dividendYieldCompanyCount: 829, dividendYieldMarketCapCoverage: 98.3966 },
+      supplySide: { erp: 5.1015, expectedInflation: 1.151, realEarningsGrowth: 4.2091, peGrowth: 0, dividendYield: 1.5929, riskFreeRate: 1.9, inflationMonths: 331, gdpQuarters: 110, dividendYieldTradeDate: "2026-09-24", dividendYieldCompanyCount: 1058, dividendYieldMarketCapCoverage: 100 },
     },
   });
 
@@ -155,7 +155,8 @@ registry.registerPath({
     "`supplySide.peGrowth` **永遠是 0**，那是模型的假設（本益比擴張不算公司供給的報酬），不是「算不出來」。`supplySide` **整塊可以是 null**（加權指數與公債殖利率完全沒有重疊月份時），其中 `erp` 與 `dividendYield` 也可各自為 null（上市公司有市值的不到九成時不算殖利率，原因會寫在 warnings）。" +
     "四個窗口參數 startYear／startMonth／endYear／endMonth 全部選填，但**年與月必須成對**（只給一邊會 400，本服務先擋不打上游）；全部省略時窗口是兩種資料的完整重疊區間。**`clippedToAvailableData` 只描述「呼叫端指定的窗口被裁切」**——不帶參數時預設窗口本來就是交集，所以必然是 false，不要把它當成「資料完整」的指標。" +
     "要看完整可用範圍請同時看 `dataCoverage` 的**兩個** range：實測加權指數到 2026-09、公債殖利率只到 2026-07，所以 windowEnd 是 2026-07——只看其中一個會以為窗口莫名其妙短了兩個月。" +
-    "`supplySide.dividendYield` 是**最新交易日的市值加權**（沒有長期歷史可平均），跟通膨／成長用整段窗口平均不同；`realEarningsGrowth` 用實質 GDP 成長近似盈餘成長，上游自己標明那會因新股稀釋而**高估**。",
+    "`supplySide.dividendYield` 是**最新交易日的市值加權**（沒有長期歷史可平均），跟通膨／成長用整段窗口平均不同；`realEarningsGrowth` 用實質 GDP 成長近似盈餘成長，上游自己標明那會因新股稀釋而**高估**。" +
+    "**2026-09-30 起 dividendYieldCompanyCount 與 Coverage 會明顯變大，那是定義變了不是資料修好了**：證交所從 2026-08-28 起對不配息的上市公司改成不填殖利率，analysis-ts 把空白讀成 0，所以不配息的公司從「不在母體」變成「在母體、值為 0」。實測 dividendYieldCompanyCount 從 829 變成 1,058（+229）、dividendYieldMarketCapCoverage 從 98.3966 變成 100。因為這是市值加權而原本已涵蓋 98.4% 的市值，`supplySide.dividendYield` 本身只會小幅下降（實測 1.5929 -> 1.5672），`supplySide.erp` 也只小幅變動——**但 Coverage 到達 100% 之後就不再是一個有鑑別力的健康指標了**，別再用它判斷殖利率資料是否完整。",
   tags: ["Macro"],
   request: { query: equityRiskPremiumQuerySchema.openapi("EquityRiskPremiumQuery", { example: { startYear: 2015, startMonth: 1, endYear: 2020, endMonth: 12 } }) },
   responses: {

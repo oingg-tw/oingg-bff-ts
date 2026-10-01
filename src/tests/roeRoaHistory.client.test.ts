@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { parseBody } from "@/shared/validation.js";
+import { roeRoaHistoryQuerySchema } from "@/http/modules/stock/route.js";
 import { fetchRoaHistory, fetchRoeHistory } from "@/infrastructure/analysisApi/stock/roeRoaHistory.client.js";
 
 const ORIGINAL_FETCH = globalThis.fetch;
@@ -60,13 +62,20 @@ describe("fetchRoeHistory", () => {
     expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&periodType=TTM");
   });
 
-  it("accepts Q_ANN as a basis (allowed for roe/roa unlike metric-history)", async () => {
-    mockFetchOnce({ ok: true, body: { ...ROE_BODY, basis: "Q_ANN" } });
-
-    await fetchRoeHistory("2330", "Q_ANN");
-
-    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&periodType=Q_ANN");
+  /**
+   * 這裡原本有一條「accepts Q_ANN as a basis (allowed for roe/roa unlike metric-history)」，**它用 mock
+   * 斷言了一件上游當時已經不成立的事**：上游 2026-09-14（054ae0b4）整批移除「單季年化」期別，我們的
+   * schema 一直留著 Q_ANN，而因為上游是 mock 的，這條測試在那之後仍然是綠的。
+   *
+   * 教訓：**純轉發端點用 mock 驗「某個參數值可用」，驗的是我們的假設而不是上游的契約。** 那種斷言只能
+   * 靠實打上游。所以這裡不再驗任何特定期別可不可用——basis 已改成由上游驗證（見 route.ts 的說明，
+   * roe 與 roa 的合法集合已經不同，任何本地列舉必然在其中一支上是錯的），這一層只守「空值要被擋掉」。
+   */
+  it("basis 是空字串或缺少時被擋下，不送出空的 periodType", () => {
+    expect(() => parseBody(roeRoaHistoryQuerySchema, { basis: "" })).toThrow(/basis/);
+    expect(() => parseBody(roeRoaHistoryQuerySchema, {})).toThrow(/basis/);
+    // 期別本身不在這裡驗：上游是唯一來源，給不支援的值會回它自己的 400（原樣中繼）。
+    expect(parseBody(roeRoaHistoryQuerySchema, { basis: "FY" })).toMatchObject({ basis: "FY" });
   });
 
   it("includes limit when given", async () => {
