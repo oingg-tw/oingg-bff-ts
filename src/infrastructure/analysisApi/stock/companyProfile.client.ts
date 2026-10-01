@@ -2,6 +2,7 @@ import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { CompanyProfile } from "@/application/proxy/stock/companyProfile.types.js";
+import type { Market } from "@/application/proxy/market/market.types.js";
 
 /** Same convention as stockQuote.client.ts's toStringOrNull — see that file for why. */
 function toStringOrNull(value: unknown): string | null {
@@ -12,6 +13,27 @@ function isMetricDataType(value: unknown): value is "1" | "2" {
   return value === "1" || value === "2";
 }
 
+/**
+ * `market` 會收斂成 `"TWSE" | "TPEx"`，而**未知值會落到 TWSE**——所以這裡要出聲。2026-10-01 的實例：
+ * tpex-ts 指出上游的 `company_profile` 用 `source` 區分興櫃（COMPANY_PROFILE_EMERGING，365 家），
+ * 並建議把 `market` 分出一個 `EMERGING`。如果上游真的那樣做而這裡沒跟上，**興櫃會被靜默標成「上市」**
+ * ——一個錯的標籤比缺一個標籤糟，而且從 payload 看不出來。
+ *
+ * 不丟 502（對比 metricDataType）：market 是一個標籤、不是整列意義的前提，上游多一種市場別不該讓個股頁
+ * 整頁掛掉。跟 exDividendCalendar 的 securityType 同一個判準（2026-09-30）。
+ *
+ * **同樣的寫法在 marketRankings.client.ts 的 normalizeMarket 也有一份**（排行榜的每一列）。兩處刻意不抽成
+ * 共用函式：抽去哪裡都要把 Market 這個領域型別拉進通用的出向 client，而兩份加上互相指名的註解比那個耦合便宜。
+ * 真的出現第三處再抽。
+ */
+function normalizeProfileMarket(value: unknown, symbol: string): Market {
+  if (value === "TPEx" || value === "TWSE") {
+    return value;
+  }
+  logger.warn({ symbol, market: value }, "Company profile has an unrecognized market — defaulting to TWSE");
+  return "TWSE";
+}
+
 function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
   if (!isMetricDataType(raw.metricDataType)) {
     throw new AppError(`Company profile for "${String(raw.symbol)}" has an unrecognized metricDataType`, 502);
@@ -19,7 +41,7 @@ function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
   return {
     symbol: String(raw.symbol),
     metricDataType: raw.metricDataType,
-    market: raw.market === "TPEx" ? "TPEx" : "TWSE",
+    market: normalizeProfileMarket(raw.market, String(raw.symbol)),
     reportDate: String(raw.reportDate),
     name: String(raw.name),
     shortName: String(raw.shortName),

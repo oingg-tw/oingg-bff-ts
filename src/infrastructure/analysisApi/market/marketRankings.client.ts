@@ -1,5 +1,6 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { logger } from "@/shared/logger.js";
 import type {
   AttentionStockCriteriaDetail,
   AttentionStockEntry,
@@ -58,8 +59,16 @@ function toStringOrNull(value: unknown): string | null {
 }
 
 /** Only "TWSE"/"TPEx" are documented — anything else defaults to "TWSE" rather than throwing. */
-function normalizeMarket(value: unknown): Market {
-  return value === "TPEx" ? "TPEx" : "TWSE";
+/**
+ * 未知值落到 TWSE，所以要出聲——理由與 companyProfile.client.ts 的 normalizeProfileMarket 相同（那裡有
+ * 完整說明）：上游若新增一種市場別（例如把興櫃分出 `EMERGING`），沒跟上的話排行榜會把它靜默標成「上市」。
+ */
+function normalizeMarket(value: unknown, symbol?: string): Market {
+  if (value === "TPEx" || value === "TWSE") {
+    return value;
+  }
+  logger.warn({ symbol, market: value }, "Market ranking row has an unrecognized market — defaulting to TWSE");
+  return "TWSE";
 }
 
 function normalizeMarginShortRatioEntry(raw: unknown): MarginShortRatioRankingEntry {
