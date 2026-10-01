@@ -6,7 +6,6 @@ import {
   fetchMarginShortRatioRanking,
   fetchMaterialAnnouncements,
   fetchPriceChangeRanking,
-  fetchPriceLimitRange,
   fetchRevenueRanking,
   fetchTaiexDailyPrice,
   fetchVolumeTop20,
@@ -524,91 +523,6 @@ describe("fetchAttentionStocks", () => {
     mockFetchOnce({ ok: true, body: {} });
 
     await expect(fetchAttentionStocks(20)).rejects.toMatchObject({ statusCode: 502 });
-  });
-});
-
-describe("fetchPriceLimitRange", () => {
-  it("requests /market/price-limit-range with no params and preserves TPEx nulls vs. TWSE values", async () => {
-    mockFetchOnce({
-      ok: true,
-      body: {
-        tradeDate: "2026-09-01",
-        widest: [
-          {
-            rank: 1,
-            symbol: "5274",
-            companyName: "信驊",
-            market: "TPEx",
-            limitUp: 18830,
-            limitDown: 15410,
-            limitRange: 3420,
-            openingRefPrice: null,
-            previousDayPrice: null,
-            allowOddLotTrade: null,
-          },
-          {
-            rank: 2,
-            symbol: "2059",
-            companyName: "川湖",
-            market: "TWSE",
-            limitUp: 15595,
-            limitDown: 12765,
-            limitRange: 2830,
-            openingRefPrice: 14180,
-            previousDayPrice: 14180,
-            allowOddLotTrade: "不可",
-          },
-        ],
-        narrowest: [],
-      },
-    });
-
-    const result = await fetchPriceLimitRange();
-
-    expect(result).toEqual({
-      tradeDate: "2026-09-01",
-      widest: [
-        {
-          rank: 1,
-          symbol: "5274",
-          name: "信驊",
-          market: "TPEx",
-          limitUp: "18830",
-          limitDown: "15410",
-          limitRange: "3420",
-          openingRefPrice: null,
-          previousDayPrice: null,
-          allowOddLotTrade: null,
-        },
-        {
-          rank: 2,
-          symbol: "2059",
-          name: "川湖",
-          market: "TWSE",
-          limitUp: "15595",
-          limitDown: "12765",
-          limitRange: "2830",
-          openingRefPrice: "14180",
-          previousDayPrice: "14180",
-          allowOddLotTrade: "不可",
-        },
-      ],
-      narrowest: [],
-    });
-    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(url.toString()).toBe("http://filters.test/market/price-limit-range");
-  });
-
-  it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as unknown as typeof fetch;
-
-    await expect(fetchPriceLimitRange()).rejects.toMatchObject({ statusCode: 502 });
-  });
-
-  it("throws a 502 AppError when the response is missing expected fields", async () => {
-    mockFetchOnce({ ok: true, body: {} });
-
-    await expect(fetchPriceLimitRange()).rejects.toMatchObject({ statusCode: 502 });
   });
 });
 

@@ -310,45 +310,6 @@ registry.registerPath({
   },
 });
 
-// --- price-limit-range ---
-const priceLimitRangeEntrySchema = z.object({
-  rank: z.number(),
-  symbol: z.string(),
-  name: nameField,
-  market: marketField,
-  limitUp: z.string(),
-  limitDown: z.string(),
-  limitRange: z.string(),
-  openingRefPrice: z.string().nullable(),
-  previousDayPrice: z.string().nullable(),
-  allowOddLotTrade: z.string().nullable(),
-});
-const priceLimitRangeResultSchema = z
-  .object({
-    tradeDate: z.string().nullable(),
-    widest: z.array(priceLimitRangeEntrySchema),
-    narrowest: z.array(priceLimitRangeEntrySchema),
-  })
-  .openapi("PriceLimitRangeResult", {
-    example: {
-      tradeDate: "2026-09-01",
-      widest: [{ rank: 1, symbol: "5274", name: "信驊", market: "TPEx", limitUp: "18830", limitDown: "15410", limitRange: "3420", openingRefPrice: null, previousDayPrice: null, allowOddLotTrade: null }],
-      narrowest: [],
-    },
-  });
-
-registry.registerPath({
-  method: "get",
-  path: "/market/price-limit-range",
-  summary: "漲跌停幅度最大/最小各20檔——上市＋上櫃合併，無查詢參數",
-  description: "TPEx 目前沒有 openingRefPrice/previousDayPrice/allowOddLotTrade 這幾個欄位，會是 null（不是查詢失敗）。",
-  tags: ["Market"],
-  responses: {
-    200: { description: "widest/narrowest 兩組清單，各最多20檔。", content: { "application/json": { schema: priceLimitRangeResultSchema } } },
-    502: upstream502,
-  },
-});
-
 // --- price-change-ranking ---
 const priceChangeRankingEntrySchema = z.object({
   rank: z.number(),

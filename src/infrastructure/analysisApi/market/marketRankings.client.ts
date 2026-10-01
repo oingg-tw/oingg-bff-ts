@@ -18,8 +18,6 @@ import type {
   MaterialAnnouncementsResult,
   PriceChangeRankingEntry,
   PriceChangeRankingResult,
-  PriceLimitRangeEntry,
-  PriceLimitRangeResult,
   RankingOrder,
   RevenueRankingEntry,
   RevenueRankingMetric,
@@ -164,22 +162,6 @@ function normalizeAttentionStockEntry(raw: unknown): AttentionStockEntry {
     criteria: toStringOrEmpty(r.criteria),
     criteriaDetails: Array.isArray(r.criteriaDetails) ? r.criteriaDetails.map(normalizeAttentionStockCriteriaDetail) : [],
     sixDayChangePercent: toStringOrNull(r.sixDayChangePercent),
-  };
-}
-
-function normalizePriceLimitRangeEntry(raw: unknown): PriceLimitRangeEntry {
-  const r = raw as Record<string, unknown>;
-  return {
-    rank: Number(r.rank),
-    symbol: String(r.symbol),
-    name: typeof r.companyName === "string" ? r.companyName : null,
-    market: normalizeMarket(r.market),
-    limitUp: toStringOrEmpty(r.limitUp),
-    limitDown: toStringOrEmpty(r.limitDown),
-    limitRange: toStringOrEmpty(r.limitRange),
-    openingRefPrice: toStringOrNull(r.openingRefPrice),
-    previousDayPrice: toStringOrNull(r.previousDayPrice),
-    allowOddLotTrade: toStringOrNull(r.allowOddLotTrade),
   };
 }
 
@@ -378,28 +360,6 @@ export async function fetchAttentionStocks(limit: number): Promise<AttentionStoc
 }
 
 /**
- * Widest/narrowest daily price-limit-range movers from analysis-ts's GET /market/price-limit-range — no
- * query params, 20 rows each direction (data permitting).
- */
-export async function fetchPriceLimitRange(): Promise<PriceLimitRangeResult> {
-  const body = (await getJson("/market/price-limit-range", {})) as {
-    tradeDate?: unknown;
-    widest?: unknown;
-    narrowest?: unknown;
-  };
-
-  if (!Array.isArray(body.widest) || !Array.isArray(body.narrowest)) {
-    throw new AppError("Price limit range response is missing expected fields", 502);
-  }
-
-  return {
-    tradeDate: toDateOrNull(body.tradeDate),
-    widest: body.widest.map(normalizePriceLimitRangeEntry),
-    narrowest: body.narrowest.map(normalizePriceLimitRangeEntry),
-  };
-}
-
-/**
  * 漲跌幅排行 (gainers/losers) from analysis-ts's GET /market/price-change-ranking — computed from
  * daily_price (already a full-market mirror), not a twse-ts/tpex-ts export dataset, so real data exists
  * from day one (added 2026-09-02, no deploy wait needed). TWSE and TPEx each use their own latest two
@@ -497,7 +457,6 @@ export const analysisMarketGateway: MarketGatewayPort = {
   getVolumeTop20: fetchVolumeTop20,
   getDisposedStocks: fetchDisposedStocks,
   getAttentionStocks: fetchAttentionStocks,
-  getPriceLimitRange: fetchPriceLimitRange,
   getPriceChangeRanking: fetchPriceChangeRanking,
   getEtfRanking: fetchEtfRanking,
   getTaiexDailyPrice: fetchTaiexDailyPrice,

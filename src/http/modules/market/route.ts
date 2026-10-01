@@ -133,10 +133,6 @@ export function createMarketRouter(deps: MarketDeps): Router {
     res.json(await deps.marketGateway.getAttentionStocks(limit));
   });
 
-  marketRouter.get("/price-limit-range", async (_req, res) => {
-    res.json(await deps.marketGateway.getPriceLimitRange());
-  });
-
   marketRouter.get("/price-change-ranking", async (req, res) => {
     const { limit } = parseBody(priceChangeRankingQuerySchema, req.query);
     res.json(await deps.marketGateway.getPriceChangeRanking(limit));

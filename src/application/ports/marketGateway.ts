@@ -6,7 +6,6 @@ import type {
   MarginShortRatioRankingResult,
   MaterialAnnouncementsResult,
   PriceChangeRankingResult,
-  PriceLimitRangeResult,
   RankingOrder,
   RevenueRankingMetric,
   RevenueRankingResult,
@@ -35,7 +34,6 @@ export interface MarketGatewayPort {
   getVolumeTop20(): Promise<VolumeTop20Result>;
   getDisposedStocks(limit: number): Promise<DisposedStocksResult>;
   getAttentionStocks(limit: number): Promise<AttentionStocksResult>;
-  getPriceLimitRange(): Promise<PriceLimitRangeResult>;
   getPriceChangeRanking(limit: number): Promise<PriceChangeRankingResult>;
   getEtfRanking(metric: EtfRankingMetric, order: RankingOrder, limit: number): Promise<EtfRankingResult>;
   getTaiexDailyPrice(limit: number, interval?: TaiexDailyPriceInterval): Promise<TaiexDailyPriceResult>;

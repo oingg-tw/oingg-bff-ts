@@ -177,26 +177,6 @@ export interface AttentionStocksResult {
 
 /// TPEx rows currently have null openingRefPrice/previousDayPrice/allowOddLotTrade — twse-ts's TPEx
 /// export dataset doesn't carry these fields yet, not a query failure (see analysis-ts's 2026-09-01 note).
-export interface PriceLimitRangeEntry {
-  rank: number;
-  symbol: string;
-  /** From oingg-analysis-ts's company reference table — null if not found there. */
-  name: string | null;
-  market: Market;
-  limitUp: string;
-  limitDown: string;
-  limitRange: string;
-  openingRefPrice: string | null;
-  previousDayPrice: string | null;
-  allowOddLotTrade: string | null;
-}
-
-export interface PriceLimitRangeResult {
-  tradeDate: string | null;
-  widest: PriceLimitRangeEntry[];
-  narrowest: PriceLimitRangeEntry[];
-}
-
 /**
  * TWSE and TPEx each use their own latest two trading days (not forced onto a shared date) — so
  * `tradeDate`/`previousTradeDate` live per-row here, unlike foreign-holding-ranking's single top-level

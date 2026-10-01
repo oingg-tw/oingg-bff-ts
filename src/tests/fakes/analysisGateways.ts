@@ -23,7 +23,6 @@ export function fakeMarketGateway(overrides: Partial<MarketGatewayPort> = {}): M
     getVolumeTop20: vi.fn(),
     getDisposedStocks: vi.fn(),
     getAttentionStocks: vi.fn(),
-    getPriceLimitRange: vi.fn(),
     getPriceChangeRanking: vi.fn(),
     getEtfRanking: vi.fn(),
     getTaiexDailyPrice: vi.fn(),
