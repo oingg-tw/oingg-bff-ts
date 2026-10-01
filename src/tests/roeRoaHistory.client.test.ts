@@ -64,19 +64,18 @@ describe("fetchRoeHistory", () => {
 
   /**
    * 這裡原本有一條「accepts Q_ANN as a basis (allowed for roe/roa unlike metric-history)」，**它用 mock
-   * 斷言了一件上游其實不成立的事**：2026-10-01 實測上游 roe-history 的 periodType 只收 Q|TTM，給 Q_ANN
-   * 回 400。因為上游是 mock 的，那條測試只是把我們自己的信念寫了兩遍，而且一直是綠的。
+   * 斷言了一件上游當時已經不成立的事**：上游 2026-09-14（054ae0b4）整批移除「單季年化」期別，我們的
+   * schema 一直留著 Q_ANN，而因為上游是 mock 的，這條測試在那之後仍然是綠的。
    *
-   * 取代它的是下面在 route schema 上的檢查——真正守門的是那一層，而且那層不需要 mock 上游。
-   * 教訓：**純轉發端點用 mock 驗「某個參數值可用」，驗的是我們的假設，不是上游的契約。**
-   * 那種斷言只能靠實打上游，或者改成驗自己這一層的規則（像下面那樣）。
+   * 教訓：**純轉發端點用 mock 驗「某個參數值可用」，驗的是我們的假設而不是上游的契約。** 那種斷言只能
+   * 靠實打上游。所以這裡不再驗任何特定期別可不可用——basis 已改成由上游驗證（見 route.ts 的說明，
+   * roe 與 roa 的合法集合已經不同，任何本地列舉必然在其中一支上是錯的），這一層只守「空值要被擋掉」。
    */
-  it("basis 的合法值跟上游逐字一致（Q、TTM），不含 Q_ANN 也不含 FY", () => {
-    expect(parseBody(roeRoaHistoryQuerySchema, { basis: "Q" })).toMatchObject({ basis: "Q" });
-    expect(parseBody(roeRoaHistoryQuerySchema, { basis: "TTM" })).toMatchObject({ basis: "TTM" });
-    // Q_ANN：上游 400。FY：上游 2026-10-01 為 roe 新增，但只在複數 metrics-history，這支單數端點沒有。
-    expect(() => parseBody(roeRoaHistoryQuerySchema, { basis: "Q_ANN" })).toThrow(/basis/);
-    expect(() => parseBody(roeRoaHistoryQuerySchema, { basis: "FY" })).toThrow(/basis/);
+  it("basis 是空字串或缺少時被擋下，不送出空的 periodType", () => {
+    expect(() => parseBody(roeRoaHistoryQuerySchema, { basis: "" })).toThrow(/basis/);
+    expect(() => parseBody(roeRoaHistoryQuerySchema, {})).toThrow(/basis/);
+    // 期別本身不在這裡驗：上游是唯一來源，給不支援的值會回它自己的 400（原樣中繼）。
+    expect(parseBody(roeRoaHistoryQuerySchema, { basis: "FY" })).toMatchObject({ basis: "FY" });
   });
 
   it("includes limit when given", async () => {

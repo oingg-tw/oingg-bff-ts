@@ -992,7 +992,7 @@ registry.registerPath({
   summary: "一次查詢多個指標的季度歷史數列（成長分解卡片用，例如 EPS 成長分解、淨值成長分解）",
   description:
     "**每股數字的股數基準跟申報原值不同，兩者在股數有變動的公司身上本來就不相等**（2026-09-30 釐清）：這支端點的每股指標是上游用**季末流通股數**算的（取生效日在報告日之前的最新一筆股本），而 `GET /stocks/{symbol}/financial-statement` 的 `basic_earnings_loss_per_share` 是公司用**期間加權平均股數**申報的原值。季中發生股數變動時兩者必然有差——實測 3041 揚智 2025Q2（2025-05 增資）本端點 -0.67、申報 -0.70，差約 4.5%；同一家公司 2026Q2 股數沒變，兩者都是 -0.21。**兩個數字都對，只是分母不同。**另外這支端點還會把**分割、配股、股數合併式減資**（股數變了但公司價值沒變的事件）換算到今天的股數基準，讓跨越這類事件的每股走勢圖不會憑空跳一階；**現金增資與現金減資不換算**，因為那有真的錢進出。financial-statement 完全不換算。所以要做「成分加總等於母項」這類對帳，**母項與成分必須全部取自同一種來源**——全用每股指標，或全用申報原值，混用會在有股數變動的公司身上讓恆等式失效，而症狀看起來像資料不全。" +
-    "**roe 的年度（FY）值只在這支端點**（上游 2026-10-01 新增）：`basis=FY` 時一年一列、座標是（該年度, 第 4 季）。單數的 `GET /stocks/{symbol}/roe-history` 上游自己只收 Q|TTM，給 FY 會 400，**不是 bff-ts 漏接**。**FY 的算法跟 TTM 刻意不同，不要互相對帳**：FY＝全年稅後淨利 ÷（去年底權益＋今年底權益）÷2，淨利與權益都用**含非控制權益的總額**，用意是對齊證交所公布的年度 ROE（上游實測民國 114 年度 906 家裡有 800 家差距 ≤0.05 個百分點）；TTM 則是**歸屬母公司、5 個季末平均**，為了攤平 Q2 配息造成的權益低點。所以同一家公司同一年，FY 跟該年 Q4 的 TTM 本來就是兩個不同的數字。**差距的量級**：2026-10-01 實測同一個門檻（ROE ≥ 20）在 screener 上 `roe.FY` 篩出 223 家、`roe.TTM` 篩出 333 家。所以兩者不只是小數點的差異，拿 FY 的值去驗 TTM 的篩選結果會對不起來。涵蓋深度（上游 DEV 實測）：2025 年 2,271 家有值（含興櫃）、2024 年 1,873 家、2021~2023 年約 1,530~1,600 家、2020 年僅 252 家（缺 2019 年底資產負債表，是資料起點限制不是遺漏）。" +
+    "**roe 的年度（FY）值只在這支端點**（上游 2026-10-01 新增）：`basis=FY` 時一年一列、座標是（該年度, 第 4 季）。單數的 `GET /stocks/{symbol}/roe-history` 也收 FY——上游 2026-10-01 當天補上（a20a5c94，他們加 FY 時漏改那支的 periodType，本機實測已回 7 個年度）。**但雲端 dev 要等他們下一批部署才會生效**，在那之前對部署環境打 `roe-history?basis=FY` 會拿到上游的 400（原樣中繼）。`roa-history` 與 `dupont-history` 仍只收 Q|TTM，因為 roa 還沒有 FY。**FY 的算法跟 TTM 刻意不同，不要互相對帳**：FY＝全年稅後淨利 ÷（去年底權益＋今年底權益）÷2，淨利與權益都用**含非控制權益的總額**，用意是對齊證交所公布的年度 ROE（上游實測民國 114 年度 906 家裡有 800 家差距 ≤0.05 個百分點）；TTM 則是**歸屬母公司、5 個季末平均**，為了攤平 Q2 配息造成的權益低點。所以同一家公司同一年，FY 跟該年 Q4 的 TTM 本來就是兩個不同的數字。**差距的量級**：2026-10-01 實測同一個門檻（ROE ≥ 20）在 screener 上 `roe.FY` 篩出 223 家、`roe.TTM` 篩出 333 家。所以兩者不只是小數點的差異，拿 FY 的值去驗 TTM 的篩選結果會對不起來。涵蓋深度（上游 DEV 實測）：2025 年 2,271 家有值（含興櫃）、2024 年 1,873 家、2021~2023 年約 1,530~1,600 家、2020 年僅 252 家（缺 2019 年底資產負債表，是資料起點限制不是遺漏）。" +
     "資料來自 oingg-analysis-ts 的 GET /companies/metrics-history——跟 metric-history 的差別是一次可以帶多個 metricCode（逗號分隔），一次拿到同一個 basis 底下每一期的所有指標值，不用每個指標各打一次。回應形狀也跟 metric-history 不同：entries 每一筆是 { fiscalYear, fiscalQuarter, values }，values 用 metricCode 當 key，不是單一 value 欄位。**⚠️ 不要拿 entries 的最後一筆當「最新一季」**：只要查詢裡包含 `dividendDistributionCount`，最後一期可能是一個**只有那一支指標有值、其他全 null 的殘缺期**——它以除息公告日所屬的季為座標（上游的設計，不是財報期），所以會領先財報期一整季。2026-09-28 抽 50 家實測：28 家（56%）的最後一期是 2026Q3 且只有配息次數有值，而真正最新的財報期是 2026Q2 並且有值（例如 2330 的 2026Q3 只有 dividendDistributionCount=4、eps 是 null）。要取最新一期請以**你關心的那支指標有值的最後一期**為準，或不要把 dividendDistributionCount 跟財報期指標混在同一次呼叫裡。basis 不是固定列舉（不像 metric-history 的 metricCode 有寫死允許值）——不同 metricCode 組合允許的 basis 不一樣（實測：netIncomeGrowthRate/epsGrowthRate/shareCountChangeRate 系列的成長分解指標只允許 \"Q\"，不允許 \"TTM\"），實際允許值請查 GET /metrics 各 metricCode 底下的 validTokens，這裡只驗證非空字串，實際合法性由 analysis-ts 驗證並回 400（原樣轉發那個錯誤訊息，例如帶了某個 metricCode 不支援的 basis）。EPS 成長分解卡片打法：metricCodes=netIncomeGrowthRate,epsGrowthRate,shareCountChangeRate&basis=Q；淨值成長分解卡片：metricCodes=equityGrowthRate,bvpsGrowthRate,shareCountChangeRate&basis=Q（兩張卡共用同一個 shareCountChangeRate，不用分別各打一次）。三者的近似恆等式：淨利/淨值成長率 ≈ EPS/BVPS成長率 + 股本變化率——shareCountChangeRate 為 0 代表股本沒變動；EPS/BVPS 成長率低於淨利/淨值成長率代表股本增加（現金增資/可轉債轉換，稀釋每股數字）；反之代表股本減少（減資/買回註銷，墊高每股數字）。limit 預設 20、最大 40，跟 metric-history 一致。查無資料回傳空陣列，不是 404。entries 由舊到新排序。**values 底下每個 metricCode 的值可能是純 null（不是物件）**——當這個 metricCode 在這一期完全沒有回填資料時（例如兩個 metricCode 回填起始的季度不同，較晚才有資料的那個在較早的期別就是 null），這跟「有算出來但數值是 null（物件形式，帶 nullReason/knowledgeDate）」是兩種不同狀態，不要混為一談；2026-09-10 之前這裡曾經對純 null 值直接呼叫物件屬性存取，在 limit 夠大、涵蓋到某 metricCode 尚未回填的期別時會導致 500，已修正為正確保留 null。",
   tags: ["Stock"],
   request: {
@@ -1014,7 +1014,8 @@ registry.registerPath({
 const roeHistorySchema = z
   .object({
     symbol: z.string(),
-    basis: z.enum(["Q", "TTM"]),
+    // 不列舉：期別由上游驗證且會變動（roe 2026-10-01 新增 FY，roa 還沒有）。見 route.ts 的 roeRoaHistoryQuerySchema。
+    basis: z.string(),
     total: z.number(),
     hasMore: z.boolean(),
     entries: z.array(metricHistoryEntrySchema),
@@ -1056,7 +1057,7 @@ registry.registerPath({
 const roaHistorySchema = z
   .object({
     symbol: z.string(),
-    basis: z.enum(["Q", "TTM"]),
+    basis: z.string(),
     total: z.number(),
     hasMore: z.boolean(),
     entries: z.array(metricHistoryEntrySchema),
