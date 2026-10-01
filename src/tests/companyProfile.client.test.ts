@@ -73,7 +73,9 @@ describe("fetchCompanyProfile", () => {
 
     const result = await fetchCompanyProfile("2330");
 
-    expect(result).toEqual({ ...RAW_PROFILE, parValue: "10" });
+    // RAW_PROFILE 是上游加 isEmerging 之前的樣本，刻意保留當時的形狀——這一層補 null，正好也是
+    // 「上游沒送這個欄位時給 null 而不是 false」那條規則的驗證。
+    expect(result).toEqual({ ...RAW_PROFILE, parValue: "10", isEmerging: null });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/profile?symbol=2330");
   });
@@ -130,5 +132,31 @@ describe("fetchCompanyProfile", () => {
     mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, metricDataType: "3" } });
 
     await expect(fetchCompanyProfile("2330")).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+/**
+ * `isEmerging`（上游 2026-10-01 新增）是 per-symbol 層級唯一能區分興櫃的欄位。這裡守的是**缺席時給 null
+ * 而不是 false**：上游正式環境還沒部署這個欄位，而把興櫃說成「不是興櫃」是一個錯的標籤——比缺一個標籤糟，
+ * 因為下游會據此宣稱「這家公司有單季資料」而實際上永久沒有。
+ */
+describe("fetchCompanyProfile 的 isEmerging", () => {
+  it("true／false 都原樣帶出", async () => {
+    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, symbol: "1293", market: "TPEx", isEmerging: true } });
+    expect((await fetchCompanyProfile("1293"))?.isEmerging).toBe(true);
+
+    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, symbol: "8050", market: "TPEx", isEmerging: false } });
+    expect((await fetchCompanyProfile("8050"))?.isEmerging).toBe(false);
+  });
+
+  it("上游沒送時是 null，不是 false", async () => {
+    mockFetchOnce({ ok: true, body: RAW_PROFILE });
+    expect((await fetchCompanyProfile("2330"))?.isEmerging).toBeNull();
+  });
+
+  /** 非布林值（例如上游誤送字串）也當成「不知道」，不要用 truthy 判斷——"false" 會變成 true。 */
+  it("非布林值當成 null", async () => {
+    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, isEmerging: "false" } });
+    expect((await fetchCompanyProfile("2330"))?.isEmerging).toBeNull();
   });
 });

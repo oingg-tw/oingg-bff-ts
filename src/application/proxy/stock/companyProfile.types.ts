@@ -9,6 +9,20 @@ export type CompanyProfileMarket = "TWSE" | "TPEx";
 export interface CompanyProfile {
   symbol: string;
   market: CompanyProfileMarket;
+  /**
+   * 是否為興櫃（上游 2026-10-01 新增）。**在 per-symbol 層級，這是唯一能區分興櫃的欄位**——`market` 只有
+   * `'TWSE' | 'TPEx'`，而興櫃在上游也歸在 TPEx（8050 上櫃與 1293 興櫃的 market 都是 'TPEx'，實測）。
+   * 判斷依據與 `GET /stocks` 清單的 `isEmerging` 相同（tpex 的 `company_profile.source`）。
+   *
+   * **宣告成 nullable，雖然上游的 OpenAPI 列為必填**：上游的 PRD 還沒部署這個欄位，所以在那之前打正式
+   * 環境會拿不到它。缺席時給 `null` 而**不是 `false`**——`false` 會把興櫃說成「不是興櫃」，那是一個錯的
+   * 標籤，而錯的標籤比缺一個標籤糟（同一小時前 market 那個未知值落到 TWSE 的教訓）。拿到 null 的呼叫端
+   * 應該維持現狀的行為，而不是斷言任何事。
+   *
+   * 下游要它的理由：興櫃依法只申報半年報與年報，所以單季指標**永久**為空，頁面要能說「這類公司沒有這個
+   * 數字」而不是「尚無資料」——那兩句話對讀者的意思完全不同。
+   */
+  isEmerging: boolean | null;
   reportDate: string;
   name: string;
   shortName: string;

@@ -91,6 +91,8 @@ const companyProfileSchema = z
   .object({
     symbol: z.string(),
     market: z.enum(["TWSE", "TPEx"]),
+    /** 是否為興櫃。**per-symbol 層級唯一能區分興櫃的欄位**（market 只有 TWSE/TPEx，興櫃也歸在 TPEx）。上游 PRD 尚未部署時為 null。 */
+    isEmerging: z.boolean().nullable(),
     reportDate: z.string(),
     name: z.string(),
     shortName: z.string(),
@@ -294,7 +296,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/profile",
   summary: "查詢公司基本資料（董事長、發言人、實收資本額、簽證會計師等）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/profile（上市查無資料才查上櫃）。不篩選 ETF／KY／興櫃身分——指名查哪支代號就照實回傳那家公司的資料。TPEx 沒有 englishAddress、industryName 欄位，一律是 null（不是查詢失敗，是 TPEx 資料源本來就沒有）。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/profile（上市查無資料才查上櫃）。不篩選 ETF／KY／興櫃身分——指名查哪支代號就照實回傳那家公司的資料。**`isEmerging`（上游 2026-10-01 新增）是 per-symbol 層級唯一能區分興櫃的欄位**——`market` 只有 TWSE／TPEx，而興櫃在上游也歸在 TPEx（實測 8050 上櫃與 1293 興櫃的 market 都是 \"TPEx\"）。判斷依據與 `GET /stocks` 清單的 `isEmerging` 相同。**它在型別上可為 null，雖然上游列為必填**：上游的正式環境還沒部署這個欄位，缺席時 bff-ts 給 `null` 而**不是 `false`**——`false` 會把興櫃說成「不是興櫃」，而一個錯的標籤比缺一個標籤糟。拿到 null 請維持現狀行為、不要斷言任何事。為什麼需要它：興櫃依法只申報半年報與年報，所以**單季指標永久為空**，頁面要能說「這類公司沒有這個數字」而不是「尚無資料」。TPEx 沒有 englishAddress、industryName 欄位，一律是 null（不是查詢失敗，是 TPEx 資料源本來就沒有）。",
   tags: ["Stock"],
   request: { params: symbolParam },
   responses: {
