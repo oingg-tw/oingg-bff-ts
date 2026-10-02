@@ -96,7 +96,21 @@ async function resolveCatalogFieldRefs(fields: string[], deps: ScreenerDeps): Pr
   });
 }
 
-/** Shared by runScreener/runRanking: merges "stock.price" (twse/tpex, not the analysis DB) into result rows. */
+/**
+ * Shared by runScreener/runRanking: merges "stock.price" (twse/tpex, not the analysis DB) into result rows.
+ *
+ * **這是本切片的第二次上游呼叫，而且是循序的**——screener 查詢跑完才打這一次。兩次各自套用
+ * `ANALYSIS_SERVICE_TIMEOUT_MS`（10 秒），所以一個 columns 含 `stock.price` 的請求**最壞可以花到接近
+ * 20 秒才失敗**，而回給呼叫端的 502 **不會指出是哪一次逾時的**（兩次都是同一種錯誤）。
+ *
+ * 2026-10-02 這件事害 web-nuxt 誤診了一整天：他們看到 /screener 間歇 502，以為是某個篩選條件貼著 10 秒
+ * 上限。交錯量測之後實測 `stock.price` 只值約 240ms（他們 14 輪／56 次的配對中位差 237~244ms，跟我這邊
+ * 的 2×2 吻合），而那些 6~9 秒是三方共用同一台本機上游造成的負載——重載時連 1.8 秒的對照查詢都要 8.18 秒。
+ *
+ * 所以這段註解要留的是**診斷順序**，不是那個 240ms：看到 /screener 的 502，先問「columns 有沒有
+ * `stock.price`」，因為那決定了有幾個 10 秒窗口可能越界；再問「上游當時的負載」，因為負載能把任何一條
+ * 查詢乘上四五倍。別從「哪個欄位慢」開始猜。
+ */
 async function mergeStockPrices(rows: ScreenerResultRow[], wantsStockPrice: boolean, deps: ScreenerDeps): Promise<void> {
   if (!wantsStockPrice) {
     return;
