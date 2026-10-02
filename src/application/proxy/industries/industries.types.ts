@@ -78,7 +78,7 @@ export interface SectorMetricStats {
  * （7 家裡過半不配息），那個類股的點會落在軸上。
  *
  * 母體是上市加上櫃、不含興櫃（上游說明），2026-09-30 實測 companyCount 合計 1,976。
- * 這跟 [[reference_screener_population]] 記的全市場 2,349 不同，別把兩個數字當同一個母體比較。
+ * 全市場目錄 2026-10-02 起是 2,339 家（上游移除 10 檔 DR 之後），所以這個 1,976 的差額就是 363 家興櫃，不再有 DR 那一項。
  */
 export interface SectorDividendSummary {
   /** 殖利率取自哪一天的收盤（"YYYY-MM-DD"）。整份回應共用一個日期，不是逐類股。 */

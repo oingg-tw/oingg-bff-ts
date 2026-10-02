@@ -9,7 +9,7 @@ export interface CompanyListEntry {
   /**
    * 是否為興櫃公司 — added by analysis-ts 2026-09-23, always present (never null). The directory
    * deliberately includes 興櫃 (the user's call: a future business line may target them), so this flag is
-   * how a caller separates them: 2,349 total = 363 興櫃 + 1,986 上市櫃, and every other service's
+   * how a caller separates them: **2,339** total = 363 興櫃 + **1,976** 上市櫃, and every other service's
    * "全市場" means the latter (mops-ts counts 1,985; the one-company gap is a de-duplication boundary).
    * **Subtract isEmerging=true before using this directory as a coverage denominator** — 興櫃 的揭露義務
    * 只有半年報與年報，所以**單季（Q）指標永久為空**，而需要行情的指標（peRatio、altmanZScore、beta…）
@@ -24,7 +24,11 @@ export interface CompanyListEntry {
    * 上市櫃用 5 個**（興櫃只有半年報），所以同一張排名混著兩種算法。
    *
    * 想要排除興櫃的逐類股家數，`GET /industries/sector-dividend-summary` 的 `companyCount` 就是
-   * （實測 34 個類股逐一相符，合計 1,976 ＝ 1,986 減掉 10 家 sectorCode 為 null 的 DR）。
+   * （實測 34 個類股逐一相符，合計 1,976）。2026-10-02 起那個合計**正好等於目錄的上市櫃家數**——
+   * 上游當天把 10 檔第一上市外國公司（代碼 91 開頭的存託憑證）移出目錄，而它們正是原本唯一 10 筆
+   * `sectorCode` 為 null 的列。所以**「`sectorCode === null` 就是 DR」這條辨識規則已經失效**（2026-10-01
+   * 成立、10-02 失效，實測現在 null 是 0 家）。那 10 檔的 `GET /stocks/{symbol}/profile` 仍回 200、行情照舊，
+   * 所以它們的個股頁還在，只是不在這份目錄裡——**拿目錄當「公司存不存在」的判準會把它們判成不存在**。
    */
   isEmerging: boolean;
 }
