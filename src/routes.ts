@@ -78,7 +78,9 @@ export function createRoutes(deps: AppDeps): Router {
   // /macro/gov-bond-yield-10y, /macro/gov-bond-yield-10y-history, /macro/stock-market-summary, /macro/usd-twd-rate, /macro/cpi, /macro/gdp
   routes.use("/macro", createMacroRouter(deps));
   routes.use("/etf-screener", createEtfScreenerRouter(deps)); // GET /etf-screener/filters, POST /etf-screener
-  routes.use("/industries", createIndustriesRouter(deps)); // GET /industries/tree
+  // GET /industries/securities-sectors, /industries/sector-dividend-summary
+  // （/tree 與 /flat 的財政部稅籍五層分類 2026-10-02 隨上游退役移除）
+  routes.use("/industries", createIndustriesRouter(deps));
   routes.use("/securities", createSecuritiesRouter(deps)); // GET /securities
 
   return routes;

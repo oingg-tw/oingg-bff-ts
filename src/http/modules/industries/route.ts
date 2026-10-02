@@ -1,31 +1,20 @@
 import { Router } from "ultimate-express";
-import { z } from "zod";
-import { parseBody } from "@/shared/validation.js";
 import type { AppDeps } from "@/application/deps.js";
 
 export type IndustriesDeps = Pick<AppDeps, "industriesGateway">;
 
-export const industryTreeQuerySchema = z.object({
-  code: z.string().trim().min(1).optional(),
-});
-
 /**
  * 純轉發切片：route 直接呼叫 gateway port，中間沒有 service 層（見 industries.client.ts 的說明）。
- * `code` 的驗證留在上面的 zod schema，它同時是 OpenAPI 的來源。
+ *
+ * 2026-10-02 移除 `/tree` 與 `/flat`（財政部稅籍五層分類，資料來自 gov-ts）：上游整組下架、端點已回 404，
+ * 而留著轉發等於永久回 **502**——502 的語意是「上游或我壞了」，所以任何探測它的人會把一次正常的退役讀成
+ * 故障。移除後是 bff-ts 自己的 404「Route not found」，那才是誠實的語意（同 price-limit-range 的判斷）。
+ *
+ * 刪除依據是 **web-nuxt 的 grep：零呼叫端**（結構性證據），不是我這邊的流量統計——後者是 8 天 249,939 筆
+ * 請求 0 次，但那個窗的採樣有缺口（他們的站台檢查只涵蓋腳本 ROUTES 清單裡的 69 條路由，不是全站頁面）。
  */
 export function createIndustriesRouter(deps: IndustriesDeps): Router {
   const industriesRouter = Router();
-
-  industriesRouter.get("/tree", async (req, res) => {
-    const query = parseBody(industryTreeQuerySchema, req.query);
-    const tree = await deps.industriesGateway.getIndustryTree(query.code);
-    res.json(tree);
-  });
-
-  industriesRouter.get("/flat", async (_req, res) => {
-    const list = await deps.industriesGateway.getIndustryFlatList();
-    res.json(list);
-  });
 
   industriesRouter.get("/securities-sectors", async (_req, res) => {
     const list = await deps.industriesGateway.getSecuritiesSectors();
