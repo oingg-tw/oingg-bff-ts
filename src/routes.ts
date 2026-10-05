@@ -1,5 +1,5 @@
 import cors from "cors";
-import { rateLimit } from "express-rate-limit";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import { Router } from "ultimate-express";
 import { requireApiDocsAuth } from "@/http/swagger/apiDocsAuth.js";
@@ -23,6 +23,36 @@ import { createWatchlistRouter } from "@/http/modules/watchlist/route.js";
 import { env, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from "@/shared/env.js";
 import type { AppDeps } from "@/application/deps.js";
 
+/**
+ * 限流的分桶鍵。**不設 `trust proxy`，用自訂 keyGenerator 取代**，而且取的是 `X-Forwarded-For` 的
+ * **最右邊**那一項。
+ *
+ * 要解決的問題（2026-10-04 實測部署端）：原本沒有 keyGenerator，所以預設用 `req.ip`，而在 Cloud Run 上
+ * 那永遠是 Google 前端的位址——**300 req/60s 因此是全站共用而不是每個客戶端**，任何一個呼叫端都能把所有
+ * 使用者的額度用光。實測連續四次換不同的 `X-Forwarded-For`，`ratelimit-remaining` 照樣 299→298→297→296。
+ * 本機也一樣（本機沒有 proxy，所以本機的 `req.ip` 反而是對的；這個缺陷只在部署端成立，沒有任何測試抓得到）。
+ *
+ * **為什麼不用 `trust proxy: true`**：express-rate-limit 明確把它列為 `ERR_ERL_PERMISSIVE_TRUST_PROXY`——
+ * 那會讓 express 取 XFF 的**最左邊**，而最左邊是呼叫端可以自己填的，等於開一個用輪換標頭繞過限流的洞。
+ *
+ * **為什麼取最右邊而不是數第 N 個**：那不需要先知道 Cloud Run 是覆寫整個 XFF 還是把真實 IP 附加在後面。
+ * 覆寫 → 最右邊就是客戶端 IP；附加 → 客戶端自己送的值會排在 Google 附加的那一項**之前**，所以最右邊仍是
+ * 真實來源、且不可偽造。只有「真實 IP 在最前面、Google 的內部位址在最後」這種排法會讓它退化成常數，
+ * 而那等於現況、**不會比現在更糟**。
+ *
+ * `ipKeyGenerator` 的包裹是必要的、不是裝飾：直接回傳 IP 字串會讓 IPv6 客戶端在自己的 /64 內換位址就
+ * 繞過限流（express-rate-limit 的 `ERR_ERL_KEY_GEN_IPV6`）。
+ *
+ * 副作用要知道：**供了自訂 keyGenerator 之後，那兩個 ValidationError 警告就不再出現**——警告消失是因為
+ * 檢查被略過，不是因為設定一定正確。驗證要看分桶行為，不要看 log 乾淨。
+ */
+function rateLimitKey(req: { ip?: string; headers: Record<string, unknown> }): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  const chain = Array.isArray(forwarded) ? forwarded.join(",") : typeof forwarded === "string" ? forwarded : "";
+  const rightmost = chain.split(",").at(-1)?.trim();
+  return ipKeyGenerator(rightmost || req.ip || "unknown");
+}
+
 // Single place to see every mounted path — check here before grepping through src/http/modules.
 export function createRoutes(deps: AppDeps): Router {
   const routes = Router();
@@ -38,6 +68,7 @@ export function createRoutes(deps: AppDeps): Router {
       limit: RATE_LIMIT_MAX_REQUESTS,
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: rateLimitKey,
       handler: (_req, res) => {
         res.status(429).json({ error: { message: "Too many requests" } });
       },
