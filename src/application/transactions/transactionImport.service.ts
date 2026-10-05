@@ -12,9 +12,14 @@ export type TransactionImportDeps = Pick<AppDeps, "transactions"> & StockProxyDe
 
 /**
  * 允許的來源命名空間。**刻意是白名單而不是自由字串**：`source` 是冪等鍵的一部分，所以一個 typo
- * （"brokercsv"）會開出一個新的命名空間，然後讓整批重複的交易安靜地寫進去。要加券商就加在這裡。
+ * 會開出一個新的命名空間，然後讓整批重複的交易安靜地寫進去。
+ *
+ * **一家券商一個 source，不共用**（2026-10-05 由 "broker-csv" 改名，使用者要求）：兩家券商的
+ * 「日期｜委託書號」可能相同，共用一個命名空間會把另一家的交易當成重複、靜默略過。改名時資料庫裡
+ * 0 筆 broker-csv，所以沒有搬資料、也不並存。每多支援一家券商的格式就在這裡加一個值——web-nuxt
+ * 會通知。
  */
-const ALLOWED_SOURCES = ["broker-csv"] as const;
+const ALLOWED_SOURCES = ["yuanta-csv"] as const;
 
 /**
  * 期初部位用的保留來源。它不在 ALLOWED_SOURCES 裡，所以呼叫端送不進來——期初部位只能由

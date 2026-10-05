@@ -39,7 +39,7 @@ function trade(overrides: Partial<ImportedTransactionInput> = {}): ImportedTrans
 }
 
 function request(overrides: Partial<TransactionImportRequest> = {}): TransactionImportRequest {
-  return { source: "broker-csv", dryRun: true, openingPositions: [], transactions: [], ...overrides };
+  return { source: "yuanta-csv", dryRun: true, openingPositions: [], transactions: [], ...overrides };
 }
 
 function storedRow(overrides: Partial<StockTransaction>): StockTransaction {
@@ -70,10 +70,11 @@ function unwrap<T>(outcome: { ok: true; result: T } | { ok: false; shortfalls: u
 }
 
 describe("importTransactions — 守門", () => {
-  it("rejects a source outside the allowlist", async () => {
-    await expect(importTransactions("uid1", request({ source: "brokercsv" }), deps())).rejects.toMatchObject({
-      statusCode: 400,
-    });
+  // "broker-csv" 是 2026-10-05 改名前的值，刻意不並存——它必須跟任何 typo 一樣被擋下。
+  it("rejects a source outside the allowlist, including the retired broker-csv", async () => {
+    for (const source of ["broker-csv", "yuantacsv"]) {
+      await expect(importTransactions("uid1", request({ source }), deps())).rejects.toMatchObject({ statusCode: 400 });
+    }
   });
 
   it("rejects a batch over the row cap", async () => {

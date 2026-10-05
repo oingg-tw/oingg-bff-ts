@@ -483,7 +483,7 @@ model StockTransaction {
   tradeDate   DateTime          @map("trade_date") @db.Date
   note        String?
   /**
-   * 批次匯入的來源命名空間（目前只有 "broker-csv"，期初部位用保留值 "opening"）。手動輸入是 null。
+   * 批次匯入的來源命名空間，一家券商一個（目前只有 "yuanta-csv"，期初部位用保留值 "opening"）。手動輸入是 null。
    * 它是冪等鍵的一部分，所以**不是自由字串**——route 擋白名單，一個 typo 就會開出一個新的命名空間
    * 然後靜默製造重複。
    */

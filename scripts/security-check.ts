@@ -236,7 +236,7 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
     method: "POST",
     token: userB.idToken,
     body: {
-      source: "broker-csv",
+      source: "yuanta-csv",
       transactions: [
         { externalRef: `security-check-${randomUUID()}`, tradeDate: "2026-08-01", symbol: "2603", action: "BUY", quantity: 1000, price: 100 },
       ],
