@@ -6,6 +6,7 @@ import { analysisMarketGateway } from "@/infrastructure/analysisApi/market/marke
 import { analysisMetricCatalogGateway } from "@/infrastructure/analysisApi/metricCatalog/metricCatalog.client.js";
 import { analysisScreenerGateway } from "@/infrastructure/analysisApi/screener/analysisScreenerClient.js";
 import { analysisSecuritiesGateway } from "@/infrastructure/analysisApi/securities/securities.client.js";
+import { analysisBrokersGateway } from "@/infrastructure/analysisApi/brokers/brokers.client.js";
 import { analysisStockGateway } from "@/infrastructure/analysisApi/stock/stock.gateway.js";
 import { createResendEmailClient } from "@/infrastructure/email/resendEmailClient.js";
 import { firebaseTokenVerifier } from "@/infrastructure/firebase/tokenVerifier.js";
@@ -48,6 +49,7 @@ export function createAppDeps(): AppDeps {
     stockGateway: analysisStockGateway,
     industriesGateway: analysisIndustriesGateway,
     securitiesGateway: analysisSecuritiesGateway,
+    brokersGateway: analysisBrokersGateway,
     etfScreenerGateway: analysisEtfScreenerGateway,
     screenerGateway: analysisScreenerGateway,
     metricCatalogGateway: analysisMetricCatalogGateway,

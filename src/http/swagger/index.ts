@@ -23,6 +23,7 @@ import "@/http/modules/macro/openapi.js";
 import "@/http/modules/etfScreener/openapi.js";
 import "@/http/modules/industries/openapi.js";
 import "@/http/modules/securities/openapi.js";
+import "@/http/modules/brokers/openapi.js";
 import "@/http/modules/screener/openapi.js";
 import "@/http/modules/columnPresets/openapi.js";
 import "@/http/modules/screenerPresets/openapi.js";
@@ -59,6 +60,7 @@ function generateDocument() {
       { name: "ETF Screener", description: "ETF 篩選" },
       { name: "Industries", description: "產業分類樹（財政部稅籍五層分類）" },
       { name: "Securities", description: "統一搜尋索引（普通股＋TWSE 特別股＋全部 ETF）" },
+      { name: "Brokers", description: "券商名單（持股頁的券商下拉選單）" },
     ],
   });
 }

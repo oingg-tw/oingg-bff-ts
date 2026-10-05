@@ -11,6 +11,7 @@ import type { PresetTemplatesPort } from "@/application/ports/presetTemplates.js
 import type { ScreenerGatewayPort } from "@/application/ports/screenerGateway.js";
 import type { ScreenerPresetsPort } from "@/application/ports/screenerPresets.js";
 import type { SecuritiesGatewayPort } from "@/application/ports/securitiesGateway.js";
+import type { BrokersGatewayPort } from "@/application/ports/brokersGateway.js";
 import type { StockGatewayPort } from "@/application/ports/stockGateway.js";
 import type { SubscriptionsPort } from "@/application/ports/subscriptions.js";
 import type { SystemHealthPort } from "@/application/ports/systemHealth.js";
@@ -66,6 +67,7 @@ export interface AppDeps {
   stockGateway: StockGatewayPort;
   industriesGateway: IndustriesGatewayPort;
   securitiesGateway: SecuritiesGatewayPort;
+  brokersGateway: BrokersGatewayPort;
   etfScreenerGateway: EtfScreenerGatewayPort;
   /** 選股引擎。含 /valuation/ranking——它路徑不同、實作在另一個檔案，但仍是同一個切片，見該 port 的說明。 */
   screenerGateway: ScreenerGatewayPort;

@@ -14,6 +14,7 @@ import { createMacroRouter } from "@/http/modules/macro/route.js";
 import { createMarketRouter } from "@/http/modules/market/route.js";
 import { createScreenerRoutes } from "@/http/modules/screener/index.js";
 import { createSecuritiesRouter } from "@/http/modules/securities/route.js";
+import { createBrokersRouter } from "@/http/modules/brokers/route.js";
 import { createStockRouter } from "@/http/modules/stock/route.js";
 import { createSystemRouter } from "@/http/modules/system/route.js";
 import { startedAt } from "@/application/system/system.state.js";
@@ -113,6 +114,7 @@ export function createRoutes(deps: AppDeps): Router {
   // （/tree 與 /flat 的財政部稅籍五層分類 2026-10-02 隨上游退役移除）
   routes.use("/industries", createIndustriesRouter(deps));
   routes.use("/securities", createSecuritiesRouter(deps)); // GET /securities
+  routes.use("/brokers", createBrokersRouter(deps)); // GET /brokers
 
   return routes;
 }
