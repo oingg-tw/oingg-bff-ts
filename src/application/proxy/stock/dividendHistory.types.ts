@@ -83,8 +83,13 @@ export interface DividendEvent {
  * metric moves when earnings move even if policy does not. See that metric's own limitations text.
  */
 export interface DividendHistoryEntry {
-  fiscalYear: number;
-  rocFiscalYear: number;
+  /**
+   * **2026-10-05 起可以是 null**（analysis-ts 契約變更）：公告沒填所屬年度、但真的有配發的那幾次，
+   * 上游集中放在**最後一列**，年度是 null。全市場只有 15 筆，例如 2496 有一筆 2026-08-19 現金 1.5 元。
+   * 以前那種 fiscalYear 1911、rocFiscalYear null 的空年度列（沒有金額的純除權事件）不再出現。
+   */
+  fiscalYear: number | null;
+  rocFiscalYear: number | null;
   cashDividend: number;
   /**
    * Same split as on DividendEvent, at the year level. `cashDividend` remains the total.

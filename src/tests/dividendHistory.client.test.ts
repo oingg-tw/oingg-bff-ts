@@ -179,6 +179,19 @@ describe("fetchDividendHistory", () => {
     });
   });
 
+  /**
+   * 2026-10-05 上游契約變更：公告沒填所屬年度的那幾次，年度是 null、集中在最後一列。這裡原本是
+   * Number(r.fiscalYear)，2496 那一列因此被送成 fiscalYear 0——沒有錯誤，只是值悄悄錯了。
+   */
+  it("年度未填的那一列保留 null，不轉成 0", async () => {
+    mockFetchOnce({ entries: [RAW_YEAR, { ...RAW_YEAR, fiscalYear: null, rocFiscalYear: null }] });
+
+    const result = await fetchDividendHistory("2496");
+
+    expect(result.entries.at(-1)).toMatchObject({ fiscalYear: null, rocFiscalYear: null });
+    expect(result.entries[0]!.fiscalYear).toBe(RAW_YEAR.fiscalYear);
+  });
+
   it("查無資料回空陣列而不是丟錯", async () => {
     mockFetchOnce({ symbol: "9999", entries: [] });
     await expect(fetchDividendHistory("9999")).resolves.toEqual({ symbol: "9999", entries: [] });

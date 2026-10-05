@@ -43,8 +43,11 @@ function normalizeEvent(raw: unknown): DividendEvent {
 function normalizeEntry(raw: unknown): DividendHistoryEntry {
   const r = raw as Record<string, unknown>;
   return {
-    fiscalYear: Number(r.fiscalYear),
-    rocFiscalYear: Number(r.rocFiscalYear),
+    // **不要用 Number()**：2026-10-05 起上游對「公告沒填所屬年度」的那一列送 null，而 Number(null) 是 0——
+    // 這裡原本就是這樣寫的，2496 的最後一列因此被轉成「fiscalYear 0、rocFiscalYear 0」送給前端，
+    // 沒有錯誤、只是值悄悄錯了（實測 2026-10-05）。
+    fiscalYear: toNumberOrNull(r.fiscalYear),
+    rocFiscalYear: toNumberOrNull(r.rocFiscalYear),
     cashDividend: Number(r.cashDividend),
     cashDividendFromEarnings: requireNumber(r.cashDividendFromEarnings, "cashDividendFromEarnings", "Dividend history"),
     cashDividendFromLegalReserveAndCapitalSurplus: requireNumber(r.cashDividendFromLegalReserveAndCapitalSurplus, "cashDividendFromLegalReserveAndCapitalSurplus", "Dividend history"),

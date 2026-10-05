@@ -367,9 +367,14 @@ const dividendHistorySchema = z
     symbol: z.string(),
     entries: z.array(
       z.object({
-        fiscalYear: z.number(),
-        rocFiscalYear: z.number(),
-        cashDividend: z.number(),
+        fiscalYear: z.number().nullable().openapi({
+          description:
+            "西元年度。**可以是 null**（2026-10-05 起）：公告沒填所屬年度、但真的有配發的那幾次，集中在**最後一列**，全市場約 15 筆（例如 2496 的 2026-08-19 現金 1.5 元）。",
+        }),
+        rocFiscalYear: z.number().nullable().openapi({ description: "民國年度。跟 fiscalYear 同時為 null。" }),
+        cashDividend: z.number().openapi({
+          description: "現金股利（元）。特別股（例如 1312A）自 2026-10-05 起是實際的特別股股利，以前一律是 0。",
+        }),
         cashDividendFromEarnings: z.number(),
         cashDividendFromLegalReserveAndCapitalSurplus: z.number(),
         stockDividend: z.number(),
