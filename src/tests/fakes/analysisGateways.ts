@@ -2,6 +2,7 @@ import { vi } from "vitest";
 import type { EtfScreenerGatewayPort } from "@/application/ports/etfScreenerGateway.js";
 import type { MarketGatewayPort } from "@/application/ports/marketGateway.js";
 import type { ScreenerGatewayPort } from "@/application/ports/screenerGateway.js";
+import type { SecuritiesGatewayPort } from "@/application/ports/securitiesGateway.js";
 import type { StockGatewayPort } from "@/application/ports/stockGateway.js";
 
 /**
@@ -83,4 +84,9 @@ export function fakeScreenerGateway(overrides: Partial<ScreenerGatewayPort> = {}
     getValuationRanking: vi.fn(),
     ...overrides,
   };
+}
+
+/** 只有一個方法——assertSymbolExists 在報價查不到時用它做成員檢查（ETF 與特別股沒有公司檔案）。 */
+export function fakeSecuritiesGateway(overrides: Partial<SecuritiesGatewayPort> = {}): SecuritiesGatewayPort {
+  return { getSecurityList: vi.fn(), ...overrides };
 }

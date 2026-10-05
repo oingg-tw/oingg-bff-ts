@@ -17,15 +17,25 @@ function assertValidAction(action: unknown): asserts action is TransactionAction
   }
 }
 
+/** 上界對齊資料庫欄位——理由與 holdings.service.ts 的同名常數相同（缺上界時溢出會變 500 而非 400）。 */
+const MAX_INT32 = 2_147_483_647;
+/**
+ * `Decimal(18,4)` 的真正上限是 99999999999999.9999，但那個字面值在 double 裡**不可精確表示**
+ * （14 位整數加 4 位小數超過 53 bit 尾數，oxlint 的 no-loss-of-precision 抓到的就是這個）。
+ * 所以改用可精確表示的 1e14 當**開區間**上界：小於 1e14 的值整數部分一定在 14 位內，必然放得下。
+ * 代價是多擋掉 [99999999999999.9999, 1e14) 這個寬度 0.0001 的縫，那個範圍沒有真實用途。
+ */
+const DECIMAL_18_4_EXCLUSIVE_MAX = 1e14;
+
 function assertValidQuantity(quantity: number): void {
-  if (!Number.isInteger(quantity) || quantity <= 0) {
-    throw new AppError('"quantity" must be a positive integer', 400);
+  if (!Number.isInteger(quantity) || quantity <= 0 || quantity > MAX_INT32) {
+    throw new AppError(`"quantity" must be a positive integer no greater than ${MAX_INT32}`, 400);
   }
 }
 
 function assertValidAmount(value: number, field: string, { allowZero }: { allowZero: boolean }): void {
-  if (!Number.isFinite(value) || (allowZero ? value < 0 : value <= 0)) {
-    throw new AppError(`"${field}" must be a ${allowZero ? "non-negative" : "positive"} number`, 400);
+  if (!Number.isFinite(value) || (allowZero ? value < 0 : value <= 0) || value >= DECIMAL_18_4_EXCLUSIVE_MAX) {
+    throw new AppError(`"${field}" must be a ${allowZero ? "non-negative" : "positive"} number within the column precision`, 400);
   }
 }
 
