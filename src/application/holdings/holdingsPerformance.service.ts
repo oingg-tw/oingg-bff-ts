@@ -94,6 +94,8 @@ export async function getPortfolioPerformance(
     // 超過上游能回溯的深度時，較早的日子會沒有收盤價、只能用交易價估值——那是一個看起來正常的錯數字。
     // 寧可明確拒絕，並告訴呼叫端最早可以從哪天開始。
     const earliest = taiexDates.at(-(STOCK_PRICE_LIMIT - CLOSE_LOOKBACK_DAYS));
+    // web-nuxt 用正則從這句話抽出「on or after YYYY-MM-DD」的日期再翻成中文（2026-10-05 告知）。
+    // 改措辭時請保留那一段；日期只存在訊息裡，因為 AppError 的 details 在 production 會被拿掉。
     throw new AppError(`The range is longer than the available price history; "from" must be on or after ${earliest}`, 400);
   }
 
