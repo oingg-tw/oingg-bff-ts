@@ -27,4 +27,12 @@ export interface TransactionsPort {
 
   /** false 代表沒有刪到任何列，同樣不區分「不存在」與「不是你的」。 */
   remove(firebaseUid: string, id: string): Promise<boolean>;
+
+  /**
+   * 刪掉這個使用者在這個代號底下的**所有**交易，回傳刪掉的筆數。DELETE /holdings/:symbol 用它。
+   *
+   * 2026-10-05 加的：持股變成交易的投影之後，「刪掉一檔持股」沒有別的意思可以表達。
+   * where 同時帶 firebaseUid 與 symbol——不是空的 where，刪除範圍永遠被使用者與代號夾住。
+   */
+  removeBySymbol(firebaseUid: string, symbol: string): Promise<number>;
 }

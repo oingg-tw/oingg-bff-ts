@@ -1,4 +1,5 @@
 import { AppError } from "@/domain/appError.js";
+import { projectHoldings, type LedgerEntry } from "@/domain/holdingProjection.js";
 import type { AppDeps } from "@/application/deps.js";
 import type {
   StockTransaction,
@@ -45,6 +46,50 @@ function assertValidTradeDate(tradeDate: string): void {
   }
 }
 
+/**
+ * 交易紀錄 DTO → domain 的 replay 輸入。字串轉數字只發生在這裡，持股投影（holdings.service.ts）
+ * 也用這一支，所以兩邊讀出來的一定是同一組數字。
+ *
+ * 這幾個欄位在資料庫都是 NOT NULL（price/fee/tax 有 default 0），所以 `Number()` 在這裡是安全的。
+ * 它對 null 會回 0 而不是 NaN，**不要**把這個模式搬去處理上游可能缺欄位的回應。
+ */
+export function toLedgerEntry(row: StockTransaction): LedgerEntry {
+  return {
+    symbol: row.symbol,
+    action: row.action,
+    quantity: row.quantity,
+    price: Number(row.price),
+    fee: Number(row.fee),
+    tax: Number(row.tax),
+    tradeDate: row.tradeDate,
+    createdAt: row.createdAt,
+  };
+}
+
+/**
+ * **寫入時驗證的是「整段 replay 還成不成立」，不是「這一筆合不合法」。**
+ *
+ * 持股是交易的投影（2026-10-05）之後這是必然的：改掉一筆過去的買進、或刪掉它，都可能讓**之後**某一筆
+ * 賣出變成賣超。所以每個寫入路徑都要先把這個代號現有的交易取出來、套上候選變更、整段重跑一次。
+ * 只檢查當下那一筆的話，使用者可以用「先新增賣出、再刪掉買進」繞出一個負部位。
+ *
+ * 賣超回 400 而不是 409：錯在呼叫端送了一筆手上股數不夠的賣出。訊息帶上那個時點的股數，
+ * 否則前端只能說「不行」卻說不出為什麼。
+ *
+ * ponytail: 讀出來驗證再寫入，中間沒有鎖——同一使用者同一代號的併發寫入可能各自通過檢查、合起來賣超。
+ * 單人投資組合的視窗極小，而且投影在賣超時會把那一筆夾成「全賣」而不是壞掉（見 projectHoldings）。
+ * 真的要擋就把驗證與寫入包進一個 serializable transaction，那需要 port 多一個方法。
+ */
+function assertReplayStaysValid(entries: readonly LedgerEntry[]): void {
+  const { oversold } = projectHoldings(entries);
+  if (oversold) {
+    throw new AppError(
+      `Selling ${oversold.attempted} shares of "${oversold.symbol}" on ${oversold.tradeDate} would exceed the ${oversold.held} you hold at that point`,
+      400,
+    );
+  }
+}
+
 export async function getTransactions(
   firebaseUid: string,
   symbol: string | undefined,
@@ -69,6 +114,9 @@ export async function getTransactionOrThrow(
  * Symbol existence is validated by the caller (transactions.routes.ts, via bff-ts's
  * stock.assertSymbolExists) before this is invoked — this domain's own service has no reason to reach
  * across into the stock pass-through's live quote data itself.
+ *
+ * `price` 允許 0：配股／股票分割記成「價格 0 的買進」，這是 web-nuxt 2026-10-05 提的表達方式，比加一個
+ * 新的 action 列舉值便宜——replay 不需要知道股數是買來的還是配來的，成本 0、股數增加就是對的。
  */
 export async function addTransaction(
   firebaseUid: string,
@@ -77,10 +125,14 @@ export async function addTransaction(
 ): Promise<StockTransaction> {
   assertValidAction(input.action);
   assertValidQuantity(input.quantity);
-  assertValidAmount(input.price, "price", { allowZero: false });
+  assertValidAmount(input.price, "price", { allowZero: true });
   assertValidAmount(input.fee, "fee", { allowZero: true });
   assertValidAmount(input.tax, "tax", { allowZero: true });
   assertValidTradeDate(input.tradeDate);
+
+  const existing = await deps.transactions.list(firebaseUid, input.symbol);
+  // 候選交易的 createdAt 取「現在」：它是同日最後寫入的那一筆，跟落地之後的排序一致。
+  assertReplayStaysValid([...existing.map(toLedgerEntry), { ...input, createdAt: new Date().toISOString() }]);
 
   return deps.transactions.create(firebaseUid, input);
 }
@@ -98,7 +150,7 @@ export async function editTransaction(
     assertValidQuantity(update.quantity);
   }
   if (update.price !== undefined) {
-    assertValidAmount(update.price, "price", { allowZero: false });
+    assertValidAmount(update.price, "price", { allowZero: true });
   }
   if (update.fee !== undefined) {
     assertValidAmount(update.fee, "fee", { allowZero: true });
@@ -110,6 +162,15 @@ export async function editTransaction(
     assertValidTradeDate(update.tradeDate);
   }
 
+  // find 先行是為了拿到 symbol（只有它知道要重跑哪個代號）。找不到就是 404，跟改之前一樣。
+  const existing = await deps.transactions.find(firebaseUid, id);
+  if (!existing) {
+    throw new AppError(`Transaction ${id} not found`, 404);
+  }
+  const siblings = await deps.transactions.list(firebaseUid, existing.symbol);
+  const edited: LedgerEntry = { ...toLedgerEntry(existing), ...update };
+  assertReplayStaysValid([...siblings.filter((row) => row.id !== id).map(toLedgerEntry), edited]);
+
   const transaction = await deps.transactions.update(firebaseUid, id, update);
   if (!transaction) {
     throw new AppError(`Transaction ${id} not found`, 404);
@@ -118,6 +179,14 @@ export async function editTransaction(
 }
 
 export async function removeTransaction(firebaseUid: string, id: string, deps: TransactionsDeps): Promise<void> {
+  // 刪一筆買進同樣可能讓之後的賣出變成賣超，所以 DELETE 也要驗整段 replay。
+  const existing = await deps.transactions.find(firebaseUid, id);
+  if (!existing) {
+    throw new AppError(`Transaction ${id} not found`, 404);
+  }
+  const siblings = await deps.transactions.list(firebaseUid, existing.symbol);
+  assertReplayStaysValid(siblings.filter((row) => row.id !== id).map(toLedgerEntry));
+
   const deleted = await deps.transactions.remove(firebaseUid, id);
   if (!deleted) {
     throw new AppError(`Transaction ${id} not found`, 404);

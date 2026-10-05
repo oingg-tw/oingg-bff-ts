@@ -12,7 +12,6 @@ import { firebaseTokenVerifier } from "@/infrastructure/firebase/tokenVerifier.j
 import { prismaSystemHealth } from "@/infrastructure/prisma/systemHealth.js";
 import { prismaColumnPresets } from "@/infrastructure/prisma/repositories/columnPresets.repository.js";
 import { prismaColumnPresetTemplates } from "@/infrastructure/prisma/repositories/columnPresetTemplates.repository.js";
-import { prismaHoldings } from "@/infrastructure/prisma/repositories/holdings.repository.js";
 import { prismaMetricCatalog } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
 import { prismaPresetTemplates } from "@/infrastructure/prisma/repositories/presetTemplates.repository.js";
 import { prismaScreenerPresets } from "@/infrastructure/prisma/repositories/screenerPresets.repository.js";
@@ -34,7 +33,6 @@ import { prismaWatchlist } from "@/infrastructure/prisma/repositories/watchlist.
 export function createAppDeps(): AppDeps {
   return {
     watchlist: prismaWatchlist,
-    holdings: prismaHoldings,
     transactions: prismaTransactions,
     user: prismaUser,
     userPreferences: prismaUserPreferences,

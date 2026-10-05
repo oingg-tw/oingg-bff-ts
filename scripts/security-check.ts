@@ -120,12 +120,13 @@ interface ResourceSpec {
   extraGetSuffixes?: string[];
 }
 
+// Holding is NOT in this list since 2026-10-05: it stopped being an id-keyed row and became a read-only
+// projection of StockTransaction. There is no cross-user identifier to probe — the key is the symbol,
+// which isn't a secret and is namespaced by firebaseUid. The one thing that still needs proving is that
+// DELETE /holdings/{symbol} can't reach another user's ledger; that's checked separately below, by
+// behaviour rather than by status code (a 404 would be the wrong assertion — A legitimately gets 404 for
+// a symbol A has no transactions for, whether or not B's rows survived).
 const RESOURCES: ResourceSpec[] = [
-  {
-    name: "Holding",
-    basePath: "/holdings",
-    createBody: (label) => ({ symbol: label === "A" ? "2330" : "2317", quantity: 1000, averageCost: 100 }),
-  },
   {
     name: "WatchlistItem",
     basePath: "/watchlist",
@@ -209,6 +210,25 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
     }
   }
 
+  // DELETE /holdings/{symbol} takes a caller-supplied key and deletes rows, which is exactly the class
+  // this sweep exists for — the key just isn't an id. B seeds a transaction, A deletes the same symbol,
+  // B's ledger must be untouched.
+  const holdingSymbol = "2412";
+  await api("/transactions", {
+    method: "POST",
+    token: userB.idToken,
+    body: { symbol: holdingSymbol, action: "BUY", quantity: 1000, price: 100, tradeDate: "2026-08-01" },
+  });
+  await api(`/holdings/${holdingSymbol}`, { method: "DELETE", token: userA.idToken });
+  const bLedger = await api(`/transactions?symbol=${holdingSymbol}`, { token: userB.idToken });
+  const bRows = (bLedger.json as { transactions?: unknown[] })?.transactions;
+  if (Array.isArray(bRows) && bRows.length > 0) {
+    record("BOLA: DELETE /holdings/{symbol}", "PASS");
+  } else {
+    record("BOLA: DELETE /holdings/{symbol}", "FAIL", `A's delete wiped B's ${holdingSymbol} ledger (${JSON.stringify(bRows)})`);
+  }
+  await api(`/holdings/${holdingSymbol}`, { method: "DELETE", token: userB.idToken }).catch(() => undefined);
+
   // dashboard-cards has no ID param at all — it's inherently self-scoped to the caller's own token.
   // Confirm A's PUT never touches B's stored value.
   await api("/users/me/dashboard-cards", { method: "PUT", token: userB.idToken, body: { visibleCardIds: ["b-marker"] } });
@@ -261,7 +281,9 @@ async function runStaticChecks() {
   }
   void apiDocsBody;
 
-  const badUuid = await api("/holdings/not-a-valid-uuid", { token: undefined });
+  // /transactions, not /holdings: since 2026-10-05 the holdings path param is a symbol, not a UUID, so
+  // it no longer exercises the UUID parser this probe is aimed at.
+  const badUuid = await api("/transactions/not-a-valid-uuid", { token: undefined });
   const leaksInternals = /node_modules|at .*\.(ts|js):\d+|C:\\Users|\/home\//.test(badUuid.text);
   if (leaksInternals) {
     record("Error responses don't leak internals", "FAIL", "Response body appears to contain a stack trace or file path");

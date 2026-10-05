@@ -73,6 +73,12 @@ export async function deleteTransaction(firebaseUid: string, id: string): Promis
   return result.count > 0;
 }
 
+export async function deleteTransactionsBySymbol(firebaseUid: string, symbol: string): Promise<number> {
+  const prisma = getPrismaClient();
+  const result = await prisma.stockTransaction.deleteMany({ where: { firebaseUid, symbol } });
+  return result.count;
+}
+
 /**
  * TransactionsPort 的 Prisma 實作。
  *
@@ -85,4 +91,5 @@ export const prismaTransactions: TransactionsPort = {
   create: createTransaction,
   update: updateTransaction,
   remove: deleteTransaction,
+  removeBySymbol: deleteTransactionsBySymbol,
 };

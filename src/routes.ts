@@ -95,7 +95,7 @@ export function createRoutes(deps: AppDeps): Router {
   routes.use("/users", createUserRouter(deps));
   routes.use("/stocks", createStockRouter(deps)); // GET /stocks/:symbol
   routes.use("/watchlist", createWatchlistRouter(deps)); // GET/POST /watchlist, GET/PATCH/DELETE /watchlist/:id
-  routes.use("/holdings", createHoldingsRouter(deps)); // GET/POST /holdings, GET/PATCH/DELETE /holdings/:id
+  routes.use("/holdings", createHoldingsRouter(deps)); // GET /holdings, DELETE /holdings/:symbol（唯讀投影，見該切片）
   routes.use("/transactions", createTransactionsRouter(deps)); // GET/POST /transactions, GET/PATCH/DELETE /transactions/:id
   // POST /screener; POST /screener/values; GET/POST /screener/column-presets, GET/PATCH/DELETE /screener/column-presets/:id;
   // GET /screener/column-preset-templates, GET /screener/column-preset-templates/:key,

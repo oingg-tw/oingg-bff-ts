@@ -1,150 +1,97 @@
 import { describe, expect, it, vi } from "vitest";
-import type { HoldingsPort } from "@/application/ports/holdings.js";
-import {
-  addHolding,
-  editHolding,
-  getHoldingOrThrow,
-  getHoldings,
-  removeHolding,
-} from "@/application/holdings/holdings.service.js";
-
-const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
-
-const SAMPLE_HOLDING = {
-  id: SAMPLE_ID,
-  symbol: "2330",
-  quantity: 1000,
-  averageCost: "550.5000",
-  note: null,
-  createdAt: "2026-08-30T00:00:00.000Z",
-  updatedAt: "2026-08-30T00:00:00.000Z",
-};
+import type { TransactionsPort } from "@/application/ports/transactions.js";
+import type { StockTransaction } from "@/application/transactions/transactions.types.js";
+import { getHoldings, removeHoldingSymbol } from "@/application/holdings/holdings.service.js";
 
 /**
- * A fake port instead of `vi.mock` on the repository module. The test now states the *contract* the
- * service depends on, so it keeps passing if the storage behind it is rewritten — which is the whole
- * point of the port. It also can't drift from reality unnoticed: the object must satisfy HoldingsPort,
- * so adding a method to the port breaks this file at compile time rather than at runtime.
+ * 持股 2026-10-05 起沒有自己的 port——它讀的是 TransactionsPort。所以這個檔案驗的是**服務層的決定**
+ * （哪些部位進清單、怎麼排、字串精度、刪除的語意），fold 本身的算術在 holdingProjection.test.ts。
  */
-function fakeHoldings(overrides: Partial<HoldingsPort> = {}): HoldingsPort {
+function row(overrides: Partial<StockTransaction> & Pick<StockTransaction, "symbol" | "action" | "quantity" | "price">): StockTransaction {
+  return {
+    id: `aaaaaaaa-0000-4000-8000-${String(overrides.quantity).padStart(12, "0")}`,
+    fee: "0",
+    tax: "0",
+    tradeDate: "2026-01-01",
+    note: null,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function fakeTransactions(overrides: Partial<TransactionsPort> = {}): TransactionsPort {
   return {
     list: vi.fn().mockResolvedValue([]),
     find: vi.fn().mockResolvedValue(null),
-    create: vi.fn().mockResolvedValue({ ok: true, holding: SAMPLE_HOLDING }),
+    create: vi.fn(),
     update: vi.fn().mockResolvedValue(null),
     remove: vi.fn().mockResolvedValue(false),
+    removeBySymbol: vi.fn().mockResolvedValue(0),
     ...overrides,
   };
 }
 
 describe("getHoldings", () => {
-  it("passes the caller's uid straight through to the port", async () => {
-    const holdings = fakeHoldings({ list: vi.fn().mockResolvedValue([SAMPLE_HOLDING]) });
+  it("projects the whole ledger with 4-decimal strings", async () => {
+    const transactions = fakeTransactions({
+      list: vi.fn().mockResolvedValue([
+        row({ symbol: "2330", action: "BUY", quantity: 1000, price: "100", fee: "20" }),
+        row({ symbol: "2330", action: "BUY", quantity: 1000, price: "120", fee: "20", createdAt: "2026-01-01T01:00:00.000Z" }),
+      ]),
+    });
 
-    await expect(getHoldings("uid1", { holdings })).resolves.toEqual([SAMPLE_HOLDING]);
-    expect(holdings.list).toHaveBeenCalledWith("uid1");
+    await expect(getHoldings("uid1", { transactions })).resolves.toEqual([
+      { symbol: "2330", quantity: 2000, averageCost: "110.0200", totalCost: "220040.0000", realizedProfitLoss: "0.0000" },
+    ]);
+    // 全部代號一次算完，所以不帶 symbol 篩選。
+    expect(transactions.list).toHaveBeenCalledWith("uid1");
+  });
+
+  // 已出清就不是持股。這一條同時是「已實現損益會跟著消失」那個已知缺口的紀錄。
+  it("drops symbols whose position is closed, and sorts the rest by symbol", async () => {
+    const transactions = fakeTransactions({
+      list: vi.fn().mockResolvedValue([
+        row({ symbol: "2330", action: "BUY", quantity: 100, price: "1000" }),
+        row({ symbol: "0056", action: "BUY", quantity: 2000, price: "40" }),
+        row({ symbol: "0056", action: "SELL", quantity: 2000, price: "45", tradeDate: "2026-03-01" }),
+        row({ symbol: "1312A", action: "BUY", quantity: 500, price: "20" }),
+      ]),
+    });
+
+    const holdings = await getHoldings("uid1", { transactions });
+
+    expect(holdings.map((h) => h.symbol)).toEqual(["1312A", "2330"]);
+  });
+
+  // 併發寫入理論上能讓兩筆賣出各自通過檢查。那時候「看自己的持股」不能整個失敗。
+  it("still answers when the stored ledger is itself oversold", async () => {
+    const transactions = fakeTransactions({
+      list: vi.fn().mockResolvedValue([
+        row({ symbol: "2330", action: "BUY", quantity: 100, price: "10" }),
+        row({ symbol: "2330", action: "SELL", quantity: 300, price: "20", tradeDate: "2026-02-01" }),
+      ]),
+    });
+
+    await expect(getHoldings("uid1", { transactions })).resolves.toEqual([]);
+  });
+
+  it("returns an empty list for a user with no transactions", async () => {
+    await expect(getHoldings("uid1", { transactions: fakeTransactions() })).resolves.toEqual([]);
   });
 });
 
-describe("addHolding", () => {
-  it("rejects a non-positive-integer quantity without touching the port", async () => {
-    const holdings = fakeHoldings();
+describe("removeHoldingSymbol", () => {
+  it("throws a 404 when the user has no transactions for that symbol", async () => {
+    const transactions = fakeTransactions();
 
-    await expect(addHolding("uid1", "2330", 0, 550.5, null, { holdings })).rejects.toMatchObject({ statusCode: 400 });
-    await expect(addHolding("uid1", "2330", 1.5, 550.5, null, { holdings })).rejects.toMatchObject({ statusCode: 400 });
-    expect(holdings.create).not.toHaveBeenCalled();
+    await expect(removeHoldingSymbol("uid1", "2330", { transactions })).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it("rejects a negative averageCost without touching the port", async () => {
-    const holdings = fakeHoldings();
+  it("deletes every transaction for the symbol, scoped to the caller", async () => {
+    const transactions = fakeTransactions({ removeBySymbol: vi.fn().mockResolvedValue(3) });
 
-    await expect(addHolding("uid1", "2330", 1000, -1, null, { holdings })).rejects.toMatchObject({ statusCode: 400 });
-    expect(holdings.create).not.toHaveBeenCalled();
-  });
-
-  it("creates the holding once the symbol and values are valid", async () => {
-    const holdings = fakeHoldings();
-
-    const result = await addHolding("uid1", "2330", 1000, 550.5, null, { holdings });
-
-    expect(result).toEqual(SAMPLE_HOLDING);
-    expect(holdings.create).toHaveBeenCalledWith("uid1", "2330", 1000, 550.5, null);
-  });
-
-  // The duplicate case arrives as a value, not as a Prisma error. Before the ports refactor this
-  // assertion had to construct a PrismaClientKnownRequestError with code "P2002" — a test that proved
-  // the service understood one driver's error taxonomy rather than proving the 409 rule.
-  it("turns a duplicate into a 409 without knowing anything about the database", async () => {
-    const holdings = fakeHoldings({ create: vi.fn().mockResolvedValue({ ok: false, reason: "duplicate" }) });
-
-    await expect(addHolding("uid1", "2330", 1000, 550.5, null, { holdings })).rejects.toMatchObject({
-      statusCode: 409,
-      message: 'You already have a holding for "2330" — edit it instead',
-    });
-  });
-
-  it("lets an unexpected storage failure propagate untouched", async () => {
-    const holdings = fakeHoldings({ create: vi.fn().mockRejectedValue(new Error("connection lost")) });
-
-    await expect(addHolding("uid1", "2330", 1000, 550.5, null, { holdings })).rejects.toThrow("connection lost");
-  });
-});
-
-describe("getHoldingOrThrow", () => {
-  // "missing" and "belongs to someone else" are deliberately the same answer — see the port's docs.
-  it("throws a 404 when the holding doesn't exist (or belongs to a different user)", async () => {
-    const holdings = fakeHoldings();
-
-    await expect(getHoldingOrThrow("uid1", "missing-uuid", { holdings })).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it("returns the holding when found", async () => {
-    const holdings = fakeHoldings({ find: vi.fn().mockResolvedValue(SAMPLE_HOLDING) });
-
-    await expect(getHoldingOrThrow("uid1", SAMPLE_ID, { holdings })).resolves.toEqual(SAMPLE_HOLDING);
-  });
-});
-
-describe("editHolding", () => {
-  it("rejects an invalid quantity/averageCost before reaching the port", async () => {
-    const holdings = fakeHoldings();
-
-    await expect(editHolding("uid1", SAMPLE_ID, { quantity: -5 }, { holdings })).rejects.toMatchObject({
-      statusCode: 400,
-    });
-    await expect(editHolding("uid1", SAMPLE_ID, { averageCost: -1 }, { holdings })).rejects.toMatchObject({
-      statusCode: 400,
-    });
-    expect(holdings.update).not.toHaveBeenCalled();
-  });
-
-  it("throws a 404 when the update matched no row", async () => {
-    const holdings = fakeHoldings();
-
-    await expect(editHolding("uid1", SAMPLE_ID, { note: "x" }, { holdings })).rejects.toMatchObject({
-      statusCode: 404,
-    });
-  });
-
-  it("returns the updated holding on success", async () => {
-    const updated = { ...SAMPLE_HOLDING, quantity: 2000 };
-    const holdings = fakeHoldings({ update: vi.fn().mockResolvedValue(updated) });
-
-    await expect(editHolding("uid1", SAMPLE_ID, { quantity: 2000 }, { holdings })).resolves.toEqual(updated);
-    expect(holdings.update).toHaveBeenCalledWith("uid1", SAMPLE_ID, { quantity: 2000 });
-  });
-});
-
-describe("removeHolding", () => {
-  it("throws a 404 when nothing was deleted", async () => {
-    const holdings = fakeHoldings();
-
-    await expect(removeHolding("uid1", SAMPLE_ID, { holdings })).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it("resolves silently when the row was deleted", async () => {
-    const holdings = fakeHoldings({ remove: vi.fn().mockResolvedValue(true) });
-
-    await expect(removeHolding("uid1", SAMPLE_ID, { holdings })).resolves.toBeUndefined();
+    await expect(removeHoldingSymbol("uid1", "2330", { transactions })).resolves.toBeUndefined();
+    expect(transactions.removeBySymbol).toHaveBeenCalledWith("uid1", "2330");
   });
 });

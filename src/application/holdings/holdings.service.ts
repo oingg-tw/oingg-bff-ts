@@ -1,100 +1,51 @@
 import { AppError } from "@/domain/appError.js";
+import { projectHoldings, type ProjectedHolding } from "@/domain/holdingProjection.js";
+import { toLedgerEntry } from "@/application/transactions/transactions.service.js";
 import type { AppDeps } from "@/application/deps.js";
-import type { Holding, HoldingUpdate } from "@/application/holdings/holdings.types.js";
-
-export type HoldingsDeps = Pick<AppDeps, "holdings">;
+import type { Holding } from "@/application/holdings/holdings.types.js";
 
 /**
- * 上界對齊**資料庫欄位**而不是某個猜出來的業務上限：`quantity` 是 `Int`（最大 2,147,483,647），
- * `averageCost` 是 `Decimal(18,4)`（整數部分 14 位）。少了上界的話，一個合法的正整數也能溢出欄位，
- * 而那會變成 500 而不是 400——錯在呼叫端卻看起來像我們壞了。2026-10-05 由 web-nuxt 指出。
- *
- * 整數與正數的檢查本來就有（所以「完全沒驗」是誤會，缺的只有上界）。
+ * **這個切片不再有自己的 port。** 持股是交易紀錄的投影（2026-10-05），所以它要的依賴就是
+ * `transactions`——`HoldingsPort` 與 prismaHoldings 連同那張表的讀寫一起刪掉了。
  */
-const MAX_INT32 = 2_147_483_647;
+export type HoldingsDeps = Pick<AppDeps, "transactions">;
+
+/** 對齊 `Decimal(18,4)`：交易紀錄存 4 位小數，算出來的均價也就只在那個精度上有意義。 */
+const DECIMAL_PLACES = 4;
+
+function toHolding(position: ProjectedHolding): Holding {
+  return {
+    symbol: position.symbol,
+    quantity: position.quantity,
+    averageCost: position.averageCost.toFixed(DECIMAL_PLACES),
+    totalCost: position.totalCost.toFixed(DECIMAL_PLACES),
+    realizedProfitLoss: position.realizedProfitLoss.toFixed(DECIMAL_PLACES),
+  };
+}
+
 /**
- * `Decimal(18,4)` 的真正上限是 99999999999999.9999，但那個字面值在 double 裡**不可精確表示**
- * （14 位整數加 4 位小數超過 53 bit 尾數，oxlint 的 no-loss-of-precision 抓到的就是這個）。
- * 所以改用可精確表示的 1e14 當**開區間**上界：小於 1e14 的值整數部分一定在 14 位內，必然放得下。
- * 代價是多擋掉 [99999999999999.9999, 1e14) 這個寬度 0.0001 的縫，那個範圍沒有真實用途。
+ * 已出清（股數 0）的代號不列入——這是「持股明細」，不是「交易過的代號清單」。排序用代號，
+ * 因為投影出來的順序取決於 Map 的插入順序（也就是最早交易日），那不是使用者預期的清單順序。
  */
-const DECIMAL_18_4_EXCLUSIVE_MAX = 1e14;
-
-function assertValidQuantity(quantity: number): void {
-  if (!Number.isInteger(quantity) || quantity <= 0 || quantity > MAX_INT32) {
-    throw new AppError(`"quantity" must be a positive integer no greater than ${MAX_INT32}`, 400);
-  }
-}
-
-function assertValidAverageCost(averageCost: number): void {
-  if (!Number.isFinite(averageCost) || averageCost < 0 || averageCost >= DECIMAL_18_4_EXCLUSIVE_MAX) {
-    throw new AppError('"averageCost" must be a non-negative number within the column precision', 400);
-  }
-}
-
 export async function getHoldings(firebaseUid: string, deps: HoldingsDeps): Promise<Holding[]> {
-  return deps.holdings.list(firebaseUid);
-}
-
-export async function getHoldingOrThrow(firebaseUid: string, id: string, deps: HoldingsDeps): Promise<Holding> {
-  const holding = await deps.holdings.find(firebaseUid, id);
-  if (!holding) {
-    throw new AppError(`Holding ${id} not found`, 404);
-  }
-  return holding;
+  const rows = await deps.transactions.list(firebaseUid);
+  const { holdings } = projectHoldings(rows.map(toLedgerEntry));
+  return holdings
+    .filter((position) => position.quantity > 0)
+    .map(toHolding)
+    .sort((a, b) => a.symbol.localeCompare(b.symbol));
 }
 
 /**
- * Symbol existence is validated by the caller (holdings.routes.ts, via bff-ts's stock.assertSymbolExists)
- * before this is invoked — this domain's own service has no reason to reach across into the stock
- * pass-through's live quote data itself.
+ * DELETE /holdings/:symbol。持股是算出來的，所以「刪掉一檔持股」只能是**刪掉它底下所有的交易**——
+ * 這是 web-nuxt 2026-10-05 明確要求保留的語意（他們的「可復原刪除」是把這個請求延到提示關閉才送，
+ * 所以伺服器端不需要任何復原機制）。要刪單獨一筆交易走 DELETE /transactions/:id。
  *
- * The duplicate case arrives as a value from the port rather than as a thrown Prisma error. Before the
- * ports refactor this function caught `Prisma.PrismaClientKnownRequestError` and compared `error.code`
- * to "P2002", which quietly tied the 409 to one specific database driver: swap the driver and the catch
- * stops matching, turning a clean 409 into a 500 with no test failing.
+ * 404 的條件是「這個代號你沒有任何交易」，跟舊契約「那一列不存在」對使用者是同一件事。
  */
-export async function addHolding(
-  firebaseUid: string,
-  symbol: string,
-  quantity: number,
-  averageCost: number,
-  note: string | null,
-  deps: HoldingsDeps,
-): Promise<Holding> {
-  assertValidQuantity(quantity);
-  assertValidAverageCost(averageCost);
-
-  const result = await deps.holdings.create(firebaseUid, symbol, quantity, averageCost, note);
-  if (!result.ok) {
-    throw new AppError(`You already have a holding for "${symbol}" — edit it instead`, 409);
-  }
-  return result.holding;
-}
-
-export async function editHolding(
-  firebaseUid: string,
-  id: string,
-  update: HoldingUpdate,
-  deps: HoldingsDeps,
-): Promise<Holding> {
-  if (update.quantity !== undefined) {
-    assertValidQuantity(update.quantity);
-  }
-  if (update.averageCost !== undefined) {
-    assertValidAverageCost(update.averageCost);
-  }
-
-  const holding = await deps.holdings.update(firebaseUid, id, update);
-  if (!holding) {
-    throw new AppError(`Holding ${id} not found`, 404);
-  }
-  return holding;
-}
-
-export async function removeHolding(firebaseUid: string, id: string, deps: HoldingsDeps): Promise<void> {
-  const deleted = await deps.holdings.remove(firebaseUid, id);
-  if (!deleted) {
-    throw new AppError(`Holding ${id} not found`, 404);
+export async function removeHoldingSymbol(firebaseUid: string, symbol: string, deps: HoldingsDeps): Promise<void> {
+  const deleted = await deps.transactions.removeBySymbol(firebaseUid, symbol);
+  if (deleted === 0) {
+    throw new AppError(`You have no transactions for "${symbol}"`, 404);
   }
 }

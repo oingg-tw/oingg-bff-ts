@@ -2,7 +2,6 @@ import type { ColumnPresetsPort } from "@/application/ports/columnPresets.js";
 import type { ColumnPresetTemplatesPort } from "@/application/ports/columnPresetTemplates.js";
 import type { EmailGatewayPort } from "@/application/ports/emailGateway.js";
 import type { EtfScreenerGatewayPort } from "@/application/ports/etfScreenerGateway.js";
-import type { HoldingsPort } from "@/application/ports/holdings.js";
 import type { IndustriesGatewayPort } from "@/application/ports/industriesGateway.js";
 import type { MacroGatewayPort } from "@/application/ports/macroGateway.js";
 import type { MarketGatewayPort } from "@/application/ports/marketGateway.js";
@@ -34,7 +33,10 @@ import type { WatchlistPort } from "@/application/ports/watchlist.js";
 export interface AppDeps {
   // --- 業務中台：這個服務自己擁有的資料 ---
   watchlist: WatchlistPort;
-  holdings: HoldingsPort;
+  /**
+   * 交易紀錄。**持股明細沒有自己的 port**——2026-10-05 起它是這張表的唯讀投影
+   * （見 domain/holdingProjection.ts），`HoldingsPort` 連同 prismaHoldings 一起刪掉了。
+   */
   transactions: TransactionsPort;
   user: UserPort;
   /** 五張以 firebaseUid 為鍵的偏好設定表，合成一個 port——為什麼不拆成五個見該檔案的說明。 */

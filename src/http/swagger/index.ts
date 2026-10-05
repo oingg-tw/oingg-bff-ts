@@ -51,7 +51,7 @@ function generateDocument() {
       { name: "Billing", description: "訂閱方案與額度（只鎖查詢廣度／歷史深度／匯出推播，不影響任何個股分析內容）" },
       { name: "Stock", description: "股票資料查詢——股價、本益比、本淨比、殖利率" },
       { name: "Watchlist", description: "使用者自選股清單 CRUD" },
-      { name: "Holdings", description: "使用者持股管理 CRUD（獨立維護，不從交易日誌自動計算）" },
+      { name: "Holdings", description: "使用者持股明細（唯讀投影，由交易紀錄算出；2026-10-05 起不再獨立維護）" },
       { name: "Transactions", description: "交易日誌（買進／賣出交易紀錄）CRUD" },
       { name: "Screener", description: "依 metricCatalog 指標篩選個股，並依使用者設定的欄位偏好回傳結果" },
       { name: "Market", description: "市場排行/清單（外資持股、券資比、注意股、處置股、成交量、漲跌幅、ETF 排行等）" },

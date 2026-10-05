@@ -444,6 +444,12 @@ model ScreenerPreset {
 /// A user's current position in a stock (持股管理) — maintained independently of StockTransaction,
 /// not computed from it. Quantity/averageCost are whatever the user says they are; adjusting them after
 /// recording a trade in StockTransaction is a separate, manual step (see src/domainBusiness/holdings).
+/// **2026-10-05 起沒有任何程式碼讀寫這張表。** 持股明細改成由 StockTransaction 算出來的唯讀投影
+/// （見 src/domain/holdingProjection.ts）。
+///
+/// 刻意**不在同一個變更裡 drop**：部署端與本機共用同一個 Neon 資料庫，而部署端跑的還是舊程式碼——
+/// 先 drop 的話那邊的 GET /holdings 會在新版部署上去之前一路 500。等新程式碼部署完再補一個 migration 刪掉。
+/// 目前 0 列，沒有任何外鍵指向它，留著不花成本。
 model Holding {
   id          String   @id @default(uuid()) @db.Uuid
   firebaseUid String   @map("firebase_uid")
