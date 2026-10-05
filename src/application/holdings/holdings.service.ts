@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { projectHoldings, type ProjectedHolding } from "@/domain/holdingProjection.js";
+import { projectHoldings, type LedgerEntry, type ProjectedHolding } from "@/domain/holdingProjection.js";
 import { toLedgerEntry } from "@/application/transactions/transactions.service.js";
 import type { AppDeps } from "@/application/deps.js";
 import type { Holding } from "@/application/holdings/holdings.types.js";
@@ -24,16 +24,22 @@ function toHolding(position: ProjectedHolding): Holding {
 }
 
 /**
- * 已出清（股數 0）的代號不列入——這是「持股明細」，不是「交易過的代號清單」。排序用代號，
+ * 一組交易 → 對外的持股清單。**GET /holdings 與匯入的 dryRun 預覽共用這一支**，所以兩邊的
+ * 成本法、過濾規則與小數位永遠一致——這正是 web-nuxt 不在前端另寫一份 replay 的理由。
+ *
+ * 已出清（股數 0）的代號不列入：這是「持股明細」，不是「交易過的代號清單」。排序用代號，
  * 因為投影出來的順序取決於 Map 的插入順序（也就是最早交易日），那不是使用者預期的清單順序。
  */
-export async function getHoldings(firebaseUid: string, deps: HoldingsDeps): Promise<Holding[]> {
-  const rows = await deps.transactions.list(firebaseUid);
-  const { holdings } = projectHoldings(rows.map(toLedgerEntry));
-  return holdings
-    .filter((position) => position.quantity > 0)
+export function holdingsFromLedger(entries: readonly LedgerEntry[]): Holding[] {
+  return projectHoldings(entries)
+    .holdings.filter((position) => position.quantity > 0)
     .map(toHolding)
     .sort((a, b) => a.symbol.localeCompare(b.symbol));
+}
+
+export async function getHoldings(firebaseUid: string, deps: HoldingsDeps): Promise<Holding[]> {
+  const rows = await deps.transactions.list(firebaseUid);
+  return holdingsFromLedger(rows.map(toLedgerEntry));
 }
 
 /**

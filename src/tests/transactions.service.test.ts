@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { TransactionsPort } from "@/application/ports/transactions.js";
+import { fakeTransactions } from "@/tests/fakes/transactions.js";
 import {
   addTransaction,
   editTransaction,
@@ -20,6 +20,9 @@ const SAMPLE_TRANSACTION = {
   tax: "0.0000",
   tradeDate: "2026-08-30",
   note: null,
+  source: null,
+  externalRef: null,
+  importId: null,
   createdAt: "2026-08-30T00:00:00.000Z",
   updatedAt: "2026-08-30T00:00:00.000Z",
 };
@@ -34,24 +37,6 @@ const VALID_INPUT = {
   tradeDate: "2026-08-30",
   note: null,
 };
-
-/**
- * A fake port instead of `vi.mock` on the repository module. The test now states the *contract* the
- * service depends on, so it keeps passing if the storage behind it is rewritten — which is the whole
- * point of the port. It also can't drift from reality unnoticed: the object must satisfy
- * TransactionsPort, so adding a method to the port breaks this file at compile time, not at runtime.
- */
-function fakeTransactions(overrides: Partial<TransactionsPort> = {}): TransactionsPort {
-  return {
-    list: vi.fn().mockResolvedValue([]),
-    find: vi.fn().mockResolvedValue(null),
-    create: vi.fn().mockResolvedValue(SAMPLE_TRANSACTION),
-    update: vi.fn().mockResolvedValue(null),
-    remove: vi.fn().mockResolvedValue(false),
-    removeBySymbol: vi.fn().mockResolvedValue(0),
-    ...overrides,
-  };
-}
 
 describe("getTransactions", () => {
   it("passes the caller's uid and the optional symbol filter straight through to the port", async () => {
@@ -93,7 +78,7 @@ describe("addTransaction", () => {
 
   // 2026-10-05：price 0 從「不合法」變成「配股／分割」的表達方式，所以這裡驗的是**允許**。
   it("accepts a price of 0 (配股／分割 記成價格 0 的買進)", async () => {
-    const transactions = fakeTransactions();
+    const transactions = fakeTransactions({ create: vi.fn().mockResolvedValue(SAMPLE_TRANSACTION) });
 
     await expect(addTransaction("uid1", { ...VALID_INPUT, price: 0 }, { transactions })).resolves.toEqual(
       SAMPLE_TRANSACTION,
@@ -131,7 +116,7 @@ describe("addTransaction", () => {
   });
 
   it("creates the transaction once every field validates", async () => {
-    const transactions = fakeTransactions();
+    const transactions = fakeTransactions({ create: vi.fn().mockResolvedValue(SAMPLE_TRANSACTION) });
 
     const result = await addTransaction("uid1", VALID_INPUT, { transactions });
 
@@ -243,7 +228,10 @@ describe("replay validation", () => {
   });
 
   it("accepts a sell that exactly closes the position", async () => {
-    const transactions = fakeTransactions({ list: vi.fn().mockResolvedValue([BUY_100]) });
+    const transactions = fakeTransactions({
+      list: vi.fn().mockResolvedValue([BUY_100]),
+      create: vi.fn().mockResolvedValue(SAMPLE_TRANSACTION),
+    });
 
     await expect(
       addTransaction(

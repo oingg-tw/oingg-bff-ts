@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { TransactionsPort } from "@/application/ports/transactions.js";
+import { fakeTransactions } from "@/tests/fakes/transactions.js";
 import type { StockTransaction } from "@/application/transactions/transactions.types.js";
 import { getHoldings, removeHoldingSymbol } from "@/application/holdings/holdings.service.js";
 
@@ -14,20 +14,11 @@ function row(overrides: Partial<StockTransaction> & Pick<StockTransaction, "symb
     tax: "0",
     tradeDate: "2026-01-01",
     note: null,
+    source: null,
+    externalRef: null,
+    importId: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
-    ...overrides,
-  };
-}
-
-function fakeTransactions(overrides: Partial<TransactionsPort> = {}): TransactionsPort {
-  return {
-    list: vi.fn().mockResolvedValue([]),
-    find: vi.fn().mockResolvedValue(null),
-    create: vi.fn(),
-    update: vi.fn().mockResolvedValue(null),
-    remove: vi.fn().mockResolvedValue(false),
-    removeBySymbol: vi.fn().mockResolvedValue(0),
     ...overrides,
   };
 }

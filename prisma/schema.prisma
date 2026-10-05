@@ -482,10 +482,32 @@ model StockTransaction {
   tax         Decimal           @default(0) @db.Decimal(18, 4)
   tradeDate   DateTime          @map("trade_date") @db.Date
   note        String?
+  /**
+   * 批次匯入的來源命名空間（目前只有 "broker-csv"，期初部位用保留值 "opening"）。手動輸入是 null。
+   * 它是冪等鍵的一部分，所以**不是自由字串**——route 擋白名單，一個 typo 就會開出一個新的命名空間
+   * 然後靜默製造重複。
+   */
+  source      String?
+  /**
+   * 來源系統裡那一列的識別字串。券商 CSV 是 "YYYY-MM-DD|委託書號"——**委託書號單獨看不唯一**，
+   * 券商會跨日重用（web-nuxt 在一份 120 筆的真實匯出檔裡量到 6 個重複），所以要加上日期。
+   * 期初部位用代號本身。
+   */
+  externalRef String?           @map("external_ref")
+  /** 同一次匯入的所有列共用。DELETE /transactions/import/:importId 靠它一次撤銷整批。 */
+  importId    String?           @map("import_id") @db.Uuid
   createdAt   DateTime          @default(now()) @map("created_at")
   updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at")
 
+  /**
+   * 冪等鍵：重匯有重疊期間的檔案時，已經存在的列會被 createMany 的 skipDuplicates 跳過。
+   *
+   * **手動輸入的列兩欄都是 null，而 Postgres 的 NULL 在唯一索引裡不互相碰撞**，所以手動輸入完全
+   * 不受這把鍵限制（同一天同一檔買兩次仍然合法）。這是刻意利用的性質，不是漏洞。
+   */
+  @@unique([firebaseUid, source, externalRef])
   @@index([firebaseUid, tradeDate])
+  @@index([firebaseUid, importId])
   @@map("stock_transaction")
 }
 

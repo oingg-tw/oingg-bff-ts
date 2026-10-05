@@ -81,13 +81,38 @@ export function toLedgerEntry(row: StockTransaction): LedgerEntry {
  * 真的要擋就把驗證與寫入包進一個 serializable transaction，那需要 port 多一個方法。
  */
 function assertReplayStaysValid(entries: readonly LedgerEntry[]): void {
-  const { oversold } = projectHoldings(entries);
+  // 單筆寫入只需要第一筆賣超：訊息是給人看的，列出全部沒有幫助。批次匯入走的是 422 加完整清單。
+  const [oversold] = projectHoldings(entries).oversold;
   if (oversold) {
+    // `code` 是刻意加的，而且是這個回應裡唯一穩定的部分：web-nuxt 2026-10-05 說他們用正則從下面那句
+    // 英文抽數字再翻成中文。訊息的措辭是給人看的、會變；要分辨「這是賣超」請判斷 code。
+    // 數字目前只在訊息裡（AppError 的 details 在 production 會被整個拿掉），要結構化的話整條路徑
+    // 就跟匯入一樣改成 422 加 shortfalls——他們要就換，不要為了「以後可能要」先長出來。
     throw new AppError(
       `Selling ${oversold.attempted} shares of "${oversold.symbol}" on ${oversold.tradeDate} would exceed the ${oversold.held} you hold at that point`,
       400,
+      undefined,
+      "LEDGER_OVERSOLD",
     );
   }
+}
+
+/**
+ * 一筆交易的欄位驗證。`addTransaction` 與批次匯入共用——匯入時少驗一項，整批就會帶著壞資料進資料庫，
+ * 而 replay 之後每次讀取都會重現那個錯誤。
+ *
+ * `price` 允許 0（配股／分割記成價格 0 的買進，web-nuxt 2026-10-05 提的表達方式，比加一個新的 action
+ * 列舉值便宜——replay 不需要知道股數是買來的還是配來的）。**負數仍然擋。**
+ */
+export function assertValidTransactionInput(
+  input: Pick<TransactionInput, "action" | "quantity" | "price" | "fee" | "tax" | "tradeDate">,
+): void {
+  assertValidAction(input.action);
+  assertValidQuantity(input.quantity);
+  assertValidAmount(input.price, "price", { allowZero: true });
+  assertValidAmount(input.fee, "fee", { allowZero: true });
+  assertValidAmount(input.tax, "tax", { allowZero: true });
+  assertValidTradeDate(input.tradeDate);
 }
 
 export async function getTransactions(
@@ -123,12 +148,7 @@ export async function addTransaction(
   input: TransactionInput,
   deps: TransactionsDeps,
 ): Promise<StockTransaction> {
-  assertValidAction(input.action);
-  assertValidQuantity(input.quantity);
-  assertValidAmount(input.price, "price", { allowZero: true });
-  assertValidAmount(input.fee, "fee", { allowZero: true });
-  assertValidAmount(input.tax, "tax", { allowZero: true });
-  assertValidTradeDate(input.tradeDate);
+  assertValidTransactionInput(input);
 
   const existing = await deps.transactions.list(firebaseUid, input.symbol);
   // 候選交易的 createdAt 取「現在」：它是同日最後寫入的那一筆，跟落地之後的排序一致。

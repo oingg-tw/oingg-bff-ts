@@ -10,8 +10,28 @@ export interface StockTransaction {
   tax: string;
   tradeDate: string;
   note: string | null;
+  /** 批次匯入的來源命名空間；手動輸入是 null。見 schema.prisma 的說明。 */
+  source: string | null;
+  /** 來源系統裡那一列的識別字串（券商 CSV 是 "YYYY-MM-DD|委託書號"）；手動輸入是 null。 */
+  externalRef: string | null;
+  /** 同一次匯入共用，用於整批撤銷；手動輸入是 null。 */
+  importId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * POST /transactions/import 要寫進去的一列。跟 TransactionInput 的差別是三個冪等／撤銷用的欄位，
+ * 以及 `createdAt` 由服務層**明確指派**而不是交給資料庫的 default now()。
+ *
+ * 為什麼要自己指派 createdAt：replay 的同日第二排序鍵就是它（見 domain/holdingProjection.ts），
+ * 而一次 createMany 的所有列會拿到同一個 now()——那樣之後每次重算的排序都是未定義的，同一份資料
+ * 可能算出不同的均價。匯入排序完才逐列指派，讓儲存下來的資料自己就能重現同一個答案。
+ */
+export interface ImportedTransaction extends TransactionInput {
+  source: string;
+  externalRef: string;
+  createdAt: Date;
 }
 
 /**

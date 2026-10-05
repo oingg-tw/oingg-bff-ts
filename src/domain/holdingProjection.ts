@@ -37,6 +37,11 @@ export interface LedgerEntry {
   tradeDate: string;
   /** ISO 字串。同日多筆時的第二排序鍵。 */
   createdAt: string;
+  /**
+   * 不透明的呼叫端識別字串，原封不動出現在 `Oversold.ref` 裡。批次匯入用它把賣超對回券商的
+   * `externalRef`，讓前端指得出是哪一列。domain 不解釋它的內容。
+   */
+  ref?: string;
 }
 
 export interface ProjectedHolding {
@@ -48,18 +53,30 @@ export interface ProjectedHolding {
   realizedProfitLoss: number;
 }
 
-/** 第一筆賣超的交易。`held` 是那個時點手上的股數，`attempted` 是那一筆想賣的股數。 */
+/** 一筆賣超的交易。`held` 是那個時點手上的股數，`attempted` 是那一筆想賣的股數。 */
 export interface Oversold {
   symbol: string;
   tradeDate: string;
   held: number;
   attempted: number;
+  /** `attempted - held`，也就是那個時點缺的股數。 */
+  shortBy: number;
+  /** 呼叫端給的識別字串（LedgerEntry.ref），沒給就是 undefined。 */
+  ref?: string;
 }
 
 export interface Projection {
   holdings: ProjectedHolding[];
-  /** null 代表整段 replay 合法。非 null 時 holdings 仍然算得出來（賣超那一筆被夾成「全賣」）。 */
-  oversold: Oversold | null;
+  /**
+   * **每一筆**賣超，依 replay 順序；空陣列代表整段合法。
+   *
+   * 刻意不是「第一筆」：批次匯入要一次把所有缺的期初部位請使用者補完，只回第一筆的話那會變成
+   * 補一檔、重匯、再被擋一次的來回。單筆寫入的路徑只看 `[0]`。
+   *
+   * **同一檔有多筆賣超時，後面幾筆的 `shortBy` 是在前一筆已經被夾成 0 的前提下算的**，所以
+   * 要推估該補多少期初股數請取同一檔的**最大值**，不要相加。
+   */
+  oversold: Oversold[];
 }
 
 /**
@@ -79,13 +96,14 @@ function byReplayOrder(a: LedgerEntry, b: LedgerEntry): number {
 /**
  * 把一組交易（可以跨代號）算成每個代號的持股。各代號的部位互不相干，所以整組一起排序沒問題。
  *
- * **不丟錯、也不在賣超時中斷**，因為兩個呼叫端要的不一樣：寫入路徑看 `oversold` 決定要不要回 400，
- * 讀取路徑（GET /holdings）則必須照樣回得出東西——併發寫入理論上能讓兩筆賣出同時通過檢查，那時候
- * 讓「看自己的持股」整個失敗是最糟的反應。賣超時把那一筆夾成「把手上的全部賣掉」繼續算下去。
+ * **不丟錯、也不在賣超時中斷**，因為三個呼叫端要的不一樣：單筆寫入看 `oversold[0]` 回 400、批次匯入
+ * 要整份清單回 422、而讀取路徑（GET /holdings）必須照樣回得出東西——併發寫入理論上能讓兩筆賣出同時
+ * 通過檢查，那時候讓「看自己的持股」整個失敗是最糟的反應。賣超時把那一筆夾成「把手上的全部賣掉」
+ * 繼續算下去。
  */
 export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
   const positions = new Map<string, ProjectedHolding>();
-  let oversold: Oversold | null = null;
+  const oversold: Oversold[] = [];
 
   for (const entry of [...entries].sort(byReplayOrder)) {
     let position = positions.get(entry.symbol);
@@ -99,8 +117,15 @@ export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
       position.totalCost += entry.quantity * entry.price + entry.fee;
     } else {
       const sold = Math.min(entry.quantity, position.quantity);
-      if (sold < entry.quantity && !oversold) {
-        oversold = { symbol: entry.symbol, tradeDate: entry.tradeDate, held: position.quantity, attempted: entry.quantity };
+      if (sold < entry.quantity) {
+        oversold.push({
+          symbol: entry.symbol,
+          tradeDate: entry.tradeDate,
+          held: position.quantity,
+          attempted: entry.quantity,
+          shortBy: entry.quantity - position.quantity,
+          ...(entry.ref === undefined ? {} : { ref: entry.ref }),
+        });
       }
       // 全部賣出時直接扣掉整個剩餘成本，而不是 (totalCost / quantity) * quantity：後者在 double 下會留下
       // 一個 1e-10 等級的殘值，讓「已出清」的部位帶著一個不是 0 的成本。

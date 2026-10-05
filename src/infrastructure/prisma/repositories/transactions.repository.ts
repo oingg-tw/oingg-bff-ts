@@ -1,6 +1,7 @@
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { StockTransaction as StockTransactionRow } from "@/generated/prisma/client.js";
 import type {
+  ImportedTransaction,
   StockTransaction,
   TransactionInput,
   TransactionUpdate,
@@ -22,6 +23,9 @@ function toStockTransaction(row: StockTransactionRow): StockTransaction {
     tax: row.tax.toString(),
     tradeDate: toDateString(row.tradeDate),
     note: row.note,
+    source: row.source,
+    externalRef: row.externalRef,
+    importId: row.importId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -73,6 +77,50 @@ export async function deleteTransaction(firebaseUid: string, id: string): Promis
   return result.count > 0;
 }
 
+/**
+ * `skipDuplicates` 靠的是 (firebase_uid, source, external_ref) 的唯一索引，所以重複的列會被跳過而不是
+ * 讓整批失敗。**createMany 本身就是單一敘述、原子性的**，不需要再包一層 $transaction——「一次全寫或
+ * 全不寫」是 Postgres 給的，不是我們實作的。
+ */
+export async function createManyImported(
+  firebaseUid: string,
+  importId: string,
+  rows: readonly ImportedTransaction[],
+): Promise<number> {
+  const prisma = getPrismaClient();
+  const result = await prisma.stockTransaction.createMany({
+    data: rows.map((row) => ({ ...row, firebaseUid, importId, tradeDate: new Date(row.tradeDate) })),
+    skipDuplicates: true,
+  });
+  return result.count;
+}
+
+export async function existingExternalRefs(
+  firebaseUid: string,
+  source: string,
+  refs: readonly string[],
+): Promise<string[]> {
+  const prisma = getPrismaClient();
+  const rows = await prisma.stockTransaction.findMany({
+    where: { firebaseUid, source, externalRef: { in: [...refs] } },
+    select: { externalRef: true },
+  });
+  // externalRef 在 schema 是可為 null 的，但有 source 的列一定有它——這個 filter 只是讓型別收斂。
+  return rows.map((row) => row.externalRef).filter((ref): ref is string => ref !== null);
+}
+
+export async function listTransactionsByImportId(firebaseUid: string, importId: string): Promise<StockTransaction[]> {
+  const prisma = getPrismaClient();
+  const rows = await prisma.stockTransaction.findMany({ where: { firebaseUid, importId } });
+  return rows.map(toStockTransaction);
+}
+
+export async function deleteTransactionsByImportId(firebaseUid: string, importId: string): Promise<number> {
+  const prisma = getPrismaClient();
+  const result = await prisma.stockTransaction.deleteMany({ where: { firebaseUid, importId } });
+  return result.count;
+}
+
 export async function deleteTransactionsBySymbol(firebaseUid: string, symbol: string): Promise<number> {
   const prisma = getPrismaClient();
   const result = await prisma.stockTransaction.deleteMany({ where: { firebaseUid, symbol } });
@@ -92,4 +140,8 @@ export const prismaTransactions: TransactionsPort = {
   update: updateTransaction,
   remove: deleteTransaction,
   removeBySymbol: deleteTransactionsBySymbol,
+  createManyImported,
+  existingExternalRefs,
+  removeByImportId: deleteTransactionsByImportId,
+  listByImportId: listTransactionsByImportId,
 };

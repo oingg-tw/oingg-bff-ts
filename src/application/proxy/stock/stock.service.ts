@@ -21,16 +21,42 @@ const SECURITIES_PAGE_SIZE = 1000;
  * 上限 1000，所以最壞 3 次上游呼叫。上游**沒有**單一代號查詢（`?symbol=`／`?search=`／`?q=` 都被靜默
  * 忽略、照回整頁），所以目前只能走成員檢查；哪天上游補了存在查詢端點，這整個函式就該刪掉。
  */
-async function isListedSecurity(symbol: string, deps: StockProxyDeps): Promise<boolean> {
+async function* securityPages(deps: StockProxyDeps) {
   for (let offset = 0; ; offset += SECURITIES_PAGE_SIZE) {
     const page = await deps.securitiesGateway.getSecurityList(SECURITIES_PAGE_SIZE, offset);
-    if (page.entries.some((entry) => entry.symbol === symbol)) {
-      return true;
-    }
+    yield page.entries;
     if (offset + page.entries.length >= page.count || page.entries.length === 0) {
-      return false;
+      return;
     }
   }
+}
+
+async function isListedSecurity(symbol: string, deps: StockProxyDeps): Promise<boolean> {
+  for await (const entries of securityPages(deps)) {
+    if (entries.some((entry) => entry.symbol === symbol)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 整份有價證券總表的代號集合。**批次用這一支，不要對每個代號各跑一次 assertSymbolExists。**
+ *
+ * 一批匯入可能有 50 個不重複的代號；逐個驗證是 50～150 次上游呼叫（而且 dryRun 時使用者在等），
+ * 而整張表只要 3 次就拉完（2,722 列 ÷ 每頁 1000）。所以批次的成本與批次大小無關。
+ *
+ * 刻意**不含報價那一段**：assertSymbolExists 先查報價是為了讓單筆寫入的 86% 只付一次呼叫，
+ * 批次沒有那個便宜可以撿——總表本來就會全部拉完。
+ */
+export async function listedSymbols(deps: StockProxyDeps): Promise<Set<string>> {
+  const symbols = new Set<string>();
+  for await (const entries of securityPages(deps)) {
+    for (const entry of entries) {
+      symbols.add(entry.symbol);
+    }
+  }
+  return symbols;
 }
 
 /**

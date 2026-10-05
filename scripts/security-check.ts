@@ -229,6 +229,34 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
   }
   await api(`/holdings/${holdingSymbol}`, { method: "DELETE", token: userB.idToken }).catch(() => undefined);
 
+  // DELETE /transactions/import/{importId} is id-keyed and deletes a whole batch — the sweep above can't
+  // cover it (the create response carries `importId`, not `id`). B imports, A tries to revert B's batch,
+  // B's rows must survive. Checked by behaviour, not only by A's status code.
+  const imported = await api("/transactions/import", {
+    method: "POST",
+    token: userB.idToken,
+    body: {
+      source: "broker-csv",
+      transactions: [
+        { externalRef: `security-check-${randomUUID()}`, tradeDate: "2026-08-01", symbol: "2603", action: "BUY", quantity: 1000, price: 100 },
+      ],
+    },
+  });
+  const importId = (imported.json as { importId?: string } | undefined)?.importId;
+  if (!importId) {
+    record("BOLA: DELETE /transactions/import/{importId} setup", "WARN", `Could not create B's import (status ${imported.status}) — skipped`);
+  } else {
+    const attack = await api(`/transactions/import/${importId}`, { method: "DELETE", token: userA.idToken });
+    const bRowsAfter = await api("/transactions?symbol=2603", { token: userB.idToken });
+    const survived = ((bRowsAfter.json as { transactions?: unknown[] })?.transactions ?? []).length > 0;
+    if (attack.status === 404 && survived) {
+      record("BOLA: DELETE /transactions/import/{importId}", "PASS");
+    } else {
+      record("BOLA: DELETE /transactions/import/{importId}", "FAIL", `A's revert -> ${attack.status}, B's rows survived: ${survived}`);
+    }
+    await api(`/transactions/import/${importId}`, { method: "DELETE", token: userB.idToken }).catch(() => undefined);
+  }
+
   // dashboard-cards has no ID param at all — it's inherently self-scoped to the caller's own token.
   // Confirm A's PUT never touches B's stored value.
   await api("/users/me/dashboard-cards", { method: "PUT", token: userB.idToken, body: { visibleCardIds: ["b-marker"] } });

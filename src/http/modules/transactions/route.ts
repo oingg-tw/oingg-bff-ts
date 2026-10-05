@@ -14,6 +14,11 @@ import {
   removeTransaction,
 } from "@/application/transactions/transactions.service.js";
 import type { TransactionsDeps } from "@/application/transactions/transactions.service.js";
+import {
+  importTransactions,
+  revertTransactionImport,
+  type TransactionImportDeps,
+} from "@/application/transactions/transactionImport.service.js";
 import type { TransactionInput, TransactionUpdate } from "@/application/transactions/transactions.types.js";
 
 function requireUser(req: AuthenticatedRequest): string {
@@ -40,6 +45,39 @@ export const createTransactionSchema = z.object({
   note: z.string().nullish(),
 });
 
+/**
+ * 批次匯入。**券商 CSV 由前端在瀏覽器裡解析**（Big5 解碼、跳過小計列、檢查算術），原始檔案不上傳；
+ * 這裡收到的是已正規化、跟券商無關的交易列。換一家券商只要改前端，這份契約不用動。
+ *
+ * `action` 跟單筆的 schema 一樣留成字串，由 service 的 assertValidTransactionInput 驗——這樣兩條
+ * 路徑的錯誤訊息一致。
+ */
+export const importTransactionsSchema = z.object({
+  source: z.string(),
+  dryRun: z.boolean().optional(),
+  openingPositions: z
+    .array(
+      z.object({
+        symbol: z.string().trim().min(1),
+        quantity: z.number(),
+        averageCost: z.number(),
+      }),
+    )
+    .optional(),
+  transactions: z.array(
+    z.object({
+      externalRef: z.string().trim().min(1),
+      tradeDate: z.string(),
+      symbol: z.string().trim().min(1),
+      action: z.string(),
+      quantity: z.number(),
+      price: z.number(),
+      fee: z.number().optional(),
+      tax: z.number().optional(),
+    }),
+  ),
+});
+
 export const updateTransactionSchema = z.object({
   action: z.string().optional(),
   quantity: z.number().optional(),
@@ -54,7 +92,9 @@ export const updateTransactionSchema = z.object({
  * 路由改成工廠函式：依賴由 bootstrap 注入，而不是在模組載入時自己去 import 實作。
  * 這是 http 層不再依賴 infrastructure 的關鍵——它只認得 application 匯出的型別。
  */
-export function createTransactionsRouter(deps: TransactionsDeps & StockProxyDeps & AuthMiddlewareDeps): Router {
+export function createTransactionsRouter(
+  deps: TransactionsDeps & StockProxyDeps & TransactionImportDeps & AuthMiddlewareDeps,
+): Router {
   const transactionsRouter = Router();
   transactionsRouter.use(createRequireAuth(deps));
 
@@ -83,6 +123,50 @@ export function createTransactionsRouter(deps: TransactionsDeps & StockProxyDeps
     await assertSymbolExists(input.symbol, deps);
     const transaction = await addTransaction(firebaseUid, input, deps);
     res.status(201).json({ transaction });
+  });
+
+  /**
+   * **註冊順序有意義**：這兩條必須排在 `/:id` 之前，否則 "import" 會被當成 id 去解析 UUID 然後回 400。
+   */
+  transactionsRouter.post("/import", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = parseBody(importTransactionsSchema, req.body);
+
+    const outcome = await importTransactions(
+      firebaseUid,
+      {
+        source: body.source,
+        dryRun: body.dryRun ?? false,
+        openingPositions: body.openingPositions ?? [],
+        transactions: body.transactions.map((row) => ({
+          ...row,
+          action: row.action as TransactionInput["action"],
+          fee: row.fee ?? 0,
+          tax: row.tax ?? 0,
+        })),
+      },
+      deps,
+    );
+
+    // 422 不走 AppError：錯誤處理在 production 會把 details 整個拿掉，而前端必須在正式環境拿得到
+    // 完整的 shortfalls 才能請使用者補期初部位。所以它是一等公民的回應主體。
+    if (!outcome.ok) {
+      res.status(422).json({ shortfalls: outcome.shortfalls });
+      return;
+    }
+    res.status(outcome.result.importId ? 201 : 200).json(outcome.result);
+  });
+
+  transactionsRouter.delete("/import/:importId", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const importId = parseUuidParam(req.params.importId ?? "", "import");
+
+    const outcome = await revertTransactionImport(firebaseUid, importId, deps);
+    if (!outcome.ok) {
+      res.status(422).json({ shortfalls: outcome.shortfalls });
+      return;
+    }
+    res.status(200).json({ deleted: outcome.deleted });
   });
 
   transactionsRouter.get("/:id", async (req: AuthenticatedRequest, res) => {

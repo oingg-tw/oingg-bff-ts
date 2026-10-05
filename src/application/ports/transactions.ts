@@ -1,4 +1,5 @@
 import type {
+  ImportedTransaction,
   StockTransaction,
   TransactionInput,
   TransactionUpdate,
@@ -35,4 +36,25 @@ export interface TransactionsPort {
    * where 同時帶 firebaseUid 與 symbol——不是空的 where，刪除範圍永遠被使用者與代號夾住。
    */
   removeBySymbol(firebaseUid: string, symbol: string): Promise<number>;
+
+  /**
+   * 批次匯入。**一次全寫或全不寫**，而且已經存在的 `(firebaseUid, source, externalRef)` 要跳過
+   * 而不是整批失敗——使用者重匯一份有重疊期間的檔案是正常操作，不是錯誤。
+   *
+   * 回傳實際寫入的筆數；`rows.length` 減掉它就是被跳過的重複筆數。
+   */
+  createManyImported(firebaseUid: string, importId: string, rows: readonly ImportedTransaction[]): Promise<number>;
+
+  /**
+   * 這批 `externalRef` 裡哪些已經存在。dryRun 要在**不寫入**的情況下算出 inserted／duplicates，
+   * 所以兩條路徑都走這一支，報出來的數字才會一致（createManyImported 的 skipDuplicates 只是併發
+   * 情況下的第二道防線，不是計數的來源）。
+   */
+  existingExternalRefs(firebaseUid: string, source: string, refs: readonly string[]): Promise<string[]>;
+
+  /** 撤銷整批匯入，回傳刪掉的筆數。where 同時帶 firebaseUid，刪除範圍永遠被使用者夾住。 */
+  removeByImportId(firebaseUid: string, importId: string): Promise<number>;
+
+  /** 整批撤銷前要先驗 replay，所以得先知道這批影響到哪些代號。 */
+  listByImportId(firebaseUid: string, importId: string): Promise<StockTransaction[]>;
 }

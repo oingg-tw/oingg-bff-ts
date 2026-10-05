@@ -18,7 +18,7 @@ function entry(overrides: Partial<LedgerEntry> & Pick<LedgerEntry, "action" | "q
 
 function only(entries: LedgerEntry[]) {
   const { holdings, oversold } = projectHoldings(entries);
-  expect(oversold).toBeNull();
+  expect(oversold).toEqual([]);
   expect(holdings).toHaveLength(1);
   return holdings[0]!;
 }
@@ -79,15 +79,36 @@ describe("projectHoldings", () => {
     expect(sellFirst.averageCost).toBeCloseTo(16.666_666_666_666_668, 9);
   });
 
-  it("reports the first oversell without blowing up the rest of the projection", () => {
+  it("reports the oversell without blowing up the rest of the projection", () => {
     const { holdings, oversold } = projectHoldings([
       entry({ action: "BUY", quantity: 100, price: 10 }),
-      entry({ action: "SELL", quantity: 300, price: 20, tradeDate: "2026-02-01" }),
+      entry({ action: "SELL", quantity: 300, price: 20, tradeDate: "2026-02-01", ref: "2026-02-01|A1" }),
     ]);
 
-    expect(oversold).toEqual({ symbol: "2330", tradeDate: "2026-02-01", held: 100, attempted: 300 });
+    expect(oversold).toEqual([
+      { symbol: "2330", tradeDate: "2026-02-01", held: 100, attempted: 300, shortBy: 200, ref: "2026-02-01|A1" },
+    ]);
     // 夾成「把手上的全部賣掉」繼續算，而不是丟錯——GET /holdings 必須照樣回得出東西。
     expect(holdings[0]!.quantity).toBe(0);
+  });
+
+  /**
+   * 批次匯入要一次把所有缺的期初部位請使用者補完，所以**每一筆**賣超都要列出來。這一條同時釘住
+   * 那個容易被誤用的性質：第二筆的 shortBy 是在第一筆已經被夾成 0 之後算的，所以同一檔要取
+   * **最大值**去推估期初股數，不是相加（這裡 200 + 50 會錯，正確答案是 200）。
+   */
+  it("reports every oversell, each measured against the clamped position", () => {
+    const { oversold } = projectHoldings([
+      entry({ action: "BUY", quantity: 100, price: 10 }),
+      entry({ action: "SELL", quantity: 300, price: 20, tradeDate: "2026-02-01" }),
+      entry({ action: "SELL", quantity: 50, price: 20, tradeDate: "2026-03-01" }),
+    ]);
+
+    expect(oversold.map((o) => [o.tradeDate, o.shortBy])).toEqual([
+      ["2026-02-01", 200],
+      ["2026-03-01", 50],
+    ]);
+    expect(oversold.every((o) => o.ref === undefined)).toBe(true);
   });
 
   it("zeroes the cost basis exactly on a full exit (no float residue)", () => {
