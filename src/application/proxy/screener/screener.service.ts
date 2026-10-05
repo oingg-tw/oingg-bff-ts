@@ -115,7 +115,13 @@ async function mergeStockPrices(rows: ScreenerResultRow[], wantsStockPrice: bool
   if (!wantsStockPrice) {
     return;
   }
-  const pricesBySymbol = await deps.stockGateway.getLatestClosePrices(rows.map((row) => row.symbol));
+  applyStockPrices(rows, await deps.stockGateway.getLatestClosePrices(rows.map((row) => row.symbol)));
+}
+
+function applyStockPrices(
+  rows: ScreenerResultRow[],
+  pricesBySymbol: Awaited<ReturnType<ScreenerDeps["stockGateway"]["getLatestClosePrices"]>>,
+): void {
   for (const row of rows) {
     const price = pricesBySymbol.get(row.symbol);
     // formulaVersion 是 null 而不是某個數字：股價不是型錄裡的公式算出來的，是報價原樣帶進來的，
@@ -247,17 +253,29 @@ export async function runScreenerValues(
   const specialColumns = columns.filter((c) => c.field in SPECIAL_COLUMNS);
   const catalogColumnRefs = columns.filter((c) => !(c.field in SPECIAL_COLUMNS));
 
-  const resolvedColumns = await resolveCatalogFieldRefs(
-    catalogColumnRefs.map((c) => c.field),
-    deps,
-  );
-
-  const apiResult = await deps.screenerGateway.getValues(
-    symbols,
-    resolvedColumns.map((c) => ({ field: c.field })),
-  );
-
   const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
+
+  /**
+   * **股價跟數值查詢並行**，不像 runScreener／runRanking 那樣接在後面：這支端點的代號是呼叫端給的，
+   * 不必等查詢結果才知道要抓哪幾檔的股價。2026-10-05 交錯量測（8 輪、10 檔，本機）：循序時 911ms，
+   * 股價那一段的配對差是 299ms——幾乎就是上游 getLatestClosePrices 自己的 324ms，等於整段被串在後面。
+   * 並行也讓最壞情況回到一個 10 秒窗口（mergeStockPrices 說明裡的「兩個窗口」只剩另外兩支端點適用）。
+   * Promise.all 讓任一邊的失敗都會被處理，不會留下一個沒人接的 rejection。
+   */
+  const [{ resolvedColumns, apiResult }, pricesBySymbol] = await Promise.all([
+    (async () => {
+      const resolved = await resolveCatalogFieldRefs(
+        catalogColumnRefs.map((c) => c.field),
+        deps,
+      );
+      const values = await deps.screenerGateway.getValues(
+        symbols,
+        resolved.map((c) => ({ field: c.field })),
+      );
+      return { resolvedColumns: resolved, apiResult: values };
+    })(),
+    wantsStockPrice ? deps.stockGateway.getLatestClosePrices(symbols) : Promise.resolve(null),
+  ]);
 
   const resultColumns: ScreenerResultColumn[] = resolvedColumns.map((c) => ({
     field: c.field,
@@ -275,7 +293,9 @@ export async function runScreenerValues(
     name: rowBySymbol.get(symbol)?.name ?? null,
     values: rowBySymbol.get(symbol)?.values ?? {},
   }));
-  await mergeStockPrices(results, wantsStockPrice, deps);
+  if (pricesBySymbol) {
+    applyStockPrices(results, pricesBySymbol);
+  }
 
   return { count: results.length, columns: resultColumns, results };
 }
