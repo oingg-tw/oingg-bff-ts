@@ -39,3 +39,22 @@ export interface RealizedProfitLossReport {
   /** 上面各列（已四捨五入到 4 位）的加總，所以畫面上的列一定加得起來等於它。 */
   totalRealizedProfitLoss: string;
 }
+
+/**
+ * GET /holdings/performance 的回應：持股組合在一段期間的時間加權報酬（TWR），用來跟大盤比。
+ * 計算規則見 domain/portfolioReturn.ts。報酬率都是**小數字串**（"0.123456" = 12.3456%），6 位。
+ */
+export interface PortfolioPerformanceReport {
+  /** 實際採用的期間（套用預設值之後），兩端都含。 */
+  from: string;
+  to: string;
+  /** 整段期間都沒有曝險時是 null——那不是「報酬 0」，是沒有東西可以算。 */
+  twr: string | null;
+  /**
+   * 期間內每個交易日（以加權指數的交易日為準，所以跟 /market/taiex-daily-price 逐日對得上）收盤後的
+   * 累積報酬，舊到新。第一次有曝險之前的日子是 null。
+   */
+  series: { date: string; cumulative: string | null }[];
+  /** 有持股但當天沒有收盤價（沿用前一個收盤價、或退回交易價）的天數，依 symbol 升冪。 */
+  missingPrices: { symbol: string; dates: number }[];
+}

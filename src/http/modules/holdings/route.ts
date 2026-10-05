@@ -6,6 +6,10 @@ import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/au
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { getHoldings, getRealizedProfitLoss, removeHoldingSymbol } from "@/application/holdings/holdings.service.js";
 import type { HoldingsDeps } from "@/application/holdings/holdings.service.js";
+import {
+  getPortfolioPerformance,
+  type HoldingsPerformanceDeps,
+} from "@/application/holdings/holdingsPerformance.service.js";
 
 function requireUser(req: AuthenticatedRequest): string {
   if (!req.user) {
@@ -14,7 +18,8 @@ function requireUser(req: AuthenticatedRequest): string {
   return req.user.uid;
 }
 
-export const realizedQuerySchema = z
+/** /realized 與 /performance 共用：兩個都是選填的 YYYY-MM-DD，而且 from 不得晚於 to。 */
+export const dateRangeQuerySchema = z
   .object({ from: dateQueryParam("from"), to: dateQueryParam("to") })
   // path 掛在 from 上：parseBody 對沒有 path 的錯誤標 "(body)"，而這是 query 參數，那個標籤會誤導人。
   .refine((q) => !q.from || !q.to || q.from <= q.to, { error: '"from" must not be after "to"', path: ["from"] });
@@ -27,7 +32,7 @@ export const realizedQuerySchema = z
  * 也因此這個 router 不再需要 `assertSymbolExists`：唯一剩下的寫入是刪除，而刪一個不存在的代號本來就
  * 因為「你在這個代號底下沒有交易」而回 404，不需要先問上游那個代號是不是真的。
  */
-export function createHoldingsRouter(deps: HoldingsDeps & AuthMiddlewareDeps): Router {
+export function createHoldingsRouter(deps: HoldingsDeps & HoldingsPerformanceDeps & AuthMiddlewareDeps): Router {
   const holdingsRouter = Router();
   holdingsRouter.use(createRequireAuth(deps));
 
@@ -39,8 +44,14 @@ export function createHoldingsRouter(deps: HoldingsDeps & AuthMiddlewareDeps): R
 
   holdingsRouter.get("/realized", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
-    const { from, to } = parseBody(realizedQuerySchema, req.query);
+    const { from, to } = parseBody(dateRangeQuerySchema, req.query);
     res.json(await getRealizedProfitLoss(firebaseUid, from, to, deps));
+  });
+
+  holdingsRouter.get("/performance", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const { from, to } = parseBody(dateRangeQuerySchema, req.query);
+    res.json(await getPortfolioPerformance(firebaseUid, from, to, deps));
   });
 
   holdingsRouter.delete("/:symbol", async (req: AuthenticatedRequest, res) => {

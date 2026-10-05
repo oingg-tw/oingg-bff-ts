@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/http/swagger/registry.js";
-import { realizedQuerySchema } from "@/http/modules/holdings/route.js";
+import { dateRangeQuerySchema } from "@/http/modules/holdings/route.js";
 
 /**
  * **2026-10-05 契約變更**：持股從一張自己維護的表變成交易紀錄（`/transactions`）的唯讀投影。
@@ -93,7 +93,7 @@ registry.registerPath({
   ].join("\n"),
   tags: ["Holdings"],
   security: [{ bearerAuth: [] }],
-  request: { query: realizedQuerySchema },
+  request: { query: dateRangeQuerySchema },
   responses: {
     200: {
       description: "區間內的已實現損益。",
@@ -111,6 +111,69 @@ registry.registerPath({
       },
     },
     400: errorResponse("日期不是 YYYY-MM-DD、不是真實存在的日期，或 from 晚於 to。"),
+    401: unauthorized,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/holdings/performance",
+  summary: "持股組合的期間報酬（時間加權，用來跟大盤比）",
+  description: [
+    "回傳持股組合在 `[from, to]` 的**時間加權報酬（TWR）**與逐日累積報酬。用 TWR 而不是資金加權，",
+    "是因為要跟指數比就得排除「什麼時候投入多少錢」的影響。預設區間是**到今天（台灣時間）為止的一年**。",
+    "",
+    "### 交易日與對齊",
+    "`series` 的日期就是加權指數的交易日，所以跟 `GET /market/taiex-daily-price` 逐日對得上。",
+    "",
+    "### 每日報酬的算法",
+    "`r_t = (V_t − V_{t−1} − CF_t) ÷ (V_{t−1} + 當天流入)`，連乘成累積報酬。V 是收盤後的持股市值，",
+    "CF 是淨流入（買進金額＋手續費 − 賣出淨收入）。**流入算開盤前投入、流出算收盤後**：分母包含當天",
+    "投入的錢，所以前一天持股很小、當天大筆買進時單日報酬不會爆掉。代價是剛好以收盤價買進的那天會被",
+    "新資金稍微稀釋。以前一天收盤價買進、當天收盤價賣出時是精確的：單一個股不論怎麼加減碼，",
+    "TWR 都等於股價漲跌幅。",
+    "",
+    "### 不含息",
+    "股利不計入，跟價格型的加權指數口徑一致。",
+    "",
+    "### null 的意思",
+    "`cumulative` 在**第一次有持股之前**是 null：期間中才開始投資的話，前面那段不畫成 0% 的水平線。",
+    "整段期間都沒有持股時 `twr` 是 null，那不是「報酬 0」。",
+    "",
+    "### missingPrices",
+    "有持股但當天沒有收盤價（沒成交、停牌、上游還沒更新）就沿用前一個收盤價；連一個都沒有就用最近一筆",
+    "交易價。這些天數依代號列在這裡，請照實註明。",
+    "",
+    "### 期間上限",
+    "個股收盤價最多回溯約 2000 個交易日（約 8 年）。期間超過時回 400，訊息會寫出最早可以從哪天開始——",
+    "而不是用交易價估更早的市值，給出一個看起來正常的錯數字。",
+  ].join("\n"),
+  tags: ["Holdings"],
+  security: [{ bearerAuth: [] }],
+  request: { query: dateRangeQuerySchema },
+  responses: {
+    200: {
+      description: "期間報酬。",
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              from: z.string().openapi({ example: "2025-10-05" }),
+              to: z.string().openapi({ example: "2026-10-05" }),
+              twr: z.string().nullable().openapi({ description: "小數字串，6 位。\"0.123456\" = 12.3456%。", example: "0.123456" }),
+              series: z.array(
+                z.object({
+                  date: z.string(),
+                  cumulative: z.string().nullable().openapi({ example: "0.012345" }),
+                }),
+              ),
+              missingPrices: z.array(z.object({ symbol: z.string(), dates: z.number() })),
+            })
+            .openapi("PortfolioPerformanceReport"),
+        },
+      },
+    },
+    400: errorResponse("日期格式錯誤、from 晚於 to，或期間超過收盤價能回溯的深度（約 8 年）。"),
     401: unauthorized,
   },
 });
