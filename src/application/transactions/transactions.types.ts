@@ -16,6 +16,8 @@ export interface StockTransaction {
   externalRef: string | null;
   /** 同一次匯入共用，用於整批撤銷；手動輸入是 null。 */
   importId: string | null;
+  /** 成本不明的取得。true 時 price 是 0，但那不代表免費。見 domain/holdingProjection.ts。 */
+  costUnknown: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,6 +52,8 @@ export interface TransactionInput {
   tax: number;
   tradeDate: string;
   note: string | null;
+  /** 省略視為 false。 */
+  costUnknown?: boolean;
 }
 
 /** PATCH /transactions/:id 的部分更新。欄位省略代表「不動」，note 可以明確設成 null 清空。symbol 不可改。 */
@@ -61,4 +65,5 @@ export interface TransactionUpdate {
   tax?: number;
   tradeDate?: string;
   note?: string | null;
+  costUnknown?: boolean;
 }

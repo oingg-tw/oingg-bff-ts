@@ -1,8 +1,11 @@
 import { AppError } from "@/domain/appError.js";
 import { computePortfolioReturn } from "@/domain/portfolioReturn.js";
 import { toLedgerEntry } from "@/application/transactions/transactions.service.js";
+import { applyStockDividends } from "@/application/holdings/stockDividendLedger.js";
 import type { AppDeps } from "@/application/deps.js";
 import type { PortfolioPerformanceReport } from "@/application/holdings/holdings.types.js";
+import { mapWithConcurrency } from "@/shared/concurrency.js";
+import { todayInTaipei } from "@/shared/taipeiDate.js";
 
 /**
  * GET /holdings/performance 的編排：決定期間、取交易日曆與收盤價、交給 domain 算 TWR。
@@ -26,28 +29,10 @@ const MAX_CONCURRENT_PRICE_REQUESTS = 6;
 const RETURN_DECIMALS = 6;
 const MS_PER_DAY = 86_400_000;
 
-/** 台灣時間的今天。用 UTC 的話，台灣早上 8 點以前會被當成前一天。 */
-function todayInTaipei(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(new Date());
-}
-
 /** 往前推一年。只有 2/29 在前一年沒有對應日，那天用 2/28（而不是讓 Date 滾到 3/1）。 */
 function oneYearBefore(date: string): string {
   const [year, month, day] = date.split("-");
   return `${Number(year) - 1}-${month}-${month === "02" && day === "29" ? "28" : day}`;
-}
-
-async function mapWithConcurrency<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = [];
-  let next = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
-      const index = next++;
-      results[index] = await fn(items[index]!);
-    }
-  });
-  await Promise.all(workers);
-  return results;
 }
 
 /**
@@ -99,7 +84,9 @@ export async function getPortfolioPerformance(
     throw new AppError(`The range is longer than the available price history; "from" must be on or after ${earliest}`, 400);
   }
 
-  const entries = (await deps.transactions.list(firebaseUid)).map(toLedgerEntry).filter((entry) => entry.tradeDate <= to);
+  // 先補配股再截到 to：配股的股數取決於除權日前的持股，所以要在完整的帳本上算。
+  const { entries: withDividends } = await applyStockDividends((await deps.transactions.list(firebaseUid)).map(toLedgerEntry), deps);
+  const entries = withDividends.filter((entry) => entry.tradeDate <= to);
 
   // 只抓期間內（含起點）真的有持股的代號：起點前已經出清、之後也沒再碰的不用抓。
   const quantityAtBase = new Map<string, number>();

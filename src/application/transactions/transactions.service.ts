@@ -1,6 +1,8 @@
 import { AppError } from "@/domain/appError.js";
 import { projectHoldings, type LedgerEntry } from "@/domain/holdingProjection.js";
 import type { AppDeps } from "@/application/deps.js";
+import { applyStockDividends } from "@/application/holdings/stockDividendLedger.js";
+import type { AppliedStockDividend } from "@/domain/stockDividends.js";
 import type {
   StockTransaction,
   TransactionAction,
@@ -8,7 +10,8 @@ import type {
   TransactionUpdate,
 } from "@/application/transactions/transactions.types.js";
 
-export type TransactionsDeps = Pick<AppDeps, "transactions">;
+/** stockGateway：賣超驗證要先補上自動配股，否則一筆賣出配來的股票會被誤擋成賣超。 */
+export type TransactionsDeps = Pick<AppDeps, "transactions" | "stockGateway">;
 
 const TRADE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -63,6 +66,7 @@ export function toLedgerEntry(row: StockTransaction): LedgerEntry {
     tax: Number(row.tax),
     tradeDate: row.tradeDate,
     createdAt: row.createdAt,
+    ...(row.costUnknown ? { costUnknown: true } : {}),
   };
 }
 
@@ -80,9 +84,11 @@ export function toLedgerEntry(row: StockTransaction): LedgerEntry {
  * 單人投資組合的視窗極小，而且投影在賣超時會把那一筆夾成「全賣」而不是壞掉（見 projectHoldings）。
  * 真的要擋就把驗證與寫入包進一個 serializable transaction，那需要 port 多一個方法。
  */
-function assertReplayStaysValid(entries: readonly LedgerEntry[]): void {
+async function assertReplayStaysValid(entries: readonly LedgerEntry[], deps: TransactionsDeps): Promise<void> {
+  // 配股要在「加上候選變更之後」的帳本上算：在除權日前補一筆買進，會改變那次除權應配的股數。
+  const { entries: withDividends } = await applyStockDividends(entries, deps);
   // 單筆寫入只需要第一筆賣超：訊息是給人看的，列出全部沒有幫助。批次匯入走的是 422 加完整清單。
-  const [oversold] = projectHoldings(entries).oversold;
+  const [oversold] = projectHoldings(withDividends).oversold;
   if (oversold) {
     // `code` 是刻意加的，而且是這個回應裡唯一穩定的部分：web-nuxt 2026-10-05 說他們用正則從下面那句
     // 英文抽數字再翻成中文。訊息的措辭是給人看的、會變；要分辨「這是賣超」請判斷 code。
@@ -105,7 +111,7 @@ function assertReplayStaysValid(entries: readonly LedgerEntry[]): void {
  * 列舉值便宜——replay 不需要知道股數是買來的還是配來的）。**負數仍然擋。**
  */
 export function assertValidTransactionInput(
-  input: Pick<TransactionInput, "action" | "quantity" | "price" | "fee" | "tax" | "tradeDate">,
+  input: Pick<TransactionInput, "action" | "quantity" | "price" | "fee" | "tax" | "tradeDate" | "costUnknown">,
 ): void {
   assertValidAction(input.action);
   assertValidQuantity(input.quantity);
@@ -113,14 +119,71 @@ export function assertValidTransactionInput(
   assertValidAmount(input.fee, "fee", { allowZero: true });
   assertValidAmount(input.tax, "tax", { allowZero: true });
   assertValidTradeDate(input.tradeDate);
+  assertValidCostUnknown(input);
 }
 
+/**
+ * 成本不明只能是買進，而且價格、手續費、稅都必須是 0——重算時這三個欄位會被忽略，收下一個會被忽略的
+ * 數字是陷阱（使用者以為記了成本，其實沒有）。送了非 0 的價格就回 400，而不是默默丟掉。
+ */
+function assertValidCostUnknown(input: Pick<TransactionInput, "action" | "price" | "fee" | "tax" | "costUnknown">): void {
+  if (!input.costUnknown) {
+    return;
+  }
+  if (input.action !== "BUY") {
+    throw new AppError('"costUnknown" is only valid on a BUY', 400);
+  }
+  if (input.price !== 0 || input.fee !== 0 || input.tax !== 0) {
+    throw new AppError('A "costUnknown" acquisition must have price, fee and tax of 0 — its cost is not known', 400);
+  }
+}
+
+/** 自動配股在交易紀錄裡的 source。它們不是資料庫的列，見 getTransactions。 */
+export const STOCK_DIVIDEND_SOURCE = "stock-dividend";
+
+function toStockDividendRow(dividend: AppliedStockDividend): StockTransaction {
+  const at = `${dividend.exRightsDate}T00:00:00.000Z`;
+  return {
+    // 不是 UUID：PATCH／DELETE /transactions/:id 會在 id 格式檢查就回 400，所以它天生不能編輯也不能刪除。
+    // 要讓它消失只能改刪除權日之前的交易——它是那些交易推出來的。
+    id: `${STOCK_DIVIDEND_SOURCE}:${dividend.symbol}:${dividend.exRightsDate}`,
+    symbol: dividend.symbol,
+    action: "BUY",
+    quantity: dividend.quantity,
+    price: "0",
+    fee: "0",
+    tax: "0",
+    tradeDate: dividend.exRightsDate,
+    note: `除權配股：每股配 ${dividend.sharesPerShare} 股，除權前持有 ${dividend.heldBefore} 股`,
+    source: STOCK_DIVIDEND_SOURCE,
+    externalRef: null,
+    importId: null,
+    costUnknown: false,
+    createdAt: at,
+    updatedAt: at,
+  };
+}
+
+/**
+ * 交易紀錄＋自動配股（使用者 2026-10-05 要求「交易紀錄要看得到」）。配股不存成列，每次重算出來，
+ * 所以使用者改刪除權日前的交易、或上游修正除權資料之後，這裡會自動跟著變。
+ *
+ * 排序跟資料庫一樣是交易日新到舊；同一天裡配股排在真實交易**之後**——replay 時它在當天最早發生，
+ * 倒過來列就是最後一個。
+ */
 export async function getTransactions(
   firebaseUid: string,
   symbol: string | undefined,
   deps: TransactionsDeps,
 ): Promise<StockTransaction[]> {
-  return deps.transactions.list(firebaseUid, symbol);
+  const rows = await deps.transactions.list(firebaseUid, symbol);
+  const { dividends } = await applyStockDividends(rows.map(toLedgerEntry), deps);
+  const synthetic = dividends.map(toStockDividendRow);
+  return [...rows, ...synthetic].sort((a, b) =>
+    a.tradeDate === b.tradeDate
+      ? Number(a.source === STOCK_DIVIDEND_SOURCE) - Number(b.source === STOCK_DIVIDEND_SOURCE)
+      : b.tradeDate.localeCompare(a.tradeDate),
+  );
 }
 
 export async function getTransactionOrThrow(
@@ -152,7 +215,7 @@ export async function addTransaction(
 
   const existing = await deps.transactions.list(firebaseUid, input.symbol);
   // 候選交易的 createdAt 取「現在」：它是同日最後寫入的那一筆，跟落地之後的排序一致。
-  assertReplayStaysValid([...existing.map(toLedgerEntry), { ...input, createdAt: new Date().toISOString() }]);
+  await assertReplayStaysValid([...existing.map(toLedgerEntry), { ...input, createdAt: new Date().toISOString() }], deps);
 
   return deps.transactions.create(firebaseUid, input);
 }
@@ -187,9 +250,17 @@ export async function editTransaction(
   if (!existing) {
     throw new AppError(`Transaction ${id} not found`, 404);
   }
+  // 把一筆改成成本不明、又沒有送價格：原本的價格就是被宣告不算數的那個，自動歸 0，而不是逼呼叫端多送
+  // 一個 price: 0。送了非 0 的價格則照樣被下面的檢查擋掉。
+  if (update.costUnknown === true && update.price === undefined) {
+    update.price = 0;
+  }
+  // 成本不明是跨欄位的規則（action、price、fee、tax 要一起看），所以驗合併之後的整列：
+  // 只送 { costUnknown: true } 給一筆 SELL，逐欄位檢查會全部通過。
+  assertValidCostUnknown({ ...toLedgerEntry(existing), costUnknown: existing.costUnknown, ...update });
   const siblings = await deps.transactions.list(firebaseUid, existing.symbol);
   const edited: LedgerEntry = { ...toLedgerEntry(existing), ...update };
-  assertReplayStaysValid([...siblings.filter((row) => row.id !== id).map(toLedgerEntry), edited]);
+  await assertReplayStaysValid([...siblings.filter((row) => row.id !== id).map(toLedgerEntry), edited], deps);
 
   const transaction = await deps.transactions.update(firebaseUid, id, update);
   if (!transaction) {
@@ -216,7 +287,7 @@ export async function removeTransaction(firebaseUid: string, id: string, deps: T
     throw new AppError(`Transaction ${id} not found`, 404);
   }
   const siblings = await deps.transactions.list(firebaseUid, existing.symbol);
-  assertReplayStaysValid(siblings.filter((row) => row.id !== id).map(toLedgerEntry));
+  await assertReplayStaysValid(siblings.filter((row) => row.id !== id).map(toLedgerEntry), deps);
 
   const deleted = await deps.transactions.remove(firebaseUid, id);
   if (!deleted) {

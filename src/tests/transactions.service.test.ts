@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fakeTransactions } from "@/tests/fakes/transactions.js";
+import { fakeStockGateway } from "@/tests/fakes/analysisGateways.js";
 import {
   addTransaction,
   editTransaction,
@@ -7,6 +8,9 @@ import {
   getTransactions,
   removeTransaction,
 } from "@/application/transactions/transactions.service.js";
+
+/** 預設「沒有任何除權」——自動配股的行為在 stockDividends.test.ts 測。 */
+const stockGateway = fakeStockGateway();
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 
@@ -23,6 +27,7 @@ const SAMPLE_TRANSACTION = {
   source: null,
   externalRef: null,
   importId: null,
+  costUnknown: false,
   createdAt: "2026-08-30T00:00:00.000Z",
   updatedAt: "2026-08-30T00:00:00.000Z",
 };
@@ -42,14 +47,14 @@ describe("getTransactions", () => {
   it("passes the caller's uid and the optional symbol filter straight through to the port", async () => {
     const transactions = fakeTransactions({ list: vi.fn().mockResolvedValue([SAMPLE_TRANSACTION]) });
 
-    await expect(getTransactions("uid1", "2330", { transactions })).resolves.toEqual([SAMPLE_TRANSACTION]);
+    await expect(getTransactions("uid1", "2330", { transactions, stockGateway })).resolves.toEqual([SAMPLE_TRANSACTION]);
     expect(transactions.list).toHaveBeenCalledWith("uid1", "2330");
   });
 
   it("leaves the symbol filter undefined when the caller didn't supply one", async () => {
     const transactions = fakeTransactions();
 
-    await getTransactions("uid1", undefined, { transactions });
+    await getTransactions("uid1", undefined, { transactions, stockGateway });
 
     expect(transactions.list).toHaveBeenCalledWith("uid1", undefined);
   });
@@ -60,7 +65,7 @@ describe("addTransaction", () => {
     const transactions = fakeTransactions();
 
     await expect(
-      addTransaction("uid1", { ...VALID_INPUT, action: "HOLD" as never }, { transactions }),
+      addTransaction("uid1", { ...VALID_INPUT, action: "HOLD" as never }, { transactions, stockGateway }),
     ).rejects.toMatchObject({ statusCode: 400 });
     expect(transactions.create).not.toHaveBeenCalled();
   });
@@ -68,10 +73,10 @@ describe("addTransaction", () => {
   it("rejects a non-positive-integer quantity", async () => {
     const transactions = fakeTransactions();
 
-    await expect(addTransaction("uid1", { ...VALID_INPUT, quantity: 0 }, { transactions })).rejects.toMatchObject({
+    await expect(addTransaction("uid1", { ...VALID_INPUT, quantity: 0 }, { transactions, stockGateway })).rejects.toMatchObject({
       statusCode: 400,
     });
-    await expect(addTransaction("uid1", { ...VALID_INPUT, quantity: 1.5 }, { transactions })).rejects.toMatchObject({
+    await expect(addTransaction("uid1", { ...VALID_INPUT, quantity: 1.5 }, { transactions, stockGateway })).rejects.toMatchObject({
       statusCode: 400,
     });
   });
@@ -80,7 +85,7 @@ describe("addTransaction", () => {
   it("accepts a price of 0 (配股／分割 記成價格 0 的買進)", async () => {
     const transactions = fakeTransactions({ create: vi.fn().mockResolvedValue(SAMPLE_TRANSACTION) });
 
-    await expect(addTransaction("uid1", { ...VALID_INPUT, price: 0 }, { transactions })).resolves.toEqual(
+    await expect(addTransaction("uid1", { ...VALID_INPUT, price: 0 }, { transactions, stockGateway })).resolves.toEqual(
       SAMPLE_TRANSACTION,
     );
   });
@@ -88,7 +93,7 @@ describe("addTransaction", () => {
   it("rejects a negative price", async () => {
     const transactions = fakeTransactions();
 
-    await expect(addTransaction("uid1", { ...VALID_INPUT, price: -1 }, { transactions })).rejects.toMatchObject({
+    await expect(addTransaction("uid1", { ...VALID_INPUT, price: -1 }, { transactions, stockGateway })).rejects.toMatchObject({
       statusCode: 400,
     });
   });
@@ -96,10 +101,10 @@ describe("addTransaction", () => {
   it("rejects a negative fee or tax (zero is allowed)", async () => {
     const transactions = fakeTransactions();
 
-    await expect(addTransaction("uid1", { ...VALID_INPUT, fee: -1 }, { transactions })).rejects.toMatchObject({
+    await expect(addTransaction("uid1", { ...VALID_INPUT, fee: -1 }, { transactions, stockGateway })).rejects.toMatchObject({
       statusCode: 400,
     });
-    await expect(addTransaction("uid1", { ...VALID_INPUT, tax: -1 }, { transactions })).rejects.toMatchObject({
+    await expect(addTransaction("uid1", { ...VALID_INPUT, tax: -1 }, { transactions, stockGateway })).rejects.toMatchObject({
       statusCode: 400,
     });
   });
@@ -108,17 +113,17 @@ describe("addTransaction", () => {
     const transactions = fakeTransactions();
 
     await expect(
-      addTransaction("uid1", { ...VALID_INPUT, tradeDate: "2026/08/30" }, { transactions }),
+      addTransaction("uid1", { ...VALID_INPUT, tradeDate: "2026/08/30" }, { transactions, stockGateway }),
     ).rejects.toMatchObject({ statusCode: 400 });
     await expect(
-      addTransaction("uid1", { ...VALID_INPUT, tradeDate: "not-a-date" }, { transactions }),
+      addTransaction("uid1", { ...VALID_INPUT, tradeDate: "not-a-date" }, { transactions, stockGateway }),
     ).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it("creates the transaction once every field validates", async () => {
     const transactions = fakeTransactions({ create: vi.fn().mockResolvedValue(SAMPLE_TRANSACTION) });
 
-    const result = await addTransaction("uid1", VALID_INPUT, { transactions });
+    const result = await addTransaction("uid1", VALID_INPUT, { transactions, stockGateway });
 
     expect(result).toEqual(SAMPLE_TRANSACTION);
     expect(transactions.create).toHaveBeenCalledWith("uid1", VALID_INPUT);
@@ -130,7 +135,7 @@ describe("getTransactionOrThrow", () => {
   it("throws a 404 when the transaction doesn't exist (or belongs to a different user)", async () => {
     const transactions = fakeTransactions();
 
-    await expect(getTransactionOrThrow("uid1", "missing-uuid", { transactions })).rejects.toMatchObject({
+    await expect(getTransactionOrThrow("uid1", "missing-uuid", { transactions, stockGateway })).rejects.toMatchObject({
       statusCode: 404,
     });
   });
@@ -138,7 +143,7 @@ describe("getTransactionOrThrow", () => {
   it("returns the transaction when found", async () => {
     const transactions = fakeTransactions({ find: vi.fn().mockResolvedValue(SAMPLE_TRANSACTION) });
 
-    await expect(getTransactionOrThrow("uid1", SAMPLE_ID, { transactions })).resolves.toEqual(SAMPLE_TRANSACTION);
+    await expect(getTransactionOrThrow("uid1", SAMPLE_ID, { transactions, stockGateway })).resolves.toEqual(SAMPLE_TRANSACTION);
   });
 });
 
@@ -146,10 +151,10 @@ describe("editTransaction", () => {
   it("rejects invalid fields before reaching the port", async () => {
     const transactions = fakeTransactions();
 
-    await expect(editTransaction("uid1", SAMPLE_ID, { quantity: -1 }, { transactions })).rejects.toMatchObject({
+    await expect(editTransaction("uid1", SAMPLE_ID, { quantity: -1 }, { transactions, stockGateway })).rejects.toMatchObject({
       statusCode: 400,
     });
-    await expect(editTransaction("uid1", SAMPLE_ID, { tradeDate: "bad" }, { transactions })).rejects.toMatchObject({
+    await expect(editTransaction("uid1", SAMPLE_ID, { tradeDate: "bad" }, { transactions, stockGateway })).rejects.toMatchObject({
       statusCode: 400,
     });
     expect(transactions.update).not.toHaveBeenCalled();
@@ -158,7 +163,7 @@ describe("editTransaction", () => {
   it("throws a 404 when the id doesn't exist (or isn't yours)", async () => {
     const transactions = fakeTransactions();
 
-    await expect(editTransaction("uid1", SAMPLE_ID, { note: "x" }, { transactions })).rejects.toMatchObject({
+    await expect(editTransaction("uid1", SAMPLE_ID, { note: "x" }, { transactions, stockGateway })).rejects.toMatchObject({
       statusCode: 404,
     });
     expect(transactions.update).not.toHaveBeenCalled();
@@ -172,7 +177,7 @@ describe("editTransaction", () => {
       update: vi.fn().mockResolvedValue(updated),
     });
 
-    await expect(editTransaction("uid1", SAMPLE_ID, { quantity: 500 }, { transactions })).resolves.toEqual(updated);
+    await expect(editTransaction("uid1", SAMPLE_ID, { quantity: 500 }, { transactions, stockGateway })).resolves.toEqual(updated);
     expect(transactions.update).toHaveBeenCalledWith("uid1", SAMPLE_ID, { quantity: 500 });
   });
 });
@@ -181,7 +186,7 @@ describe("removeTransaction", () => {
   it("throws a 404 when the id doesn't exist (or isn't yours)", async () => {
     const transactions = fakeTransactions();
 
-    await expect(removeTransaction("uid1", SAMPLE_ID, { transactions })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(removeTransaction("uid1", SAMPLE_ID, { transactions, stockGateway })).rejects.toMatchObject({ statusCode: 404 });
     expect(transactions.remove).not.toHaveBeenCalled();
   });
 
@@ -192,7 +197,7 @@ describe("removeTransaction", () => {
       remove: vi.fn().mockResolvedValue(true),
     });
 
-    await expect(removeTransaction("uid1", SAMPLE_ID, { transactions })).resolves.toBeUndefined();
+    await expect(removeTransaction("uid1", SAMPLE_ID, { transactions, stockGateway })).resolves.toBeUndefined();
   });
 });
 
@@ -221,7 +226,7 @@ describe("replay validation", () => {
       addTransaction(
         "uid1",
         { ...VALID_INPUT, action: "SELL", quantity: 300, fee: 0, tradeDate: "2026-09-01" },
-        { transactions },
+        { transactions, stockGateway },
       ),
     ).rejects.toMatchObject({ statusCode: 400 });
     expect(transactions.create).not.toHaveBeenCalled();
@@ -237,7 +242,7 @@ describe("replay validation", () => {
       addTransaction(
         "uid1",
         { ...VALID_INPUT, action: "SELL", quantity: 100, fee: 0, tradeDate: "2026-09-01" },
-        { transactions },
+        { transactions, stockGateway },
       ),
     ).resolves.toEqual(SAMPLE_TRANSACTION);
   });
@@ -249,7 +254,7 @@ describe("replay validation", () => {
       remove: vi.fn().mockResolvedValue(true),
     });
 
-    await expect(removeTransaction("uid1", BUY_100.id, { transactions })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(removeTransaction("uid1", BUY_100.id, { transactions, stockGateway })).rejects.toMatchObject({ statusCode: 400 });
     expect(transactions.remove).not.toHaveBeenCalled();
   });
 
@@ -260,7 +265,7 @@ describe("replay validation", () => {
       update: vi.fn().mockResolvedValue(BUY_100),
     });
 
-    await expect(editTransaction("uid1", BUY_100.id, { quantity: 50 }, { transactions })).rejects.toMatchObject({
+    await expect(editTransaction("uid1", BUY_100.id, { quantity: 50 }, { transactions, stockGateway })).rejects.toMatchObject({
       statusCode: 400,
     });
     expect(transactions.update).not.toHaveBeenCalled();
@@ -273,6 +278,6 @@ describe("replay validation", () => {
       update: vi.fn().mockResolvedValue(BUY_100),
     });
 
-    await expect(editTransaction("uid1", BUY_100.id, { quantity: 200 }, { transactions })).resolves.toEqual(BUY_100);
+    await expect(editTransaction("uid1", BUY_100.id, { quantity: 200 }, { transactions, stockGateway })).resolves.toEqual(BUY_100);
   });
 });

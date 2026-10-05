@@ -1,6 +1,7 @@
 import { AppError } from "@/domain/appError.js";
 import { projectHoldings, type LedgerEntry, type ProjectedHolding } from "@/domain/holdingProjection.js";
 import { toLedgerEntry } from "@/application/transactions/transactions.service.js";
+import { applyStockDividends } from "@/application/holdings/stockDividendLedger.js";
 import type { AppDeps } from "@/application/deps.js";
 import type { Holding, RealizedProfitLossReport } from "@/application/holdings/holdings.types.js";
 
@@ -8,7 +9,7 @@ import type { Holding, RealizedProfitLossReport } from "@/application/holdings/h
  * **這個切片不再有自己的 port。** 持股是交易紀錄的投影（2026-10-05），所以它要的依賴就是
  * `transactions`——`HoldingsPort` 與 prismaHoldings 連同那張表的讀寫一起刪掉了。
  */
-export type HoldingsDeps = Pick<AppDeps, "transactions">;
+export type HoldingsDeps = Pick<AppDeps, "transactions" | "stockGateway">;
 
 /** 對齊 `Decimal(18,4)`：交易紀錄存 4 位小數，算出來的均價也就只在那個精度上有意義。 */
 const DECIMAL_PLACES = 4;
@@ -17,7 +18,9 @@ function toHolding(position: ProjectedHolding): Holding {
   return {
     symbol: position.symbol,
     quantity: position.quantity,
-    averageCost: position.averageCost.toFixed(DECIMAL_PLACES),
+    costUnknownQuantity: position.costUnknownQuantity,
+    // 全部都成本不明時沒有均價可言；回 "0.0000" 會被讀成「免費」。
+    averageCost: position.costUnknownQuantity === position.quantity ? null : position.averageCost.toFixed(DECIMAL_PLACES),
     totalCost: position.totalCost.toFixed(DECIMAL_PLACES),
     realizedProfitLoss: position.realizedProfitLoss.toFixed(DECIMAL_PLACES),
   };
@@ -39,7 +42,8 @@ export function holdingsFromLedger(entries: readonly LedgerEntry[]): Holding[] {
 
 export async function getHoldings(firebaseUid: string, deps: HoldingsDeps): Promise<Holding[]> {
   const rows = await deps.transactions.list(firebaseUid);
-  return holdingsFromLedger(rows.map(toLedgerEntry));
+  const { entries } = await applyStockDividends(rows.map(toLedgerEntry), deps);
+  return holdingsFromLedger(entries);
 }
 
 /**
@@ -59,16 +63,28 @@ export async function getRealizedProfitLoss(
   deps: HoldingsDeps,
 ): Promise<RealizedProfitLossReport> {
   const rows = await deps.transactions.list(firebaseUid);
-  const bySymbol = new Map<string, number>();
-  for (const realization of projectHoldings(rows.map(toLedgerEntry)).realizations) {
+  const { entries } = await applyStockDividends(rows.map(toLedgerEntry), deps);
+  const bySymbol = new Map<string, { profitLoss: number; excludedSellCount: number; excludedShares: number }>();
+  for (const realization of projectHoldings(entries).realizations) {
     if ((from && realization.tradeDate < from) || (to && realization.tradeDate > to)) {
       continue;
     }
-    bySymbol.set(realization.symbol, (bySymbol.get(realization.symbol) ?? 0) + realization.profitLoss);
+    const row = bySymbol.get(realization.symbol) ?? { profitLoss: 0, excludedSellCount: 0, excludedShares: 0 };
+    row.profitLoss += realization.profitLoss;
+    if (realization.excludedShares > 0) {
+      row.excludedSellCount += 1;
+      row.excludedShares += realization.excludedShares;
+    }
+    bySymbol.set(realization.symbol, row);
   }
 
   const symbols = [...bySymbol]
-    .map(([symbol, profitLoss]) => ({ symbol, realizedProfitLoss: profitLoss.toFixed(DECIMAL_PLACES) }))
+    .map(([symbol, row]) => ({
+      symbol,
+      realizedProfitLoss: row.profitLoss.toFixed(DECIMAL_PLACES),
+      excludedSellCount: row.excludedSellCount,
+      excludedShares: row.excludedShares,
+    }))
     .sort((a, b) => a.symbol.localeCompare(b.symbol));
   const total = symbols.reduce((sum, row) => sum + Number(row.realizedProfitLoss), 0);
 
@@ -77,6 +93,8 @@ export async function getRealizedProfitLoss(
     to: to ?? null,
     symbols,
     totalRealizedProfitLoss: total.toFixed(DECIMAL_PLACES),
+    excludedSellCount: symbols.reduce((sum, row) => sum + row.excludedSellCount, 0),
+    excludedShares: symbols.reduce((sum, row) => sum + row.excludedShares, 0),
   };
 }
 

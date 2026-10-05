@@ -42,14 +42,31 @@ export interface LedgerEntry {
    * `externalRef`，讓前端指得出是哪一列。domain 不解釋它的內容。
    */
   ref?: string;
+  /**
+   * **成本不明的取得**（使用者 2026-10-05 決定的 (a)）：股數真的有，但取得成本不知道——例如很久以前
+   * 買的、券商紀錄已經過期刪除。`price` 會被忽略。
+   *
+   * 為什麼不直接記成價格 0：成本 0 是一個**主張**（這些股票是免費的），會把整筆賣出金額算成獲利，
+   * 而且會把同一檔其他股票的均價拉低（2026-10-05 實測：1,000 股 @100 的均價被拉到 7.34）。成本不明
+   * 是**沒有主張**：庫存照算，已實現損益不計入，報酬率當成以當天市值轉入。
+   */
+  costUnknown?: boolean;
 }
 
 export interface ProjectedHolding {
   symbol: string;
+  /** 總股數，含成本不明的部分。 */
   quantity: number;
-  /** quantity 為 0 時是 0（部位出清，沒有均價可言）。 */
+  /** 其中成本不明的股數。 */
+  costUnknownQuantity: number;
+  /**
+   * **只算成本已知的股數**的移動平均成本。沒有成本已知的股數時是 0——呼叫端要看 costUnknownQuantity
+   * 判斷那個 0 是「免費」還是「不知道」。
+   */
   averageCost: number;
+  /** 成本已知那部分的總成本。 */
   totalCost: number;
+  /** 只含成本已知那部分的損益；成本不明的股數賣掉時不計入，見 Realization.excludedShares。 */
   realizedProfitLoss: number;
 }
 
@@ -75,7 +92,10 @@ export interface Oversold {
 export interface Realization {
   symbol: string;
   tradeDate: string;
+  /** 只含成本已知那部分的損益。 */
   profitLoss: number;
+  /** 這筆賣出裡成本不明、所以沒有計入 profitLoss 的股數。0 代表整筆都計入。 */
+  excludedShares: number;
 }
 
 export interface Projection {
@@ -130,13 +150,17 @@ export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
   for (const entry of [...entries].sort(byReplayOrder)) {
     let position = positions.get(entry.symbol);
     if (!position) {
-      position = { symbol: entry.symbol, quantity: 0, averageCost: 0, totalCost: 0, realizedProfitLoss: 0 };
+      position = { symbol: entry.symbol, quantity: 0, costUnknownQuantity: 0, averageCost: 0, totalCost: 0, realizedProfitLoss: 0 };
       positions.set(entry.symbol, position);
     }
 
     if (entry.action === "BUY") {
       position.quantity += entry.quantity;
-      position.totalCost += entry.quantity * entry.price + entry.fee;
+      if (entry.costUnknown) {
+        position.costUnknownQuantity += entry.quantity;
+      } else {
+        position.totalCost += entry.quantity * entry.price + entry.fee;
+      }
     } else {
       const sold = Math.min(entry.quantity, position.quantity);
       if (sold < entry.quantity) {
@@ -149,16 +173,29 @@ export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
           ...(entry.ref === undefined ? {} : { ref: entry.ref }),
         });
       }
+      /**
+       * **成本不明的股數先賣。** 前端補這種取得的方式，是在缺股的那筆賣出**同一天**補上剛好 shortBy 股，
+       * 所以那筆賣出應該正好把它們用掉。先賣成本不明的，成本已知的股數均價就完全不被碰到——這正是
+       * 「把成本不明記成價格 0」會壞掉的地方（它會被平均進去，把真實的均價拉低）。
+       * 一筆賣出同時碰到兩種股數時，價金與費用依股數比例分攤，只有成本已知那部分進 profitLoss。
+       */
+      const fromUnknown = Math.min(sold, position.costUnknownQuantity);
+      const fromKnown = sold - fromUnknown;
+      const knownQuantity = position.quantity - position.costUnknownQuantity;
       // 全部賣出時直接扣掉整個剩餘成本，而不是 (totalCost / quantity) * quantity：後者在 double 下會留下
       // 一個 1e-10 等級的殘值，讓「已出清」的部位帶著一個不是 0 的成本。
-      const costRemoved = sold === position.quantity ? position.totalCost : (position.totalCost / position.quantity) * sold;
-      const profitLoss = sold * entry.price - entry.fee - entry.tax - costRemoved;
+      const costRemoved = fromKnown === 0 ? 0 : fromKnown === knownQuantity ? position.totalCost : (position.totalCost / knownQuantity) * fromKnown;
+      const netProceeds = sold * entry.price - entry.fee - entry.tax;
+      // sold 為 0（賣超被夾成 0 股）時維持原本的行為：手續費與稅照樣記成損失。
+      const profitLoss = sold === 0 ? netProceeds : (netProceeds * fromKnown) / sold - costRemoved;
       position.realizedProfitLoss += profitLoss;
-      realizations.push({ symbol: entry.symbol, tradeDate: entry.tradeDate, profitLoss });
+      realizations.push({ symbol: entry.symbol, tradeDate: entry.tradeDate, profitLoss, excludedShares: fromUnknown });
       position.quantity -= sold;
+      position.costUnknownQuantity -= fromUnknown;
       position.totalCost -= costRemoved;
     }
-    position.averageCost = position.quantity === 0 ? 0 : position.totalCost / position.quantity;
+    const knownQuantity = position.quantity - position.costUnknownQuantity;
+    position.averageCost = knownQuantity === 0 ? 0 : position.totalCost / knownQuantity;
   }
 
   return { holdings: [...positions.values()], realizations, oversold };

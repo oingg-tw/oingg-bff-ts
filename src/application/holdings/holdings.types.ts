@@ -10,10 +10,18 @@
  */
 export interface Holding {
   symbol: string;
+  /** 總股數，含自動配股與成本不明的股數。 */
   quantity: number;
-  /** 移動平均成本，含買進手續費。 */
-  averageCost: string;
-  /** `quantity × averageCost`，也就是這個部位目前的總投入成本。 */
+  /** 其中成本不明的股數（使用者 2026-10-05 決定的「成本不明」）。平常是 0。 */
+  costUnknownQuantity: number;
+  /**
+   * **成本已知那部分**的移動平均成本，含買進手續費。
+   *
+   * 全部股數都成本不明時是 **null**，不是 "0.0000"——0 會被讀成「免費取得」，而成本不明的意思是
+   * 「不知道」。部分成本不明時，這個均價只代表 `quantity − costUnknownQuantity` 那幾股。
+   */
+  averageCost: string | null;
+  /** 成本已知那部分的總成本（`(quantity − costUnknownQuantity) × averageCost`）。 */
   totalCost: string;
   /**
    * 這個代號到目前為止的已實現損益（賣出價金 − 賣出手續費 − 交易稅 − 賣出股數 × 當時均價）。
@@ -34,10 +42,19 @@ export interface RealizedProfitLossReport {
   /** 原樣回傳請求的區間；省略時是 null（＝全部期間）。 */
   from: string | null;
   to: string | null;
-  /** 依 symbol 升冪。只有區間內至少一筆賣出的代號才會出現。 */
-  symbols: { symbol: string; realizedProfitLoss: string }[];
+  /**
+   * 依 symbol 升冪。只有區間內至少一筆賣出的代號才會出現。
+   *
+   * `excludedSellCount`／`excludedShares`：賣掉的股數裡有成本不明的部分，那部分**不計入**
+   * realizedProfitLoss（使用者 2026-10-05 決定）。一筆賣出只要碰到成本不明的股數就算一筆；
+   * 同時碰到成本已知的股數時，已知那部分照常計入。
+   */
+  symbols: { symbol: string; realizedProfitLoss: string; excludedSellCount: number; excludedShares: number }[];
   /** 上面各列（已四捨五入到 4 位）的加總，所以畫面上的列一定加得起來等於它。 */
   totalRealizedProfitLoss: string;
+  /** 全部代號合計。前端用來顯示「N 筆成本不明，未計入」。 */
+  excludedSellCount: number;
+  excludedShares: number;
 }
 
 /**

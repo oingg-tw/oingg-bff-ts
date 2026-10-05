@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { fakeTransactions } from "@/tests/fakes/transactions.js";
+import { fakeStockGateway } from "@/tests/fakes/analysisGateways.js";
 import type { StockTransaction } from "@/application/transactions/transactions.types.js";
 import { getHoldings, getRealizedProfitLoss, removeHoldingSymbol } from "@/application/holdings/holdings.service.js";
+
+/** 預設「沒有任何除權」——自動配股的行為在 stockDividends.test.ts 測。 */
+const stockGateway = fakeStockGateway();
 
 /**
  * 持股 2026-10-05 起沒有自己的 port——它讀的是 TransactionsPort。所以這個檔案驗的是**服務層的決定**
@@ -17,6 +21,7 @@ function row(overrides: Partial<StockTransaction> & Pick<StockTransaction, "symb
     source: null,
     externalRef: null,
     importId: null,
+    costUnknown: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
@@ -32,8 +37,8 @@ describe("getHoldings", () => {
       ]),
     });
 
-    await expect(getHoldings("uid1", { transactions })).resolves.toEqual([
-      { symbol: "2330", quantity: 2000, averageCost: "110.0200", totalCost: "220040.0000", realizedProfitLoss: "0.0000" },
+    await expect(getHoldings("uid1", { transactions, stockGateway })).resolves.toEqual([
+      { symbol: "2330", quantity: 2000, costUnknownQuantity: 0, averageCost: "110.0200", totalCost: "220040.0000", realizedProfitLoss: "0.0000" },
     ]);
     // 全部代號一次算完，所以不帶 symbol 篩選。
     expect(transactions.list).toHaveBeenCalledWith("uid1");
@@ -50,7 +55,7 @@ describe("getHoldings", () => {
       ]),
     });
 
-    const holdings = await getHoldings("uid1", { transactions });
+    const holdings = await getHoldings("uid1", { transactions, stockGateway });
 
     expect(holdings.map((h) => h.symbol)).toEqual(["1312A", "2330"]);
   });
@@ -64,11 +69,11 @@ describe("getHoldings", () => {
       ]),
     });
 
-    await expect(getHoldings("uid1", { transactions })).resolves.toEqual([]);
+    await expect(getHoldings("uid1", { transactions, stockGateway })).resolves.toEqual([]);
   });
 
   it("returns an empty list for a user with no transactions", async () => {
-    await expect(getHoldings("uid1", { transactions: fakeTransactions() })).resolves.toEqual([]);
+    await expect(getHoldings("uid1", { transactions: fakeTransactions(), stockGateway })).resolves.toEqual([]);
   });
 });
 
@@ -76,13 +81,13 @@ describe("removeHoldingSymbol", () => {
   it("throws a 404 when the user has no transactions for that symbol", async () => {
     const transactions = fakeTransactions();
 
-    await expect(removeHoldingSymbol("uid1", "2330", { transactions })).rejects.toMatchObject({ statusCode: 404 });
+    await expect(removeHoldingSymbol("uid1", "2330", { transactions, stockGateway })).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("deletes every transaction for the symbol, scoped to the caller", async () => {
     const transactions = fakeTransactions({ removeBySymbol: vi.fn().mockResolvedValue(3) });
 
-    await expect(removeHoldingSymbol("uid1", "2330", { transactions })).resolves.toBeUndefined();
+    await expect(removeHoldingSymbol("uid1", "2330", { transactions, stockGateway })).resolves.toBeUndefined();
     expect(transactions.removeBySymbol).toHaveBeenCalledWith("uid1", "2330");
   });
 });
@@ -98,7 +103,7 @@ describe("getRealizedProfitLoss", () => {
     row({ symbol: "0056", action: "SELL", quantity: 2000, price: "35", tradeDate: "2026-06-10" }),
     row({ symbol: "2330", action: "SELL", quantity: 1500, price: "100", tradeDate: "2026-09-10" }),
   ];
-  const deps = () => ({ transactions: fakeTransactions({ list: vi.fn().mockResolvedValue(ledger) }) });
+  const deps = () => ({ transactions: fakeTransactions({ list: vi.fn().mockResolvedValue(ledger) }), stockGateway });
 
   it("includes closed positions over the whole period", async () => {
     const report = await getRealizedProfitLoss("uid1", undefined, undefined, deps());
@@ -108,10 +113,10 @@ describe("getRealizedProfitLoss", () => {
       from: null,
       to: null,
       symbols: [
-        { symbol: "0056", realizedProfitLoss: "10000.0000" },
-        { symbol: "2330", realizedProfitLoss: "0.0000" },
+        { symbol: "0056", realizedProfitLoss: "10000.0000", excludedSellCount: 0, excludedShares: 0 },
+        { symbol: "2330", realizedProfitLoss: "0.0000", excludedSellCount: 0, excludedShares: 0 },
       ],
-      totalRealizedProfitLoss: "10000.0000",
+      totalRealizedProfitLoss: "10000.0000", excludedSellCount: 0, excludedShares: 0
     });
   });
 
@@ -123,7 +128,7 @@ describe("getRealizedProfitLoss", () => {
   it("filters by sell date but keeps the cost basis from buys before the window", async () => {
     const report = await getRealizedProfitLoss("uid1", "2026-04-01", "2026-05-31", deps());
 
-    expect(report.symbols).toEqual([{ symbol: "2330", realizedProfitLoss: "75000.0000" }]);
+    expect(report.symbols).toEqual([{ symbol: "2330", realizedProfitLoss: "75000.0000", excludedSellCount: 0, excludedShares: 0 }]);
     expect(report.totalRealizedProfitLoss).toBe("75000.0000");
   });
 
@@ -136,6 +141,6 @@ describe("getRealizedProfitLoss", () => {
   it("returns an empty report for a window with no sells", async () => {
     const report = await getRealizedProfitLoss("uid1", "2026-01-01", "2026-04-30", deps());
 
-    expect(report).toEqual({ from: "2026-01-01", to: "2026-04-30", symbols: [], totalRealizedProfitLoss: "0.0000" });
+    expect(report).toEqual({ from: "2026-01-01", to: "2026-04-30", symbols: [], totalRealizedProfitLoss: "0.0000", excludedSellCount: 0, excludedShares: 0 });
   });
 });

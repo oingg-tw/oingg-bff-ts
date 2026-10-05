@@ -9,6 +9,9 @@ import {
   type TransactionImportRequest,
 } from "@/application/transactions/transactionImport.service.js";
 
+/** 預設「沒有任何除權」——自動配股的行為在 stockDividends.test.ts 測。 */
+const stockGateway = fakeStockGateway();
+
 const LISTED = ["2330", "2317", "0056"];
 
 function deps(overrides: { transactions?: Parameters<typeof fakeTransactions>[0]; listed?: string[] } = {}) {
@@ -34,6 +37,7 @@ function trade(overrides: Partial<ImportedTransactionInput> = {}): ImportedTrans
     price: 500,
     fee: 0,
     tax: 0,
+    costUnknown: false,
     ...overrides,
   };
 }
@@ -56,6 +60,7 @@ function storedRow(overrides: Partial<StockTransaction>): StockTransaction {
     source: null,
     externalRef: null,
     importId: null,
+    costUnknown: false,
     createdAt: "2026-01-02T00:00:00.000Z",
     updatedAt: "2026-01-02T00:00:00.000Z",
     ...overrides,
@@ -207,7 +212,7 @@ describe("importTransactions — 排序與期初部位", () => {
     expect(result.importId).toBeNull();
     // 沿用原值：既有那一筆是 1000@500，不是請求裡的 999@1。
     expect(result.holdings).toEqual([
-      { symbol: "2330", quantity: 1000, averageCost: "500.0000", totalCost: "500000.0000", realizedProfitLoss: "0.0000" },
+      { symbol: "2330", quantity: 1000, costUnknownQuantity: 0, averageCost: "500.0000", totalCost: "500000.0000", realizedProfitLoss: "0.0000" },
     ]);
   });
 });
@@ -249,7 +254,7 @@ describe("importTransactions — 冪等與 dryRun", () => {
     expect(d.transactions.createManyImported).not.toHaveBeenCalled();
     // 預覽的持股與 GET /holdings 同一支投影算的，所以前端不需要自己 replay。
     expect(result.holdings).toEqual([
-      { symbol: "2330", quantity: 1000, averageCost: "500.0000", totalCost: "500000.0000", realizedProfitLoss: "0.0000" },
+      { symbol: "2330", quantity: 1000, costUnknownQuantity: 0, averageCost: "500.0000", totalCost: "500000.0000", realizedProfitLoss: "0.0000" },
     ]);
   });
 
@@ -279,7 +284,7 @@ describe("importTransactions — 冪等與 dryRun", () => {
 
 describe("revertTransactionImport", () => {
   it("throws a 404 for an unknown importId", async () => {
-    await expect(revertTransactionImport("uid1", "import-1", { transactions: fakeTransactions() })).rejects.toMatchObject(
+    await expect(revertTransactionImport("uid1", "import-1", { transactions: fakeTransactions(), stockGateway })).rejects.toMatchObject(
       { statusCode: 404 },
     );
   });
@@ -292,7 +297,7 @@ describe("revertTransactionImport", () => {
       removeByImportId: vi.fn().mockResolvedValue(1),
     });
 
-    await expect(revertTransactionImport("uid1", "import-1", { transactions })).resolves.toEqual({ ok: true, deleted: 1 });
+    await expect(revertTransactionImport("uid1", "import-1", { transactions, stockGateway })).resolves.toEqual({ ok: true, deleted: 1 });
     expect(transactions.removeByImportId).toHaveBeenCalledWith("uid1", "import-1");
   });
 
@@ -306,7 +311,7 @@ describe("revertTransactionImport", () => {
       removeByImportId: vi.fn().mockResolvedValue(1),
     });
 
-    const outcome = await revertTransactionImport("uid1", "import-1", { transactions });
+    const outcome = await revertTransactionImport("uid1", "import-1", { transactions, stockGateway });
 
     expect(outcome.ok).toBe(false);
     expect(outcome.ok === false && outcome.shortfalls[0]).toMatchObject({ symbol: "2330", shortBy: 1000 });

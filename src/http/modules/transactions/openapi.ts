@@ -18,9 +18,16 @@ const transactionSchema = z
     tax: z.string(),
     tradeDate: z.string(),
     note: z.string().nullable(),
-    source: z.string().nullable().openapi({ description: "批次匯入的來源，一家券商一個（目前只有 yuanta-csv；期初部位是 opening）。手動輸入是 null。" }),
+    source: z.string().nullable().openapi({
+      description:
+        '批次匯入的來源，一家券商一個（目前只有 yuanta-csv；期初部位是 opening）。手動輸入是 null。**"stock-dividend" 是自動入帳的配股**：不是資料庫的列，id 不是 UUID（例如 "stock-dividend:5314:2026-08-14"），所以不能編輯也不能刪除；要讓它變化只能改除權日之前的交易。',
+    }),
     externalRef: z.string().nullable().openapi({ description: '來源系統裡那一列的識別字串（券商 CSV 是 "YYYY-MM-DD|委託書號"）。手動輸入是 null。', example: "2026-03-14|A12345" }),
     importId: z.string().nullable().openapi({ description: "同一次匯入共用，用於整批撤銷。手動輸入是 null。", format: "uuid" }),
+    costUnknown: z.boolean().openapi({
+      description:
+        "成本不明的取得：股數真的有，成本不知道。只能是 BUY，price／fee／tax 都是 0——但那不代表免費。庫存照算、已實現損益不計入、報酬率當成以當天市值轉入。",
+    }),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
@@ -77,6 +84,11 @@ registry.registerPath({
   method: "get",
   path: "/transactions",
   summary: "列出目前登入使用者的交易日誌（買進／賣出紀錄）",
+  description: [
+    "交易日新到舊。**一併列出自動入帳的配股**（`source: \"stock-dividend\"`）：它們由交易紀錄與除權資料即時算出，",
+    "不是資料庫的列，id 不是 UUID，所以 `PATCH`／`DELETE /transactions/{id}` 會回 400——要讓它變化，改除權日之前的交易。",
+    "同一天裡，配股排在真實交易之後（它在當天最早發生，倒過來列就是最後）。",
+  ].join("\n"),
   tags: ["Transactions"],
   security: [{ bearerAuth: [] }],
   request: {
@@ -95,7 +107,14 @@ registry.registerPath({
   method: "post",
   path: "/transactions",
   summary: "新增一筆交易日誌（買進／賣出紀錄）",
-  description: "這是獨立的交易日誌，不會自動更新 /holdings 的持股數量；會先確認 symbol 在 twse/tpex 其中一邊查得到資料。",
+  description: [
+    "**持股明細（`GET /holdings`）由交易紀錄算出**，所以新增一筆交易就會改變持股。會先確認 symbol 存在。",
+    "",
+    "賣出會驗證**整段重算**：任何時點賣超回 400、`code: \"LEDGER_OVERSOLD\"`。自動入帳的配股算在內，所以賣出配來的股票不會被誤擋。",
+    "",
+    "`costUnknown: true`：成本不明的取得，只能是 BUY，`price` 可以省略（視為 0），`fee`／`tax` 必須是 0；送了非 0 的價格回 400。",
+    "其他情況 `price` 必填。",
+  ].join("\n"),
   tags: ["Transactions"],
   security: [{ bearerAuth: [] }],
   request: {
@@ -205,6 +224,11 @@ registry.registerPath({
     "",
     "`averageCost` 的 0 代表**真的零成本**（配股／增資配發）。券商匯出檔裡的成本 0 通常是「券商不知道成本」,",
     "那不能當成 0 送進來，否則已實現損益會被灌水——未知就讓使用者自己填。",
+    "",
+    "### 配股與成本不明",
+    "驗證與預覽都會**先套用自動入帳的配股**（見 `GET /holdings`），所以賣出配來的股票不會出現在 shortfalls 裡。",
+    "仍然賣超、券商又沒記成本的那一筆：在**同一天**補一筆 `costUnknown: true` 的 BUY，股數＝shortBy。",
+    "不要用價格 0 的普通 BUY 代替——那會把整筆賣出算成獲利，報酬率也會出現假的尖峰。",
     "",
     "### dryRun",
     "`dryRun: true` 跑完全相同的驗證但不寫入，回 200、`importId` 為 null。預覽畫面請用它，",

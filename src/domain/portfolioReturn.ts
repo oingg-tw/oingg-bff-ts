@@ -101,25 +101,40 @@ export function computePortfolioReturn(input: PortfolioReturnInput): PortfolioRe
 
   let cursor = 0;
   /** 把交易日 ≤ date 的交易全部套用，回傳淨流入。 */
-  function applyThrough(date: string): number {
-    let netFlow = 0;
+  /**
+   * 回傳當天的**總流入**與**總流出**，分開算。2026-10-05 修過一次：原本只回淨額，同一天又買又賣
+   * （當沖，或成本不明的取得與它要補的那筆賣出）會先互相抵銷，分母只剩手續費那一點點——收盤價高於
+   * 賣價時算出 −100%，低於時整天被當成沒投資而跳過。流入算開盤前投入，所以分母要用總流入。
+   */
+  function applyThrough(date: string): { inflow: number; outflow: number } {
+    let inflow = 0;
+    let outflow = 0;
     while (cursor < entries.length && entries[cursor]!.tradeDate <= date) {
       const entry = entries[cursor++]!;
       const held = quantities.get(entry.symbol) ?? 0;
-      lastTradePrice.set(entry.symbol, entry.price);
+      // 只有真的成交價才能當後備估值：配股與成本不明的列價格是 0，記下來會讓沒有收盤價的那幾天市值變 0。
+      if (entry.price > 0 && !entry.costUnknown) {
+        lastTradePrice.set(entry.symbol, entry.price);
+      }
       if (entry.action === "BUY") {
         quantities.set(entry.symbol, held + entry.quantity);
-        netFlow += entry.quantity * entry.price + entry.fee;
+        // 成本不明的取得當成「以當天市值轉入」：流入等於轉入的市值，所以它本身不產生報酬。照價格 0 算的話，
+        // 這些股票會像憑空出現，整筆市值變成當天的獲利（2026-10-05 實測：股價全不動的組合算出 +25%）。
+        // 配股則照 0 算：它的流入真的是 0，剛好抵銷除權當天的股價下跌。
+        const unitValue = entry.costUnknown
+          ? (closeOnOrBefore(entry.symbol, date)?.price ?? lastTradePrice.get(entry.symbol) ?? 0)
+          : entry.price;
+        inflow += entry.quantity * unitValue + (entry.costUnknown ? 0 : entry.fee);
       } else {
         const sold = Math.min(entry.quantity, held);
         if (sold === 0) {
           continue;
         }
         quantities.set(entry.symbol, held - sold);
-        netFlow -= sold * entry.price - entry.fee - entry.tax;
+        outflow += sold * entry.price - entry.fee - entry.tax;
       }
     }
-    return netFlow;
+    return { inflow, outflow };
   }
 
   /** 收盤後的持股市值。`countMissing` 只在期間內的日子為真——起點那天的缺價不算進報表。 */
@@ -146,11 +161,11 @@ export function computePortfolioReturn(input: PortfolioReturnInput): PortfolioRe
   let invested = false;
   const series: PortfolioReturn["series"] = [];
   for (const date of input.calendar) {
-    const netFlow = applyThrough(date);
+    const { inflow, outflow } = applyThrough(date);
     const value = marketValue(date, true);
-    const denominator = previousValue + Math.max(netFlow, 0);
+    const denominator = previousValue + inflow;
     if (denominator > 0) {
-      growth *= 1 + (value - previousValue - netFlow) / denominator;
+      growth *= 1 + (value - previousValue - inflow + outflow) / denominator;
       invested = true;
     }
     series.push({ date, cumulative: invested ? growth - 1 : null });

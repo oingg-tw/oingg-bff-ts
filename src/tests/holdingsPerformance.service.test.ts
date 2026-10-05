@@ -24,6 +24,7 @@ function row(symbol: string, action: "BUY" | "SELL", quantity: number, price: nu
     source: null,
     externalRef: null,
     importId: null,
+    costUnknown: false,
     createdAt: `${tradeDate}T00:00:00.000Z`,
     updatedAt: `${tradeDate}T00:00:00.000Z`,
   };

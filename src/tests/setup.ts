@@ -1,3 +1,6 @@
+import { beforeEach } from "vitest";
+import { resetStockDividendCache } from "@/application/holdings/stockDividendLedger.js";
+
 /**
  * 測試環境的必要環境變數預設值。
  *
@@ -21,3 +24,11 @@ process.env.API_DOCS_USER = "test-docs-user";
 process.env.API_DOCS_PASSWORD = "test-docs-password";
 process.env.RESEND_API_KEY = "re_test_key";
 process.env.DATABASE_URL = "postgresql://placeholder:placeholder@localhost:5432/placeholder";
+
+/**
+ * 自動配股的行事曆快取是模組層的狀態，會跨測試保留：前一個測試快取了「這個月沒有配股」，後一個
+ * 測試提供的配股就會被忽略，變成看執行順序決定的測試。每個測試前清一次。
+ */
+beforeEach(() => {
+  resetStockDividendCache();
+});

@@ -39,7 +39,9 @@ export const createTransactionSchema = z.object({
   symbol: z.string().trim().min(1, '"symbol" is required'),
   action: z.string(),
   quantity: z.number(),
-  price: z.number(),
+  /** 成本不明的取得可以省略（視為 0）；其他情況必填，見 resolvePrice。 */
+  price: z.number().optional(),
+  costUnknown: z.boolean().optional(),
   fee: z.number().optional(),
   tax: z.number().optional(),
   tradeDate: z.string(),
@@ -72,16 +74,32 @@ export const importTransactionsSchema = z.object({
       symbol: z.string().trim().min(1),
       action: z.string(),
       quantity: z.number(),
-      price: z.number(),
+      price: z.number().optional(),
       fee: z.number().optional(),
       tax: z.number().optional(),
+      costUnknown: z.boolean().optional(),
     }),
   ),
 });
 
+/**
+ * price 只有成本不明的取得可以省略。其他情況省略就是呼叫端漏了，回 400——不能默默當成 0，那會把
+ * 一筆真的買進變成「免費取得」。
+ */
+function resolvePrice(price: number | undefined, costUnknown: boolean | undefined): number {
+  if (price !== undefined) {
+    return price;
+  }
+  if (costUnknown) {
+    return 0;
+  }
+  throw new AppError('"price" is required unless "costUnknown" is true', 400);
+}
+
 export const clearTransactionsQuerySchema = z.object({ all: booleanQueryParam("all") });
 
 export const updateTransactionSchema = z.object({
+  costUnknown: z.boolean().optional(),
   action: z.string().optional(),
   quantity: z.number().optional(),
   price: z.number().optional(),
@@ -116,11 +134,12 @@ export function createTransactionsRouter(
       symbol: body.symbol,
       action: body.action as TransactionInput["action"],
       quantity: body.quantity,
-      price: body.price,
+      price: resolvePrice(body.price, body.costUnknown),
       fee: body.fee ?? 0,
       tax: body.tax ?? 0,
       tradeDate: body.tradeDate,
       note: body.note ?? null,
+      costUnknown: body.costUnknown ?? false,
     };
 
     await assertSymbolExists(input.symbol, deps);
@@ -161,8 +180,10 @@ export function createTransactionsRouter(
         transactions: body.transactions.map((row) => ({
           ...row,
           action: row.action as TransactionInput["action"],
+          price: resolvePrice(row.price, row.costUnknown),
           fee: row.fee ?? 0,
           tax: row.tax ?? 0,
+          costUnknown: row.costUnknown ?? false,
         })),
       },
       deps,
@@ -222,6 +243,9 @@ export function createTransactionsRouter(
     }
     if (body.note !== undefined) {
       update.note = body.note;
+    }
+    if (body.costUnknown !== undefined) {
+      update.costUnknown = body.costUnknown;
     }
 
     const transaction = await editTransaction(firebaseUid, id, update, deps);

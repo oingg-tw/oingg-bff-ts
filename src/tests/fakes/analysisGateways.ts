@@ -55,7 +55,8 @@ export function fakeStockGateway(overrides: Partial<StockGatewayPort> = {}): Sto
     getCapitalStockHistory: vi.fn(),
     getDividendHistory: vi.fn(),
     getExDividendNotices: vi.fn(),
-    getExDividendCalendar: vi.fn(),
+    // 預設「沒有任何除權」：持股重算的每條路徑都會查它（自動配股），不關心配股的測試不必每個都覆寫。
+    getExDividendCalendar: vi.fn().mockResolvedValue({ entries: [] }),
     getFinancialStatement: vi.fn(),
     getPreferredStocks: vi.fn(),
     getPreferredStockFieldCatalog: vi.fn(),

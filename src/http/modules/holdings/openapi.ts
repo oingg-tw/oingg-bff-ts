@@ -9,9 +9,11 @@ import { dateRangeQuerySchema } from "@/http/modules/holdings/route.js";
 const holdingSchema = z
   .object({
     symbol: z.string(),
-    quantity: z.number(),
-    averageCost: z.string().openapi({
-      description: "移動平均成本，含買進手續費。字串以保留 Decimal(18,4) 的精度。",
+    quantity: z.number().openapi({ description: "總股數，含自動入帳的配股與成本不明的股數。" }),
+    costUnknownQuantity: z.number().openapi({ description: "其中成本不明的股數。平常是 0。" }),
+    averageCost: z.string().nullable().openapi({
+      description:
+        "**成本已知那部分**的移動平均成本，含買進手續費。全部股數都成本不明時是 null（不是 \"0.0000\"——0 會被讀成免費取得）。",
       example: "550.5000",
     }),
     totalCost: z.string().openapi({ description: "quantity × averageCost，這個部位目前的總投入成本。", example: "550500.0000" }),
@@ -39,8 +41,16 @@ registry.registerPath({
     "",
     "**股數為 0 的代號不會出現**（已出清就不是持股），所以它那段已實現損益在這裡也看不到。",
     "",
-    "要表達「我在開始記帳之前就有 1000 股」：記一筆日期最早的 BUY。要表達配股／分割：記一筆 `price: 0` 的 BUY。",
-    "兩者都不需要特別的欄位或旗標。",
+    "要表達「我在開始記帳之前就有 1000 股」：記一筆日期最早的 BUY。",
+    "",
+    "### 配股自動入帳（2026-10-05 起）",
+    "依除權息行事曆的 `stockDividendRatio`（每股配幾股），在**除權日**自動記一筆價格 0 的買進：股數＝除權日",
+    "前一天收盤後的持股 × 比例，無條件捨去。**不需要也不應該再手動記配股**，否則會重複。",
+    "不用 `stockDividend ÷ 10`：面額不一定是 10 元（5314 是 0.5 元）。行事曆資料從 2019 年起（2020 年中以後完整）。",
+    "",
+    "### 成本不明",
+    "`costUnknownQuantity` 的股數照樣計入庫存，但不參與均價；賣出時**先賣成本不明的股數**，所以成本已知的",
+    "那部分均價不會被拉低。",
   ].join("\n"),
   tags: ["Holdings"],
   security: [{ bearerAuth: [] }],
@@ -103,8 +113,17 @@ registry.registerPath({
             .object({
               from: z.string().nullable(),
               to: z.string().nullable(),
-              symbols: z.array(z.object({ symbol: z.string(), realizedProfitLoss: z.string().openapi({ example: "12345.6700" }) })),
+              symbols: z.array(
+                z.object({
+                  symbol: z.string(),
+                  realizedProfitLoss: z.string().openapi({ example: "12345.6700" }),
+                  excludedSellCount: z.number().openapi({ description: "這一檔有幾筆賣出碰到成本不明的股數（那部分未計入損益）。" }),
+                  excludedShares: z.number().openapi({ description: "這一檔被排除在損益之外的成本不明股數。" }),
+                }),
+              ),
               totalRealizedProfitLoss: z.string().openapi({ example: "389025.0000" }),
+              excludedSellCount: z.number().openapi({ description: "全部合計。用來顯示「N 筆成本不明，未計入」。" }),
+              excludedShares: z.number(),
             })
             .openapi("RealizedProfitLossReport"),
         },
@@ -134,7 +153,11 @@ registry.registerPath({
     "TWR 都等於股價漲跌幅。",
     "",
     "### 不含息",
-    "股利不計入，跟價格型的加權指數口徑一致。",
+    "現金股利不計入，跟價格型的加權指數口徑一致。",
+    "",
+    "### 配股與成本不明",
+    "**自動入帳的配股**流入是 0：除權當天股價下跌，新股的市值剛好補回來，所以除權本身不產生報酬。",
+    "**成本不明的取得**當成以當天收盤價轉入的資金：它本身不產生報酬（若照價格 0 算，整筆市值會變成假的獲利）。",
     "",
     "### null 的意思",
     "`cumulative` 在**第一次有持股之前**是 null：期間中才開始投資的話，前面那段不畫成 0% 的水平線。",

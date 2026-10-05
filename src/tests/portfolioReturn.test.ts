@@ -108,6 +108,16 @@ describe("computePortfolioReturn — 邊界", () => {
     expect(result.twr).toBeCloseTo((1 + (102 - 102) / 10_200) * (1 + (200 * 105 - 100 * 102 - 9900) / (100 * 102 + 9900)) - 1, 12);
   });
 
+  /**
+   * 2026-10-05 實測抓到的：流入與流出原本先淨額相抵，同一天又買又賣時分母只剩手續費，算出 −100%
+   * 或整天被跳過。以 100 買進、以 101 當天賣出，那天就是 +1%。
+   */
+  it("keeps a same-day round trip's gain instead of netting the flows away", () => {
+    const result = run([trade("A", "BUY", 1000, 100, "2026-03-02"), trade("A", "SELL", 1000, 101, "2026-03-02")]);
+
+    expect(result.series[0]!.cumulative).toBeCloseTo(0.01, 12);
+  });
+
   it("ignores a clamped sell of zero shares instead of producing −100%", () => {
     const result = run([trade("A", "BUY", 100, 100, "2026-03-02"), trade("A", "SELL", 100, 99, "2026-03-03"), trade("A", "SELL", 50, 105, "2026-03-04", 20, 15)]);
 

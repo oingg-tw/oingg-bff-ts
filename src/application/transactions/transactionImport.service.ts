@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { AppError } from "@/domain/appError.js";
 import { projectHoldings, type LedgerEntry, type Oversold } from "@/domain/holdingProjection.js";
 import { holdingsFromLedger } from "@/application/holdings/holdings.service.js";
+import { applyStockDividends } from "@/application/holdings/stockDividendLedger.js";
 import { assertValidTransactionInput, toLedgerEntry } from "@/application/transactions/transactions.service.js";
 import { listedSymbols, type StockProxyDeps } from "@/application/proxy/stock/stock.service.js";
 import type { AppDeps } from "@/application/deps.js";
@@ -47,6 +48,11 @@ export interface ImportedTransactionInput {
   price: number;
   fee: number;
   tax: number;
+  /**
+   * 成本不明的取得（使用者 2026-10-05 決定）。前端的用法：匯入後仍然賣超、券商又沒記成本的那一筆，
+   * 在**同一天**補一筆 costUnknown 的 BUY，股數＝shortBy。
+   */
+  costUnknown: boolean;
 }
 
 export interface TransactionImportRequest {
@@ -226,6 +232,7 @@ export async function importTransactions(
       note: null,
       source: request.source,
       externalRef: row.externalRef,
+      costUnknown: row.costUnknown,
       createdAt: new Date(),
     }));
 
@@ -256,10 +263,15 @@ export async function importTransactions(
       tradeDate: row.tradeDate,
       createdAt: row.createdAt.toISOString(),
       ref: row.externalRef,
+      // 這一行之前漏過一次（2026-10-05）：這裡是逐欄位對應，少了它 costUnknown 會被悄悄丟掉、當成
+      // 價格 0 的買進驗證，而 TypeScript 不會抱怨，因為欄位是選填的。
+      ...(row.costUnknown ? { costUnknown: true } : {}),
     })),
   ];
 
-  const { oversold } = projectHoldings(ledger);
+  // 先補自動配股再驗：配來的股數賣出時不能被當成賣超（5314 賣的 12,628 股全是配股）。
+  const { entries: withDividends } = await applyStockDividends(ledger, deps);
+  const { oversold } = projectHoldings(withDividends);
   if (oversold.length > 0) {
     return { ok: false, shortfalls: oversold.map(toShortfall) };
   }
@@ -278,7 +290,7 @@ export async function importTransactions(
       inserted: newTrades.length,
       duplicates: alreadyImported.size,
       openingPositions,
-      holdings: holdingsFromLedger(ledger),
+      holdings: holdingsFromLedger(withDividends),
     },
   };
 }
@@ -299,7 +311,7 @@ function toShortfall(oversold: Oversold): Shortfall {
 export async function revertTransactionImport(
   firebaseUid: string,
   importId: string,
-  deps: Pick<AppDeps, "transactions">,
+  deps: Pick<AppDeps, "transactions" | "stockGateway">,
 ): Promise<{ ok: true; deleted: number } | { ok: false; shortfalls: Shortfall[] }> {
   const batch = await deps.transactions.listByImportId(firebaseUid, importId);
   if (batch.length === 0) {
@@ -308,7 +320,8 @@ export async function revertTransactionImport(
 
   const batchIds = new Set(batch.map((row) => row.id));
   const remaining = (await deps.transactions.list(firebaseUid)).filter((row) => !batchIds.has(row.id));
-  const { oversold } = projectHoldings(remaining.map(toLedgerEntry));
+  const { entries: withDividends } = await applyStockDividends(remaining.map(toLedgerEntry), deps);
+  const { oversold } = projectHoldings(withDividends);
   if (oversold.length > 0) {
     return { ok: false, shortfalls: oversold.map(toShortfall) };
   }

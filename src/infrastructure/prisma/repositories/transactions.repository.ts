@@ -26,6 +26,7 @@ function toStockTransaction(row: StockTransactionRow): StockTransaction {
     source: row.source,
     externalRef: row.externalRef,
     importId: row.importId,
+    costUnknown: row.costUnknown,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
