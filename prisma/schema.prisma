@@ -441,36 +441,14 @@ model ScreenerPreset {
   @@map("screener_preset")
 }
 
-/// A user's current position in a stock (持股管理) — maintained independently of StockTransaction,
-/// not computed from it. Quantity/averageCost are whatever the user says they are; adjusting them after
-/// recording a trade in StockTransaction is a separate, manual step (see src/domainBusiness/holdings).
-/// **2026-10-05 起沒有任何程式碼讀寫這張表。** 持股明細改成由 StockTransaction 算出來的唯讀投影
-/// （見 src/domain/holdingProjection.ts）。
-///
-/// 刻意**不在同一個變更裡 drop**：部署端與本機共用同一個 Neon 資料庫，而部署端跑的還是舊程式碼——
-/// 先 drop 的話那邊的 GET /holdings 會在新版部署上去之前一路 500。等新程式碼部署完再補一個 migration 刪掉。
-/// 目前 0 列，沒有任何外鍵指向它，留著不花成本。
-model Holding {
-  id          String   @id @default(uuid()) @db.Uuid
-  firebaseUid String   @map("firebase_uid")
-  symbol      String
-  quantity    Int
-  averageCost Decimal  @map("average_cost") @db.Decimal(18, 4)
-  note        String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
-
-  @@unique([firebaseUid, symbol])
-  @@index([firebaseUid])
-  @@map("holding")
-}
-
 enum TransactionAction {
   BUY
   SELL
 }
 
-/// A single buy/sell trade record (交易日誌) — a plain ledger entry, independent of Holding (see above).
+/// A single buy/sell trade record (交易日誌). **Holdings (持股明細) are computed from these rows** — there is
+/// no holdings table since 2026-10-05; see src/domain/holdingProjection.ts. The old `holding` table was
+/// dropped once the projection was deployed (it had 0 rows and nothing referenced it).
 model StockTransaction {
   id          String            @id @default(uuid()) @db.Uuid
   firebaseUid String            @map("firebase_uid")

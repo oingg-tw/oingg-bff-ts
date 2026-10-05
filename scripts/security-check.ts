@@ -367,7 +367,6 @@ async function main() {
   } finally {
     console.log("\nCleaning up ephemeral test accounts...");
     for (const uid of createdUids) {
-      await prisma.holding.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await prisma.stockTransaction.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await prisma.watchlistItem.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await prisma.screenerPreset.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
