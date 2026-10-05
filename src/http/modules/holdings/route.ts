@@ -10,6 +10,10 @@ import {
   getPortfolioPerformance,
   type HoldingsPerformanceDeps,
 } from "@/application/holdings/holdingsPerformance.service.js";
+import {
+  getPortfolioRisk,
+  type HoldingsRiskDeps,
+} from "@/application/holdings/holdingsRisk.service.js";
 
 function requireUser(req: AuthenticatedRequest): string {
   if (!req.user) {
@@ -32,7 +36,7 @@ export const dateRangeQuerySchema = z
  * 也因此這個 router 不再需要 `assertSymbolExists`：唯一剩下的寫入是刪除，而刪一個不存在的代號本來就
  * 因為「你在這個代號底下沒有交易」而回 404，不需要先問上游那個代號是不是真的。
  */
-export function createHoldingsRouter(deps: HoldingsDeps & HoldingsPerformanceDeps & AuthMiddlewareDeps): Router {
+export function createHoldingsRouter(deps: HoldingsDeps & HoldingsPerformanceDeps & HoldingsRiskDeps & AuthMiddlewareDeps): Router {
   const holdingsRouter = Router();
   holdingsRouter.use(createRequireAuth(deps));
 
@@ -52,6 +56,12 @@ export function createHoldingsRouter(deps: HoldingsDeps & HoldingsPerformanceDep
     const firebaseUid = requireUser(req);
     const { from, to } = parseBody(dateRangeQuerySchema, req.query);
     res.json(await getPortfolioPerformance(firebaseUid, from, to, deps));
+  });
+
+  holdingsRouter.get("/risk", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const { from, to } = parseBody(dateRangeQuerySchema, req.query);
+    res.json(await getPortfolioRisk(firebaseUid, from, to, deps));
   });
 
   holdingsRouter.delete("/:symbol", async (req: AuthenticatedRequest, res) => {

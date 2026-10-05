@@ -75,3 +75,43 @@ export interface PortfolioPerformanceReport {
   /** 有持股但當天沒有收盤價（沿用前一個收盤價、或退回交易價）的天數，依 symbol 升冪。 */
   missingPrices: { symbol: string; dates: number }[];
 }
+
+/**
+ * GET /holdings/risk 的回應：**用現在的持股回推**的風險指標（使用者 2026-10-05 選的做法）。算法見
+ * domain/portfolioRisk.ts。小數都是 6 位小數字串；波動度、回撤是小數（"0.234567" = 23.4567%）。
+ *
+ * 刻意沒有報酬與夏普比率：這組持股是事後選的，回推的報酬會偏高。報酬請看 /holdings/performance。
+ */
+export interface PortfolioRiskReport {
+  from: string;
+  to: string;
+  /** 用來計算的交易日數。統計誤差跟它有關，前端應該一起顯示（例如少於約 60 天時波動度參考價值很低）。 */
+  tradingDays: number;
+  /** 權重用的是哪一天的收盤價（各持股最新收盤日中最晚的那天）。沒有持股時是 null。 */
+  weightsAsOf: string | null;
+  portfolio: {
+    annualizedVolatility: string | null;
+    beta: string | null;
+    correlation: string | null;
+    maxDrawdown: DrawdownView;
+  };
+  /** 同一段期間的加權指數，給前端並排比較。 */
+  benchmark: {
+    annualizedVolatility: string | null;
+    maxDrawdown: DrawdownView;
+  };
+  /**
+   * 現在的每一檔持股與它在回推裡的權重。coverage：full＝整段都有股價；partial＝期間中才有（firstPriceDate
+   * 之前不參與，權重分給其他持股）；none＝整段都沒有股價、沒參與（weight 也是 null）。
+   */
+  holdings: { symbol: string; weight: string | null; coverage: "full" | "partial" | "none"; firstPriceDate: string | null }[];
+}
+
+export interface DrawdownView {
+  /** 最大跌幅（≤ 0）。期間內從來沒跌過時是 "0.000000"、日期都是 null。 */
+  depth: string;
+  peakDate: string | null;
+  troughDate: string | null;
+  /** 回到前高的那一天；期間結束時還沒回到就是 null。 */
+  recoveryDate: string | null;
+}

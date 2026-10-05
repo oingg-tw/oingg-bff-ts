@@ -68,6 +68,24 @@ async function eventsForMonth(month: string, currentMonth: string, deps: StockDi
   return events;
 }
 
+/**
+ * 這幾檔從 `fromDate` 起到今天、已經除權的配股事件（比例是行事曆的 stockDividendRatio）。
+ * applyStockDividends 用它入帳配股；/holdings/risk 用它還原除權造成的股價斷層。兩邊共用同一份月快取。
+ */
+export async function stockDividendEventsFor(
+  symbols: ReadonlySet<string>,
+  fromDate: string,
+  deps: StockDividendDeps,
+): Promise<StockDividendEvent[]> {
+  const today = todayInTaipei();
+  const currentMonth = today.slice(0, 7);
+  const fromMonth = fromDate.slice(0, 7);
+  const months = monthsBetween(fromMonth < CALENDAR_FIRST_MONTH ? CALENDAR_FIRST_MONTH : fromMonth, currentMonth);
+  const perMonth = await mapWithConcurrency(months, MAX_CONCURRENT_MONTH_REQUESTS, (month) => eventsForMonth(month, currentMonth, deps));
+  // 除權日還沒到的（當月行事曆裡的預告）不算：那些股數還不存在。
+  return perMonth.flat().filter((event) => symbols.has(event.symbol) && event.exRightsDate >= fromDate && event.exRightsDate <= today);
+}
+
 export async function applyStockDividends(
   entries: readonly LedgerEntry[],
   deps: StockDividendDeps,
@@ -75,15 +93,7 @@ export async function applyStockDividends(
   if (entries.length === 0) {
     return { entries: [], dividends: [] };
   }
-  const today = todayInTaipei();
-  const currentMonth = today.slice(0, 7);
-  const earliestMonth = entries.reduce((min, entry) => (entry.tradeDate < min ? entry.tradeDate : min), entries[0]!.tradeDate).slice(0, 7);
-  const months = monthsBetween(earliestMonth < CALENDAR_FIRST_MONTH ? CALENDAR_FIRST_MONTH : earliestMonth, currentMonth);
-
-  const symbols = new Set(entries.map((entry) => entry.symbol));
-  const perMonth = await mapWithConcurrency(months, MAX_CONCURRENT_MONTH_REQUESTS, (month) => eventsForMonth(month, currentMonth, deps));
-  // 除權日還沒到的（當月行事曆裡的預告）不入帳：那些股數還不存在。
-  const events = perMonth.flat().filter((event) => symbols.has(event.symbol) && event.exRightsDate <= today);
-
+  const earliest = entries.reduce((min, entry) => (entry.tradeDate < min ? entry.tradeDate : min), entries[0]!.tradeDate);
+  const events = await stockDividendEventsFor(new Set(entries.map((entry) => entry.symbol)), earliest, deps);
   return withStockDividends(entries, events);
 }

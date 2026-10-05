@@ -200,3 +200,68 @@ registry.registerPath({
     401: unauthorized,
   },
 });
+
+const drawdownSchema = z.object({
+  depth: z.string().openapi({ description: "最大跌幅（≤ 0 的小數）。期間內從來沒跌過時是 \"0.000000\"。", example: "-0.267102" }),
+  peakDate: z.string().nullable(),
+  troughDate: z.string().nullable(),
+  recoveryDate: z.string().nullable().openapi({ description: "回到前高的那一天；期間結束時還沒回到就是 null。" }),
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/holdings/risk",
+  summary: "用現在的持股回推的風險指標（波動度、Beta、相關係數、最大回撤）",
+  description: [
+    "拿**現在每一檔的市值比例**，當成整段期間每天都維持的比例，套用每一檔過去的日報酬，算出這組持股的風險。",
+    "描述的是**現在手上這組**，不必等使用者自己累積持股歷史。預設期間是到今天為止的一年，最多回溯約 8 年（同 /holdings/performance）。",
+    "",
+    "### 刻意不提供報酬與夏普比率",
+    "這組持股是事後選的，回推的報酬會偏高。真實的期間報酬請看 `GET /holdings/performance`。",
+    "",
+    "### 計算規則",
+    "- 年化波動度 ＝ 日報酬標準差 × √252。Beta、相關係數以加權指數為基準。",
+    "- **除權（配股）會還原**：除權當天股價依配股比例下跌不算虧損。**現金股利不還原**，跟價格型加權指數口徑一致。",
+    "- 沒成交、停牌的日子沿用前一個收盤價。期間中才上市的持股，在有股價之前不參與，比例分給其他持股（見 `holdings[].coverage`）。",
+    "- `tradingDays` 是實際用到的交易日數。統計誤差跟它有關：波動度約 3 個月可用，Beta 約 6 個月，請一起顯示。",
+    "",
+    "只描述統計，不含任何建議或風險等級。",
+  ].join("\n"),
+  tags: ["Holdings"],
+  security: [{ bearerAuth: [] }],
+  request: { query: dateRangeQuerySchema },
+  responses: {
+    200: {
+      description: "風險指標。數值都是 6 位小數字串；沒有足夠資料時是 null。",
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              from: z.string(),
+              to: z.string(),
+              tradingDays: z.number(),
+              weightsAsOf: z.string().nullable().openapi({ description: "權重用的是哪一天的收盤價。" }),
+              portfolio: z.object({
+                annualizedVolatility: z.string().nullable().openapi({ example: "0.234567" }),
+                beta: z.string().nullable().openapi({ example: "1.123456" }),
+                correlation: z.string().nullable().openapi({ example: "0.812345" }),
+                maxDrawdown: drawdownSchema,
+              }),
+              benchmark: z.object({ annualizedVolatility: z.string().nullable(), maxDrawdown: drawdownSchema }),
+              holdings: z.array(
+                z.object({
+                  symbol: z.string(),
+                  weight: z.string().nullable(),
+                  coverage: z.enum(["full", "partial", "none"]),
+                  firstPriceDate: z.string().nullable(),
+                }),
+              ),
+            })
+            .openapi("PortfolioRiskReport"),
+        },
+      },
+    },
+    400: errorResponse("日期格式錯誤、from 晚於 to，或期間超過收盤價能回溯的深度（約 8 年）。"),
+    401: unauthorized,
+  },
+});
