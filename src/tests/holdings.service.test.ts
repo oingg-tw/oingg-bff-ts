@@ -108,7 +108,7 @@ describe("getRealizedProfitLoss", () => {
   it("includes closed positions over the whole period", async () => {
     const report = await getRealizedProfitLoss("uid1", undefined, undefined, deps());
 
-    // 2330：(300−150)×500 + (100−150)×1500 = 75,000 − 75,000 = 0；0056：(35−30)×2000 = 10,000
+    // 2330（FIFO）：5 月 500×(300−100) = 100,000；9 月 500×(100−100) + 1000×(100−200) = −100,000；合計 0。0056：10,000
     expect(report).toEqual({
       from: null,
       to: null,
@@ -121,15 +121,15 @@ describe("getRealizedProfitLoss", () => {
   });
 
   /**
-   * 這一條守的是最容易做錯的地方：區間從 4 月開始，但 5 月那筆賣出的成本基礎必須是 1、3 月兩筆買進
-   * 的均價 150。如果拿區間去截斷重算的輸入，區間內就沒有任何買進，成本會變成 0，已實現損益灌成
-   * 150,000 而不是 75,000。
+   * 這一條守的是最容易做錯的地方：區間從 4 月開始，但 5 月那筆賣出的成本必須來自 1 月那一批（FIFO，
+   * 每股 100）。如果拿區間去截斷重算的輸入，區間內就沒有任何買進，成本會變成 0，已實現損益灌成
+   * 150,000 而不是 100,000。
    */
   it("filters by sell date but keeps the cost basis from buys before the window", async () => {
     const report = await getRealizedProfitLoss("uid1", "2026-04-01", "2026-05-31", deps());
 
-    expect(report.symbols).toEqual([{ symbol: "2330", realizedProfitLoss: "75000.0000", excludedSellCount: 0, excludedShares: 0 }]);
-    expect(report.totalRealizedProfitLoss).toBe("75000.0000");
+    expect(report.symbols).toEqual([{ symbol: "2330", realizedProfitLoss: "100000.0000", excludedSellCount: 0, excludedShares: 0 }]);
+    expect(report.totalRealizedProfitLoss).toBe("100000.0000");
   });
 
   it("treats both ends of the window as inclusive", async () => {

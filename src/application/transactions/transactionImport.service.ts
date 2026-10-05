@@ -50,7 +50,8 @@ export interface ImportedTransactionInput {
   tax: number;
   /**
    * 成本不明的取得（使用者 2026-10-05 決定）。前端的用法：匯入後仍然賣超、券商又沒記成本的那一筆，
-   * 在**同一天**補一筆 costUnknown 的 BUY，股數＝shortBy。
+   * 補一筆 costUnknown 的 BUY，股數＝shortBy，**日期設在那一檔最早交易的前一天**——它代表很久以前就有的
+   * 股票，FIFO 下就會最先被賣掉（2026-10-05 改成 FIFO 時一起改的；之前是同一天）。
    */
   costUnknown: boolean;
 }

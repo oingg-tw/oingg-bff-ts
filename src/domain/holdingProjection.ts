@@ -1,5 +1,5 @@
 /**
- * 持股明細的投影：由交易紀錄算出每個代號的現有股數、移動平均成本與已實現損益。
+ * 持股明細的投影：由交易紀錄算出每個代號的現有股數、成本與已實現損益（先進先出）。
  *
  * **2026-10-05 的決定（使用者拍板，web-nuxt 提案）**：持股不再是一張自己維護的表，而是交易紀錄的純函式
  * 投影。原本 `Holding` 與 `StockTransaction` 是刻意獨立的（存量 vs 流量，2026-08-30 的決定），那個決定
@@ -10,9 +10,15 @@
  * 結構上不可能漂掉。代價是每次讀取都要重算，而一個散戶一生的交易筆數是幾百到幾千、用 firebaseUid 的索引
  * 一次查出來——這個規模下重算比維護一致性便宜太多。
  *
- * **成本法是移動平均**：買進手續費計入成本，賣出的手續費與交易稅只進已實現損益、不動剩餘均價。
- * 這在稅務上不是台灣的個股實際算法（實際是逐筆對應），但它是券商對帳單呈現「平均成本」的方式，而且
- * 使用者要的是「我這檔大概賺賠多少」。要改成先進先出的話這個檔案是唯一要改的地方。
+ * **成本法是先進先出（FIFO），2026-10-05 由移動平均改過來。** 使用者聽完 5314 的兩種算法說明後決定
+ * 「那不然就比照券商就好」（經 web-nuxt 轉達原話）。每一筆買進——包括期初部位、自動配股（成本 0）、
+ * 成本不明的取得——各自是一**批**，賣出時從最舊的一批開始扣。買進手續費計入那一批的成本；賣出的手續費
+ * 與交易稅從那筆賣出的價金扣掉。
+ *
+ * 為什麼改：移動平均跟券商的**總額**一樣（全部賣完時必然相等），但**逐筆**不同——5314 除權後賣掉原本
+ * 4,000 股，券商記 −200,962，移動平均記 +46,827，而使用者會拿 GET /holdings/realized 依月份跟對帳單比。
+ * web-nuxt 用使用者的真實檔案模擬 FIFO：47 筆券商有成本的賣出裡 45 筆逐筆差距在 1 元以內，另 2 筆是
+ * 他們推算期初成本的錯，不是 FIFO 的。
  *
  * **期初部位沒有旗標**：想表達「我在開始記帳之前就有 1000 股」就記一筆日期最早的 BUY，跟 web-nuxt 把
  * 配股記成價格 0 的買進是同一招。刻意不加 `isOpening` 欄位——replay 不需要知道哪一筆是期初（它只是
@@ -46,9 +52,9 @@ export interface LedgerEntry {
    * **成本不明的取得**（使用者 2026-10-05 決定的 (a)）：股數真的有，但取得成本不知道——例如很久以前
    * 買的、券商紀錄已經過期刪除。`price` 會被忽略。
    *
-   * 為什麼不直接記成價格 0：成本 0 是一個**主張**（這些股票是免費的），會把整筆賣出金額算成獲利，
-   * 而且會把同一檔其他股票的均價拉低（2026-10-05 實測：1,000 股 @100 的均價被拉到 7.34）。成本不明
-   * 是**沒有主張**：庫存照算，已實現損益不計入，報酬率當成以當天市值轉入。
+   * 為什麼不直接記成價格 0：成本 0 是一個**主張**（這些股票是免費的），會把整筆賣出金額算成獲利。
+   * 成本不明是**沒有主張**：庫存照算，已實現損益不計入，報酬率當成以當天市值轉入。FIFO 下它是一般的
+   * 一批，依日期決定何時被賣到。
    */
   costUnknown?: boolean;
 }
@@ -60,7 +66,7 @@ export interface ProjectedHolding {
   /** 其中成本不明的股數。 */
   costUnknownQuantity: number;
   /**
-   * **只算成本已知的股數**的移動平均成本。沒有成本已知的股數時是 0——呼叫端要看 costUnknownQuantity
+   * 剩下的**成本已知那幾批**的總成本 ÷ 股數。沒有成本已知的股數時是 0——呼叫端要看 costUnknownQuantity
    * 判斷那個 0 是「免費」還是「不知道」。
    */
   averageCost: number;
@@ -83,10 +89,10 @@ export interface Oversold {
 }
 
 /**
- * 一筆賣出實現的損益。`profitLoss` ＝ 賣出價金 − 賣出手續費 − 交易稅 − 賣出股數 × **當時**的移動平均成本。
+ * 一筆賣出實現的損益。`profitLoss` ＝ 賣出價金 − 賣出手續費 − 交易稅 − 被賣掉的那幾批（FIFO，從最舊開始）的成本。
  *
  * 為什麼要逐筆留下而不只是累加進 ProjectedHolding.realizedProfitLoss：「指定日期區間的已實現損益」
- * 要的是**賣出日**落在區間內的那幾筆，但成本基礎必須用整段重算的均價（區間開始前的買進照樣計入
+ * 要的是**賣出日**落在區間內的那幾筆，但成本基礎必須來自整段重算的批次（區間開始前的買進照樣計入
  * 成本）。所以區間不能拿來截斷 replay 的輸入——那會讓均價算錯——只能在 replay 之後依賣出日篩選。
  */
 export interface Realization {
@@ -121,11 +127,8 @@ export interface Projection {
 }
 
 /**
- * `tradeDate` 是 `@db.Date`（只有日精度），所以同一天的多筆交易沒有天然的全序，而移動平均法下
- * 「先買後賣」跟「先賣後買」會算出不同的均價：
- *
- *     起始 100@10 → 買 100@20 → 賣 50   ⇒ 150@15
- *     起始 100@10 → 賣 50 → 買 100@20   ⇒ 150@16.67
+ * `tradeDate` 是 `@db.Date`（只有日精度），所以同一天的多筆交易沒有天然的全序。順序會決定同一天的賣出
+ * 有沒有股票可賣（「先賣後買」在沒有舊部位時是賣超），也決定那筆賣出扣到的是哪一批。
  *
  * 所以第二排序鍵用 `createdAt`（寫入順序）。**刻意不用 id**：id 是 uuid v4，排序是隨機的——
  * 現有的 listTransactions 用 `id desc` 當 tiebreaker 只是為了讓輸出穩定，不代表時間順序。
@@ -144,6 +147,8 @@ function byReplayOrder(a: LedgerEntry, b: LedgerEntry): number {
  */
 export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
   const positions = new Map<string, ProjectedHolding>();
+  /** 每個代號的批次，最舊的在前。`cost` 是那一批剩下股數的總成本；成本不明的批次是 0 且不參與均價。 */
+  const lotsBySymbol = new Map<string, { quantity: number; cost: number; costUnknown: boolean }[]>();
   const oversold: Oversold[] = [];
   const realizations: Realization[] = [];
 
@@ -152,15 +157,13 @@ export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
     if (!position) {
       position = { symbol: entry.symbol, quantity: 0, costUnknownQuantity: 0, averageCost: 0, totalCost: 0, realizedProfitLoss: 0 };
       positions.set(entry.symbol, position);
+      lotsBySymbol.set(entry.symbol, []);
     }
+    const lots = lotsBySymbol.get(entry.symbol)!;
 
     if (entry.action === "BUY") {
-      position.quantity += entry.quantity;
-      if (entry.costUnknown) {
-        position.costUnknownQuantity += entry.quantity;
-      } else {
-        position.totalCost += entry.quantity * entry.price + entry.fee;
-      }
+      const costUnknown = entry.costUnknown === true;
+      lots.push({ quantity: entry.quantity, cost: costUnknown ? 0 : entry.quantity * entry.price + entry.fee, costUnknown });
     } else {
       const sold = Math.min(entry.quantity, position.quantity);
       if (sold < entry.quantity) {
@@ -174,25 +177,51 @@ export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
         });
       }
       /**
-       * **成本不明的股數先賣。** 前端補這種取得的方式，是在缺股的那筆賣出**同一天**補上剛好 shortBy 股，
-       * 所以那筆賣出應該正好把它們用掉。先賣成本不明的，成本已知的股數均價就完全不被碰到——這正是
-       * 「把成本不明記成價格 0」會壞掉的地方（它會被平均進去，把真實的均價拉低）。
-       * 一筆賣出同時碰到兩種股數時，價金與費用依股數比例分攤，只有成本已知那部分進 profitLoss。
+       * 從最舊的一批開始扣。賣到成本不明的批次時，那些股數不計入損益（計入 excludedShares）；一筆賣出
+       * 同時碰到兩種批次時，價金與費用依股數比例分攤，只有成本已知那部分進 profitLoss。
+       *
+       * 整批賣完時直接扣掉那一批的總成本，而不是 單價 × 股數：後者在 double 下會留下 1e-10 等級的殘值。
        */
-      const fromUnknown = Math.min(sold, position.costUnknownQuantity);
-      const fromKnown = sold - fromUnknown;
-      const knownQuantity = position.quantity - position.costUnknownQuantity;
-      // 全部賣出時直接扣掉整個剩餘成本，而不是 (totalCost / quantity) * quantity：後者在 double 下會留下
-      // 一個 1e-10 等級的殘值，讓「已出清」的部位帶著一個不是 0 的成本。
-      const costRemoved = fromKnown === 0 ? 0 : fromKnown === knownQuantity ? position.totalCost : (position.totalCost / knownQuantity) * fromKnown;
+      let remaining = sold;
+      let knownSold = 0;
+      let unknownSold = 0;
+      let costRemoved = 0;
+      while (remaining > 0) {
+        const lot = lots[0]!;
+        const take = Math.min(remaining, lot.quantity);
+        const portion = take === lot.quantity ? lot.cost : (lot.cost * take) / lot.quantity;
+        if (lot.costUnknown) {
+          unknownSold += take;
+        } else {
+          knownSold += take;
+          costRemoved += portion;
+        }
+        if (take === lot.quantity) {
+          lots.shift();
+        } else {
+          lot.quantity -= take;
+          lot.cost -= portion;
+        }
+        remaining -= take;
+      }
       const netProceeds = sold * entry.price - entry.fee - entry.tax;
       // sold 為 0（賣超被夾成 0 股）時維持原本的行為：手續費與稅照樣記成損失。
-      const profitLoss = sold === 0 ? netProceeds : (netProceeds * fromKnown) / sold - costRemoved;
+      const profitLoss = sold === 0 ? netProceeds : (netProceeds * knownSold) / sold - costRemoved;
       position.realizedProfitLoss += profitLoss;
-      realizations.push({ symbol: entry.symbol, tradeDate: entry.tradeDate, profitLoss, excludedShares: fromUnknown });
-      position.quantity -= sold;
-      position.costUnknownQuantity -= fromUnknown;
-      position.totalCost -= costRemoved;
+      realizations.push({ symbol: entry.symbol, tradeDate: entry.tradeDate, profitLoss, excludedShares: unknownSold });
+    }
+
+    // 摘要欄位每次都從批次重算，而不是增量加減：批次很少（一檔幾十筆），重算就不可能跟批次漂開。
+    position.quantity = 0;
+    position.costUnknownQuantity = 0;
+    position.totalCost = 0;
+    for (const lot of lots) {
+      position.quantity += lot.quantity;
+      if (lot.costUnknown) {
+        position.costUnknownQuantity += lot.quantity;
+      } else {
+        position.totalCost += lot.cost;
+      }
     }
     const knownQuantity = position.quantity - position.costUnknownQuantity;
     position.averageCost = knownQuantity === 0 ? 0 : position.totalCost / knownQuantity;

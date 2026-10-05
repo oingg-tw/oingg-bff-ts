@@ -69,18 +69,29 @@ describe("withStockDividends", () => {
 
 describe("cost-unknown acquisitions in projectHoldings", () => {
   /**
-   * 2026-10-05 量到的副作用：把成本不明記成價格 0 的買進，會把同一檔 1,000 股 @100 的均價拉到 7.34。
-   * 成本不明的股數先賣，成本已知那部分就完全不被碰到。
+   * 成本不明的取得代表「很久以前就有的股票」，所以 web-nuxt 把它的日期設在那一檔最早交易的前一天
+   * （2026-10-05 起）——FIFO 下它就是最舊的一批、最先被賣掉，成本已知那批的成本完全不被碰到。
    */
-  it("leaves the known shares' average cost untouched", () => {
+  it("sells a cost-unknown lot dated before the known buys first, leaving the known cost intact", () => {
     const { holdings, realizations } = projectHoldings([
+      e("5314", "BUY", 12_628, 0, "2026-01-01", { costUnknown: true }),
       e("5314", "BUY", 1000, 100, "2026-01-02"),
-      e("5314", "BUY", 12_628, 0, "2026-08-18", { costUnknown: true }),
       e("5314", "SELL", 12_628, 40, "2026-08-18"),
     ]);
 
     expect(holdings[0]).toMatchObject({ quantity: 1000, costUnknownQuantity: 0, averageCost: 100, realizedProfitLoss: 0 });
     expect(realizations).toEqual([{ symbol: "5314", tradeDate: "2026-08-18", profitLoss: 0, excludedShares: 12_628 }]);
+  });
+
+  // 反過來（成本不明的日期比較晚）FIFO 會先賣成本已知的那批——這就是前端要把它的日期往前放的原因。
+  it("sells the known lot first when the cost-unknown lot is newer", () => {
+    const { realizations } = projectHoldings([
+      e("A", "BUY", 1000, 100, "2026-01-02"),
+      e("A", "BUY", 500, 0, "2026-03-01", { costUnknown: true }),
+      e("A", "SELL", 1000, 120, "2026-04-01"),
+    ]);
+
+    expect(realizations[0]).toEqual({ symbol: "A", tradeDate: "2026-04-01", profitLoss: 20_000, excludedShares: 0 });
   });
 
   it("splits a sale that spans both kinds, counting only the known part", () => {
