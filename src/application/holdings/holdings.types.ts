@@ -22,3 +22,20 @@ export interface Holding {
    */
   realizedProfitLoss: string;
 }
+
+/**
+ * GET /holdings/realized 的回應：指定區間內**每一檔有賣出**的已實現損益，含已出清的代號。
+ *
+ * 跟 GET /holdings 分開的理由：GET /holdings 的每一列是「現在」的部位（股數、均價），而這裡是一個
+ * **區間**的損益。把兩個時間尺度塞進同一列（web-nuxt 原本提的 includeClosed + from/to 方案）會讓
+ * 「股數是今天的、已實現損益是去年的」並排出現，讀的人很難不誤會。
+ */
+export interface RealizedProfitLossReport {
+  /** 原樣回傳請求的區間；省略時是 null（＝全部期間）。 */
+  from: string | null;
+  to: string | null;
+  /** 依 symbol 升冪。只有區間內至少一筆賣出的代號才會出現。 */
+  symbols: { symbol: string; realizedProfitLoss: string }[];
+  /** 上面各列（已四捨五入到 4 位）的加總，所以畫面上的列一定加得起來等於它。 */
+  totalRealizedProfitLoss: string;
+}

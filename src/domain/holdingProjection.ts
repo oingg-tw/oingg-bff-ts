@@ -65,8 +65,23 @@ export interface Oversold {
   ref?: string;
 }
 
+/**
+ * 一筆賣出實現的損益。`profitLoss` ＝ 賣出價金 − 賣出手續費 − 交易稅 − 賣出股數 × **當時**的移動平均成本。
+ *
+ * 為什麼要逐筆留下而不只是累加進 ProjectedHolding.realizedProfitLoss：「指定日期區間的已實現損益」
+ * 要的是**賣出日**落在區間內的那幾筆，但成本基礎必須用整段重算的均價（區間開始前的買進照樣計入
+ * 成本）。所以區間不能拿來截斷 replay 的輸入——那會讓均價算錯——只能在 replay 之後依賣出日篩選。
+ */
+export interface Realization {
+  symbol: string;
+  tradeDate: string;
+  profitLoss: number;
+}
+
 export interface Projection {
   holdings: ProjectedHolding[];
+  /** 每一筆賣出的已實現損益，依 replay 順序。賣超被夾掉的那一筆只算實際賣得出去的股數。 */
+  realizations: Realization[];
   /**
    * **每一筆**賣超，依 replay 順序；空陣列代表整段合法。
    *
@@ -110,6 +125,7 @@ function byReplayOrder(a: LedgerEntry, b: LedgerEntry): number {
 export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
   const positions = new Map<string, ProjectedHolding>();
   const oversold: Oversold[] = [];
+  const realizations: Realization[] = [];
 
   for (const entry of [...entries].sort(byReplayOrder)) {
     let position = positions.get(entry.symbol);
@@ -136,12 +152,14 @@ export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
       // 全部賣出時直接扣掉整個剩餘成本，而不是 (totalCost / quantity) * quantity：後者在 double 下會留下
       // 一個 1e-10 等級的殘值，讓「已出清」的部位帶著一個不是 0 的成本。
       const costRemoved = sold === position.quantity ? position.totalCost : (position.totalCost / position.quantity) * sold;
-      position.realizedProfitLoss += sold * entry.price - entry.fee - entry.tax - costRemoved;
+      const profitLoss = sold * entry.price - entry.fee - entry.tax - costRemoved;
+      position.realizedProfitLoss += profitLoss;
+      realizations.push({ symbol: entry.symbol, tradeDate: entry.tradeDate, profitLoss });
       position.quantity -= sold;
       position.totalCost -= costRemoved;
     }
     position.averageCost = position.quantity === 0 ? 0 : position.totalCost / position.quantity;
   }
 
-  return { holdings: [...positions.values()], oversold };
+  return { holdings: [...positions.values()], realizations, oversold };
 }

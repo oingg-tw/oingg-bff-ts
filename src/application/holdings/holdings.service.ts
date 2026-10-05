@@ -2,7 +2,7 @@ import { AppError } from "@/domain/appError.js";
 import { projectHoldings, type LedgerEntry, type ProjectedHolding } from "@/domain/holdingProjection.js";
 import { toLedgerEntry } from "@/application/transactions/transactions.service.js";
 import type { AppDeps } from "@/application/deps.js";
-import type { Holding } from "@/application/holdings/holdings.types.js";
+import type { Holding, RealizedProfitLossReport } from "@/application/holdings/holdings.types.js";
 
 /**
  * **這個切片不再有自己的 port。** 持股是交易紀錄的投影（2026-10-05），所以它要的依賴就是
@@ -40,6 +40,44 @@ export function holdingsFromLedger(entries: readonly LedgerEntry[]): Holding[] {
 export async function getHoldings(firebaseUid: string, deps: HoldingsDeps): Promise<Holding[]> {
   const rows = await deps.transactions.list(firebaseUid);
   return holdingsFromLedger(rows.map(toLedgerEntry));
+}
+
+/**
+ * 指定區間的已實現損益（使用者 2026-10-05 要求「主動交易的績效」，不依年度拆、可自選區間）。
+ *
+ * **區間只用來篩選賣出日，不能拿來截斷 replay**：成本基礎必須是整段重算的移動平均，區間開始前的
+ * 買進照樣計入成本。所以整段照常重算，再挑出賣出日落在 [from, to] 的那幾筆（兩端都含）。
+ * 截斷輸入看起來更省事，但會讓區間內第一筆賣出的成本基礎變成 0、已實現損益整筆灌水。
+ *
+ * 已出清的代號也會出現——它們正是這個端點存在的理由（web-nuxt 用使用者的真實檔案模擬：59 檔
+ * 裡 33 檔已出清，那些的已實現損益合計 +389,025，在 GET /holdings 完全看不到）。
+ */
+export async function getRealizedProfitLoss(
+  firebaseUid: string,
+  from: string | undefined,
+  to: string | undefined,
+  deps: HoldingsDeps,
+): Promise<RealizedProfitLossReport> {
+  const rows = await deps.transactions.list(firebaseUid);
+  const bySymbol = new Map<string, number>();
+  for (const realization of projectHoldings(rows.map(toLedgerEntry)).realizations) {
+    if ((from && realization.tradeDate < from) || (to && realization.tradeDate > to)) {
+      continue;
+    }
+    bySymbol.set(realization.symbol, (bySymbol.get(realization.symbol) ?? 0) + realization.profitLoss);
+  }
+
+  const symbols = [...bySymbol]
+    .map(([symbol, profitLoss]) => ({ symbol, realizedProfitLoss: profitLoss.toFixed(DECIMAL_PLACES) }))
+    .sort((a, b) => a.symbol.localeCompare(b.symbol));
+  const total = symbols.reduce((sum, row) => sum + Number(row.realizedProfitLoss), 0);
+
+  return {
+    from: from ?? null,
+    to: to ?? null,
+    symbols,
+    totalRealizedProfitLoss: total.toFixed(DECIMAL_PLACES),
+  };
 }
 
 /**

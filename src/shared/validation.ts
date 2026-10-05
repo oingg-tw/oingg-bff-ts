@@ -39,3 +39,32 @@ export function booleanQueryParam(name: string) {
       .optional(),
   );
 }
+
+/**
+ * An optional "YYYY-MM-DD" query parameter that must also be a **real calendar date**.
+ *
+ * The regex alone accepts "2026-02-30", and `Date.parse` quietly rolls that over to March 2 — so a
+ * range would silently start two days late instead of failing. Round-tripping through an ISO string
+ * catches it. Empty counts as "not given", same as booleanQueryParam.
+ *
+ * macro/route.ts and stock/route.ts each still carry a module-local copy of the bare regex; they were
+ * written before this existed and only check the format, not the calendar.
+ */
+export function dateQueryParam(name: string) {
+  return z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : v),
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, { error: `"${name}" must be in "YYYY-MM-DD" format` })
+      .refine(
+        (v) => {
+          // 月份 13 這種值會得到 Invalid Date，而它的 toISOString() 會直接丟 RangeError——不先擋掉的話，
+          // 一個呼叫端打錯的日期會變成 500 而不是 400。
+          const date = new Date(`${v}T00:00:00Z`);
+          return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === v;
+        },
+        { error: `"${name}" is not a real calendar date` },
+      )
+      .optional(),
+  );
+}

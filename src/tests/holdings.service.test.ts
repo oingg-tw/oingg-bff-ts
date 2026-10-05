@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fakeTransactions } from "@/tests/fakes/transactions.js";
 import type { StockTransaction } from "@/application/transactions/transactions.types.js";
-import { getHoldings, removeHoldingSymbol } from "@/application/holdings/holdings.service.js";
+import { getHoldings, getRealizedProfitLoss, removeHoldingSymbol } from "@/application/holdings/holdings.service.js";
 
 /**
  * 持股 2026-10-05 起沒有自己的 port——它讀的是 TransactionsPort。所以這個檔案驗的是**服務層的決定**
@@ -84,5 +84,58 @@ describe("removeHoldingSymbol", () => {
 
     await expect(removeHoldingSymbol("uid1", "2330", { transactions })).resolves.toBeUndefined();
     expect(transactions.removeBySymbol).toHaveBeenCalledWith("uid1", "2330");
+  });
+});
+
+describe("getRealizedProfitLoss", () => {
+  // 2330：1 月買 1000@100，3 月買 1000@200（均價 150），5 月賣 500@300，9 月賣 1500@100（出清）。
+  // 0056：2 月買 2000@30，6 月全賣 @35（出清）。
+  const ledger = [
+    row({ symbol: "2330", action: "BUY", quantity: 1000, price: "100", tradeDate: "2026-01-10" }),
+    row({ symbol: "0056", action: "BUY", quantity: 2000, price: "30", tradeDate: "2026-02-10" }),
+    row({ symbol: "2330", action: "BUY", quantity: 1000, price: "200", tradeDate: "2026-03-10" }),
+    row({ symbol: "2330", action: "SELL", quantity: 500, price: "300", tradeDate: "2026-05-10" }),
+    row({ symbol: "0056", action: "SELL", quantity: 2000, price: "35", tradeDate: "2026-06-10" }),
+    row({ symbol: "2330", action: "SELL", quantity: 1500, price: "100", tradeDate: "2026-09-10" }),
+  ];
+  const deps = () => ({ transactions: fakeTransactions({ list: vi.fn().mockResolvedValue(ledger) }) });
+
+  it("includes closed positions over the whole period", async () => {
+    const report = await getRealizedProfitLoss("uid1", undefined, undefined, deps());
+
+    // 2330：(300−150)×500 + (100−150)×1500 = 75,000 − 75,000 = 0；0056：(35−30)×2000 = 10,000
+    expect(report).toEqual({
+      from: null,
+      to: null,
+      symbols: [
+        { symbol: "0056", realizedProfitLoss: "10000.0000" },
+        { symbol: "2330", realizedProfitLoss: "0.0000" },
+      ],
+      totalRealizedProfitLoss: "10000.0000",
+    });
+  });
+
+  /**
+   * 這一條守的是最容易做錯的地方：區間從 4 月開始，但 5 月那筆賣出的成本基礎必須是 1、3 月兩筆買進
+   * 的均價 150。如果拿區間去截斷重算的輸入，區間內就沒有任何買進，成本會變成 0，已實現損益灌成
+   * 150,000 而不是 75,000。
+   */
+  it("filters by sell date but keeps the cost basis from buys before the window", async () => {
+    const report = await getRealizedProfitLoss("uid1", "2026-04-01", "2026-05-31", deps());
+
+    expect(report.symbols).toEqual([{ symbol: "2330", realizedProfitLoss: "75000.0000" }]);
+    expect(report.totalRealizedProfitLoss).toBe("75000.0000");
+  });
+
+  it("treats both ends of the window as inclusive", async () => {
+    const report = await getRealizedProfitLoss("uid1", "2026-06-10", "2026-09-10", deps());
+
+    expect(report.symbols.map((s) => s.symbol)).toEqual(["0056", "2330"]);
+  });
+
+  it("returns an empty report for a window with no sells", async () => {
+    const report = await getRealizedProfitLoss("uid1", "2026-01-01", "2026-04-30", deps());
+
+    expect(report).toEqual({ from: "2026-01-01", to: "2026-04-30", symbols: [], totalRealizedProfitLoss: "0.0000" });
   });
 });

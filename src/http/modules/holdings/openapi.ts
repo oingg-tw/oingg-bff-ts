@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/http/swagger/registry.js";
+import { realizedQuerySchema } from "@/http/modules/holdings/route.js";
 
 /**
  * **2026-10-05 契約變更**：持股從一張自己維護的表變成交易紀錄（`/transactions`）的唯讀投影。
@@ -71,5 +72,45 @@ registry.registerPath({
     400: errorResponse("symbol 為空。"),
     401: unauthorized,
     404: errorResponse("你在這個代號底下沒有任何交易紀錄。"),
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/holdings/realized",
+  summary: "指定區間的已實現損益（含已出清的代號）",
+  description: [
+    "回傳**賣出日**落在 `[from, to]`（兩端都含）的每一筆賣出所實現的損益，依代號加總。省略 `from`／`to` 就是全部期間。",
+    "",
+    "**成本基礎是整段重算的移動平均**，區間開始前的買進照樣計入成本——區間只用來挑賣出日，不會截斷重算。",
+    "所以同一筆賣出不論用哪個區間查，算出的已實現損益都一樣。",
+    "",
+    "**已出清的代號也會出現**，這正是它跟 `GET /holdings` 分開的理由：`GET /holdings` 是「現在」的部位，",
+    "這裡是一段**期間**的損益；放在同一列會讓今天的股數和去年的損益並排出現。",
+    "",
+    "只有區間內至少一筆賣出的代號才會列出。`totalRealizedProfitLoss` 是各列（已四捨五入）的加總，",
+    "所以畫面上的列一定加得起來等於它。股利不計入。",
+  ].join("\n"),
+  tags: ["Holdings"],
+  security: [{ bearerAuth: [] }],
+  request: { query: realizedQuerySchema },
+  responses: {
+    200: {
+      description: "區間內的已實現損益。",
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              from: z.string().nullable(),
+              to: z.string().nullable(),
+              symbols: z.array(z.object({ symbol: z.string(), realizedProfitLoss: z.string().openapi({ example: "12345.6700" }) })),
+              totalRealizedProfitLoss: z.string().openapi({ example: "389025.0000" }),
+            })
+            .openapi("RealizedProfitLossReport"),
+        },
+      },
+    },
+    400: errorResponse("日期不是 YYYY-MM-DD、不是真實存在的日期，或 from 晚於 to。"),
+    401: unauthorized,
   },
 });
