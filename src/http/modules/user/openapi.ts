@@ -3,6 +3,7 @@ import { errorResponse, registry } from "@/http/swagger/registry.js";
 import {
   updateDashboardCardsSchema,
   updateFullWidthSchema,
+  updateHoldingColumnsSchema,
   updateMarketColorConventionSchema,
   updatePreferredStocksPreferencesSchema,
   updateShowAsOfDateSchema,
@@ -341,5 +342,66 @@ registry.registerPath({
     },
     400: errorResponse("columnPresetId 不在允許的選項內，或 columnOrder 沒給／不是字串陣列。"),
     401: unauthorized,
+  },
+});
+
+const holdingColumnsResponse = z
+  .object({
+    holdingColumns: z.object({
+      columns: z
+        .array(
+          z.object({
+            id: z.string(),
+            label: z.string(),
+            formula: z.string().openapi({ example: "=D/A" }),
+            format: z.enum(["number", "percent", "money"]),
+            decimals: z.number().int(),
+          }),
+        )
+        .nullable()
+        .openapi({ description: "null＝從來沒存過（前端套用自己的預設）；[]＝刻意存了一份空清單。順序就是顯示順序。" }),
+    }),
+  })
+  .openapi("HoldingColumnsResponse");
+
+registry.registerPath({
+  method: "get",
+  path: "/users/me/holding-columns",
+  summary: "查詢持股頁的自訂欄位（Excel 風格的公式欄）",
+  description: [
+    "使用者自己定義的持股欄位，例如「第二欄除以第一欄」。`formula` 是 Excel 風格字串（`=D/A`、`=ROUND(E/B*100, 2)`），",
+    "**bff-ts 只存、不解析也不計算**：計算在瀏覽器裡對使用者自己的持股進行。欄位字母由前端定義",
+    "（內建 A～G，自訂欄位從 H 起依清單順序），所以**清單順序本身就是公式參照的一部分**。",
+  ].join("\n"),
+  tags: ["Users"],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: "自訂欄位。", content: { "application/json": { schema: holdingColumnsResponse } } },
+    401: unauthorized,
+  },
+});
+
+registry.registerPath({
+  method: "put",
+  path: "/users/me/holding-columns",
+  summary: "整份覆蓋持股頁的自訂欄位",
+  description: [
+    "整份取代，順序就是顯示順序。驗證：`id` 1～40 字元且清單內不可重複；`label` 去頭尾空白後 1～20 字元；",
+    "`formula` 1～200 字元（不驗語意）；`format` 是 number／percent／money；`decimals` 0～4 的整數；最多 50 欄（跟方案無關的硬上限）。",
+    "",
+    "**方案額度**：`GET /billing/entitlement` 的 `quotas.customHoldingColumns`（目前所有方案都是 null＝不限，數字待定）。",
+    "超過額度回 403、`code: \"quota_exceeded\"`——但**只有在比目前已存的更多時才擋**：降級後已經超過額度的使用者，",
+    "仍然可以調整順序、修改或刪減既有欄位，只是不能再變多（降級只變唯讀、永不刪除）。",
+  ].join("\n"),
+  tags: ["Users"],
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: { required: true, content: { "application/json": { schema: updateHoldingColumnsSchema.openapi("UpdateHoldingColumnsRequest") } } },
+  },
+  responses: {
+    200: { description: "存好之後的自訂欄位。", content: { "application/json": { schema: holdingColumnsResponse } } },
+    400: errorResponse("欄位形狀或長度不合法，或 id 重複。"),
+    401: unauthorized,
+    403: errorResponse("超過方案的自訂欄位額度，而且比目前已存的更多（code: quota_exceeded）。"),
   },
 });

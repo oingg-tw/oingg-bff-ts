@@ -27,6 +27,7 @@ import {
 } from "@/application/user/theme.service.js";
 import type { ThemeDeps } from "@/application/user/theme.service.js";
 import { getOrCreateUserFromToken } from "@/application/user/user.service.js";
+import { getHoldingColumns, updateHoldingColumns, type HoldingColumnsDeps } from "@/application/user/holdingColumns.service.js";
 import type { UserDeps } from "@/application/user/user.service.js";
 
 /**
@@ -39,6 +40,7 @@ type UserRouterDeps = UserDeps &
   DashboardCardSettingsDeps &
   StockDetailPreferencesDeps &
   PreferredStocksPreferencesDeps &
+  HoldingColumnsDeps &
   AuthMiddlewareDeps;
 
 function requireUser(req: AuthenticatedRequest): string {
@@ -58,6 +60,28 @@ export const updateMarketColorConventionSchema = z.object({
 export const updateFullWidthSchema = z.object({ isFullWidth: z.boolean() });
 export const updateShowAsOfDateSchema = z.object({ showAsOfDate: z.boolean() });
 export const updateDashboardCardsSchema = z.object({ visibleCardIds: z.array(z.string()) });
+
+/**
+ * 持股頁自訂欄位的信任邊界（2026-10-05，範圍照 web-nuxt 提的規格）。公式只驗長度，不驗語意——bff-ts
+ * 不解析它，計算發生在瀏覽器裡。
+ *
+ * 50 欄是**跟方案無關的硬上限**，屬於輸入驗證：不設的話一個請求就能塞進任意大的 JSON。方案的額度
+ * （customHoldingColumns）是另一回事，在 service 裡判斷。
+ */
+export const HOLDING_COLUMNS_HARD_LIMIT = 50;
+export const updateHoldingColumnsSchema = z.object({
+  columns: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(40),
+        label: z.string().trim().min(1, '"label" must not be blank').max(20),
+        formula: z.string().min(1).max(200),
+        format: z.enum(["number", "percent", "money"]),
+        decimals: z.number().int().min(0).max(4),
+      }),
+    )
+    .max(HOLDING_COLUMNS_HARD_LIMIT),
+});
 export const updateStockDetailPreferencesSchema = z.object({
   mode: z.enum(["CARD", "ACCOUNTING"]),
   visibleCardIds: z.array(z.string()),
@@ -173,6 +197,18 @@ export function createUserRouter(deps: UserRouterDeps): Router {
       deps,
     );
     res.json({ stockDetailPreferences });
+  });
+
+  userRouter.get("/me/holding-columns", requireAuth, async (req: AuthenticatedRequest, res) => {
+    const holdingColumns = await getHoldingColumns(requireUser(req), deps);
+    res.json({ holdingColumns });
+  });
+
+  userRouter.put("/me/holding-columns", requireAuth, async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = parseBody(updateHoldingColumnsSchema, req.body);
+    const holdingColumns = await updateHoldingColumns(firebaseUid, body.columns, deps);
+    res.json({ holdingColumns });
   });
 
   userRouter.get("/me/preferred-stocks-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {

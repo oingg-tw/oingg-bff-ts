@@ -91,7 +91,7 @@ export function createRoutes(deps: AppDeps): Router {
   // GET /users/me; GET /users/me/theme; PUT /users/me/theme/mode, /theme/accent-color,
   // /theme/market-color-convention, /theme/full-width;
   // GET /users/me/screener-display-settings; PUT /users/me/screener-display-settings/show-as-of-date;
-  // GET/PUT /users/me/dashboard-cards, /me/stock-detail-preferences, /me/preferred-stocks-preferences
+  // GET/PUT /users/me/dashboard-cards, /me/stock-detail-preferences, /me/preferred-stocks-preferences, /me/holding-columns
   routes.use("/users", createUserRouter(deps));
   routes.use("/stocks", createStockRouter(deps)); // GET /stocks/:symbol
   routes.use("/watchlist", createWatchlistRouter(deps)); // GET/POST /watchlist, GET/PATCH/DELETE /watchlist/:id

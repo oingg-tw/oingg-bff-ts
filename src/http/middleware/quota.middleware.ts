@@ -3,10 +3,9 @@ import { AppError } from "@/domain/appError.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { getEntitlement, type EntitlementDeps } from "@/application/billing/entitlement.service.js";
 import type { QuotaResource } from "@/application/billing/billing.types.js";
-import { QUOTA_RESOURCE_LABELS, quotaLimitFor } from "@/application/billing/quota.js";
+import { QUOTA_EXCEEDED_CODE, QUOTA_RESOURCE_LABELS, quotaLimitFor } from "@/application/billing/quota.js";
 
-/** Machine-readable reason the frontend branches on to show an upgrade prompt rather than a generic error. */
-export const QUOTA_EXCEEDED_CODE = "quota_exceeded";
+export { QUOTA_EXCEEDED_CODE };
 
 /** 就是 getEntitlement 要的那些 port——額度檢查自己不存取任何資料，計數是呼叫端傳進來的函式。 */
 export type QuotaMiddlewareDeps = EntitlementDeps;

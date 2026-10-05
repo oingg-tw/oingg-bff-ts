@@ -275,6 +275,22 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
   );
   await api("/transactions?all=true", { method: "DELETE", token: userB.idToken }).catch(() => undefined);
 
+  // holding-columns is self-scoped like dashboard-cards (no id in the path): A's PUT must never touch B's list.
+  const bColumns = [{ id: "b-marker", label: "B", formula: "=D/A", format: "number", decimals: 2 }];
+  await api("/users/me/holding-columns", { method: "PUT", token: userB.idToken, body: { columns: bColumns } });
+  await api("/users/me/holding-columns", {
+    method: "PUT",
+    token: userA.idToken,
+    body: { columns: [{ id: "a-marker", label: "A", formula: "=B/A", format: "percent", decimals: 1 }] },
+  });
+  const bHolding = await api("/users/me/holding-columns", { token: userB.idToken });
+  const bIds = ((bHolding.json as { holdingColumns?: { columns?: { id: string }[] | null } })?.holdingColumns?.columns ?? []).map((c) => c.id);
+  record(
+    "BOLA: holding-columns",
+    bIds.length === 1 && bIds[0] === "b-marker" ? "PASS" : "FAIL",
+    bIds.length === 1 && bIds[0] === "b-marker" ? undefined : `B's columns after A's PUT: ${JSON.stringify(bIds)}`,
+  );
+
   // dashboard-cards has no ID param at all — it's inherently self-scoped to the caller's own token.
   // Confirm A's PUT never touches B's stored value.
   await api("/users/me/dashboard-cards", { method: "PUT", token: userB.idToken, body: { visibleCardIds: ["b-marker"] } });
@@ -374,6 +390,7 @@ async function main() {
       await prisma.userThemePreference.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await prisma.screenerDisplaySettings.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await prisma.dashboardCardSettings.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
+      await prisma.holdingColumnPreferences.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await auth.deleteUser(uid).catch(() => undefined);
     }
     await prisma.$disconnect();

@@ -57,25 +57,52 @@ const TIER_QUOTAS: Readonly<Record<BillingTier, Readonly<Record<QuotaResource, n
     watchlistItems: 10,
     screenerPresets: 3,
     columnPresets: 3,
+    /**
+     * 持股頁自訂欄位（2026-10-05）。屬於第 1 個維度「查詢廣度」——存了幾個東西，跟 columnPresets 同類。
+     * **刻意先不限制**：上限多少是定價決定，web-nuxt 轉達「由使用者決定，先給一個預設值」，而在使用者
+     * 決定之前，任何數字都等於替他開了一道新的付費牆。改成數字之前先問。跟方案無關的硬上限（50 欄）
+     * 是輸入驗證，住在 route 的 schema。
+     */
+    customHoldingColumns: null,
   },
   PRO: {
     watchlistItems: null,
     screenerPresets: null,
     columnPresets: null,
+    customHoldingColumns: null,
   },
   ADVISOR: {
     watchlistItems: null,
     screenerPresets: null,
     columnPresets: null,
+    customHoldingColumns: null,
   },
 };
+
+/**
+ * Machine-readable reason the frontend branches on to show an upgrade prompt rather than a generic error.
+ * Lives here, not in the HTTP middleware, because an application service (the whole-list PUT of custom
+ * holding columns) has to raise it too, and application may not import from http.
+ */
+export const QUOTA_EXCEEDED_CODE = "quota_exceeded";
 
 /** Human-readable resource names for the 403 message — the frontend keys off `code`/`details`, not this. */
 export const QUOTA_RESOURCE_LABELS: Readonly<Record<QuotaResource, string>> = {
   watchlistItems: "watchlist items",
   screenerPresets: "saved screener presets",
   columnPresets: "saved column presets",
+  customHoldingColumns: "custom holding columns",
 };
+
+/**
+ * 整份覆蓋的清單（例如持股自訂欄位）的額度規則：**只擋「超過上限、而且比目前已存的更多」**。
+ *
+ * 只看「新長度 > 上限」會違反上面的「降級只變唯讀、永不刪除」：降級的使用者存著 5 個、上限 3，連重排
+ * 或改一個都會被擋。這條規則讓他可以維持或減少，只是不能再變多。
+ */
+export function wouldGrowPastQuota(nextCount: number, currentCount: number, limit: number | null): boolean {
+  return limit !== null && nextCount > limit && nextCount > currentCount;
+}
 
 export function quotaLimitFor(resource: QuotaResource, tier: BillingTier): number | null {
   return TIER_QUOTAS[tier][resource];

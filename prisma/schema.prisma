@@ -305,6 +305,21 @@ enum StockDetailPageMode {
 /// anything, same reasoning as DashboardCardSettings.visibleCardIds. Both fields are always written
 /// together (the settings popover saves the whole thing at once, see updateStockDetailPreferences) — no
 /// row at all means "no preference saved yet" for both, resolved to the frontend's own local default.
+/// 持股頁的自訂欄位（使用者 2026-10-05 要求：「讓用戶可以自己定義，比如第二欄數值除以第一欄」，
+/// 比照 Excel 的公式欄，存進帳號）。一個使用者一列，整份清單存成 JSON，順序就是顯示順序。
+///
+/// **bff-ts 只存、不解析也不計算公式**：公式在瀏覽器裡對使用者自己的持股計算（web-nuxt 自己的小型
+/// 解析器，不用 eval）。所以這裡驗的只是形狀與長度，不驗公式的語意。
+///
+/// 沒有列＝從來沒存過，前端套用自己的預設；跟「存了一份空清單」是兩件事。
+model HoldingColumnPreferences {
+  firebaseUid String   @id @map("firebase_uid")
+  columns     Json
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("holding_column_preferences")
+}
+
 model StockDetailPreferences {
   firebaseUid    String              @id @map("firebase_uid")
   mode           StockDetailPageMode

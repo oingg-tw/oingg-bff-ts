@@ -1,3 +1,4 @@
+import { findHoldingColumns, upsertHoldingColumns } from "@/infrastructure/prisma/repositories/holdingColumns.repository.js";
 import {
   findDashboardCardSettings,
   upsertDashboardCardSettings,
@@ -39,6 +40,9 @@ export const prismaUserPreferences: UserPreferencesPort = {
 
   getStockDetailPreferences: findStockDetailPreferences,
   saveStockDetailPreferences: upsertStockDetailPreferences,
+
+  getHoldingColumns: findHoldingColumns,
+  saveHoldingColumns: upsertHoldingColumns,
 
   getPreferredStocksPreferences: findPreferredStocksPreferences,
   savePreferredStocksPreferences: upsertPreferredStocksPreferences,

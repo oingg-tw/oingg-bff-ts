@@ -14,7 +14,7 @@ export type BillingTier = "FREE" | "PRO" | "ADVISOR";
  * Every metered resource. Adding one here forces the tier table to cover it for all three tiers
  * (Record, not Partial), so a new quota can't silently default to "unlimited for everyone".
  */
-export type QuotaResource = "watchlistItems" | "screenerPresets" | "columnPresets";
+export type QuotaResource = "watchlistItems" | "screenerPresets" | "columnPresets" | "customHoldingColumns";
 
 /**
  * Where a tier came from, reported to the caller rather than hidden — a stray production allowlist
