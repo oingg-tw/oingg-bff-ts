@@ -93,9 +93,11 @@ describe("projectHoldings", () => {
   });
 
   /**
-   * 批次匯入要一次把所有缺的期初部位請使用者補完，所以**每一筆**賣超都要列出來。這一條同時釘住
-   * 那個容易被誤用的性質：第二筆的 shortBy 是在第一筆已經被夾成 0 之後算的，所以同一檔要取
-   * **最大值**去推估期初股數，不是相加（這裡 200 + 50 會錯，正確答案是 200）。
+   * 批次匯入要一次把所有缺的期初部位請使用者補完，所以**每一筆**賣超都要列出來。第二筆的 shortBy
+   * 是在第一筆被夾成 0 之後量的，所以它是**額外的**缺口——要補的期初股數是加總（200 + 50 = 250）。
+   *
+   * 2026-10-05 前這裡寫的是「取最大值」，錯的，而且照著它給過 web-nuxt 指引。下一條測試把
+   * 「加總就是最小期初股數」寫成斷言，免得同樣的誤解只活在註解裡。
    */
   it("reports every oversell, each measured against the clamped position", () => {
     const { oversold } = projectHoldings([
@@ -109,6 +111,22 @@ describe("projectHoldings", () => {
       ["2026-03-01", 50],
     ]);
     expect(oversold.every((o) => o.ref === undefined)).toBe(true);
+  });
+
+  it("needs exactly the sum of shortBy as an opening position — not one share less", () => {
+    const trades = [
+      entry({ action: "BUY", quantity: 100, price: 10, tradeDate: "2026-01-02" }),
+      entry({ action: "SELL", quantity: 300, price: 20, tradeDate: "2026-02-01" }),
+      entry({ action: "BUY", quantity: 40, price: 10, tradeDate: "2026-02-15" }),
+      entry({ action: "SELL", quantity: 90, price: 20, tradeDate: "2026-03-01" }),
+    ];
+    const total = projectHoldings(trades).oversold.reduce((sum, o) => sum + o.shortBy, 0);
+    const withOpening = (quantity: number) =>
+      projectHoldings([entry({ action: "BUY", quantity, price: 10, tradeDate: "2026-01-01" }), ...trades]).oversold;
+
+    expect(total).toBe(250); // 200 + 50，取最大值會是 200
+    expect(withOpening(total)).toEqual([]);
+    expect(withOpening(total - 1)).not.toEqual([]);
   });
 
   it("zeroes the cost basis exactly on a full exit (no float residue)", () => {
