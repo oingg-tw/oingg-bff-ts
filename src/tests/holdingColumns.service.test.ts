@@ -46,11 +46,29 @@ describe("holding columns service", () => {
     expect(d.userPreferences.saveHoldingColumns).not.toHaveBeenCalled();
   });
 
-  it("saves the whole list in order (no tier limit set yet)", async () => {
+  it("saves the whole list in order", async () => {
     const d = deps();
     const columns = [column("h", "=D/A"), column("i", "=ROUND(H*100, 2)")];
 
     await expect(updateHoldingColumns("uid1", columns, d)).resolves.toEqual({ columns });
     expect(d.userPreferences.saveHoldingColumns).toHaveBeenCalledWith("uid1", columns);
+  });
+
+  /**
+   * 使用者 2026-10-05：「免費 3 個、付費無上限」。額度是 10，因為清單裡含 web-nuxt 的 7 欄預設欄
+   * （見 quota.ts）。fakeUserPort 預設是試用期早已結束的使用者，也就是 FREE。
+   */
+  const many = (n: number) => Array.from({ length: n }, (_, i) => column(`c${i}`));
+
+  it("lets a free user save 7 built-in + 3 custom columns, and blocks the 11th", async () => {
+    await expect(updateHoldingColumns("uid1", many(10), deps())).resolves.toBeDefined();
+    await expect(updateHoldingColumns("uid1", many(11), deps())).rejects.toMatchObject({ statusCode: 403, code: "quota_exceeded" });
+  });
+
+  // 降級只變唯讀、永不刪除：已經存了 12 欄的人可以重排或編輯，只是不能再變多。
+  it("lets a downgraded user over the cap keep editing, but not grow", async () => {
+    await expect(updateHoldingColumns("uid1", many(12), deps(many(12)))).resolves.toBeDefined();
+    await expect(updateHoldingColumns("uid1", many(11), deps(many(12)))).resolves.toBeDefined();
+    await expect(updateHoldingColumns("uid1", many(13), deps(many(12)))).rejects.toMatchObject({ statusCode: 403 });
   });
 });

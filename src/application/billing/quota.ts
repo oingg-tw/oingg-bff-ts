@@ -59,11 +59,18 @@ const TIER_QUOTAS: Readonly<Record<BillingTier, Readonly<Record<QuotaResource, n
     columnPresets: 3,
     /**
      * 持股頁自訂欄位（2026-10-05）。屬於第 1 個維度「查詢廣度」——存了幾個東西，跟 columnPresets 同類。
-     * **刻意先不限制**：上限多少是定價決定，web-nuxt 轉達「由使用者決定，先給一個預設值」，而在使用者
-     * 決定之前，任何數字都等於替他開了一道新的付費牆。改成數字之前先問。跟方案無關的硬上限（50 欄）
-     * 是輸入驗證，住在 route 的 schema。
+     *
+     * **使用者 2026-10-05 決定：「免費 3 個、付費無上限」。這裡是 10 不是 3**：web-nuxt 把預設的 7 欄
+     * （A 股數～G 預估年股利，現在也能刪改）跟使用者自己新增的欄位存在同一份清單裡，而這裡數的是整份
+     * 清單的長度——這邊分不出哪幾欄是預設的（`=SHARES()` 只是一個字串）。設成 3 的話，免費使用者連那 7 欄
+     * 預設欄都存不下，整個功能對他們就壞了。所以 10 ＝ 3 欄自訂 ＋ 7 欄預設。
+     *
+     * ponytail: 跟 web-nuxt 的預設欄數綁死，而且有縫——刪掉預設欄就能多加自訂欄。預設欄數一改這裡就要跟著
+     * 改；要精確只算「使用者新增的」，就在契約裡給每欄一個 builtIn 旗標，額度只數 builtIn 為 false 的。
+     *
+     * 跟方案無關的硬上限（50 欄）是輸入驗證，住在 route 的 schema。
      */
-    customHoldingColumns: null,
+    customHoldingColumns: 10,
   },
   PRO: {
     watchlistItems: null,
