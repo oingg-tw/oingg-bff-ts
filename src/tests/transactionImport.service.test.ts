@@ -217,6 +217,39 @@ describe("importTransactions — 排序與期初部位", () => {
   });
 });
 
+describe("importTransactions — 匯出期間以前的多批舊股票（FIFO）", () => {
+  /**
+   * web-nuxt 2026-10-05 起把匯出期間以前的股票補成好幾筆 BUY（`|pre`），全部日期相同（最早交易日的
+   * 前一天），**靠陣列順序**決定哪一批先被賣掉——因為一檔可能有好幾批不同成本（2887F：45.769 與 45.829），
+   * 而 openingPositions 一檔只能有一個成本，FIFO 下逐筆會對不上券商。所以同日同動作的列必須照陣列順序
+   * 寫進 createdAt；排序要是不穩定，兩批的成本就會對調。
+   */
+  it("keeps same-day pre-period lots in array order, so FIFO sells them in that order", async () => {
+    const d = deps({ listed: ["2887F"], transactions: { createManyImported: vi.fn().mockResolvedValue(4) } });
+
+    const result = unwrap(
+      await importTransactions(
+        "uid1",
+        request({
+          dryRun: false,
+          transactions: [
+            trade({ externalRef: "2026-07-04|S1|pre", tradeDate: "2026-01-01", symbol: "2887F", action: "BUY", quantity: 1000, price: 45.769 }),
+            trade({ externalRef: "2026-12-05|S2|pre", tradeDate: "2026-01-01", symbol: "2887F", action: "BUY", quantity: 1000, price: 45.829 }),
+            trade({ externalRef: "2026-07-04|S1", tradeDate: "2026-07-04", symbol: "2887F", action: "SELL", quantity: 1000, price: 46 }),
+          ],
+        }),
+        d,
+      ),
+    );
+
+    const rows = (d.transactions.createManyImported as ReturnType<typeof vi.fn>).mock.calls[0]![2] as ImportedTransaction[];
+    expect(rows.slice(0, 2).map((row) => row.price)).toEqual([45.769, 45.829]);
+    expect(rows[0]!.createdAt.getTime()).toBeLessThan(rows[1]!.createdAt.getTime());
+    // FIFO 先賣陣列裡的第一批（45.769），剩下的是 45.829 那批。
+    expect(result.holdings).toEqual([expect.objectContaining({ symbol: "2887F", quantity: 1000, averageCost: "45.8290" })]);
+  });
+});
+
 describe("importTransactions — 冪等與 dryRun", () => {
   it("counts already-imported rows as duplicates instead of failing", async () => {
     const d = deps({ transactions: { existingExternalRefs: vi.fn().mockResolvedValue(["dup"]) } });
