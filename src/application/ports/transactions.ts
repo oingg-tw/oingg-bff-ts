@@ -55,6 +55,12 @@ export interface TransactionsPort {
   /** 撤銷整批匯入，回傳刪掉的筆數。where 同時帶 firebaseUid，刪除範圍永遠被使用者夾住。 */
   removeByImportId(firebaseUid: string, importId: string): Promise<number>;
 
+  /**
+   * 刪掉這個使用者的**全部**交易（含期初部位與匯入的列），回傳筆數。DELETE /transactions?all=true 用它。
+   * where 只有 firebaseUid——**少了它就是清空所有人的帳**，所以 security:check 有一條專門驗這件事。
+   */
+  removeAll(firebaseUid: string): Promise<number>;
+
   /** 整批撤銷前要先驗 replay，所以得先知道這批影響到哪些代號。 */
   listByImportId(firebaseUid: string, importId: string): Promise<StockTransaction[]>;
 }

@@ -257,6 +257,24 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
     await api(`/transactions/import/${importId}`, { method: "DELETE", token: userB.idToken }).catch(() => undefined);
   }
 
+  // DELETE /transactions?all=true takes no key at all — its where clause is firebaseUid alone. A bug that
+  // dropped that one field would wipe EVERY user's ledger, which no unit test can see (the fake port has no
+  // other users). B seeds a row, A clears, B's row must survive.
+  await api("/transactions", {
+    method: "POST",
+    token: userB.idToken,
+    body: { symbol: "2882", action: "BUY", quantity: 1000, price: 50, tradeDate: "2026-08-01" },
+  });
+  await api("/transactions?all=true", { method: "DELETE", token: userA.idToken });
+  const bAfterClear = await api("/transactions?symbol=2882", { token: userB.idToken });
+  const bSurvived = ((bAfterClear.json as { transactions?: unknown[] })?.transactions ?? []).length > 0;
+  record(
+    "BOLA: DELETE /transactions?all=true",
+    bSurvived ? "PASS" : "FAIL",
+    bSurvived ? undefined : "A's clear-all removed B's transactions",
+  );
+  await api("/transactions?all=true", { method: "DELETE", token: userB.idToken }).catch(() => undefined);
+
   // dashboard-cards has no ID param at all — it's inherently self-scoped to the caller's own token.
   // Confirm A's PUT never touches B's stored value.
   await api("/users/me/dashboard-cards", { method: "PUT", token: userB.idToken, body: { visibleCardIds: ["b-marker"] } });

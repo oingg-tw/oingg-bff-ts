@@ -121,6 +121,12 @@ export async function deleteTransactionsByImportId(firebaseUid: string, importId
   return result.count;
 }
 
+export async function deleteAllTransactions(firebaseUid: string): Promise<number> {
+  const prisma = getPrismaClient();
+  const result = await prisma.stockTransaction.deleteMany({ where: { firebaseUid } });
+  return result.count;
+}
+
 export async function deleteTransactionsBySymbol(firebaseUid: string, symbol: string): Promise<number> {
   const prisma = getPrismaClient();
   const result = await prisma.stockTransaction.deleteMany({ where: { firebaseUid, symbol } });
@@ -140,6 +146,7 @@ export const prismaTransactions: TransactionsPort = {
   update: updateTransaction,
   remove: deleteTransaction,
   removeBySymbol: deleteTransactionsBySymbol,
+  removeAll: deleteAllTransactions,
   createManyImported,
   existingExternalRefs,
   removeByImportId: deleteTransactionsByImportId,

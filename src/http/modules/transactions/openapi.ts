@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/http/swagger/registry.js";
-import { createTransactionSchema, importTransactionsSchema, updateTransactionSchema } from "@/http/modules/transactions/route.js";
+import {
+  clearTransactionsQuerySchema,
+  createTransactionSchema,
+  importTransactionsSchema,
+  updateTransactionSchema,
+} from "@/http/modules/transactions/route.js";
 
 const transactionSchema = z
   .object({
@@ -254,5 +259,27 @@ registry.registerPath({
     401: unauthorized,
     404: errorResponse("找不到這個 importId（或它不屬於目前登入的使用者）。"),
     422: shortfallsResponse,
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/transactions",
+  summary: "清空整本帳（刪除所有交易）",
+  description: [
+    "刪掉目前登入使用者的**所有**交易，包括期初部位與匯入的列；持股明細隨之變成空的。不可復原。",
+    "",
+    "**必須明確帶 `all=true`**，否則 400。Express 不分尾斜線，`DELETE /transactions/` 也會落到這裡——",
+    "前端只要有一處用空字串組出 `/transactions/${id}`，沒有這道保險就會清掉整本帳。",
+    "",
+    "單一資料庫操作，不會只清掉一部分。沒有任何交易時也回 200、`deleted: 0`，所以重送是安全的。",
+  ].join("\n"),
+  tags: ["Transactions"],
+  security: [{ bearerAuth: [] }],
+  request: { query: clearTransactionsQuerySchema },
+  responses: {
+    200: { description: "清空完成。", content: { "application/json": { schema: z.object({ deleted: z.number() }) } } },
+    400: errorResponse('沒有帶 all=true（或值不是 "true"／"false"）。'),
+    401: unauthorized,
   },
 });

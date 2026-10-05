@@ -198,6 +198,17 @@ export async function editTransaction(
   return transaction;
 }
 
+/**
+ * 清空這個使用者的整本帳（使用者 2026-10-05 要求的「一個按鈕清除所有持股明細」）。
+ *
+ * 不需要驗 replay：空的帳本永遠合法。單一 deleteMany 本身就是原子的，所以不會只清掉一部分——
+ * 這正是它取代前端「逐檔送 DELETE /holdings/:symbol」的理由（那樣 50 檔是 50 個請求，中途失敗就
+ * 只清一半）。沒有任何交易時回 0 而不是 404，讓清空是冪等的。
+ */
+export async function removeAllTransactions(firebaseUid: string, deps: TransactionsDeps): Promise<number> {
+  return deps.transactions.removeAll(firebaseUid);
+}
+
 export async function removeTransaction(firebaseUid: string, id: string, deps: TransactionsDeps): Promise<void> {
   // 刪一筆買進同樣可能讓之後的賣出變成賣超，所以 DELETE 也要驗整段 replay。
   const existing = await deps.transactions.find(firebaseUid, id);

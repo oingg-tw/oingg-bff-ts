@@ -2,7 +2,7 @@ import { Router } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
-import { parseBody } from "@/shared/validation.js";
+import { booleanQueryParam, parseBody } from "@/shared/validation.js";
 import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { assertSymbolExists, type StockProxyDeps } from "@/application/proxy/stock/stock.service.js";
@@ -11,6 +11,7 @@ import {
   editTransaction,
   getTransactionOrThrow,
   getTransactions,
+  removeAllTransactions,
   removeTransaction,
 } from "@/application/transactions/transactions.service.js";
 import type { TransactionsDeps } from "@/application/transactions/transactions.service.js";
@@ -78,6 +79,8 @@ export const importTransactionsSchema = z.object({
   ),
 });
 
+export const clearTransactionsQuerySchema = z.object({ all: booleanQueryParam("all") });
+
 export const updateTransactionSchema = z.object({
   action: z.string().optional(),
   quantity: z.number().optional(),
@@ -123,6 +126,23 @@ export function createTransactionsRouter(
     await assertSymbolExists(input.symbol, deps);
     const transaction = await addTransaction(firebaseUid, input, deps);
     res.status(201).json({ transaction });
+  });
+
+  /**
+   * 清空整本帳。**必須明確帶 `?all=true`**，否則 400。
+   *
+   * 理由是一個實際會發生的前端缺陷：Express 不分尾斜線，`DELETE /transactions/` 會落到這條路由，而
+   * 前端只要有一處用空字串組出 `/transactions/${id}`，沒有這道保險就會把使用者整本帳清掉、沒有任何
+   * 錯誤。有了它，那個缺陷會變成一個看得見的 400。這是防資料遺失，不是多一個選項。
+   */
+  transactionsRouter.delete("/", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const { all } = parseBody(clearTransactionsQuerySchema, req.query);
+    if (all !== true) {
+      throw new AppError('Clearing every transaction requires "all=true"', 400);
+    }
+    const deleted = await removeAllTransactions(firebaseUid, deps);
+    res.status(200).json({ deleted });
   });
 
   /**

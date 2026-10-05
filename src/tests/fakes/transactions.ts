@@ -17,6 +17,7 @@ export function fakeTransactions(overrides: Partial<TransactionsPort> = {}): Tra
     update: vi.fn().mockResolvedValue(null),
     remove: vi.fn().mockResolvedValue(false),
     removeBySymbol: vi.fn().mockResolvedValue(0),
+    removeAll: vi.fn().mockResolvedValue(0),
     createManyImported: vi.fn().mockResolvedValue(0),
     existingExternalRefs: vi.fn().mockResolvedValue([]),
     removeByImportId: vi.fn().mockResolvedValue(0),
