@@ -23,6 +23,40 @@ const CLOSE_LOOKBACK_DAYS = 20;
 const MAX_CONCURRENT_PRICE_REQUESTS = 6;
 const MS_PER_DAY = 86_400_000;
 
+/**
+ * 個股日線與加權指數都是全市場公開資料，所有使用者共用同一份快取。
+ *
+ * 2026-10-05 量測（使用者真實帳本 129 列、近一年期間內曾持有約 50 檔，本機，交錯 7 輪）：
+ * /holdings/performance 中位數 2,018 ms，幾乎全花在每次請求重抓這 50 檔的日線（並行 6、約 8 批）；
+ * 同一輪的 /holdings/realized 只要 94 ms。過去的收盤價不會變，只有最新一天可能還沒進來，所以 1 小時的
+ * TTL 只會讓「今天」的收盤晚一點出現（那天會照常計入 missingPrices）。
+ *
+ * ponytail: 程序內的 Map，多個 instance 各自一份、重啟就清空；以插入順序淘汰（最舊的先走），上限 500 檔——
+ * 一年期約 270 列一檔，500 檔約 13 萬筆，記憶體很小。要跨 instance 共用再換外部快取。
+ */
+const PRICE_TTL_MS = 60 * 60 * 1000;
+const MAX_CACHED_SYMBOLS = 500;
+const closeCache = new Map<string, { fetchedAt: number; limit: number; closes: Map<string, number> }>();
+let taiexCache: { fetchedAt: number; limit: number; entries: { tradeDate: string; close: string | null }[] } | undefined;
+
+/** 只給測試用：模組層的快取會跨測試保留。 */
+export function resetMarketWindowCache(): void {
+  closeCache.clear();
+  taiexCache = undefined;
+}
+
+function isFresh(entry: { fetchedAt: number; limit: number } | undefined, limit: number): boolean {
+  // 快取的列數要至少涵蓋這次要的——抓得比較多的那份是這次的超集，可以直接用。
+  return entry !== undefined && entry.limit >= limit && Date.now() - entry.fetchedAt < PRICE_TTL_MS;
+}
+
+async function taiexEntries(limit: number, deps: MarketWindowDeps): Promise<{ tradeDate: string; close: string | null }[]> {
+  if (!isFresh(taiexCache, limit)) {
+    taiexCache = { fetchedAt: Date.now(), limit, entries: (await deps.marketGateway.getTaiexDailyPrice(limit)).entries };
+  }
+  return taiexCache!.entries;
+}
+
 /** 往前推一年。只有 2/29 在前一年沒有對應日，那天用 2/28（而不是讓 Date 滾到 3/1）。 */
 function oneYearBefore(date: string): string {
   const [year, month, day] = date.split("-");
@@ -62,10 +96,10 @@ export async function resolveTradingWindow(
   // 5/7 是交易日佔日曆日比例的上界（國定假日只會讓它更少），再多抓幾天給起點與沿用收盤價。
   const calendarDays = Math.ceil((Date.parse(`${todayInTaipei()}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / MS_PER_DAY);
   const taiexLimit = Math.min(TAIEX_LIMIT, Math.ceil((Math.max(calendarDays, 0) * 5) / 7) + CLOSE_LOOKBACK_DAYS + 10);
-  const taiexEntries = (await deps.marketGateway.getTaiexDailyPrice(taiexLimit)).entries;
-  const taiexDates = taiexEntries.map((entry) => entry.tradeDate);
+  const entries = await taiexEntries(taiexLimit, deps);
+  const taiexDates = entries.map((entry) => entry.tradeDate);
   const taiexCloses = new Map(
-    taiexEntries.flatMap((entry) => (entry.close === null ? [] : [[entry.tradeDate, Number(entry.close)] as const])),
+    entries.flatMap((entry) => (entry.close === null ? [] : [[entry.tradeDate, Number(entry.close)] as const])),
   );
 
   let calendar = taiexDates.filter((date) => date >= from && date <= to);
@@ -93,22 +127,24 @@ export async function resolveTradingWindow(
 
 /**
  * symbol → (tradeDate → close)。close 為 null 的日子（有開盤但沒成交）不放進來，讓呼叫端自己決定怎麼沿用。
- *
- * ponytail: 沒有快取，每次請求都重抓每一檔的收盤價（一年、26 檔約 26 次上游呼叫，並行 6 個）。過去的收盤價
- * 不會變，所以要加快取的話以 (symbol, limit) 為鍵的 LRU 是安全的——等延遲或上游負載真的成為問題再加。
+ * 只有快取沒有（或過期、列數不夠）的代號才打上游，見上面 closeCache 的說明。
  */
 export async function fetchCloses(
   symbols: readonly string[],
   limit: number,
   deps: MarketWindowDeps,
 ): Promise<Map<string, Map<string, number>>> {
-  const histories = await mapWithConcurrency(symbols, MAX_CONCURRENT_PRICE_REQUESTS, (symbol) =>
+  const missing = symbols.filter((symbol) => !isFresh(closeCache.get(symbol), limit));
+  const histories = await mapWithConcurrency(missing, MAX_CONCURRENT_PRICE_REQUESTS, (symbol) =>
     deps.stockGateway.getDailyPriceHistory(symbol, limit),
   );
-  return new Map(
-    histories.map((history) => [
-      history.symbol,
-      new Map(history.entries.flatMap((row) => (row.close === null ? [] : [[row.tradeDate, row.close] as const]))),
-    ]),
-  );
+  for (const history of histories) {
+    const closes = new Map(history.entries.flatMap((row) => (row.close === null ? [] : [[row.tradeDate, row.close] as const])));
+    closeCache.delete(history.symbol); // 重新插入，讓它排到最新——淘汰照插入順序
+    closeCache.set(history.symbol, { fetchedAt: Date.now(), limit, closes });
+  }
+  while (closeCache.size > MAX_CACHED_SYMBOLS) {
+    closeCache.delete(closeCache.keys().next().value!);
+  }
+  return new Map(symbols.map((symbol) => [symbol, closeCache.get(symbol)?.closes ?? new Map<string, number>()]));
 }

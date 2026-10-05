@@ -1,5 +1,6 @@
 import { beforeEach } from "vitest";
 import { resetStockDividendCache } from "@/application/holdings/stockDividendLedger.js";
+import { resetMarketWindowCache } from "@/application/holdings/marketWindow.js";
 
 /**
  * 測試環境的必要環境變數預設值。
@@ -31,4 +32,5 @@ process.env.DATABASE_URL = "postgresql://placeholder:placeholder@localhost:5432/
  */
 beforeEach(() => {
   resetStockDividendCache();
+  resetMarketWindowCache();
 });
