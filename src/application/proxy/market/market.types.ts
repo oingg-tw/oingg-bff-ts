@@ -291,3 +291,30 @@ export type TaiexDailyPriceInterval = "daily" | "weekly" | "monthly";
 export interface TaiexDailyPriceResult {
   entries: TaiexDailyPriceEntry[];
 }
+
+/**
+ * GET /market/etf-distributions 的一次配息事件（analysis-ts 2026-10-05 新增，給 web-nuxt 持股頁用）。
+ * `distributionPerUnit` 在**預告**（status "announced"）的列上可能還是 null——金額真的還沒公布。
+ */
+export interface EtfDistributionEvent {
+  exDividendDate: string;
+  recordDate: string | null;
+  paymentDate: string | null;
+  distributionPerUnit: number | null;
+  status: "announced" | "realized";
+}
+
+export interface EtfDistributionsResult {
+  symbol: string;
+  /** 來源一筆紀錄都沒有時 false：普通股（2330）與不存在的代號都是這樣，仍然回 200。 */
+  found: boolean;
+  /**
+   * 近 12 個月（trailing12MonthWindow）**已實現**的每單位配息加總。found 為 false 時是 null；
+   * 有紀錄但這段期間沒配是 **0**——兩者意思不同，不要互相轉換。
+   */
+  trailing12MonthDistributionPerUnit: number | null;
+  /** 上游自己定義的「近 12 個月」，兩端都是 "YYYY-MM-DD"。found 為 false 時仍然有值。 */
+  trailing12MonthWindow: { start: string; end: string };
+  /** **舊到新**（2026-10-05 實測：0056 從 2019-10-23 起共 17 筆）。 */
+  events: EtfDistributionEvent[];
+}

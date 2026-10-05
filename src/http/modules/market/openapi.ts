@@ -448,3 +448,49 @@ registry.registerPath({
     502: upstream502,
   },
 });
+
+registry.registerPath({
+  method: "get",
+  path: "/market/etf-distributions",
+  summary: "ETF 的配息紀錄與近 12 個月每單位配息——給持股頁用",
+  description: [
+    "資料來自 analysis-ts 的 GET /market/etf-distributions（2026-10-05 新增）。純轉發，bff-ts 不做任何計算：",
+    "`trailing12MonthDistributionPerUnit` 與它的期間 `trailing12MonthWindow` 都是上游算好、定義好的。",
+    "",
+    "- `found: false`：來源一筆紀錄都沒有。普通股（例如 2330）與不存在的代號都是這樣，仍然回 **200**、`events` 是空陣列。",
+    "- `trailing12MonthDistributionPerUnit`：found 為 false 時是 **null**；有紀錄但這段期間沒配是 **0**。兩者意思不同。",
+    "- `events` **舊到新**。`status: \"announced\"` 的預告列，`distributionPerUnit` 可能還是 null（金額未公布）。",
+    "",
+    "實測（2026-10-05）：0056 → 4.082、00878 → 2.49。",
+  ].join("\n"),
+  tags: ["Market"],
+  request: { query: z.object({ symbol: z.string().openapi({ example: "0056" }) }) },
+  responses: {
+    200: {
+      description: "配息紀錄。",
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              symbol: z.string(),
+              found: z.boolean(),
+              trailing12MonthDistributionPerUnit: z.number().nullable().openapi({ example: 4.082 }),
+              trailing12MonthWindow: z.object({ start: z.string(), end: z.string() }),
+              events: z.array(
+                z.object({
+                  exDividendDate: z.string(),
+                  recordDate: z.string().nullable(),
+                  paymentDate: z.string().nullable(),
+                  distributionPerUnit: z.number().nullable(),
+                  status: z.enum(["announced", "realized"]),
+                }),
+              ),
+            })
+            .openapi("EtfDistributionsResult"),
+        },
+      },
+    },
+    400: badRequest("缺少 symbol。"),
+    502: upstream502,
+  },
+});

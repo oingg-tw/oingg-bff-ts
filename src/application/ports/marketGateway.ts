@@ -11,6 +11,7 @@ import type {
   RevenueRankingResult,
   TaiexDailyPriceInterval,
   TaiexDailyPriceResult,
+  EtfDistributionsResult,
   VolumeTop20Result,
 } from "@/application/proxy/market/market.types.js";
 
@@ -37,4 +38,5 @@ export interface MarketGatewayPort {
   getPriceChangeRanking(limit: number): Promise<PriceChangeRankingResult>;
   getEtfRanking(metric: EtfRankingMetric, order: RankingOrder, limit: number): Promise<EtfRankingResult>;
   getTaiexDailyPrice(limit: number, interval?: TaiexDailyPriceInterval): Promise<TaiexDailyPriceResult>;
+  getEtfDistributions(symbol: string): Promise<EtfDistributionsResult>;
 }

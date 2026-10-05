@@ -165,6 +165,17 @@ export function requireNumber(value: unknown, field: string, label: string): num
 }
 
 /**
+ * requireNumber 的另一半：**上游本來就可能給 null** 的數字欄位。非有限數字一律變 null。
+ *
+ * 刻意不用 `Number(value)`——`Number(null)` 是 0 不是 NaN，所以「沒有值」會悄悄變成「值是 0」
+ * （2026-09-27 讓沒成交的交易日變成收盤 0 元；2026-10-05 讓 2496 的股利年度變成 0）。
+ * dailyPriceHistory.client.ts 與 dividendHistory.client.ts 各自有一份更早寫的同名私有函式，行為相同。
+ */
+export function toNumberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
  * 從上游的 400 body 取出「真正說得出哪裡錯」的那一句。**上游有兩種 400 形狀**，而只讀頂層 message 會在
  * 第二種上丟掉唯一有用的資訊：
  *

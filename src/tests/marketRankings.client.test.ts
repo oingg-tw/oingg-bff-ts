@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchAttentionStocks,
   fetchDisposedStocks,
+  fetchEtfDistributions,
   fetchEtfRanking,
   fetchMarginShortRatioRanking,
   fetchMaterialAnnouncements,
@@ -791,5 +792,46 @@ describe("fetchTaiexDailyPrice", () => {
     mockFetchOnce({ ok: true, body: {} });
 
     await expect(fetchTaiexDailyPrice(250)).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+describe("fetchEtfDistributions", () => {
+  /** 貼近 2026-10-05 實測的 0056 回應形狀。 */
+  const RAW = {
+    symbol: "0056",
+    found: true,
+    trailing12MonthDistributionPerUnit: 4.082,
+    trailing12MonthWindow: { start: "2025-10-06", end: "2026-10-04" },
+    events: [
+      { exDividendDate: "2026-07-21", recordDate: "2026-07-27", paymentDate: "2026-08-10", distributionPerUnit: 1.35, status: "realized" },
+      { exDividendDate: "2026-10-22", recordDate: null, paymentDate: null, distributionPerUnit: null, status: "announced" },
+    ],
+  };
+
+  it("requests /market/etf-distributions with the symbol and passes every field through", async () => {
+    mockFetchOnce({ ok: true, body: RAW });
+
+    await expect(fetchEtfDistributions("0056")).resolves.toEqual(RAW);
+    const url = new URL((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]![0] as string);
+    expect(url.pathname).toBe("/market/etf-distributions");
+    expect(url.searchParams.get("symbol")).toBe("0056");
+  });
+
+  // null（沒有任何紀錄）與 0（有紀錄但這段期間沒配）是兩種意思，不能互相轉換。
+  it("keeps null and 0 apart for the trailing-12-month sum", async () => {
+    mockFetchOnce({ ok: true, body: { ...RAW, symbol: "2330", found: false, trailing12MonthDistributionPerUnit: null, events: [] } });
+    await expect(fetchEtfDistributions("2330")).resolves.toMatchObject({ found: false, trailing12MonthDistributionPerUnit: null, events: [] });
+
+    mockFetchOnce({ ok: true, body: { ...RAW, trailing12MonthDistributionPerUnit: 0 } });
+    await expect(fetchEtfDistributions("0056")).resolves.toMatchObject({ trailing12MonthDistributionPerUnit: 0 });
+  });
+
+  // 未知的 status 不能預設成任何一個值——當成 realized 等於宣稱一個未公布的金額已經確定。
+  it("throws 502 on a contract violation instead of defaulting", async () => {
+    mockFetchOnce({ ok: true, body: { ...RAW, events: [{ ...RAW.events[0], status: "paid" }] } });
+    await expect(fetchEtfDistributions("0056")).rejects.toMatchObject({ statusCode: 502 });
+
+    mockFetchOnce({ ok: true, body: { ...RAW, found: undefined } });
+    await expect(fetchEtfDistributions("0056")).rejects.toMatchObject({ statusCode: 502 });
   });
 });

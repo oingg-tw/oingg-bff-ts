@@ -27,6 +27,7 @@ export function fakeMarketGateway(overrides: Partial<MarketGatewayPort> = {}): M
     getPriceChangeRanking: vi.fn(),
     getEtfRanking: vi.fn(),
     getTaiexDailyPrice: vi.fn(),
+    getEtfDistributions: vi.fn(),
     ...overrides,
   };
 }

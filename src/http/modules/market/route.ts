@@ -86,6 +86,14 @@ export const etfRankingQuerySchema = limitQuerySchema(MARKET_LIMIT_BOUNDS.etfRan
   order: requiredEnum("order", RANKING_ORDERS),
 });
 
+/**
+ * symbol 由這裡先擋：上游缺 symbol 時回的是嵌套的 zod 樹，最上層只寫「Invalid query parameters.」
+ * （2026-10-05 實測），轉出去之後前端看不出是哪個參數錯。
+ */
+export const etfDistributionsQuerySchema = z.object({
+  symbol: z.string({ error: '"symbol" is required' }).trim().min(1, '"symbol" is required'),
+});
+
 export const taiexDailyPriceQuerySchema = limitQuerySchema(MARKET_LIMIT_BOUNDS.taiexDailyPrice).extend({
   /**
    * 選填而且**沒有預設值**：省略時不送出這個參數，上游回應才會跟 interval 存在之前逐 byte 相同
@@ -141,6 +149,11 @@ export function createMarketRouter(deps: MarketDeps): Router {
   marketRouter.get("/etf-ranking", async (req, res) => {
     const { metric, order, limit } = parseBody(etfRankingQuerySchema, req.query);
     res.json(await deps.marketGateway.getEtfRanking(metric, order, limit));
+  });
+
+  marketRouter.get("/etf-distributions", async (req, res) => {
+    const { symbol } = parseBody(etfDistributionsQuerySchema, req.query);
+    res.json(await deps.marketGateway.getEtfDistributions(symbol));
   });
 
   marketRouter.get("/taiex-daily-price", async (req, res) => {

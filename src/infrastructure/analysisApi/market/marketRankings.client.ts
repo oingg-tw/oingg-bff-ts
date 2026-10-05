@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toNumberOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type {
   AttentionStockCriteriaDetail,
@@ -8,7 +8,9 @@ import type {
   DisposedStockEntry,
   DisposedStocksResult,
   EtfAssetClass,
+  EtfDistributionEvent,
   EtfDistributionFrequency,
+  EtfDistributionsResult,
   EtfRankingEntry,
   EtfRankingMetric,
   EtfRankingResult,
@@ -451,6 +453,59 @@ export async function fetchTaiexDailyPrice(limit: number, interval?: TaiexDailyP
   return { entries: body.entries.map(normalizeTaiexDailyPriceEntry) };
 }
 
+/** 契約被破壞時大聲報錯、指名欄位——跟 requireNumber 同一個理由：版本錯開不該被一個預設值吸收掉。 */
+function etfDistributionsContractError(field: string): AppError {
+  logger.error({ field }, "ETF distributions response violates its contract — likely an upstream change bff-ts has not followed");
+  return new AppError(`ETF distributions response has an invalid ${field}`, 502);
+}
+
+function normalizeEtfDistributionEvent(raw: unknown): EtfDistributionEvent {
+  const r = raw as Record<string, unknown>;
+  // 未知的 status 不能預設成任何一個值：當成 "realized" 等於宣稱一個還沒公布的金額已經確定。
+  if (r.status !== "announced" && r.status !== "realized") {
+    throw etfDistributionsContractError("events[].status");
+  }
+  if (typeof r.exDividendDate !== "string") {
+    throw etfDistributionsContractError("events[].exDividendDate");
+  }
+  return {
+    exDividendDate: r.exDividendDate,
+    recordDate: toStringOrNull(r.recordDate),
+    paymentDate: toStringOrNull(r.paymentDate),
+    distributionPerUnit: toNumberOrNull(r.distributionPerUnit),
+    status: r.status,
+  };
+}
+
+/**
+ * analysis-ts 的 GET /market/etf-distributions（2026-10-05 新增，給 web-nuxt 持股頁）。純轉發，零計算——
+ * trailing12MonthDistributionPerUnit 是上游算好的，這裡不重算也不重新定義「近 12 個月」。
+ *
+ * 實測（2026-10-05）：0056 → 4.082、00878 → 2.49；普通股（2330）與不存在的代號都是 200、found false、
+ * events 空陣列；events 舊到新。
+ */
+export async function fetchEtfDistributions(symbol: string): Promise<EtfDistributionsResult> {
+  const body = (await getJson("/market/etf-distributions", { symbol })) as Record<string, unknown>;
+  if (typeof body.found !== "boolean") {
+    throw etfDistributionsContractError("found");
+  }
+  const window = body.trailing12MonthWindow as Record<string, unknown> | undefined;
+  if (typeof window?.start !== "string" || typeof window.end !== "string") {
+    throw etfDistributionsContractError("trailing12MonthWindow");
+  }
+  if (!Array.isArray(body.events)) {
+    throw etfDistributionsContractError("events");
+  }
+  return {
+    symbol: String(body.symbol ?? symbol),
+    found: body.found,
+    // toNumberOrNull 保住兩種不同的意思：found false 時的 null，與「有紀錄但沒配」的 0。
+    trailing12MonthDistributionPerUnit: toNumberOrNull(body.trailing12MonthDistributionPerUnit),
+    trailing12MonthWindow: { start: window.start, end: window.end },
+    events: body.events.map(normalizeEtfDistributionEvent),
+  };
+}
+
 /**
  * MarketGatewayPort 的實作。上面的 fetchX 函式已經做完正規化與 400/502 判定，所以這裡只是把它們對應到
  * port 的方法名。
@@ -469,4 +524,5 @@ export const analysisMarketGateway: MarketGatewayPort = {
   getPriceChangeRanking: fetchPriceChangeRanking,
   getEtfRanking: fetchEtfRanking,
   getTaiexDailyPrice: fetchTaiexDailyPrice,
+  getEtfDistributions: fetchEtfDistributions,
 };
