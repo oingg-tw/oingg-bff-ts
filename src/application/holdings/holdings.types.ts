@@ -74,6 +74,35 @@ export interface PortfolioPerformanceReport {
   series: { date: string; cumulative: string | null }[];
   /** 有持股但當天沒有收盤價（沿用前一個收盤價、或退回交易價）的天數，依 symbol 升冪。 */
   missingPrices: { symbol: string; dates: number }[];
+  /**
+   * 資金加權報酬（IRR），換算成整段期間的報酬、跟 twr 同一個尺度。twr 是「選股的報酬」，mwr 是「你的錢
+   * 實際賺了多少」，差距就是進出場時機的影響。現金流口徑同 twr（不含現金股利）。算不出來時是 null。
+   */
+  mwr: string | null;
+  /**
+   * 年化值。**期間不滿 365 天時兩個都是 null**：把幾個月的報酬年化會把運氣放大成看起來穩定的年報酬。
+   */
+  annualized: { twr: string | null; mwr: string | null };
+  /**
+   * 期間內的交易與成本（元，整數字串）。買進只算真的成交，成本不明的取得與配股不算。
+   * turnover ＝ min(買進, 賣出) ÷ 平均市值；costRatio ＝ (手續費 ＋ 證交稅) ÷ 平均市值，都是整段期間的值、
+   * 不年化。沒有曝險時這兩個是 null。
+   */
+  trading: {
+    buyAmount: string;
+    sellAmount: string;
+    fees: string;
+    taxes: string;
+    averageMarketValue: string | null;
+    turnover: string | null;
+    costRatio: string | null;
+  };
+  /**
+   * 跟加權指數逐日比較（只用實際績效）。上漲／下跌捕獲率：大盤上漲（下跌）那些天，組合的幾何平均日報酬 ÷
+   * 大盤的幾何平均日報酬（Morningstar 定義，不受期間長短與複利放大影響）；Omega（門檻 0）：賺錢日報酬總和 ÷ 賠錢日報酬總和。sampleDays 是兩邊都有報酬的天數，
+   * 少於 120 天時三個值都是 null。
+   */
+  benchmarkComparison: { sampleDays: number; upCapture: string | null; downCapture: string | null; omega: string | null };
 }
 
 /**
@@ -89,22 +118,57 @@ export interface PortfolioRiskReport {
   tradingDays: number;
   /** 權重用的是哪一天的收盤價（各持股最新收盤日中最晚的那天）。沒有持股時是 null。 */
   weightsAsOf: string | null;
+  /** 現在持股的總市值（股數 × 最新收盤，元，整數字串）。VaR／CVaR 的金額就是拿它乘的。 */
+  marketValue: string | null;
   portfolio: {
     annualizedVolatility: string | null;
     beta: string | null;
     correlation: string | null;
     maxDrawdown: DrawdownView;
-  };
+    /** VaR／CVaR 換成金額（元，整數字串，通常 ≤ 0）：以現在的市值，最差 5% 的日子單日會少多少。 */
+    valueAtRisk95Amount: string | null;
+    expectedShortfall95Amount: string | null;
+  } & DistributionRiskView;
   /** 同一段期間的加權指數，給前端並排比較。 */
   benchmark: {
     annualizedVolatility: string | null;
     maxDrawdown: DrawdownView;
-  };
+  } & DistributionRiskView;
+  /**
+   * 集中度，只看現在的市值權重（不需要股價歷史，所以永遠有值，除非沒有持股）。
+   * effectiveHoldings ＝ 1 ÷ HHI：「有 26 檔，實際上等於平均分散在幾檔」。
+   */
+  concentration: { hhi: string; effectiveHoldings: string; topThreeWeight: string } | null;
+  /**
+   * 分散化比率 Σ w_i σ_i ÷ σ_p（≥ 1，純數）。樣本少於 120 個交易日時是 null——共變異數估不穩。
+   */
+  diversificationRatio: string | null;
   /**
    * 現在的每一檔持股與它在回推裡的權重。coverage：full＝整段都有股價；partial＝期間中才有（firstPriceDate
    * 之前不參與，權重分給其他持股）；none＝整段都沒有股價、沒參與（weight 也是 null）。
    */
-  holdings: { symbol: string; weight: string | null; coverage: "full" | "partial" | "none"; firstPriceDate: string | null }[];
+  holdings: {
+    symbol: string;
+    weight: string | null;
+    coverage: "full" | "partial" | "none";
+    firstPriceDate: string | null;
+    /**
+     * 佔組合變異數的比例（小數，全部加總約為 1；期中才有股價的那幾檔讓它只近似成立）。權重 5% 的股票可能
+     * 貢獻 20% 的波動。樣本少於 120 個交易日、或這一檔沒參與時是 null。
+     */
+    riskContribution: string | null;
+  }[];
+}
+
+/**
+ * 2026-10-07 加的分佈型風險。下行半標準差年化、門檻 0；潰瘍指數是每天距前高跌幅的均方根；VaR／CVaR 是
+ * 單日 95% 歷史值（報酬，通常 ≤ 0），樣本少於 100 個交易日時是 null（尾端只剩不到 5 筆）。
+ */
+export interface DistributionRiskView {
+  downsideDeviation: string | null;
+  ulcerIndex: string | null;
+  valueAtRisk95: string | null;
+  expectedShortfall95: string | null;
 }
 
 export interface DrawdownView {

@@ -55,8 +55,8 @@ describe("getPortfolioRisk", () => {
     );
 
     expect(report.holdings).toEqual([
-      { symbol: "B", weight: "0.600000", coverage: "full", firstPriceDate: null },
-      { symbol: "A", weight: "0.400000", coverage: "full", firstPriceDate: null },
+      { symbol: "B", weight: "0.600000", coverage: "full", firstPriceDate: null, riskContribution: null },
+      { symbol: "A", weight: "0.400000", coverage: "full", firstPriceDate: null, riskContribution: null },
     ]);
     expect(report.weightsAsOf).toBe("2026-03-04");
     expect(report.tradingDays).toBe(3);
@@ -65,7 +65,7 @@ describe("getPortfolioRisk", () => {
   it("marks a holding with no prices at all as none, with no weight", async () => {
     const report = await getPortfolioRisk("uid1", "2026-03-01", "2026-03-04", deps([row("A", 1000), row("Z", 10)], { A: [10, 11, 12, 13] }));
 
-    expect(report.holdings.find((h) => h.symbol === "Z")).toEqual({ symbol: "Z", weight: null, coverage: "none", firstPriceDate: null });
+    expect(report.holdings.find((h) => h.symbol === "Z")).toEqual({ symbol: "Z", weight: null, coverage: "none", firstPriceDate: null, riskContribution: null });
     expect(report.holdings.find((h) => h.symbol === "A")!.weight).toBe("1.000000");
   });
 

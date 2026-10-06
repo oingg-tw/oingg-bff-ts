@@ -19,6 +19,18 @@
  *   會列出來，讓前端照實註明。
  * - 年化：日標準差 × √252（業界慣例；台股一年的交易日實際約 245～250 天，差異約 1%）。
  *
+ * ## 2026-10-07 加的第一批（使用者要求，依 conductor 的「全面投資組合評估指標體系」研究挑的）
+ *
+ * 全部是**風險或結構**，沒有報酬類——理由同上。這裡只算數學；「樣本太少就不給」的門檻是呈現規則，
+ * 在 holdingsRisk.service.ts，所以這裡用短序列就能驗證每個指標的定義性質。
+ *
+ * - 下行半標準差：只算跌的日子，門檻 0（不是無風險利率——那要等利率來源定案，見 GOV 的回覆）。
+ * - 潰瘍指數：每天距前高的跌幅取均方根，跌得深、泡得久都會讓它變大；最大回撤只看最深那一點。
+ * - 歷史 VaR／CVaR（95%，單日）：直接取實際日報酬的第 5 百分位與它以下的平均，不假設常態分佈。
+ *   康尼許－費雪修正不做：一年約 250 筆估偏態與峰態不穩（研究本身也提到極端值下會失效）。
+ * - 風險貢獻：w_i × Cov(r_i, r_p) ÷ Var(r_p)，全部持股加總為 1（期中才上市的那幾檔讓它只近似成立）。
+ * - 分散化比率：Σ w_i σ_i ÷ σ_p，≥ 1；越大代表相關性低、分散省掉越多波動。
+ *
  * 純函式：不碰網路、不碰資料庫。
  */
 
@@ -45,6 +57,18 @@ export interface Drawdown {
   recoveryDate: string | null;
 }
 
+/** 只看報酬分佈本身的風險（組合與大盤各一份）。報酬都是小數；VaR／CVaR 是報酬，通常 ≤ 0。 */
+export interface DistributionRisk {
+  /** 年化下行半標準差：√(平均 min(r, 0)²) × √252。 */
+  downsideDeviation: number | null;
+  /** 每天距前高跌幅（≤ 0）的均方根，小數。 */
+  ulcerIndex: number | null;
+  /** 單日 95% 歷史 VaR：日報酬由小到大第 ⌈5% × n⌉ 筆。 */
+  valueAtRisk95: number | null;
+  /** 單日 95% 歷史 CVaR：最差的那 ⌈5% × n⌉ 筆的平均。 */
+  expectedShortfall95: number | null;
+}
+
 export interface PortfolioRisk {
   /** 同時有組合報酬與大盤報酬的交易日數。少於 2 天時所有指標都是 null。 */
   tradingDays: number;
@@ -53,11 +77,15 @@ export interface PortfolioRisk {
     beta: number | null;
     correlation: number | null;
     maxDrawdown: Drawdown;
-  };
+  } & DistributionRisk;
   benchmark: {
     annualizedVolatility: number | null;
     maxDrawdown: Drawdown;
-  };
+  } & DistributionRisk;
+  /** Σ w_i σ_i ÷ σ_p。組合沒有波動時是 null。 */
+  diversificationRatio: number | null;
+  /** symbol → 佔組合變異數的比例，加總約為 1。沒參與（coverage none）的不列。 */
+  riskContributions: Map<string, number>;
   /** 每一檔的資料涵蓋範圍，讓前端照實註明哪幾檔不是整段都有參與。 */
   coverage: Map<string, Coverage>;
 }
@@ -83,6 +111,45 @@ function covariance(xs: readonly number[], ys: readonly number[]): number {
     sum += (xs[i]! - mx) * (ys[i]! - my);
   }
   return sum / (xs.length - 1);
+}
+
+const TAIL_PROBABILITY = 0.05;
+
+function distributionRisk(returns: readonly number[]): DistributionRisk {
+  if (returns.length < 2) {
+    return { downsideDeviation: null, ulcerIndex: null, valueAtRisk95: null, expectedShortfall95: null };
+  }
+  const downside = Math.sqrt(mean(returns.map((r) => Math.min(r, 0) ** 2))) * Math.sqrt(TRADING_DAYS_PER_YEAR);
+
+  let level = 1;
+  let peak = 1;
+  const squaredDrawdowns: number[] = [];
+  for (const r of returns) {
+    level *= 1 + r;
+    peak = Math.max(peak, level);
+    squaredDrawdowns.push((level / peak - 1) ** 2);
+  }
+
+  const sorted = [...returns].sort((a, b) => a - b);
+  const tail = sorted.slice(0, Math.max(1, Math.ceil(returns.length * TAIL_PROBABILITY)));
+  return {
+    downsideDeviation: downside,
+    ulcerIndex: Math.sqrt(mean(squaredDrawdowns)),
+    valueAtRisk95: tail.at(-1)!,
+    expectedShortfall95: mean(tail),
+  };
+}
+
+/** 有效持股數相關的集中度：HHI ＝ Σw²，有效持股數 ＝ 1 ÷ HHI，以及最大三檔的權重合計。 */
+export function concentration(weights: readonly number[]): { hhi: number; effectiveHoldings: number; topThreeWeight: number } | null {
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  if (total <= 0) {
+    return null;
+  }
+  const normalized = weights.map((w) => w / total);
+  const hhi = normalized.reduce((sum, w) => sum + w * w, 0);
+  const topThreeWeight = [...normalized].sort((a, b) => b - a).slice(0, 3).reduce((sum, w) => sum + w, 0);
+  return { hhi, effectiveHoldings: 1 / hhi, topThreeWeight };
 }
 
 /**
@@ -201,6 +268,8 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
   const dates: string[] = [];
   const portfolio: number[] = [];
   const benchmark: number[] = [];
+  /** 納入計算的那些天在 calendar 裡的位置，給風險貢獻對齊每一檔自己的報酬用。 */
+  const dayIndexes: number[] = [];
   // 最大回撤的起點：第一個有報酬的交易日的前一天（通常就是 baseDate）。
   let startDate = input.baseDate;
   input.calendar.forEach((date, i) => {
@@ -220,6 +289,7 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
         startDate = i === 0 ? input.baseDate : input.calendar[i - 1]!;
       }
       dates.push(date);
+      dayIndexes.push(i);
       portfolio.push(weighted / weightSum);
       benchmark.push(m);
     }
@@ -229,10 +299,13 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
   const coverage = new Map([...perSymbol].map(([symbol, s]) => [symbol, s.coverage]));
   if (n < 2) {
     const flat: Drawdown = { depth: 0, peakDate: null, troughDate: null, recoveryDate: null };
+    const none = distributionRisk([]);
     return {
       tradingDays: n,
-      portfolio: { annualizedVolatility: null, beta: null, correlation: null, maxDrawdown: flat },
-      benchmark: { annualizedVolatility: null, maxDrawdown: flat },
+      portfolio: { annualizedVolatility: null, beta: null, correlation: null, maxDrawdown: flat, ...none },
+      benchmark: { annualizedVolatility: null, maxDrawdown: flat, ...none },
+      diversificationRatio: null,
+      riskContributions: new Map(),
       coverage,
     };
   }
@@ -241,6 +314,30 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
   const varM = covariance(benchmark, benchmark);
   const cov = covariance(portfolio, benchmark);
   const annualize = Math.sqrt(TRADING_DAYS_PER_YEAR);
+
+  // 每一檔跟組合的共變異數，只用它自己有報酬的那些天（期中才上市的那幾檔只有後段）。
+  const riskContributions = new Map<string, number>();
+  let weightedVolatility = 0;
+  for (const [symbol, weight] of input.weights) {
+    const own = perSymbol.get(symbol)!.returns;
+    const xs: number[] = [];
+    const ys: number[] = [];
+    dayIndexes.forEach((dayIndex, k) => {
+      const r = own[dayIndex];
+      if (r !== null && r !== undefined) {
+        xs.push(r);
+        ys.push(portfolio[k]!);
+      }
+    });
+    if (xs.length < 2) {
+      continue;
+    }
+    weightedVolatility += weight * Math.sqrt(covariance(xs, xs));
+    if (varP > 0) {
+      riskContributions.set(symbol, (weight * covariance(xs, ys)) / varP);
+    }
+  }
+
   return {
     tradingDays: n,
     portfolio: {
@@ -248,11 +345,15 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
       beta: varM > 0 ? cov / varM : null,
       correlation: varP > 0 && varM > 0 ? cov / Math.sqrt(varP * varM) : null,
       maxDrawdown: maxDrawdown(startDate, dates, portfolio),
+      ...distributionRisk(portfolio),
     },
     benchmark: {
       annualizedVolatility: Math.sqrt(varM) * annualize,
       maxDrawdown: maxDrawdown(startDate, dates, benchmark),
+      ...distributionRisk(benchmark),
     },
+    diversificationRatio: varP > 0 ? weightedVolatility / Math.sqrt(varP) : null,
+    riskContributions,
     coverage,
   };
 }

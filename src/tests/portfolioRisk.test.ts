@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computePortfolioRisk, type PortfolioRiskInput } from "@/domain/portfolioRisk.js";
+import { computePortfolioRisk, concentration, type PortfolioRiskInput } from "@/domain/portfolioRisk.js";
 
 /**
  * 都是不變量：一個寫錯的風險公式算出來的數字看起來一樣合理，所以每一條都是這些指標的定義性質。
@@ -115,5 +115,80 @@ describe("max drawdown", () => {
     const risk = computePortfolioRisk(input({ closes: new Map([["A", series(path)]]) }));
 
     expect(risk.portfolio.maxDrawdown).toMatchObject({ peakDate: BASE, troughDate: "2026-03-02", recoveryDate: null });
+  });
+});
+
+/**
+ * 2026-10-07 第一批：集中度、風險貢獻、分散化比率、下行與尾端風險。一樣只測定義性質。
+ */
+describe("concentration", () => {
+  it("four equal holdings are effectively four, with the top three at 75%", () => {
+    expect(concentration([1, 1, 1, 1])).toEqual({ hhi: 0.25, effectiveHoldings: 4, topThreeWeight: 0.75 });
+  });
+
+  // 研究文件的例子：50 檔，前三大各 25%，其餘 47 檔平分 25% → 有效持股數約 5.3。
+  it("sees through nominal diversification", () => {
+    const shares = concentration([0.25, 0.25, 0.25, ...Array.from({ length: 47 }, () => 0.25 / 47)])!;
+
+    expect(shares.effectiveHoldings).toBeCloseTo(1 / (3 * 0.0625 + 47 * (0.25 / 47) ** 2), 9);
+    expect(shares.effectiveHoldings).toBeLessThan(6);
+  });
+});
+
+describe("risk contributions and diversification", () => {
+  const B_PRICES = [50, 49, 51, 50.5, 52, 51, 53];
+
+  it("risk contributions add up to 1", () => {
+    const risk = computePortfolioRisk(
+      input({ weights: new Map([["A", 0.7], ["B", 0.3]]), closes: new Map([["A", series(MARKET)], ["B", series(B_PRICES)]]) }),
+    );
+
+    expect(risk.riskContributions.get("A")! + risk.riskContributions.get("B")!).toBeCloseTo(1, 12);
+  });
+
+  // 兩檔走勢一模一樣：完全相關，分散沒有省掉任何波動，風險貢獻就等於權重。
+  it("identical holdings: contribution equals weight and the diversification ratio is 1", () => {
+    const risk = computePortfolioRisk(
+      input({ weights: new Map([["A", 0.7], ["B", 0.3]]), closes: new Map([["A", series(MARKET)], ["B", series(MARKET)]]) }),
+    );
+
+    expect(risk.riskContributions.get("A")).toBeCloseTo(0.7, 12);
+    expect(risk.diversificationRatio).toBeCloseTo(1, 12);
+  });
+
+  it("imperfectly correlated holdings have a diversification ratio above 1", () => {
+    const risk = computePortfolioRisk(
+      input({ weights: new Map([["A", 0.5], ["B", 0.5]]), closes: new Map([["A", series(MARKET)], ["B", series(B_PRICES)]]) }),
+    );
+
+    expect(risk.diversificationRatio!).toBeGreaterThan(1);
+  });
+});
+
+describe("downside and tail risk", () => {
+  it("a series that only rises has no downside deviation and no ulcer", () => {
+    const up = [100, 101, 102.01, 103.0301, 104.060401, 105.10100501, 106.1520150601];
+    const risk = computePortfolioRisk(input({ closes: new Map([["A", series(up)]]) }));
+
+    expect(risk.portfolio.downsideDeviation).toBe(0);
+    expect(risk.portfolio.ulcerIndex).toBe(0);
+  });
+
+  // 6 筆日報酬的 5% 尾巴是 ⌈0.3⌉ = 1 筆，所以 VaR 與 CVaR 都等於最差的那一天。
+  it("historical VaR and CVaR come from the actual worst days", () => {
+    const risk = computePortfolioRisk(input({ closes: new Map([["A", series(MARKET)]]) }));
+    const worst = Math.min(...MARKET.slice(1).map((v, i) => v / MARKET[i]! - 1));
+
+    expect(risk.portfolio.valueAtRisk95).toBeCloseTo(worst, 12);
+    expect(risk.portfolio.expectedShortfall95).toBeCloseTo(worst, 12);
+  });
+
+  // 潰瘍指數 ≥ |最大回撤| ÷ √n 且 ≤ |最大回撤|：均方根介於「只有最深那天」與「每天都那麼深」之間。
+  it("the ulcer index sits between the deepest drawdown spread over every day and the deepest drawdown itself", () => {
+    const risk = computePortfolioRisk(input({ closes: new Map([["A", series(MARKET)]]) }));
+    const depth = Math.abs(risk.portfolio.maxDrawdown.depth);
+
+    expect(risk.portfolio.ulcerIndex!).toBeLessThanOrEqual(depth);
+    expect(risk.portfolio.ulcerIndex!).toBeGreaterThanOrEqual(depth / Math.sqrt(risk.tradingDays));
   });
 });

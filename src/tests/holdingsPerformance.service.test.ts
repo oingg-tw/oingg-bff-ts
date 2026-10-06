@@ -74,7 +74,7 @@ describe("getPortfolioPerformance", () => {
   it("returns a null twr and an empty series when the window has no trading day", async () => {
     const report = await getPortfolioPerformance("uid1", "2026-03-07", "2026-03-08", deps([row("2330", "BUY", 10, 99, "2026-02-01")]));
 
-    expect(report).toEqual({ from: "2026-03-07", to: "2026-03-08", twr: null, series: [], missingPrices: [] });
+    expect(report).toMatchObject({ from: "2026-03-07", to: "2026-03-08", twr: null, mwr: null, series: [], missingPrices: [] });
   });
 
   /**

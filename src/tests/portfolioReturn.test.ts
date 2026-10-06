@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LedgerEntry } from "@/domain/holdingProjection.js";
-import { computePortfolioReturn } from "@/domain/portfolioReturn.js";
+import { compareWithBenchmark, computePortfolioReturn, moneyWeightedReturn } from "@/domain/portfolioReturn.js";
 
 /**
  * 這裡的測試刻意都是**不變量**，而不是「算出來是 0.1234」：一個寫錯的報酬率公式算出來的數字看起來
@@ -122,5 +122,90 @@ describe("computePortfolioReturn — 邊界", () => {
     const result = run([trade("A", "BUY", 100, 100, "2026-03-02"), trade("A", "SELL", 100, 99, "2026-03-03"), trade("A", "SELL", 50, 105, "2026-03-04", 20, 15)]);
 
     expect(result.twr).toBeGreaterThan(-0.05);
+  });
+});
+
+/**
+ * 2026-10-07 第一批：資金加權報酬、交易成本、跟大盤比較。一樣只測定義性質。
+ */
+describe("money-weighted return (MWR)", () => {
+  it("equals TWR when no money moves inside the window", () => {
+    const result = run([trade("A", "BUY", 300, 90, "2026-02-01"), trade("B", "BUY", 1000, 45, "2026-02-01")]);
+
+    expect(result.mwr).toBeCloseTo(result.twr!, 9);
+  });
+
+  // 大筆加碼剛好在上漲前：錢在漲的時候比較多，所以資金加權報酬高於時間加權。
+  it("beats TWR when a large deposit lands right before a rise", () => {
+    const result = run([
+      trade("A", "BUY", 10, 95, "2026-02-01"),
+      trade("A", "BUY", 5000, 99, "2026-03-03"), // 03-03 收 99，之後漲到 110、108
+    ]);
+
+    expect(result.mwr!).toBeGreaterThan(result.twr!);
+  });
+
+  it("solves the textbook case: 100 in, 110 back a year later is 10%", () => {
+    expect(moneyWeightedReturn([{ date: "2025-01-01", amount: -100 }, { date: "2026-01-01", amount: 110 }], "2025-01-01", "2026-01-01")).toBeCloseTo(0.1, 9);
+  });
+});
+
+describe("trading costs", () => {
+  it("counts only trades inside the window, with their fees and taxes", () => {
+    const result = run([
+      trade("A", "BUY", 100, 90, "2026-02-01", 20), // 起點以前：期初部位，不算交易
+      trade("A", "BUY", 50, 102, "2026-03-03", 7),
+      trade("A", "SELL", 30, 105, "2026-03-04", 4, 9),
+    ]);
+
+    expect(result.trading).toMatchObject({ buyAmount: 50 * 102, sellAmount: 30 * 105, fees: 11, taxes: 9 });
+    expect(result.trading.averageMarketValue).toBeGreaterThan(0);
+  });
+});
+
+describe("compareWithBenchmark", () => {
+  const market = new Map(A_CLOSES);
+
+  it("a portfolio that is the market captures exactly 100% up and down", () => {
+    const result = run([trade("A", "BUY", 300, 90, "2026-02-01")]);
+    const comparison = compareWithBenchmark(result.dailyReturns, market, CALENDAR, BASE);
+
+    expect(comparison.sampleDays).toBe(5);
+    expect(comparison.upCapture).toBeCloseTo(1, 12);
+    expect(comparison.downCapture).toBeCloseTo(1, 12);
+  });
+
+  // 捕獲率不能隨期間變長而改變：同一個日報酬型態重複兩次，捕獲率要一樣。整段複利相比（研究文件的寫法）
+  // 在這裡會變——大盤複利滾得越大比值越低，2026-10-07 真實帳本上它把約 37% 算成 18%。
+  it("capture ratios do not drift with the length of the period", () => {
+    const pattern = [0.03, -0.02, 0.05, -0.04];
+    const portfolioPattern = [0.012, -0.015, 0.02, -0.01];
+    const build = (repeats: number) => {
+      const calendar: string[] = [];
+      const market = new Map<string, number>([["2026-01-01", 100]]);
+      const daily: { date: string; r: number }[] = [];
+      let level = 100;
+      for (let i = 0; i < pattern.length * repeats; i++) {
+        const date = `2026-02-${String(i + 1).padStart(2, "0")}`;
+        calendar.push(date);
+        level *= 1 + pattern[i % pattern.length]!;
+        market.set(date, level);
+        daily.push({ date, r: portfolioPattern[i % pattern.length]! });
+      }
+      return compareWithBenchmark(daily, market, calendar, "2026-01-01");
+    };
+
+    expect(build(2).upCapture).toBeCloseTo(build(1).upCapture!, 12);
+    expect(build(2).downCapture).toBeCloseTo(build(1).downCapture!, 12);
+  });
+
+  // Omega（門檻 0）：賺的日子總和 ÷ 賠的日子總和。A 的日報酬 +2%、−2.94%、+6.06%、+4.76%、−1.82%。
+  it("computes Omega as total gains over total losses", () => {
+    const result = run([trade("A", "BUY", 300, 90, "2026-02-01")]);
+    const r = result.dailyReturns.map((d) => d.r);
+    const gains = r.filter((x) => x > 0).reduce((s, x) => s + x, 0);
+    const losses = -r.filter((x) => x < 0).reduce((s, x) => s + x, 0);
+
+    expect(compareWithBenchmark(result.dailyReturns, market, CALENDAR, BASE).omega).toBeCloseTo(gains / losses, 12);
   });
 });

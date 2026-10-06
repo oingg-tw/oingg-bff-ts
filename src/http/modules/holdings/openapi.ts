@@ -170,6 +170,14 @@ registry.registerPath({
     "### 期間上限",
     "個股收盤價最多回溯約 2000 個交易日（約 8 年）。期間超過時回 400，訊息會寫出最早可以從哪天開始——",
     "而不是用交易價估更早的市值，給出一個看起來正常的錯數字。",
+    "",
+    "### 2026-10-07 新增（只用實際帳本，不用回推）",
+    "- `mwr`：資金加權報酬（IRR），換算成整段期間、跟 `twr` 同一個尺度。`twr` 是選股的報酬，`mwr` 是你的錢實際賺多少，差距就是進出場時機的影響。現金流口徑同 `twr`。",
+    "- `annualized`：年化的 twr／mwr。**期間不滿 365 天時是 null**——把幾個月的報酬年化會把運氣放大。",
+    "- `trading`：期間內買進、賣出金額，手續費、證交稅（元）。`turnover` ＝ min(買進, 賣出) ÷ 平均市值，`costRatio` ＝ (手續費＋證交稅) ÷ 平均市值，都是整段期間、不年化。成本不明的取得與配股不算交易。",
+    "- `benchmarkComparison`：跟加權指數逐日比。上漲／下跌捕獲率＝大盤漲（跌）的那些天，組合的幾何平均日報酬 ÷ 大盤的幾何平均日報酬（Morningstar 定義；不是整段複利相比——大盤大漲的年度那會把比值壓得很低）；Omega（門檻 0）＝賺錢日報酬總和 ÷ 賠錢日報酬總和。`sampleDays` 少於 120 時三個值都是 null。",
+    "",
+    "全部只描述統計，不含任何評等或建議。",
   ].join("\n"),
   tags: ["Holdings"],
   security: [{ bearerAuth: [] }],
@@ -191,6 +199,23 @@ registry.registerPath({
                 }),
               ),
               missingPrices: z.array(z.object({ symbol: z.string(), dates: z.number() })),
+              mwr: z.string().nullable().openapi({ example: "0.098765" }),
+              annualized: z.object({ twr: z.string().nullable(), mwr: z.string().nullable() }),
+              trading: z.object({
+                buyAmount: z.string().openapi({ example: "1250000" }),
+                sellAmount: z.string(),
+                fees: z.string(),
+                taxes: z.string(),
+                averageMarketValue: z.string().nullable(),
+                turnover: z.string().nullable(),
+                costRatio: z.string().nullable(),
+              }),
+              benchmarkComparison: z.object({
+                sampleDays: z.number(),
+                upCapture: z.string().nullable().openapi({ example: "0.912345" }),
+                downCapture: z.string().nullable().openapi({ example: "0.701234" }),
+                omega: z.string().nullable().openapi({ example: "1.234567" }),
+              }),
             })
             .openapi("PortfolioPerformanceReport"),
         },
@@ -200,6 +225,13 @@ registry.registerPath({
     401: unauthorized,
   },
 });
+
+const distributionRiskShape = {
+  downsideDeviation: z.string().nullable().openapi({ example: "0.098765" }),
+  ulcerIndex: z.string().nullable().openapi({ example: "0.045678" }),
+  valueAtRisk95: z.string().nullable().openapi({ example: "-0.017890" }),
+  expectedShortfall95: z.string().nullable().openapi({ example: "-0.025432" }),
+};
 
 const drawdownSchema = z.object({
   depth: z.string().openapi({ description: "最大跌幅（≤ 0 的小數）。期間內從來沒跌過時是 \"0.000000\"。", example: "-0.267102" }),
@@ -211,7 +243,7 @@ const drawdownSchema = z.object({
 registry.registerPath({
   method: "get",
   path: "/holdings/risk",
-  summary: "用現在的持股回推的風險指標（波動度、Beta、相關係數、最大回撤）",
+  summary: "用現在的持股回推的風險指標（波動度、Beta、回撤、下行與尾端風險、集中度、風險貢獻）",
   description: [
     "拿**現在每一檔的市值比例**，當成整段期間每天都維持的比例，套用每一檔過去的日報酬，算出這組持股的風險。",
     "描述的是**現在手上這組**，不必等使用者自己累積持股歷史。預設期間是到今天為止的一年，最多回溯約 8 年（同 /holdings/performance）。",
@@ -224,6 +256,12 @@ registry.registerPath({
     "- **除權（配股）會還原**：除權當天股價依配股比例下跌不算虧損。**現金股利不還原**，跟價格型加權指數口徑一致。",
     "- 沒成交、停牌的日子沿用前一個收盤價。期間中才上市的持股，在有股價之前不參與，比例分給其他持股（見 `holdings[].coverage`）。",
     "- `tradingDays` 是實際用到的交易日數。統計誤差跟它有關：波動度約 3 個月可用，Beta 約 6 個月，請一起顯示。",
+    "",
+    "### 2026-10-07 新增",
+    "- `downsideDeviation`：年化下行半標準差（只算跌的日子，門檻 0）。`ulcerIndex`：每天距前高跌幅的均方根，跌得深、泡得久都會變大。",
+    "- `valueAtRisk95`／`expectedShortfall95`：單日 95% 歷史 VaR／CVaR（報酬，通常 ≤ 0），直接取實際日報酬，不假設常態；`tradingDays` 少於 100 時是 null。組合另有 `…Amount`：乘上現在市值 `marketValue` 的金額（元）。",
+    "- `concentration`：只看現在權重。`effectiveHoldings` ＝ 1 ÷ HHI，「有 26 檔，實際上等於平均分散在幾檔」。",
+    "- `diversificationRatio` ＝ Σ w_i σ_i ÷ σ_p（≥ 1）；`holdings[].riskContribution` ＝ 佔組合變異數的比例，加總約為 1。兩者在 `tradingDays` 少於 120 時是 null。",
     "",
     "只描述統計，不含任何建議或風險等級。",
   ].join("\n"),
@@ -241,19 +279,28 @@ registry.registerPath({
               to: z.string(),
               tradingDays: z.number(),
               weightsAsOf: z.string().nullable().openapi({ description: "權重用的是哪一天的收盤價。" }),
+              marketValue: z.string().nullable().openapi({ description: "現在持股總市值（元）。", example: "3250000" }),
               portfolio: z.object({
                 annualizedVolatility: z.string().nullable().openapi({ example: "0.234567" }),
                 beta: z.string().nullable().openapi({ example: "1.123456" }),
                 correlation: z.string().nullable().openapi({ example: "0.812345" }),
                 maxDrawdown: drawdownSchema,
+                ...distributionRiskShape,
+                valueAtRisk95Amount: z.string().nullable().openapi({ example: "-58000" }),
+                expectedShortfall95Amount: z.string().nullable().openapi({ example: "-82000" }),
               }),
-              benchmark: z.object({ annualizedVolatility: z.string().nullable(), maxDrawdown: drawdownSchema }),
+              benchmark: z.object({ annualizedVolatility: z.string().nullable(), maxDrawdown: drawdownSchema, ...distributionRiskShape }),
+              concentration: z
+                .object({ hhi: z.string(), effectiveHoldings: z.string().openapi({ example: "11.234567" }), topThreeWeight: z.string() })
+                .nullable(),
+              diversificationRatio: z.string().nullable().openapi({ example: "1.876543" }),
               holdings: z.array(
                 z.object({
                   symbol: z.string(),
                   weight: z.string().nullable(),
                   coverage: z.enum(["full", "partial", "none"]),
                   firstPriceDate: z.string().nullable(),
+                  riskContribution: z.string().nullable(),
                 }),
               ),
             })

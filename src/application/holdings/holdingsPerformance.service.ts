@@ -1,4 +1,4 @@
-import { computePortfolioReturn } from "@/domain/portfolioReturn.js";
+import { compareWithBenchmark, computePortfolioReturn } from "@/domain/portfolioReturn.js";
 import { toLedgerEntry } from "@/application/transactions/transactions.service.js";
 import { applyStockDividends } from "@/application/holdings/stockDividendLedger.js";
 import { fetchCloses, resolveTradingWindow } from "@/application/holdings/marketWindow.js";
@@ -16,6 +16,17 @@ import type { PortfolioPerformanceReport } from "@/application/holdings/holdings
 export type HoldingsPerformanceDeps = Pick<AppDeps, "transactions" | "stockGateway" | "marketGateway">;
 
 const RETURN_DECIMALS = 6;
+/** 捕獲率與 Omega 的最低樣本（呈現規則）：跟 beta 一樣，約 120 個交易日以下估不穩。 */
+const MIN_DAYS_FOR_COMPARISON = 120;
+const MS_PER_DAY = 86_400_000;
+
+function fixed(value: number | null): string | null {
+  return value === null ? null : value.toFixed(RETURN_DECIMALS);
+}
+
+function annualize(periodReturn: number | null, days: number): string | null {
+  return periodReturn === null || days < 365 ? null : fixed((1 + periodReturn) ** (365 / days) - 1);
+}
 
 export async function getPortfolioPerformance(
   firebaseUid: string,
@@ -23,9 +34,19 @@ export async function getPortfolioPerformance(
   requestedTo: string | undefined,
   deps: HoldingsPerformanceDeps,
 ): Promise<PortfolioPerformanceReport> {
-  const { from, to, calendar, baseDate, tradingDaysNeeded } = await resolveTradingWindow(requestedFrom, requestedTo, deps);
+  const { from, to, calendar, baseDate, tradingDaysNeeded, taiexCloses } = await resolveTradingWindow(requestedFrom, requestedTo, deps);
   if (!baseDate) {
-    return { from, to, twr: null, series: [], missingPrices: [] };
+    return {
+      from,
+      to,
+      twr: null,
+      series: [],
+      missingPrices: [],
+      mwr: null,
+      annualized: { twr: null, mwr: null },
+      trading: { buyAmount: "0", sellAmount: "0", fees: "0", taxes: "0", averageMarketValue: null, turnover: null, costRatio: null },
+      benchmarkComparison: { sampleDays: 0, upCapture: null, downCapture: null, omega: null },
+    };
   }
 
   // 先補配股再截到 to：配股的股數取決於除權日前的持股，所以要在完整的帳本上算。
@@ -48,11 +69,33 @@ export async function getPortfolioPerformance(
   // close 為 null 的日子不在 closes 裡，domain 會沿用前一個收盤價並計入 missingPrices。
   const closes = await fetchCloses(symbols, tradingDaysNeeded, deps);
   const result = computePortfolioReturn({ entries, calendar, baseDate, closes });
+  const comparison = compareWithBenchmark(result.dailyReturns, taiexCloses, calendar, baseDate);
+  const comparisonOk = comparison.sampleDays >= MIN_DAYS_FOR_COMPARISON;
+  const periodDays = (Date.parse(`${calendar.at(-1)!}T00:00:00Z`) - Date.parse(`${baseDate}T00:00:00Z`)) / MS_PER_DAY;
+  const { buyAmount, sellAmount, fees, taxes, averageMarketValue } = result.trading;
+  const perAverage = (numerator: number) => (averageMarketValue ? fixed(numerator / averageMarketValue) : null);
 
   return {
     from,
     to,
-    twr: result.twr === null ? null : result.twr.toFixed(RETURN_DECIMALS),
+    twr: fixed(result.twr),
+    mwr: fixed(result.mwr),
+    annualized: { twr: annualize(result.twr, periodDays), mwr: annualize(result.mwr, periodDays) },
+    trading: {
+      buyAmount: buyAmount.toFixed(0),
+      sellAmount: sellAmount.toFixed(0),
+      fees: fees.toFixed(0),
+      taxes: taxes.toFixed(0),
+      averageMarketValue: averageMarketValue === null ? null : averageMarketValue.toFixed(0),
+      turnover: perAverage(Math.min(buyAmount, sellAmount)),
+      costRatio: perAverage(fees + taxes),
+    },
+    benchmarkComparison: {
+      sampleDays: comparison.sampleDays,
+      upCapture: comparisonOk ? fixed(comparison.upCapture) : null,
+      downCapture: comparisonOk ? fixed(comparison.downCapture) : null,
+      omega: comparisonOk ? fixed(comparison.omega) : null,
+    },
     series: result.series.map((point) => ({
       date: point.date,
       cumulative: point.cumulative === null ? null : point.cumulative.toFixed(RETURN_DECIMALS),
