@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/http/swagger/registry.js";
-import { addWatchlistItemSchema, updateWatchlistItemSchema } from "@/http/modules/watchlist/route.js";
+import { addWatchlistItemSchema, reorderWatchlistSchema, updateWatchlistItemSchema } from "@/http/modules/watchlist/route.js";
 
 const watchlistItemSchema = z
   .object({
@@ -24,7 +24,7 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
-      description: "自選股清單（依加入時間新到舊排序）。",
+      description: "自選股清單，依使用者自訂的順序（POST /watchlist/reorder）。新加入的排最後。",
       content: { "application/json": { schema: z.object({ items: z.array(watchlistItemSchema) }) } },
     },
     401: unauthorized,
@@ -49,10 +49,38 @@ registry.registerPath({
       description: "新增成功的自選股項目。",
       content: { "application/json": { schema: z.object({ item: watchlistItemSchema }) } },
     },
-    400: errorResponse("缺少 symbol，或 note 型別不是字串。"),
+    400: errorResponse("缺少 symbol，或 note 不是字串、超過 200 字。"),
     401: unauthorized,
     404: errorResponse("此股票代號在 twse/tpex 都查無資料。"),
     409: errorResponse("這個 symbol 已經在自選股清單裡。"),
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/watchlist/reorder",
+  summary: "拖曳排序：重新排列自選股清單的順序",
+  description:
+    "ids 必須是目前清單裡每一個項目的 id 各一次（依新順序排列）——不能只給部分、不能多、不能重複，否則 400 且不寫入任何一列。前端拿到 400 代表手上的清單過期了（例如另一個分頁剛加了一檔），請重新 GET 再排。",
+  tags: ["Watchlist"],
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: reorderWatchlistSchema.openapi("ReorderWatchlistRequest", { example: { ids: ["b7f3a6b0-....", "1c2d3e4f-...."] } }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "重新排序後的完整自選股清單。",
+      content: { "application/json": { schema: z.object({ items: z.array(watchlistItemSchema) }) } },
+    },
+    400: errorResponse("ids 不是目前清單的完整 id 集合（漏了、多了或重複），或含有不合法的 UUID。"),
+    401: unauthorized,
   },
 });
 
@@ -87,7 +115,7 @@ registry.registerPath({
       description: "更新後的自選股項目。",
       content: { "application/json": { schema: z.object({ item: watchlistItemSchema }) } },
     },
-    400: errorResponse("id 不是合法的 UUID，或 note 型別不是字串。"),
+    400: errorResponse("id 不是合法的 UUID，或 note 不是字串、超過 200 字。"),
     401: unauthorized,
     404: notFound,
   },

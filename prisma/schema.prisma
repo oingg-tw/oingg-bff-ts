@@ -369,6 +369,9 @@ model WatchlistItem {
   firebaseUid String   @map("firebase_uid")
   symbol      String
   note        String?
+  /// 使用者自訂的顯示順序（2026-10-06），GET /watchlist 依它升冪排。新加入的排最後（max + 1）；
+  /// 同時加入時可能同值，以 createdAt 決定先後。PUT /watchlist/order 一次改寫整份清單的值。
+  position    Int      @default(0)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 

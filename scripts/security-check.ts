@@ -229,6 +229,31 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
   }
   await api(`/holdings/${holdingSymbol}`, { method: "DELETE", token: userB.idToken }).catch(() => undefined);
 
+  // POST /watchlist/reorder（2026-10-06）takes caller-supplied ids and its UPDATE locates rows by id alone —
+  // the only guard is the in-transaction check that the ids are exactly the caller's own set. A holds two
+  // items so that B's two ids, sent swapped, would pass a size-only check; B's order must not change.
+  const seed = async (user: TestUser) => {
+    const ids: (string | null)[] = [];
+    for (const symbol of ["2603", "2609"]) {
+      ids.push(extractId((await api("/watchlist", { method: "POST", token: user.idToken, body: { symbol } })).json));
+    }
+    return ids;
+  };
+  const watchlistIdsA = await seed(userA);
+  const watchlistIdsB = await seed(userB);
+  const bOrder = async () =>
+    ((await api("/watchlist", { token: userB.idToken })).json as { items?: { id: string }[] })?.items?.map((item) => item.id).join(",");
+  const before = await bOrder();
+  const reorderAttack = await api("/watchlist/reorder", { method: "POST", token: userA.idToken, body: { ids: [watchlistIdsB[1], watchlistIdsB[0]] } });
+  const after = await bOrder();
+  if ([...watchlistIdsA, ...watchlistIdsB].every(Boolean) && before === after && reorderAttack.status === 400) {
+    record("BOLA: POST /watchlist/reorder", "PASS");
+  } else {
+    record("BOLA: POST /watchlist/reorder", "FAIL", `B's order ${before} -> ${after}; A got ${reorderAttack.status}`);
+  }
+  for (const id of watchlistIdsB) await api(`/watchlist/${id}`, { method: "DELETE", token: userB.idToken }).catch(() => undefined);
+  for (const id of watchlistIdsA) await api(`/watchlist/${id}`, { method: "DELETE", token: userA.idToken }).catch(() => undefined);
+
   // DELETE /transactions/import/{importId} is id-keyed and deletes a whole batch — the sweep above can't
   // cover it (the create response carries `importId`, not `id`). B imports, A tries to revert B's batch,
   // B's rows must survive. Checked by behaviour, not only by A's status code.

@@ -6,6 +6,7 @@ import {
   getWatchlist,
   getWatchlistItemOrThrow,
   removeWatchlistItem,
+  reorderWatchlist,
 } from "@/application/watchlist/watchlist.service.js";
 
 const SAMPLE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
@@ -33,6 +34,7 @@ function fakeWatchlist(overrides: Partial<WatchlistPort> = {}): WatchlistPort {
     create: vi.fn().mockResolvedValue({ ok: true, item: SAMPLE_ITEM }),
     updateNote: vi.fn().mockResolvedValue(null),
     remove: vi.fn().mockResolvedValue(false),
+    reorder: vi.fn().mockResolvedValue(null),
     ...overrides,
   };
 }
@@ -117,5 +119,21 @@ describe("removeWatchlistItem", () => {
     const watchlist = fakeWatchlist();
 
     await expect(removeWatchlistItem("uid1", SAMPLE_ID, { watchlist })).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe("reorderWatchlist", () => {
+  it("returns the reordered list from the port", async () => {
+    const watchlist = fakeWatchlist({ reorder: vi.fn().mockResolvedValue([SAMPLE_ITEM]) });
+
+    await expect(reorderWatchlist("uid1", [SAMPLE_ID], { watchlist })).resolves.toEqual([SAMPLE_ITEM]);
+    expect(watchlist.reorder).toHaveBeenCalledWith("uid1", [SAMPLE_ID]);
+  });
+
+  // null = ids 不是目前清單的完整集合（漏、多、重複），一列都沒寫——前端要重新 GET 再排。
+  it("rejects an ids list that is not exactly the current watchlist with 400", async () => {
+    const watchlist = fakeWatchlist({ reorder: vi.fn().mockResolvedValue(null) });
+
+    await expect(reorderWatchlist("uid1", [SAMPLE_ID], { watchlist })).rejects.toMatchObject({ statusCode: 400 });
   });
 });

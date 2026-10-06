@@ -40,6 +40,12 @@ export interface WatchlistPort {
   remove(firebaseUid: string, id: string): Promise<boolean>;
 
   /**
+   * 整批重排 position（2026-10-06，跟 ScreenerPresetsPort／ColumnPresetsPort 的 reorder 同一個形狀）。
+   * null 代表 orderedIds 不是這個使用者當下的完整 id 集合（漏了、多了、或重複），而且一列都沒寫。
+   */
+  reorder(firebaseUid: string, orderedIds: string[]): Promise<WatchlistItem[] | null>;
+
+  /**
    * 為什麼這個 port 有 count()：POST /watchlist 的額度檢查在 middleware 擋，需要一個便宜的 COUNT 而不是
    * 把整份清單撈出來數（跟 ScreenerPresetsPort.count 同一個理由與同一個寫法）。
    *

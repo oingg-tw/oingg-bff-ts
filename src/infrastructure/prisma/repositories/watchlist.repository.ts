@@ -21,7 +21,8 @@ export async function listWatchlistItems(firebaseUid: string): Promise<Watchlist
   const prisma = getPrismaClient();
   const rows = await prisma.watchlistItem.findMany({
     where: { firebaseUid },
-    orderBy: { createdAt: "desc" },
+    // createdAt 是同 position 時的決勝：兩檔同時加入會拿到同一個 max + 1。
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
   });
   return rows.map(toWatchlistItem);
 }
@@ -38,8 +39,34 @@ export async function createWatchlistItem(
   note: string | null,
 ): Promise<WatchlistItem> {
   const prisma = getPrismaClient();
-  const row = await prisma.watchlistItem.create({ data: { firebaseUid, symbol, note } });
+  // 新加入的排最後。ponytail: 讀 max 再寫不是原子的，同時加入會同值——由 list 的 createdAt 決勝，不必鎖。
+  const { _max } = await prisma.watchlistItem.aggregate({ where: { firebaseUid }, _max: { position: true } });
+  const position = (_max.position ?? -1) + 1;
+  const row = await prisma.watchlistItem.create({ data: { firebaseUid, symbol, note, position } });
   return toWatchlistItem(row);
+}
+
+/**
+ * 比對與寫入在同一個交易裡，跟 columnPresets.repository.ts 的 reorderColumnPresets 同一個寫法。
+ * 多驗一個「重複」：[a, a, b] 的集合跟 {a, b} 一樣大，不擋的話 a 會被寫兩次、最後落在錯的位置。
+ */
+export async function reorderWatchlistItems(firebaseUid: string, orderedIds: string[]): Promise<WatchlistItem[] | null> {
+  const prisma = getPrismaClient();
+
+  return prisma.$transaction(async (tx) => {
+    const existingIds = new Set((await tx.watchlistItem.findMany({ where: { firebaseUid }, select: { id: true } })).map((row) => row.id));
+    const requestedIds = new Set(orderedIds);
+    if (requestedIds.size !== orderedIds.length || requestedIds.size !== existingIds.size || orderedIds.some((id) => !existingIds.has(id))) {
+      return null;
+    }
+
+    for (const [position, id] of orderedIds.entries()) {
+      await tx.watchlistItem.update({ where: { id }, data: { position } });
+    }
+
+    const rows = await tx.watchlistItem.findMany({ where: { firebaseUid }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
+    return rows.map(toWatchlistItem);
+  });
 }
 
 export async function updateWatchlistItemNote(
@@ -96,4 +123,5 @@ export const prismaWatchlist: WatchlistPort = {
   },
   updateNote: updateWatchlistItemNote,
   remove: deleteWatchlistItem,
+  reorder: reorderWatchlistItems,
 };

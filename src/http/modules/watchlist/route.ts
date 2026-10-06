@@ -14,6 +14,7 @@ import {
   getWatchlist,
   getWatchlistItemOrThrow,
   removeWatchlistItem,
+  reorderWatchlist,
 } from "@/application/watchlist/watchlist.service.js";
 
 
@@ -28,13 +29,22 @@ function parseId(raw: string): string {
   return parseUuidParam(raw, "watchlist item");
 }
 
+/** 備註長度上限（2026-10-06 使用者同意 web-nuxt 的提議）。前端的 maxlength 跟著這個數字。 */
+const NOTE_MAX_LENGTH = 200;
+const noteSchema = z.string().max(NOTE_MAX_LENGTH, `"note" must be at most ${NOTE_MAX_LENGTH} characters`).nullish();
+
 export const addWatchlistItemSchema = z.object({
   symbol: z.string().trim().min(1, '"symbol" is required'),
-  note: z.string().nullish(),
+  note: noteSchema,
 });
 
 export const updateWatchlistItemSchema = z.object({
-  note: z.string().nullish(),
+  note: noteSchema,
+});
+
+/** 上限只是輸入邊界：付費方案的檔數沒有上限，但不會有人的自選股到 1000 檔。 */
+export const reorderWatchlistSchema = z.object({
+  ids: z.array(z.string().uuid()).max(1000),
 });
 
 /**
@@ -85,6 +95,14 @@ export function createWatchlistRouter(deps: WatchlistDeps & StockProxyDeps & Aut
     await assertSymbolExists(body.symbol, deps);
     const item = await addWatchlistItem(firebaseUid, body.symbol, body.note ?? null, deps);
     res.status(201).json({ item });
+  });
+
+  // 路徑跟 /screener/presets/reorder、/screener/column-presets/reorder 一致（web-nuxt 提議的是 PUT /order）。
+  watchlistRouter.post("/reorder", async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = parseBody(reorderWatchlistSchema, req.body);
+    const items = await reorderWatchlist(firebaseUid, body.ids, deps);
+    res.json({ items });
   });
 
   watchlistRouter.get("/:id", async (req: AuthenticatedRequest, res) => {

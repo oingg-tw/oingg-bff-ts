@@ -55,6 +55,18 @@ export async function editWatchlistItemNote(
   return item;
 }
 
+/**
+ * 自訂排序（2026-10-06）：一次送整份順序。400 讓前端知道它手上的清單已經過期（例如另一個分頁剛加了
+ * 一檔），重新 GET 再排。
+ */
+export async function reorderWatchlist(firebaseUid: string, orderedIds: string[], deps: WatchlistDeps): Promise<WatchlistItem[]> {
+  const items = await deps.watchlist.reorder(firebaseUid, orderedIds);
+  if (!items) {
+    throw new AppError('"ids" must list every item in your watchlist exactly once, in the new order', 400);
+  }
+  return items;
+}
+
 export async function removeWatchlistItem(firebaseUid: string, id: string, deps: WatchlistDeps): Promise<void> {
   const deleted = await deps.watchlist.remove(firebaseUid, id);
   if (!deleted) {
