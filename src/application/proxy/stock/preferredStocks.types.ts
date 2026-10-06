@@ -15,16 +15,23 @@ export interface PreferredStockEntry {
   listedDate: string | null;
   /** "上市" or "上櫃" (free string upstream, not an enum). */
   marketType: string;
-  issueDate: string;
-  issuePrice: number;
+  /*
+   * 發行條款（從 issueDate 到 redemptionConditions，以及由條款算出的殖利率類欄位）在上游契約裡本來就全部
+   * 可為 null（2026-10-07 對過 analysis-ts 的 OpenAPI）：查無條款時整組一起是 null。mops 的條款表從
+   * 2026-09-08 起是永久快照，之後新發行的特別股就會這樣。當時 28 檔剛好都有條款，所以 null 從沒出現過，
+   * 而這裡原本用 Number()／String()／=== true 轉，會把它們變成 0、"null"、false——憑空捏造一個答案。
+   * null 的意思是「條款不明」，不是 0 也不是「否」。
+   */
+  issueDate: string | null;
+  issuePrice: number | null;
   /**
    * Fixed dividend in NT$ per share — NOT a percentage, despite the name (analysis-ts flagged this
    * explicitly as an easy field-name trap). See nominalDividendRatePct/currentYieldPct for the two
    * distinct percentage figures derived from this.
    */
-  dividendRate: number;
+  dividendRate: number | null;
   /** dividendRate / issuePrice × 100 — fixed at issuance, never changes over the security's life. */
-  nominalDividendRatePct: number;
+  nominalDividendRatePct: number | null;
   /**
    * dividendRate / latest close × 100 — moves daily with price. Null when there's no price data.
    * Do not conflate with nominalDividendRatePct: e.g. 2002A 中鋼特 has a 14% nominal rate (fixed at its
@@ -34,11 +41,11 @@ export interface PreferredStockEntry {
   latestClosePrice: number | null;
   latestPriceDate: string | null;
 
-  cumulativeDividend: boolean;
-  participatingExcessDividend: boolean;
-  liquidationPreference: boolean;
-  votingRights: boolean;
-  convertible: boolean;
+  cumulativeDividend: boolean | null;
+  participatingExcessDividend: boolean | null;
+  liquidationPreference: boolean | null;
+  votingRights: boolean | null;
+  convertible: boolean | null;
   /** Null when convertible is false. */
   conversionStartDate: string | null;
   /**
@@ -46,7 +53,7 @@ export interface PreferredStockEntry {
    * investor put right (投資人賣回權). Confirmed with the user directly (2026-09-06): this endpoint has
    * no field for an investor put right at all, only this company-side call right.
    */
-  redeemable: boolean;
+  redeemable: boolean | null;
   /**
    * 得收回日：the EARLIEST date the issuer may call the shares, not the date they were called. Passing it
    * with the shares still outstanding is normal (e.g. 2887A), so never label it 「已贖回」. Null when
@@ -55,14 +62,6 @@ export interface PreferredStockEntry {
   redemptionDate: string | null;
   /** Null when redeemable is false. */
   redemptionConditions: string | null;
-  /**
-   * analysis-ts's own "買回風險" figure, null when `redeemable` is false. Confirmed formula (2026-09-06,
-   * after an initial wrong description was caught by comparing live numbers and corrected by
-   * analysis-ts): issuePrice - latestClosePrice. Negative means the current price already exceeds the
-   * issue price, so a call at/near issue price would force investors to realize that loss (the "risk"
-   * this field names); positive means no such risk.
-   */
-  callRiskAmount: number | null;
   /**
    * 最差殖利率 (Yield to Worst) — added by analysis-ts 2026-09-07. Populated whenever there's price data,
    * even when `redeemable` is false (equals `currentYieldPct` in that case, since nothing worse than

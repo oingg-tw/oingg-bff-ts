@@ -11,6 +11,10 @@ function toStringOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+function toBooleanOrNull(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
 function normalizeEntry(raw: unknown): PreferredStockEntry {
   const r = raw as Record<string, unknown>;
 
@@ -22,23 +26,23 @@ function normalizeEntry(raw: unknown): PreferredStockEntry {
     isinCode: toStringOrNull(r.isinCode),
     listedDate: toStringOrNull(r.listedDate),
     marketType: String(r.marketType),
-    issueDate: String(r.issueDate),
-    issuePrice: Number(r.issuePrice),
-    dividendRate: Number(r.dividendRate),
-    nominalDividendRatePct: Number(r.nominalDividendRatePct),
+    issueDate: toStringOrNull(r.issueDate),
+    issuePrice: toNumberOrNull(r.issuePrice),
+    dividendRate: toNumberOrNull(r.dividendRate),
+    nominalDividendRatePct: toNumberOrNull(r.nominalDividendRatePct),
     currentYieldPct: toNumberOrNull(r.currentYieldPct),
     latestClosePrice: toNumberOrNull(r.latestClosePrice),
     latestPriceDate: toStringOrNull(r.latestPriceDate),
-    cumulativeDividend: r.cumulativeDividend === true,
-    participatingExcessDividend: r.participatingExcessDividend === true,
-    liquidationPreference: r.liquidationPreference === true,
-    votingRights: r.votingRights === true,
-    convertible: r.convertible === true,
+    // 發行條款查無時整組是 null（見 PreferredStockEntry）——不要用 Number()／String()／=== true，那會捏造 0／"null"／false。
+    cumulativeDividend: toBooleanOrNull(r.cumulativeDividend),
+    participatingExcessDividend: toBooleanOrNull(r.participatingExcessDividend),
+    liquidationPreference: toBooleanOrNull(r.liquidationPreference),
+    votingRights: toBooleanOrNull(r.votingRights),
+    convertible: toBooleanOrNull(r.convertible),
     conversionStartDate: toStringOrNull(r.conversionStartDate),
-    redeemable: r.redeemable === true,
+    redeemable: toBooleanOrNull(r.redeemable),
     redemptionDate: toStringOrNull(r.redemptionDate),
     redemptionConditions: toStringOrNull(r.redemptionConditions),
-    callRiskAmount: toNumberOrNull(r.callRiskAmount),
     ytwPct: toNumberOrNull(r.ytwPct),
     ytcPct: toNumberOrNull(r.ytcPct),
     ytcAssumption:

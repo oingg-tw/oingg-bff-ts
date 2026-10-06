@@ -48,7 +48,6 @@ const RAW_ENTRY = {
   redeemable: true,
   redemptionDate: "2023-12-13",
   redemptionConditions: "本公司得於發行日滿五年後之次日起按實際發行價格收回",
-  callRiskAmount: 6.55,
   ytwPct: 4.03,
   ytcPct: 19.1,
   ytcAssumption: "past_redemption_date_assumed_next_period",
@@ -88,21 +87,34 @@ describe("fetchPreferredStocks", () => {
     expect(entries[0]).toMatchObject({ symbol: "8349A", isinCode: null, marketType: "上櫃", listedDate: "2020-02-24" });
   });
 
-  it("passes through callRiskAmount", async () => {
-    mockFetchOnce({ ok: true, body: { entries: [RAW_ENTRY] } });
+  // 2026-10-07：查無發行條款時上游整組給 null（契約本來就允許，只是 28 檔剛好都有條款）。原本的
+  // Number()／=== true 會把它們變成 0 與 false——「條款不明」被講成「票面 0 元、不可贖回」。
+  it("keeps every issuance term null when the terms are unknown, instead of 0 or false", async () => {
+    const noTerms = {
+      ...RAW_ENTRY,
+      issueDate: null,
+      issuePrice: null,
+      dividendRate: null,
+      nominalDividendRatePct: null,
+      currentYieldPct: null,
+      cumulativeDividend: null,
+      participatingExcessDividend: null,
+      liquidationPreference: null,
+      votingRights: null,
+      convertible: null,
+      redeemable: null,
+      redemptionDate: null,
+      redemptionConditions: null,
+      ytwPct: null,
+      ytcPct: null,
+      ytcAssumption: null,
+      premiumRatePct: null,
+    };
+    mockFetchOnce({ ok: true, body: { entries: [noTerms] } });
 
-    const result = await fetchPreferredStocks("1101B");
+    const { entries } = await fetchPreferredStocks();
 
-    expect(result.entries[0]?.callRiskAmount).toBe(6.55);
-  });
-
-  it("keeps callRiskAmount null when analysis-ts sends null (not redeemable)", async () => {
-    const entry = { ...RAW_ENTRY, redeemable: false, callRiskAmount: null };
-    mockFetchOnce({ ok: true, body: { entries: [entry] } });
-
-    const result = await fetchPreferredStocks("1101B");
-
-    expect(result.entries[0]?.callRiskAmount).toBeNull();
+    expect(entries[0]).toEqual(noTerms);
   });
 
   // ytwPct/ytcPct/ytcAssumption added by analysis-ts 2026-09-07.
