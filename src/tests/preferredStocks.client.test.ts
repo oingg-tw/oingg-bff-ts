@@ -78,6 +78,16 @@ describe("fetchPreferredStocks", () => {
   });
 
   // callRiskAmount added by analysis-ts 2026-09-06 — pass through as a plain number.
+  // 2026-10-07：twse-ts 停抓證交所 ISIN 網頁，上櫃與新掛牌的特別股 isinCode 是 null。String(null) 會變成
+  // 字串 "null"、看起來像真資料，所以這裡守的是「null 穿過來仍是 null」。
+  it("keeps a null isinCode null instead of the string \"null\"", async () => {
+    mockFetchOnce({ ok: true, body: { entries: [{ ...RAW_ENTRY, symbol: "8349A", isinCode: null, marketType: "上櫃", listedDate: "2020-02-24" }] } });
+
+    const { entries } = await fetchPreferredStocks();
+
+    expect(entries[0]).toMatchObject({ symbol: "8349A", isinCode: null, marketType: "上櫃", listedDate: "2020-02-24" });
+  });
+
   it("passes through callRiskAmount", async () => {
     mockFetchOnce({ ok: true, body: { entries: [RAW_ENTRY] } });
 

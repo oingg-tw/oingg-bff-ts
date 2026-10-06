@@ -17,8 +17,10 @@ function normalizeEntry(raw: unknown): PreferredStockEntry {
   return {
     symbol: String(r.symbol),
     name: String(r.name),
-    isinCode: String(r.isinCode),
-    listedDate: String(r.listedDate),
+    // toStringOrNull, not String(): String(null) is the literal "null", which would reach the UI looking
+    // like real data. Both became nullable upstream on 2026-10-07 (see PreferredStockEntry).
+    isinCode: toStringOrNull(r.isinCode),
+    listedDate: toStringOrNull(r.listedDate),
     marketType: String(r.marketType),
     issueDate: String(r.issueDate),
     issuePrice: Number(r.issuePrice),

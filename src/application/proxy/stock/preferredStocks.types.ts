@@ -1,13 +1,19 @@
 /**
- * TWSE-listed preferred stock (特別股) — TPEx has no matching registration data source, so this never
- * includes 上櫃 issues. Confirmed with analysis-ts directly (2026-09-06, real data for all fields).
+ * Preferred stock (特別股). Until 2026-10-07 this was TWSE-listed only; analysis-ts cc647d6f added
+ * 上櫃 issues (first one: 8349A 恒耀甲特), so `marketType` is now "上市" or "上櫃".
  */
 export interface PreferredStockEntry {
   symbol: string;
   name: string;
-  isinCode: string;
-  listedDate: string;
-  /** Always "上市" — TWSE only. */
+  /**
+   * Null since 2026-10-07: twse-ts stopped scraping isin.twse.com.tw under the exchange's terms of use, so
+   * newly listed issues (and every 上櫃 one) have no official ISIN. Show "—", never derive one — analysis-ts
+   * tried a rule-based ISIN and it mismatched the exchange's own data on 1 of 28 listed preferreds.
+   */
+  isinCode: string | null;
+  /** "YYYY-MM-DD"; null for the same reason as isinCode. 8349A's comes from its first trading day. */
+  listedDate: string | null;
+  /** "上市" or "上櫃" (free string upstream, not an enum). */
   marketType: string;
   issueDate: string;
   issuePrice: number;
@@ -41,7 +47,11 @@ export interface PreferredStockEntry {
    * no field for an investor put right at all, only this company-side call right.
    */
   redeemable: boolean;
-  /** Null when redeemable is false. */
+  /**
+   * 得收回日：the EARLIEST date the issuer may call the shares, not the date they were called. Passing it
+   * with the shares still outstanding is normal (e.g. 2887A), so never label it 「已贖回」. Null when
+   * redeemable is false.
+   */
   redemptionDate: string | null;
   /** Null when redeemable is false. */
   redemptionConditions: string | null;
