@@ -39,10 +39,12 @@ export interface ExDividendCalendarEntry extends ExDividendNoticeEntry {
   /** "YYYY-MM-DD" 基準日 — ETF rows only. */
   recordDate: string | null;
   /**
-   * 每單位分配金額. **This is the ONLY amount an ETF row carries** — an ETF's `cashDividend` is always null
-   * (96/96 in 2026-09), so a calendar that reads `cashDividend` alone shows no amount for roughly half the
-   * month's rows (ETFs were 96 of 206). Null on announced rows: the amount genuinely isn't published yet
-   * (0/14 populated on 2026-10, all announced), which is different from "we dropped it".
+   * 每單位分配金額. **Read an ETF row's amount from here, never from `cashDividend`.** Until 2026-10-06 an
+   * ETF's cashDividend was always null (96/96 in 2026-09), so a calendar reading cashDividend alone showed no
+   * amount for roughly half the month's rows. Since analysis-ts fde1e48c an announced ETF row can also carry
+   * the TWSE pre-announcement value in cashDividend, and they fill distributionPerUnit from it when sitca has
+   * no amount yet (measured 2026-10-06 on DEV: 5 ETF rows had both, all equal; 0 had cashDividend without
+   * distributionPerUnit). Null here still means the amount genuinely isn't published yet.
    */
   distributionPerUnit: number | null;
   composition: ExDividendCompositionBreakdown | null;
