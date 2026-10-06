@@ -34,7 +34,8 @@ function normalizeFlatHistoryEntry(raw: unknown): FlatHistoryEntry {
   const r = raw as Record<string, unknown>;
   return {
     fiscalYear: Number(r.fiscalYear),
-    fiscalQuarter: Number(r.fiscalQuarter),
+    // 年度（FY）列沒有季別，上游給 null；Number(null) 會變成「第 0 季」。
+    fiscalQuarter: toNumberOrNull(r.fiscalQuarter),
     value: toNumberOrNull(r.value),
     nullReason: toStringOrNull(r.nullReason),
     knowledgeDate: String(r.knowledgeDate),

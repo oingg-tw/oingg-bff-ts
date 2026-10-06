@@ -28,7 +28,7 @@ function normalizeEntry(raw: unknown): CapitalStockHistoryEntry {
   return {
     effectiveDate: String(r.effectiveDate),
     paidInShares: String(r.paidInShares),
-    paidInCapital: String(r.paidInCapital),
+    paidInCapital: toStringOrNull(r.paidInCapital),
     changeSource: normalizeChangeSource(r.changeSource),
     remarks: toStringOrNull(r.remarks),
     sharesChangePercent: typeof r.sharesChangePercent === "number" ? r.sharesChangePercent : null,

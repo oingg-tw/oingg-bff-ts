@@ -392,6 +392,16 @@ describe("fetchGovBondYield10y (snapshot)", () => {
     expect(calledUrl().toString()).toBe("http://filters.test/macro/gov-bond-yield-10y");
   });
 
+  // 每個值是 { status, message } 物件。原本 String(value) 把它變成 "[object Object]"——一直是空物件所以沒人看到。
+  it("passes fieldStatuses objects through instead of stringifying them", async () => {
+    const fieldStatuses = { yieldPct: { status: "no_data", message: "本月尚未公布" } };
+    mockFetchOnce({ ok: true, body: { yieldPct: 1.9, asOfMonth: "2026-08", fieldStatuses, warnings: [] } });
+
+    const result = await fetchGovBondYield10y();
+
+    expect(result.fieldStatuses).toEqual(fieldStatuses);
+  });
+
   it("throws a 502 AppError when the response is missing yieldPct", async () => {
     mockFetchOnce({ ok: true, body: { oops: true } });
 

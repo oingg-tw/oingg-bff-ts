@@ -250,7 +250,8 @@ export interface EtfRankingEntry {
   market: Market;
   /** Null for actively-managed (主動式) ETFs, which don't fit this classification. */
   assetClass: EtfAssetClass | null;
-  isActive: boolean;
+  /** null when upstream can't classify the ETF as active or passive. */
+  isActive: boolean | null;
   distributionFrequency: EtfDistributionFrequency | null;
   value: string;
   asOf: string;

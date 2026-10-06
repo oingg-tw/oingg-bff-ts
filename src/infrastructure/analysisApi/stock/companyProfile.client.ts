@@ -45,9 +45,9 @@ function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
     // 缺席給 null 不給 false——理由見 companyProfile.types.ts。上游 PRD 還沒有這個欄位，而把興櫃說成
     // 「不是興櫃」是錯的標籤；null 讓呼叫端知道「還不知道」。
     isEmerging: typeof raw.isEmerging === "boolean" ? raw.isEmerging : null,
-    reportDate: String(raw.reportDate),
-    name: String(raw.name),
-    shortName: String(raw.shortName),
+    reportDate: toStringOrNull(raw.reportDate),
+    name: toStringOrNull(raw.name),
+    shortName: toStringOrNull(raw.shortName),
     foreignRegistrationCountry: toStringOrNull(raw.foreignRegistrationCountry),
     industry: toStringOrNull(raw.industry),
     industryName: toStringOrNull(raw.industryName),

@@ -16,7 +16,8 @@ export interface MetricsHistoryValue {
 
 export interface MetricsHistoryEntry {
   fiscalYear: number;
-  fiscalQuarter: number;
+  /** null on annual (FY) rows — they have no quarter. */
+  fiscalQuarter: number | null;
   /**
    * 這一期用的財務報表類型：`"2"` = 合併報表、`"1"` = 個體報表（MOPS 的 dataType 編號，**跟
    * companyProfile 的 `financialReportType` 方向相反**，見那邊的說明）。2026-09-27 新增。

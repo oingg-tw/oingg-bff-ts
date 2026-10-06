@@ -9,7 +9,7 @@ const securityListSchema = z
     count: z.number(),
     limit: z.number(),
     offset: z.number(),
-    entries: z.array(z.object({ symbol: z.string(), name: z.string(), type: securityTypeSchema })),
+    entries: z.array(z.object({ symbol: z.string(), name: z.string().nullable(), type: securityTypeSchema })),
   })
   .openapi("SecurityList");
 

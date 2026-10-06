@@ -42,7 +42,7 @@ const companyListSchema = z
     entries: z.array(
       z.object({
         symbol: z.string(),
-        name: z.string(),
+        name: z.string().nullable(),
         market: z.string(),
         sectorCode: z.string().nullable(),
         sectorName: z.string().nullable(),
@@ -93,9 +93,9 @@ const companyProfileSchema = z
     market: z.enum(["TWSE", "TPEx"]),
     /** 是否為興櫃。**per-symbol 層級唯一能區分興櫃的欄位**（market 只有 TWSE/TPEx，興櫃也歸在 TPEx）。上游 PRD 尚未部署時為 null。 */
     isEmerging: z.boolean().nullable(),
-    reportDate: z.string(),
-    name: z.string(),
-    shortName: z.string(),
+    reportDate: z.string().nullable(),
+    name: z.string().nullable(),
+    shortName: z.string().nullable(),
     foreignRegistrationCountry: z.string().nullable(),
     industry: z.string().nullable(),
     industryName: z.string().nullable(),
@@ -217,7 +217,7 @@ registry.registerPath({
 const companyBadgeEntrySchema = z.object({
   metricCode: z.string(),
   name: z.string(),
-  nameEn: z.string(),
+  nameEn: z.string().nullable(),
   timeframe: z.string(),
   value: z.number().nullable(),
   nullReason: z.string().nullable(),
@@ -322,7 +322,7 @@ const capitalStockHistorySchema = z
       z.object({
         effectiveDate: z.string(),
         paidInShares: z.string(),
-        paidInCapital: z.string(),
+        paidInCapital: z.string().nullable(),
         changeSource: changeSourceSchema,
         remarks: z.string().nullable(),
         sharesChangePercent: z.number().nullable(),
@@ -357,7 +357,7 @@ const dividendEventSchema = z.object({
   exDividendDate: z.string().nullable(),
   exRightsDate: z.string().nullable(),
   paymentDate: z.string().nullable(),
-  announcementDate: z.string(),
+  announcementDate: z.string().nullable(),
   closeAtExDate: z.number().nullable(),
   yieldAtExDate: z.number().nullable(),
 });
@@ -386,7 +386,7 @@ const dividendHistorySchema = z
         eps: z.number().nullable(),
         payoutRatio: z.number().nullable(),
         yieldAtExDate: z.number().nullable(),
-        knowledgeDate: z.string(),
+        knowledgeDate: z.string().nullable(),
         events: z.array(dividendEventSchema),
       }),
     ),
@@ -896,7 +896,7 @@ const VERSION_FIELD_DOC =
 
 const metricHistoryEntrySchema = z.object({
   fiscalYear: z.number(),
-  fiscalQuarter: z.number(),
+  fiscalQuarter: z.number().nullable(),
   value: z.number().nullable(),
   nullReason: z.string().nullable(),
   knowledgeDate: z.string(),
@@ -966,7 +966,7 @@ const metricsHistoryValueSchema = z.object({
 
 const metricsHistoryEntrySchema = z.object({
   fiscalYear: z.number(),
-  fiscalQuarter: z.number(),
+  fiscalQuarter: z.number().nullable(),
   /** 期層級而不是 values[metricCode] 裡面：報表類型是逐期決定的，同一期的每個指標都一樣。 */
   dataType: z.enum(["1", "2"]).nullable().openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個體報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" + "**null 的意思是「這個指標不適用報表類型」而不是「不知道」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。季頻指標（Q／TTM／FY）缺這個欄位才代表版本錯開。" }),
   values: z.record(z.string(), metricsHistoryValueSchema.nullable()),
@@ -1113,7 +1113,7 @@ registry.registerPath({
 
 const dupontHistoryEntrySchema = z.object({
   fiscalYear: z.number(),
-  fiscalQuarter: z.number(),
+  fiscalQuarter: z.number().nullable(),
   netProfitMarginPct: z.number().nullable(),
   assetTurnover: z.number().nullable(),
   equityMultiplier: z.number().nullable(),
@@ -1187,14 +1187,14 @@ registry.registerPath({
 
 const monthlyRevenueHistoryEntrySchema = z.object({
   yearMonth: z.string(),
-  reportDate: z.string(),
-  industry: z.string(),
-  currentMonthRevenue: z.string(),
-  lastYearSameMonthRevenue: z.string(),
+  reportDate: z.string().nullable(),
+  industry: z.string().nullable(),
+  currentMonthRevenue: z.string().nullable(),
+  lastYearSameMonthRevenue: z.string().nullable(),
   yoyChangePercent: z.number().nullable(),
   momChangePercent: z.number().nullable(),
-  cumulativeRevenue: z.string(),
-  cumulativeLastYearRevenue: z.string(),
+  cumulativeRevenue: z.string().nullable(),
+  cumulativeLastYearRevenue: z.string().nullable(),
   cumulativeChangePercent: z.number().nullable(),
   note: z.string().nullable(),
 });
@@ -1252,9 +1252,9 @@ registry.registerPath({
 
 const foreignShareholdingHistoryEntrySchema = z.object({
   tradeDate: z.string(),
-  sharesHeldPercent: z.number(),
-  foreignLimitPercent: z.number(),
-  availableInvestPercent: z.number(),
+  sharesHeldPercent: z.number().nullable(),
+  foreignLimitPercent: z.number().nullable(),
+  availableInvestPercent: z.number().nullable(),
 });
 
 const foreignShareholdingHistorySchema = z

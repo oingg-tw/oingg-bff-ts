@@ -297,7 +297,7 @@ const govBondYield10yResultSchema = z
   .object({
     yieldPct: nullableNumber,
     asOfMonth: z.string().nullable(),
-    fieldStatuses: z.record(z.string(), z.string()),
+    fieldStatuses: z.record(z.string(), z.object({ status: z.enum(["no_data", "not_applicable", "calculation_error"]), message: z.string() })),
     warnings: z.array(z.string()),
   })
   .openapi("GovBondYield10yResult", { example: { yieldPct: 1.9, asOfMonth: "2026-07", fieldStatuses: {}, warnings: [] } });
@@ -307,7 +307,7 @@ registry.registerPath({
   path: "/macro/gov-bond-yield-10y",
   summary: "10 年期公債殖利率最新一筆（單點快照）",
   description:
-    "資料來自 oingg-analysis-ts 既有的 GET /macro/gov-bond-yield-10y（2026-09-22 起在本服務代理）。只回最新一個月的值（yieldPct，百分比）跟其所屬月份（asOfMonth，\"YYYY-MM\"）；要整段序列請用 GET /macro/gov-bond-yield-10y-history。fieldStatuses 是 analysis-ts 標記個別欄位狀態的字串對照表（一切正常時是空物件），warnings 是字串陣列，兩者都原樣轉發。",
+    "資料來自 oingg-analysis-ts 既有的 GET /macro/gov-bond-yield-10y（2026-09-22 起在本服務代理）。只回最新一個月的值（yieldPct，百分比）跟其所屬月份（asOfMonth，\"YYYY-MM\"）；要整段序列請用 GET /macro/gov-bond-yield-10y-history。fieldStatuses 是 analysis-ts 標記個別欄位狀態的對照表，每個值是 { status, message } 物件（一切正常時是空物件；2026-10-07 之前 bff-ts 誤把每個值轉成字串「[object Object]」），warnings 是字串陣列，兩者都原樣轉發。",
   tags: ["Macro"],
   responses: {
     200: { description: "最新一筆 10 年期公債殖利率。", content: { "application/json": { schema: govBondYield10yResultSchema } } },

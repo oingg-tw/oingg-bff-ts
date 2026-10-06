@@ -19,7 +19,7 @@ export interface CapitalStockHistoryEntry {
   /** "YYYY-MM" */
   effectiveDate: string;
   paidInShares: string;
-  paidInCapital: string;
+  paidInCapital: string | null;
   changeSource: CapitalStockChangeSource;
   remarks: string | null;
   /**

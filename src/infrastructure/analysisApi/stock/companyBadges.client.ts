@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toStringOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { CompanyBadgeCategory, CompanyBadgeEntry, CompanyBadgesResult } from "@/application/proxy/stock/companyBadges.types.js";
 
@@ -8,7 +8,8 @@ function normalizeBadgeEntry(raw: unknown): CompanyBadgeEntry {
   return {
     metricCode: String(r.metricCode),
     name: String(r.name),
-    nameEn: String(r.nameEn),
+    // 上游選填：缺的時候 String() 會給字串 "undefined"。
+    nameEn: toStringOrNull(r.nameEn),
     timeframe: String(r.timeframe),
     value: typeof r.value === "number" ? r.value : null,
     nullReason: typeof r.nullReason === "string" ? r.nullReason : null,

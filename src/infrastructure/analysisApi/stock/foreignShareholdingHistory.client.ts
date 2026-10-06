@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toNumberOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type {
   ForeignShareholdingHistoryEntry,
@@ -10,9 +10,10 @@ function normalizeEntry(raw: unknown): ForeignShareholdingHistoryEntry {
   const r = raw as Record<string, unknown>;
   return {
     tradeDate: String(r.tradeDate),
-    sharesHeldPercent: Number(r.sharesHeldPercent),
-    foreignLimitPercent: Number(r.foreignLimitPercent),
-    availableInvestPercent: Number(r.availableInvestPercent),
+    // Number(null) 是 0：缺資料的那天會畫成「外資持股 0%」的斷崖（跟 2026-09-27 日線收盤 0 元同一型）。
+    sharesHeldPercent: toNumberOrNull(r.sharesHeldPercent),
+    foreignLimitPercent: toNumberOrNull(r.foreignLimitPercent),
+    availableInvestPercent: toNumberOrNull(r.availableInvestPercent),
   };
 }
 

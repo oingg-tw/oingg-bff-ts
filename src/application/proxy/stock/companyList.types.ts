@@ -1,6 +1,6 @@
 export interface CompanyListEntry {
   symbol: string;
-  name: string;
+  name: string | null;
   /** "TWSE" (上市) or "TPEx" (上櫃) — added 2026-09-19, for web-nuxt's SEO content thickening. */
   market: string;
   /** 證交所類股代碼（見 GET /industries/securities-sectors），null if analysis-ts hasn't classified this company yet. */

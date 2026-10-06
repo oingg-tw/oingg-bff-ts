@@ -11,7 +11,8 @@
 
 export interface FlatHistoryEntry {
   fiscalYear: number;
-  fiscalQuarter: number;
+  /** null on annual (FY) rows — they have no quarter. */
+  fiscalQuarter: number | null;
   /** Null when the underlying figure couldn't be computed for this quarter — see nullReason. */
   value: number | null;
   /** Why `value` is null (e.g. a missing trailing quarter of data) — null when `value` is present. */

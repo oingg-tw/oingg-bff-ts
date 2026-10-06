@@ -11,7 +11,7 @@
 export interface CompanyBadgeEntry {
   metricCode: string;
   name: string;
-  nameEn: string;
+  nameEn: string | null;
   timeframe: string;
   value: number | null;
   nullReason: string | null;

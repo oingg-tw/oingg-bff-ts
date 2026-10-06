@@ -290,12 +290,10 @@ export async function fetchGovBondYield10y(): Promise<GovBondYield10yResult> {
   }
 
   const rawStatuses = body.fieldStatuses;
-  const fieldStatuses: Record<string, string> = {};
-  if (typeof rawStatuses === "object" && rawStatuses !== null) {
-    for (const [key, value] of Object.entries(rawStatuses as Record<string, unknown>)) {
-      fieldStatuses[key] = String(value);
-    }
-  }
+  // 每個值是 { status, message } 物件，不是字串——原本的 String(value) 會把它變成 "[object Object]"
+  // （2026-10-07 對過上游 OpenAPI；當時剛好一直是空物件所以沒人看到）。跟 equity-risk-premium 一樣原樣轉發。
+  const fieldStatuses: Record<string, unknown> =
+    typeof rawStatuses === "object" && rawStatuses !== null ? { ...(rawStatuses as Record<string, unknown>) } : {};
 
   return {
     yieldPct: toNumberOrNull(body.yieldPct),

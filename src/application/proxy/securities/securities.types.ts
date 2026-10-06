@@ -2,7 +2,7 @@ export type SecurityType = "COMMON" | "PREFERRED" | "ETF";
 
 export interface SecurityListEntry {
   symbol: string;
-  name: string;
+  name: string | null;
   type: SecurityType;
 }
 

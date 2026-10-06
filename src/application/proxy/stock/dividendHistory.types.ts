@@ -60,7 +60,7 @@ export interface DividendEvent {
   exDividendDate: string | null;
   exRightsDate: string | null;
   paymentDate: string | null;
-  announcementDate: string;
+  announcementDate: string | null;
   closeAtExDate: number | null;
   yieldAtExDate: number | null;
 }
@@ -113,7 +113,7 @@ export interface DividendHistoryEntry {
   eps: number | null;
   payoutRatio: number | null;
   yieldAtExDate: number | null;
-  knowledgeDate: string;
+  knowledgeDate: string | null;
   events: DividendEvent[];
 }
 

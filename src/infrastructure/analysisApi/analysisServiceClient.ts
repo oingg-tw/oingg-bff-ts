@@ -176,6 +176,15 @@ export function toNumberOrNull(value: unknown): number | null {
 }
 
 /**
+ * 字串版：上游可為 null（或選填）的字串欄位。**不要用 `String(value)`**——`String(null)` 是字串 "null"、
+ * `String(undefined)` 是 "undefined"，會以「看起來像真資料」的樣子一路送到畫面上（2026-10-07 盤點出 22 處，
+ * 特別股的 isinCode 是第一個被上游真的給了 null 的）。
+ */
+export function toStringOrNull(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+/**
  * 從上游的 400 body 取出「真正說得出哪裡錯」的那一句。**上游有兩種 400 形狀**，而只讀頂層 message 會在
  * 第二種上丟掉唯一有用的資訊：
  *

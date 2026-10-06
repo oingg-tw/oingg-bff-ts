@@ -211,7 +211,8 @@ function normalizeEtfRankingEntry(raw: unknown): EtfRankingEntry {
     category: toStringOrEmpty(r.category),
     market: normalizeMarket(r.market),
     assetClass: typeof r.assetClass === "string" ? (r.assetClass as EtfAssetClass) : null,
-    isActive: r.isActive === true,
+    // 上游可為 null（分類不出主動／被動）：=== true 會把「不知道」講成「被動型」。
+    isActive: typeof r.isActive === "boolean" ? r.isActive : null,
     distributionFrequency: typeof r.distributionFrequency === "string" ? (r.distributionFrequency as EtfDistributionFrequency) : null,
     value: toStringOrEmpty(r.value),
     asOf: toStringOrEmpty(r.asOf),

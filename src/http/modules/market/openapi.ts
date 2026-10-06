@@ -367,7 +367,7 @@ const etfRankingEntrySchema = z.object({
   category: z.string(),
   market: marketField,
   assetClass: z.enum(["國內成分證券", "國外成分證券", "債券成分", "槓桿型", "反向型", "多資產", "連結式"]).nullable(),
-  isActive: z.boolean(),
+  isActive: z.boolean().nullable(),
   distributionFrequency: z.enum(["月配", "季配", "半年配", "年配", "一年兩次配息", "其他", "不分配"]).nullable(),
   value: z.string(),
   asOf: z.string(),

@@ -177,7 +177,8 @@ export interface GovBondYield10yResult {
   yieldPct: number | null;
   /** "YYYY-MM" the value is as of. */
   asOfMonth: string | null;
-  fieldStatuses: Record<string, string>;
+  /** Each value is a { status, message } object, passed through as-is. */
+  fieldStatuses: Record<string, unknown>;
   warnings: string[];
 }
 

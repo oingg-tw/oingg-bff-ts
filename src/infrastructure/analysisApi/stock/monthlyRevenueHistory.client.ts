@@ -19,14 +19,14 @@ function normalizeEntry(raw: unknown): MonthlyRevenueHistoryEntry {
   const r = raw as Record<string, unknown>;
   return {
     yearMonth: String(r.yearMonth),
-    reportDate: String(r.reportDate),
-    industry: String(r.industry),
-    currentMonthRevenue: String(r.currentMonthRevenue),
-    lastYearSameMonthRevenue: String(r.lastYearSameMonthRevenue),
+    reportDate: toStringOrNull(r.reportDate),
+    industry: toStringOrNull(r.industry),
+    currentMonthRevenue: toStringOrNull(r.currentMonthRevenue),
+    lastYearSameMonthRevenue: toStringOrNull(r.lastYearSameMonthRevenue),
     yoyChangePercent: toNumberOrNull(r.yoyChangePercent),
     momChangePercent: toNumberOrNull(r.momChangePercent),
-    cumulativeRevenue: String(r.cumulativeRevenue),
-    cumulativeLastYearRevenue: String(r.cumulativeLastYearRevenue),
+    cumulativeRevenue: toStringOrNull(r.cumulativeRevenue),
+    cumulativeLastYearRevenue: toStringOrNull(r.cumulativeLastYearRevenue),
     cumulativeChangePercent: toNumberOrNull(r.cumulativeChangePercent),
     note: toStringOrNull(r.note),
   };

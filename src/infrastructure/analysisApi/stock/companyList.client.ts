@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toStringOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { CompanyListEntry, CompanyListResult } from "@/application/proxy/stock/companyList.types.js";
 
@@ -7,7 +7,7 @@ function normalizeEntry(raw: unknown): CompanyListEntry {
   const r = raw as Record<string, unknown>;
   return {
     symbol: String(r.symbol),
-    name: String(r.companyName),
+    name: toStringOrNull(r.companyName),
     market: String(r.market),
     sectorCode: typeof r.sectorCode === "string" ? r.sectorCode : null,
     sectorName: typeof r.sectorName === "string" ? r.sectorName : null,

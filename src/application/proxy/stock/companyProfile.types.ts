@@ -23,9 +23,9 @@ export interface CompanyProfile {
    * 數字」而不是「尚無資料」——那兩句話對讀者的意思完全不同。
    */
   isEmerging: boolean | null;
-  reportDate: string;
-  name: string;
-  shortName: string;
+  reportDate: string | null;
+  name: string | null;
+  shortName: string | null;
   foreignRegistrationCountry: string | null;
   industry: string | null;
   /** Human-readable label for `industry` (e.g. "半導體業" for code "24"). TWSE's company_profile has this natively; TPEx's export doesn't (always null there, pending tpex-ts) — analysis-ts deliberately isn't guessing a code table for it. Added 2026-09-02. */

@@ -27,7 +27,7 @@ function normalizeEntry(raw: unknown): DupontHistoryEntry {
   const r = raw as Record<string, unknown>;
   return {
     fiscalYear: Number(r.fiscalYear),
-    fiscalQuarter: Number(r.fiscalQuarter),
+    fiscalQuarter: toNumberOrNull(r.fiscalQuarter),
     netProfitMarginPct: toNumberOrNull(r.netProfitMarginPct),
     assetTurnover: toNumberOrNull(r.assetTurnover),
     equityMultiplier: toNumberOrNull(r.equityMultiplier),

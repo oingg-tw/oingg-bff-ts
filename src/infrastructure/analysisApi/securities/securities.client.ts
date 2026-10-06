@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toStringOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { SecurityListEntry, SecurityListResult, SecurityType } from "@/application/proxy/securities/securities.types.js";
 import type { SecuritiesGatewayPort } from "@/application/ports/securitiesGateway.js";
@@ -15,7 +15,7 @@ function normalizeEntry(raw: unknown): SecurityListEntry {
   if (!isSecurityType(r.type)) {
     throw new AppError(`Securities list entry has an unrecognized type: ${String(r.type)}`, 502);
   }
-  return { symbol: String(r.symbol), name: String(r.companyName), type: r.type };
+  return { symbol: String(r.symbol), name: toStringOrNull(r.companyName), type: r.type };
 }
 
 function isSecurityListResponse(body: unknown): body is { count: unknown; limit: unknown; offset: unknown; entries: unknown[] } {

@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toNumberOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { MetricsHistoryEntry, MetricsHistoryResult, MetricsHistoryValue } from "@/application/proxy/stock/metricsHistory.types.js";
 
@@ -45,7 +45,8 @@ function normalizeEntry(raw: unknown): MetricsHistoryEntry {
     values[metricCode] = normalizeValue(value);
   }
   // dataType 在期層級而不是 values[metricCode] 裡面：報表類型是逐期決定的，同一期的每個指標都一樣。
-  return { fiscalYear: Number(r.fiscalYear), fiscalQuarter: Number(r.fiscalQuarter), dataType: toDataType(r.dataType), values };
+  // 年度（FY）列沒有季別，上游給 null；Number(null) 會變成「第 0 季」。
+  return { fiscalYear: Number(r.fiscalYear), fiscalQuarter: toNumberOrNull(r.fiscalQuarter), dataType: toDataType(r.dataType), values };
 }
 
 function isMetricsHistoryResponse(body: unknown): body is { entries: unknown[] } {

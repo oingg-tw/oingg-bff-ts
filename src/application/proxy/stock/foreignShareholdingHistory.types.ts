@@ -1,10 +1,10 @@
 export interface ForeignShareholdingHistoryEntry {
   tradeDate: string;
-  sharesHeldPercent: number;
+  sharesHeldPercent: number | null;
   /** Regulatory foreign-ownership cap for this symbol, as a percentage — 100 when uncapped. */
-  foreignLimitPercent: number;
+  foreignLimitPercent: number | null;
   /** foreignLimitPercent - sharesHeldPercent — remaining room before the cap binds. */
-  availableInvestPercent: number;
+  availableInvestPercent: number | null;
 }
 
 export interface ForeignShareholdingHistoryResult {

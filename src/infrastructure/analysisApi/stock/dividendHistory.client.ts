@@ -34,7 +34,7 @@ function normalizeEvent(raw: unknown): DividendEvent {
     exDividendDate: toStringOrNull(r.exDividendDate),
     exRightsDate: toStringOrNull(r.exRightsDate),
     paymentDate: toStringOrNull(r.paymentDate),
-    announcementDate: String(r.announcementDate),
+    announcementDate: toStringOrNull(r.announcementDate),
     closeAtExDate: toNumberOrNull(r.closeAtExDate),
     yieldAtExDate: toNumberOrNull(r.yieldAtExDate),
   };
@@ -60,7 +60,7 @@ function normalizeEntry(raw: unknown): DividendHistoryEntry {
     eps: toNumberOrNull(r.eps),
     payoutRatio: toNumberOrNull(r.payoutRatio),
     yieldAtExDate: toNumberOrNull(r.yieldAtExDate),
-    knowledgeDate: String(r.knowledgeDate),
+    knowledgeDate: toStringOrNull(r.knowledgeDate),
     events: Array.isArray(r.events) ? r.events.map(normalizeEvent) : [],
   };
 }

@@ -7,7 +7,8 @@ export type DupontHistoryBasis = "Q" | "TTM";
  */
 export interface DupontHistoryEntry {
   fiscalYear: number;
-  fiscalQuarter: number;
+  /** null on annual (FY) rows — they have no quarter. */
+  fiscalQuarter: number | null;
   /** 淨利率 (net income / revenue × 100). */
   netProfitMarginPct: number | null;
   /** 資產週轉率 (revenue / average assets). */
