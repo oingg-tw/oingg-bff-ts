@@ -780,32 +780,6 @@ const exDividendNoticeEntrySchema = z.object({
   stockHoldingRatio: z.number().nullable(),
 });
 
-registry.registerPath({
-  method: "get",
-  path: "/stocks/ex-dividend-notices",
-  summary: "批次查詢即將除息/除權的公告",
-  description:
-    "資料來自 oingg-analysis-ts 的 GET /stocks/ex-dividend-notices。symbols 逗號分隔，一次最多 100 檔（超過回 400）。查無未來除權息公告的代號不會出現在 notices 裡（不是空陣列）。同一代號的陣列已依 exDate 由近到遠排序。exType「權」底下有兩種互斥欄位組合：股票股利/盈餘轉增資用 stockDividendRatio；現金增資認股用 subscriptionRatio/subscriptionPricePerShare/sharesOffered/sharesEmpOwner/sharesholderOwner/stockHoldingRatio，不會同時出現。純「息」只有 cashDividend 非 null。sharesOffered 等 4 個現金增資欄位的語意是 analysis-ts 依欄位命名推測，未跟 twse-ts 正式核對過。",
-  tags: ["Stock"],
-  request: {
-    query: z.object({
-      symbols: z.string().openapi({ example: "2330,00939", description: "逗號分隔的股票代號，最多 100 檔" }),
-    }),
-  },
-  responses: {
-    200: {
-      description: "除權息公告，key 是股票代號，查無公告的代號不會出現。",
-      content: {
-        "application/json": {
-          schema: z.object({ notices: z.record(z.string(), z.array(exDividendNoticeEntrySchema)) }).openapi("ExDividendNotices"),
-        },
-      },
-    },
-    400: errorResponse("缺少 symbols 參數，或超過 100 檔。"),
-    502: unauthorized502,
-  },
-});
-
 const exDividendCompositionSchema = z
   .object({
     dividendIncomePct: z.number().nullable(),
@@ -839,6 +813,37 @@ const exDividendCalendarEntrySchema = exDividendNoticeEntrySchema.extend({
   /** 每單位分配金額 — an ETF row's only amount; its cashDividend is always null. */
   distributionPerUnit: z.number().nullable(),
   composition: exDividendCompositionSchema.nullable(),
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/ex-dividend-notices",
+  summary: "批次查詢即將除息/除權、以及已除息但還沒發放的事件",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /stocks/ex-dividend-notices。symbols 逗號分隔，一次最多 100 檔（超過回 400）。查無事件的代號不會出現在 notices 裡（不是空陣列）。同一代號的陣列依 exDate 由近到遠排序。" +
+    "**2026-10-06 起每筆的形狀跟 GET /stocks/ex-dividend-calendar 的 entry 完全相同**（上游改用行事曆的合併資料；多了 symbol／companyName／status／paymentDate／fiscalYear／securityType／recordDate／distributionPerUnit／composition，欄位語意同行事曆）。" +
+    "**語意改變：不再只有「還沒除息」的事件。** 只留兩種：status=announced（還沒除息，exDate >= 今天，UTC 日期）與 status=realized（已除息但 paymentDate >= 今天，此時 paymentDate 保證非 null）。已除息但沒有發放日的（只配股票股利、或公告沒填）不會出現。" +
+    "**要顯示「下一次除息」請只看 status === \"announced\"**，否則會把已經過去的除息日當成下一次。金額：一般股票讀 cashDividend，ETF 讀 distributionPerUnit（ETF 的 cashDividend 一律是 null），兩者不要混用。" +
+    "還沒除息的一般股票只有上市的（證交所預告表只涵蓋上市），上櫃股票只會以「已除息、未發放」出現；還沒除息的一般股票 paymentDate 一律是 null（預告表沒有這個欄位）。ETF 的金額在發行商公告前是 null，通常除息前幾天才補上（2026-10-06 上游實測：100 檔還沒除息的 ETF 只有 5 檔有金額，都是兩天內除息）。" +
+    "exType「權」底下有兩種互斥欄位組合：股票股利／盈餘轉增資用 stockDividendRatio；現金增資認股用 subscriptionRatio／subscriptionPricePerShare／sharesOffered／sharesEmpOwner／sharesholderOwner／stockHoldingRatio。",
+  tags: ["Stock"],
+  request: {
+    query: z.object({
+      symbols: z.string().openapi({ example: "2330,00939", description: "逗號分隔的股票代號，最多 100 檔" }),
+    }),
+  },
+  responses: {
+    200: {
+      description: "除權息公告，key 是股票代號，查無公告的代號不會出現。",
+      content: {
+        "application/json": {
+          schema: z.object({ notices: z.record(z.string(), z.array(exDividendCalendarEntrySchema)) }).openapi("ExDividendNotices"),
+        },
+      },
+    },
+    400: errorResponse("缺少 symbols 參數，或超過 100 檔。"),
+    502: unauthorized502,
+  },
 });
 
 registry.registerPath({

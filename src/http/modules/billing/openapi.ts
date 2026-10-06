@@ -13,6 +13,8 @@ const entitlementSchema = z
       watchlistItems: z.number().nullable(),
       screenerPresets: z.number().nullable(),
       columnPresets: z.number().nullable(),
+      customHoldingColumns: z.number().nullable(),
+      watchlistColumns: z.number().nullable(),
     }),
   })
   .openapi("Entitlement", {
@@ -23,7 +25,7 @@ const entitlementSchema = z
       currentPeriodEnd: null,
       trialEndsAt: "2026-10-07T02:31:00.000Z",
       renewalMode: null,
-      quotas: { watchlistItems: null, screenerPresets: null, columnPresets: null },
+      quotas: { watchlistItems: null, screenerPresets: null, columnPresets: null, customHoldingColumns: null, watchlistColumns: null },
     },
   });
 

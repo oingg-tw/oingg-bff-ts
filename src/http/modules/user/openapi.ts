@@ -4,6 +4,7 @@ import {
   updateDashboardCardsSchema,
   updateFullWidthSchema,
   updateHoldingColumnsSchema,
+  updateWatchlistColumnsSchema,
   updateMarketColorConventionSchema,
   updatePreferredStocksPreferencesSchema,
   updateShowAsOfDateSchema,
@@ -389,7 +390,7 @@ registry.registerPath({
     "整份取代，順序就是顯示順序。驗證：`id` 1～40 字元且清單內不可重複；`label` 去頭尾空白後 1～20 字元；",
     "`formula` 1～200 字元（不驗語意）；`format` 是 number／percent／money；`decimals` 0～4 的整數；最多 50 欄（跟方案無關的硬上限）。",
     "",
-    "**方案額度**：`GET /billing/entitlement` 的 `quotas.customHoldingColumns`（目前所有方案都是 null＝不限，數字待定）。",
+    "**方案額度**：`GET /billing/entitlement` 的 `quotas.customHoldingColumns`（FREE 10＝3 欄自訂＋7 欄預設，付費方案 null＝不限）。",
     "超過額度回 403、`code: \"quota_exceeded\"`——但**只有在比目前已存的更多時才擋**：降級後已經超過額度的使用者，",
     "仍然可以調整順序、修改或刪減既有欄位，只是不能再變多（降級只變唯讀、永不刪除）。",
   ].join("\n"),
@@ -403,5 +404,55 @@ registry.registerPath({
     400: errorResponse("欄位形狀或長度不合法，或 id 重複。"),
     401: unauthorized,
     403: errorResponse("超過方案的自訂欄位額度，而且比目前已存的更多（code: quota_exceeded）。"),
+  },
+});
+
+const watchlistColumnsResponse = z
+  .object({
+    watchlistColumns: z.object({
+      columns: z
+        .array(z.object({ field: z.string().openapi({ example: "exchangePeRatio.EOD" }), label: z.string() }))
+        .nullable()
+        .openapi({ description: "null＝從來沒存過，前端套用自己的預設；[]＝刻意存了一份空清單。" }),
+    }),
+  })
+  .openapi("WatchlistColumnsResponse");
+
+registry.registerPath({
+  method: "get",
+  path: "/users/me/watchlist-columns",
+  summary: "查詢自選股表格的顯示欄位",
+  description:
+    "使用者自己排的自選股表格欄位（2026-10-06）。這裡只存清單；數值由前端拿 field 去打 POST /screener/values（前端自己算的合成欄位除外）。",
+  tags: ["Users"],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: "顯示欄位。", content: { "application/json": { schema: watchlistColumnsResponse } } },
+    401: unauthorized,
+  },
+});
+
+registry.registerPath({
+  method: "put",
+  path: "/users/me/watchlist-columns",
+  summary: "整份覆蓋自選股表格的顯示欄位",
+  description: [
+    "整份取代，順序就是顯示順序，**含前端的預設欄**。驗證：`label` 去頭尾空白後 1～60 字元；最多 20 欄（跟方案無關的硬上限）；",
+    "`field` 必須是下列之一，否則 400：GET /metrics 型錄裡的欄位（`metricCode.token`）、報價特殊欄位 `stock.price`／`stock.previousClose`、",
+    "或前端自己算的兩個合成欄位 `watchlist.change`（漲跌）與 `watchlist.exDividend`（下次除權息）。同一個 field 出現兩次不擋。",
+    "",
+    "**方案額度**：`GET /billing/entitlement` 的 `quotas.watchlistColumns`（FREE 8＝3 欄自訂＋5 欄預設，付費方案 null＝不限）。",
+    "超過額度回 403、`code: \"quota_exceeded\"`——只有在比目前已存的更多時才擋，降級後仍可調順序與刪欄位。",
+  ].join("\n"),
+  tags: ["Users"],
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: { required: true, content: { "application/json": { schema: updateWatchlistColumnsSchema.openapi("UpdateWatchlistColumnsRequest") } } },
+  },
+  responses: {
+    200: { description: "存好之後的顯示欄位。", content: { "application/json": { schema: watchlistColumnsResponse } } },
+    400: errorResponse("欄位形狀或長度不合法、超過 20 欄，或有認不得的 field。"),
+    401: unauthorized,
+    403: errorResponse("超過方案的欄位額度，而且比目前已存的更多（code: quota_exceeded）。"),
   },
 });

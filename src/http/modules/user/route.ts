@@ -28,6 +28,7 @@ import {
 import type { ThemeDeps } from "@/application/user/theme.service.js";
 import { getOrCreateUserFromToken } from "@/application/user/user.service.js";
 import { getHoldingColumns, updateHoldingColumns, type HoldingColumnsDeps } from "@/application/user/holdingColumns.service.js";
+import { getWatchlistColumns, updateWatchlistColumns, type WatchlistColumnsDeps } from "@/application/user/watchlistColumns.service.js";
 import type { UserDeps } from "@/application/user/user.service.js";
 
 /**
@@ -41,6 +42,7 @@ type UserRouterDeps = UserDeps &
   StockDetailPreferencesDeps &
   PreferredStocksPreferencesDeps &
   HoldingColumnsDeps &
+  WatchlistColumnsDeps &
   AuthMiddlewareDeps;
 
 function requireUser(req: AuthenticatedRequest): string {
@@ -81,6 +83,21 @@ export const updateHoldingColumnsSchema = z.object({
       }),
     )
     .max(HOLDING_COLUMNS_HARD_LIMIT),
+});
+/**
+ * 自選股表格的顯示欄位（2026-10-06，規格照 web-nuxt 提的）。20 欄是使用者定的**跟方案無關的硬上限**；
+ * 方案額度（watchlistColumns）與 field 是否認得都在 service 裡判斷。
+ */
+export const WATCHLIST_COLUMNS_HARD_LIMIT = 20;
+export const updateWatchlistColumnsSchema = z.object({
+  columns: z
+    .array(
+      z.object({
+        field: z.string().trim().min(1).max(120),
+        label: z.string().trim().min(1, '"label" must not be blank').max(60),
+      }),
+    )
+    .max(WATCHLIST_COLUMNS_HARD_LIMIT),
 });
 export const updateStockDetailPreferencesSchema = z.object({
   mode: z.enum(["CARD", "ACCOUNTING"]),
@@ -209,6 +226,18 @@ export function createUserRouter(deps: UserRouterDeps): Router {
     const body = parseBody(updateHoldingColumnsSchema, req.body);
     const holdingColumns = await updateHoldingColumns(firebaseUid, body.columns, deps);
     res.json({ holdingColumns });
+  });
+
+  userRouter.get("/me/watchlist-columns", requireAuth, async (req: AuthenticatedRequest, res) => {
+    const watchlistColumns = await getWatchlistColumns(requireUser(req), deps);
+    res.json({ watchlistColumns });
+  });
+
+  userRouter.put("/me/watchlist-columns", requireAuth, async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = parseBody(updateWatchlistColumnsSchema, req.body);
+    const watchlistColumns = await updateWatchlistColumns(firebaseUid, body.columns, deps);
+    res.json({ watchlistColumns });
   });
 
   userRouter.get("/me/preferred-stocks-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {

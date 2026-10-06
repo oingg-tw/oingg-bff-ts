@@ -2,7 +2,7 @@ import type { BillingTier, Entitlement, QuotaResource } from "@/application/bill
 import { getEntitlement, type EntitlementDeps } from "@/application/billing/entitlement.service.js";
 import { quotaLimitFor } from "@/application/billing/quota.js";
 
-const QUOTA_RESOURCES: readonly QuotaResource[] = ["watchlistItems", "screenerPresets", "columnPresets", "customHoldingColumns"];
+const QUOTA_RESOURCES: readonly QuotaResource[] = ["watchlistItems", "screenerPresets", "columnPresets", "customHoldingColumns", "watchlistColumns"];
 
 /** Nothing of its own beyond what the entitlement ladder reads — the quota table is a local constant. */
 export type BillingDeps = EntitlementDeps;

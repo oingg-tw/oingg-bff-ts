@@ -320,6 +320,23 @@ model HoldingColumnPreferences {
   @@map("holding_column_preferences")
 }
 
+/// 自選股表格的顯示欄位（使用者 2026-10-06 決定，比照 screener 可以自己加欄位）。一個使用者一列，整份清單
+/// 存成 JSON，順序就是顯示順序。field 是型錄欄位（metricCode.token）或報價特殊欄位，寫入時對本地型錄驗過；
+/// 數值由前端拿去打 POST /screener/values，這裡只存清單。
+///
+/// field 刻意不 FK 到 MetricDefinitionField：存在 JSON 裡，型錄改名不會 cascade 刪掉使用者的設定
+/// （ColumnPreset 的欄位就是因為 FK + cascade 會被同步默默刪掉）。代價是改名後舊 field 留在清單裡，
+/// /screener/values 會對它回 400，由前端處理。
+///
+/// 沒有列＝從來沒存過，前端套用自己的預設；跟「存了一份空清單」是兩件事。
+model WatchlistColumnPreferences {
+  firebaseUid String   @id @map("firebase_uid")
+  columns     Json
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("watchlist_column_preferences")
+}
+
 model StockDetailPreferences {
   firebaseUid    String              @id @map("firebase_uid")
   mode           StockDetailPageMode

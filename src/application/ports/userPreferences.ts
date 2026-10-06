@@ -1,4 +1,5 @@
 import type { HoldingColumn } from "@/application/user/holdingColumns.types.js";
+import type { WatchlistColumn } from "@/application/user/watchlistColumns.types.js";
 import type { PreferredStocksColumnPreset } from "@/application/user/preferredStocksPreferences.types.js";
 import type { StockDetailPageMode } from "@/application/user/stockDetailPreferences.types.js";
 import type {
@@ -66,6 +67,11 @@ export interface UserPreferencesPort {
   getHoldingColumns(firebaseUid: string): Promise<HoldingColumn[] | null>;
   /** 整份覆蓋，順序就是顯示順序。 */
   saveHoldingColumns(firebaseUid: string, columns: HoldingColumn[]): Promise<HoldingColumn[]>;
+
+  /** 自選股表格的顯示欄位。null＝沒有列（從來沒存過）。 */
+  getWatchlistColumns(firebaseUid: string): Promise<WatchlistColumn[] | null>;
+  /** 整份覆蓋，順序就是顯示順序。 */
+  saveWatchlistColumns(firebaseUid: string, columns: WatchlistColumn[]): Promise<WatchlistColumn[]>;
 
   getPreferredStocksPreferences(firebaseUid: string): Promise<StoredPreferredStocksPreferences | null>;
   /** 同樣是整包覆寫，理由跟 saveStockDetailPreferences 一樣。 */

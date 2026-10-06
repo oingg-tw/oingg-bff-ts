@@ -26,6 +26,15 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
 }
 
 const CASH_ONLY_ENTRY = {
+  symbol: "2330",
+  companyName: "台積電",
+  status: "announced",
+  paymentDate: null,
+  fiscalYear: null,
+  securityType: "COMMON",
+  recordDate: null,
+  distributionPerUnit: null,
+  composition: null,
   exDate: "2026-09-07",
   exType: "息",
   stockDividendRatio: null,
@@ -39,6 +48,15 @@ const CASH_ONLY_ENTRY = {
 };
 
 const SUBSCRIPTION_RIGHTS_ENTRY = {
+  symbol: "2330",
+  companyName: "台積電",
+  status: "announced",
+  paymentDate: null,
+  fiscalYear: null,
+  securityType: "COMMON",
+  recordDate: null,
+  distributionPerUnit: null,
+  composition: null,
   exDate: "2026-09-07",
   exType: "權",
   stockDividendRatio: null,
@@ -86,6 +104,29 @@ describe("fetchExDividendNotices", () => {
     const result = await fetchExDividendNotices(["2330"]);
 
     expect(result.get("2330")?.[0]).toEqual(SUBSCRIPTION_RIGHTS_ENTRY);
+  });
+
+  // 2026-10-06 上游改用行事曆的合併資料：除了還沒除息的，也回「已除息、還沒發放」的（status=realized，
+  // paymentDate 保證非 null）。ETF 的金額在 distributionPerUnit，cashDividend 是 null。
+  it("passes an ex-but-unpaid ETF event through with its payment date and per-unit amount", async () => {
+    const realizedEtf = {
+      ...CASH_ONLY_ENTRY,
+      symbol: "00919",
+      companyName: "群益台灣精選高息",
+      status: "realized",
+      exDate: "2026-09-16",
+      paymentDate: "2026-10-15",
+      fiscalYear: 2026,
+      securityType: "ETF",
+      recordDate: "2026-09-22",
+      cashDividend: null,
+      distributionPerUnit: 1.1,
+    };
+    mockFetchOnce({ ok: true, body: { notices: { "00919": [realizedEtf] } } });
+
+    const result = await fetchExDividendNotices(["00919"]);
+
+    expect(result.get("00919")).toEqual([realizedEtf]);
   });
 
   it("throws a 500 AppError when more than 100 symbols are requested at once", async () => {

@@ -71,18 +71,29 @@ const TIER_QUOTAS: Readonly<Record<BillingTier, Readonly<Record<QuotaResource, n
      * 跟方案無關的硬上限（50 欄）是輸入驗證，住在 route 的 schema。
      */
     customHoldingColumns: 10,
+    /**
+     * 自選股表格的顯示欄位（2026-10-06）。同樣是「查詢廣度」，同樣是使用者決定的「免費 3 個、付費無上限」，
+     * 也同樣有預設欄混在清單裡的問題：web-nuxt 存的是整張表（含預設的 5 欄：stock.price、watchlist.change、
+     * exchangePeRatio.EOD、exchangePbRatio.EOD、watchlist.exDividend），所以 8 ＝ 3 欄自訂 ＋ 5 欄預設。
+     *
+     * ponytail: 跟 web-nuxt 的預設欄數綁死，縫跟 customHoldingColumns 一樣（刪預設欄就能多加自訂欄）。
+     * 預設欄數一改這裡就要跟著改。跟方案無關的硬上限（20 欄）住在 route 的 schema。
+     */
+    watchlistColumns: 8,
   },
   PRO: {
     watchlistItems: null,
     screenerPresets: null,
     columnPresets: null,
     customHoldingColumns: null,
+    watchlistColumns: null,
   },
   ADVISOR: {
     watchlistItems: null,
     screenerPresets: null,
     columnPresets: null,
     customHoldingColumns: null,
+    watchlistColumns: null,
   },
 };
 
@@ -99,6 +110,7 @@ export const QUOTA_RESOURCE_LABELS: Readonly<Record<QuotaResource, string>> = {
   screenerPresets: "saved screener presets",
   columnPresets: "saved column presets",
   customHoldingColumns: "custom holding columns",
+  watchlistColumns: "watchlist columns",
 };
 
 /**

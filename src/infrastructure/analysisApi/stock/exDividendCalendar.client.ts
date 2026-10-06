@@ -55,7 +55,8 @@ function toCompositionOrNull(value: unknown): ExDividendCompositionBreakdown | n
   };
 }
 
-function normalizeEntry(raw: unknown): ExDividendCalendarEntry {
+/** 2026-10-06 起 ex-dividend-notices 的每筆也是這個形狀（上游改用行事曆的合併資料），兩支共用這個正規化。 */
+export function normalizeExDividendCalendarEntry(raw: unknown): ExDividendCalendarEntry {
   const r = raw as Record<string, unknown>;
   const symbol = String(r.symbol);
   if (!isExDividendType(r.exType)) {
@@ -116,5 +117,5 @@ export async function fetchExDividendCalendar(month: string): Promise<ExDividend
     throw new AppError("Ex-dividend calendar endpoint response is missing an entries array", 502);
   }
 
-  return { entries: body.entries.map(normalizeEntry) };
+  return { entries: body.entries.map(normalizeExDividendCalendarEntry) };
 }

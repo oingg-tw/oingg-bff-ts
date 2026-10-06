@@ -7,8 +7,7 @@ import type { DailyPriceHistoryResult } from "@/application/proxy/stock/dailyPri
 import type { DividendHistoryResult } from "@/application/proxy/stock/dividendHistory.types.js";
 import type { BookValueBreakdownResult } from "@/application/proxy/stock/bookValueBreakdown.types.js";
 import type { DupontHistoryBasis, DupontHistoryResult } from "@/application/proxy/stock/dupontHistory.types.js";
-import type { ExDividendCalendarResult } from "@/application/proxy/stock/exDividendCalendar.types.js";
-import type { ExDividendNoticeEntry } from "@/application/proxy/stock/exDividendNotices.types.js";
+import type { ExDividendCalendarEntry, ExDividendCalendarResult } from "@/application/proxy/stock/exDividendCalendar.types.js";
 import type { FinancialStatementResult, FinancialStatementType } from "@/application/proxy/stock/financialStatement.types.js";
 import type { ForeignShareholdingHistoryResult } from "@/application/proxy/stock/foreignShareholdingHistory.types.js";
 import type { MetricHistoryBasis, MetricHistoryCode, MetricHistoryResult } from "@/application/proxy/stock/metricHistory.types.js";
@@ -52,7 +51,7 @@ export interface StockGatewayPort {
   getCompanyBadges(symbol: string): Promise<CompanyBadgesResult>;
   getCapitalStockHistory(symbol: string): Promise<CapitalStockHistoryResult>;
   getDividendHistory(symbol: string): Promise<DividendHistoryResult>;
-  getExDividendNotices(symbols: string[]): Promise<Map<string, ExDividendNoticeEntry[]>>;
+  getExDividendNotices(symbols: string[]): Promise<Map<string, ExDividendCalendarEntry[]>>;
   getExDividendCalendar(month: string): Promise<ExDividendCalendarResult>;
   getFinancialStatement(
     symbol: string,

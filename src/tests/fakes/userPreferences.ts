@@ -26,6 +26,8 @@ export function fakeUserPreferences(overrides: Partial<UserPreferencesPort> = {}
     saveStockDetailPreferences: vi.fn(),
     getHoldingColumns: vi.fn().mockResolvedValue(null),
     saveHoldingColumns: vi.fn().mockImplementation(async (_uid: string, columns: unknown) => columns),
+    getWatchlistColumns: vi.fn().mockResolvedValue(null),
+    saveWatchlistColumns: vi.fn().mockImplementation(async (_uid: string, columns: unknown) => columns),
     getPreferredStocksPreferences: vi.fn().mockResolvedValue(null),
     savePreferredStocksPreferences: vi.fn(),
     ...overrides,
