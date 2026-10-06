@@ -10,7 +10,6 @@ function toPresetTemplate(row: PresetTemplateRow): PresetTemplate {
     slug: row.slug,
     category: row.category,
     description: row.description,
-    tier: row.tier,
     status: row.status,
     pendingReason: row.pendingReason,
     filters: row.filters as unknown as PresetTemplateFilter[],

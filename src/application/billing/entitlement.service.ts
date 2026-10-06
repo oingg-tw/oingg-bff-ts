@@ -29,16 +29,6 @@ function isWithinPaidPeriod(status: string, currentPeriodEnd: string, now: Date)
 }
 
 /**
- * Maps a plan identifier to a tier. Kept as a prefix match so the price list can grow
- * ("pro-monthly", "pro-annual", "pro-annual-2027") without a code change here; an unrecognised plan
- * falls back to PRO rather than ADVISOR, because guessing low costs a support ticket while guessing
- * high gives away the expensive tier.
- */
-function tierForPlan(plan: string): "PRO" | "ADVISOR" {
-  return plan.toLowerCase().startsWith("advisor") ? "ADVISOR" : "PRO";
-}
-
-/**
  * The single answer to "what is this user entitled to". Everything that gates on payment goes through
  * here rather than reading the Subscription table directly, so the Phase 0 allowlist has exactly one
  * place to live and one place to be deleted from once NewebPay is wired.
@@ -62,7 +52,9 @@ export async function getEntitlement(
   const subscription = await deps.subscriptions.find(firebaseUid);
   if (subscription && isWithinPaidPeriod(subscription.status, subscription.currentPeriodEnd, now)) {
     return {
-      tier: tierForPlan(subscription.plan),
+      // 只有一個付費層級（2026-10-06 拿掉 ADVISOR），所以任何 plan 字串（pro-monthly、pro-annual……）
+      // 都是 PRO。哪天再有第二個付費層級，在這裡依 plan 前綴分流。
+      tier: "PRO",
       source: "subscription",
       status: subscription.status,
       currentPeriodEnd: subscription.currentPeriodEnd,
@@ -72,23 +64,23 @@ export async function getEntitlement(
   }
 
   // Reverse trial: full access for the first N days after signup, no card, no row anywhere — it's
-  // derived from the user's own createdAt, which is why provisioning that row matters (see
-  // UserPort.ensureProvisioned). Expiry is a smooth downgrade: the user keeps everything they created,
-  // they just stop being able to add more (quota.ts).
-  const user = await deps.user.find(firebaseUid);
-  if (user) {
-    const trialEnds = new Date(new Date(user.createdAt).getTime() + REVERSE_TRIAL_DAYS * DAY_MS);
-    if (trialEnds.getTime() > now.getTime()) {
-      return {
-        tier: REVERSE_TRIAL_TIER,
-        source: "trial",
-        status: null,
-        currentPeriodEnd: null,
-        // A trial has nothing to renew: it ends by the calendar, not by a payment agreement.
-        trialEndsAt: trialEnds.toISOString(),
-        renewalMode: null,
-      };
-    }
+  // derived from the user's own createdAt. Expiry is a smooth downgrade: the user keeps everything they
+  // created, they just stop being able to add more (quota.ts).
+  //
+  // 沒有 User 列就在這裡建（2026-10-06）：之前只有 GET /users/me 會建，而前端從來沒呼叫過它，所以沒有
+  // 任何人拿到過試用。試用從第一次查方案起算——每個需要判斷方案的請求都會經過這裡。
+  const user = (await deps.user.find(firebaseUid)) ?? (await deps.user.ensureExists(firebaseUid));
+  const trialEnds = new Date(new Date(user.createdAt).getTime() + REVERSE_TRIAL_DAYS * DAY_MS);
+  if (trialEnds.getTime() > now.getTime()) {
+    return {
+      tier: REVERSE_TRIAL_TIER,
+      source: "trial",
+      status: null,
+      currentPeriodEnd: null,
+      // A trial has nothing to renew: it ends by the calendar, not by a payment agreement.
+      trialEndsAt: trialEnds.toISOString(),
+      renewalMode: null,
+    };
   }
 
   if (BILLING_PAID_UID_ALLOWLIST.includes(firebaseUid)) {

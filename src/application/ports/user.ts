@@ -23,4 +23,14 @@ export interface UserPort {
     email: string | null,
     displayName: string | null,
   ): Promise<UserProfile>;
+
+  /**
+   * 沒有這一列就建立（email／displayName 先留 null），有就原樣回傳、**什麼都不覆寫**。
+   *
+   * 給 billing/entitlement.service.ts 用的：2026-10-06 發現前端從來沒呼叫過 GET /users/me，有資料的 37 個
+   * uid 裡 36 個沒有 User 列，也就是**從來沒有人拿到過 14 天試用**。試用期的起點不能靠前端記得呼叫哪支
+   * API，所以第一次查方案時就把列建起來。不用 ensureProvisioned 是因為它會把 email 覆寫成 null——跟
+   * GET /users/me 同時發生時，會把剛寫進去的 email 洗掉。
+   */
+  ensureExists(firebaseUid: string): Promise<UserProfile>;
 }

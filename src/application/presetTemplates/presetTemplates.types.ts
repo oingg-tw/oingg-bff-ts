@@ -1,4 +1,3 @@
-export type PresetTemplateTier = "FREE" | "PAID";
 export type PresetTemplateStatus = "AVAILABLE" | "PENDING";
 
 export interface PresetTemplateFilter {
@@ -21,7 +20,6 @@ export interface PresetTemplate {
   slug: string;
   category: string;
   description: string;
-  tier: PresetTemplateTier;
   status: PresetTemplateStatus;
   pendingReason: string | null;
   filters: PresetTemplateFilter[];

@@ -33,6 +33,7 @@ export function fakeUserPort(overrides: Partial<UserPort> = {}): UserPort {
   return {
     find: vi.fn().mockResolvedValue(OLD_USER),
     ensureProvisioned: vi.fn().mockResolvedValue(OLD_USER),
+    ensureExists: vi.fn().mockResolvedValue(OLD_USER),
     ...overrides,
   };
 }

@@ -15,7 +15,6 @@ const AVAILABLE_TEMPLATE = {
   slug: "buffett-moat",
   category: "大師策略",
   description: "test",
-  tier: "FREE" as const,
   status: "AVAILABLE" as const,
   pendingReason: null,
   filters: [{ field: "roe.roeTtmPct", min: 15, max: null, exclude: false }],
@@ -67,7 +66,7 @@ beforeEach(() => {
 });
 
 describe("getPresetTemplates", () => {
-  it("returns whatever the port lists, unfiltered by tier", async () => {
+  it("returns whatever the port lists, unfiltered", async () => {
     const presetTemplates = fakePresetTemplates({
       list: vi.fn().mockResolvedValue([AVAILABLE_TEMPLATE, PENDING_TEMPLATE]),
     });

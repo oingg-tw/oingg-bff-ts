@@ -10,7 +10,6 @@ const presetTemplateSchema = z
     slug: z.string(),
     category: z.string(),
     description: z.string(),
-    tier: z.enum(["FREE", "PAID"]),
     status: z.enum(["AVAILABLE", "PENDING"]),
     pendingReason: z.string().nullable(),
     filters: z.array(z.object({ field: z.string(), min: z.number().nullable(), max: z.number().nullable(), exclude: z.boolean() })),
@@ -27,7 +26,7 @@ registry.registerPath({
   path: "/screener/templates",
   summary: "列出所有人共用的篩選策略範本（大師策略／量化因子／台股籌碼面等）",
   description:
-    "不需要登入即可查看。每筆都有 tier（FREE/PAID，前端自行決定顯示/鎖定方式，這個服務本身不做付費驗證）跟 status（AVAILABLE 可直接套用；PENDING 表示目前生態系還沒有計算這個範本需要的指標，pendingReason 說明缺什麼，filters 會是空陣列）。`isDefault`（2026-09-11 新增）標記使用者第一次進入 screener、還沒選任何篩選條件時該預先套用/凸顯的那一組，恰好一筆會是 true——純粹是前端的發現性提示，bff-ts 自己不會在 POST /screener 端自動套用這個篩選（該端點仍然要求至少給一個 filter）。`slug`（2026-09-20 新增）是穩定、跟 URL 無關字元無關的識別碼，跟 `name` 脫鉤——`name` 這種給人看的文案之後會再改（合規用語調整、措辭潤飾都算），請一律用 `slug` 當外部識別碼（例如網址路徑），不要用 `name` 或 `id`（UUID，不適合當網址）；`slug` 本身如果要改一樣算破壞性變更，需要事先協調。",
+    "不需要登入即可查看。（2026-10-06 拿掉了原本的 tier 欄位：選股範本與結果依投信投顧法不能依方案上鎖，留著一個「付費」選項只會讓人以為可以鎖。）每筆都有 status（AVAILABLE 可直接套用；PENDING 表示目前生態系還沒有計算這個範本需要的指標，pendingReason 說明缺什麼，filters 會是空陣列）。`isDefault`（2026-09-11 新增）標記使用者第一次進入 screener、還沒選任何篩選條件時該預先套用/凸顯的那一組，恰好一筆會是 true——純粹是前端的發現性提示，bff-ts 自己不會在 POST /screener 端自動套用這個篩選（該端點仍然要求至少給一個 filter）。`slug`（2026-09-20 新增）是穩定、跟 URL 無關字元無關的識別碼，跟 `name` 脫鉤——`name` 這種給人看的文案之後會再改（合規用語調整、措辭潤飾都算），請一律用 `slug` 當外部識別碼（例如網址路徑），不要用 `name` 或 `id`（UUID，不適合當網址）；`slug` 本身如果要改一樣算破壞性變更，需要事先協調。",
   tags: ["Screener"],
   responses: {
     200: {

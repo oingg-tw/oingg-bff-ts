@@ -88,13 +88,6 @@ const TIER_QUOTAS: Readonly<Record<BillingTier, Readonly<Record<QuotaResource, n
     customHoldingColumns: null,
     watchlistColumns: null,
   },
-  ADVISOR: {
-    watchlistItems: null,
-    screenerPresets: null,
-    columnPresets: null,
-    customHoldingColumns: null,
-    watchlistColumns: null,
-  },
 };
 
 /**

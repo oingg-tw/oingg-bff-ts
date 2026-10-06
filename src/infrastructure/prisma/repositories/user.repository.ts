@@ -52,7 +52,15 @@ async function ensureUserProvisioned(
  * 那個切片 2026-09-24 轉成 ports 之後就沒有第二個入口了，所以它們收回成模組內部函式。外面拿得到的只剩
  * 這個 adapter——「User 這張表只能經由 UserPort 碰」因此是編譯期擋得住的，不是靠慣例。
  */
+async function ensureUserExists(firebaseUid: string): Promise<UserProfile> {
+  const prisma = getPrismaClient();
+  // update: {} — 已經存在就一個欄位都不動（尤其 email 與試用期錨點 createdAt）。
+  const row = await prisma.user.upsert({ where: { firebaseUid }, update: {}, create: { firebaseUid } });
+  return toUserProfile(row);
+}
+
 export const prismaUser: UserPort = {
   find: findUserByFirebaseUid,
   ensureProvisioned: ensureUserProvisioned,
+  ensureExists: ensureUserExists,
 };

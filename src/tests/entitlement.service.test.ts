@@ -56,13 +56,22 @@ describe("getEntitlement — subscriptions", () => {
     });
   });
 
-  it("reads ADVISOR from the plan identifier so a new price point needs no migration", async () => {
-    const result = getEntitlement("uid", NOW, deps({ subscription: subscription({ plan: "advisor-annual" }) }));
+  // 只有一個付費層級（2026-10-06 拿掉 ADVISOR），任何 plan 字串都是 PRO——新價格點不必改程式。
+  // 2026-10-06：前端從來沒呼叫過 GET /users/me，所以沒有 User 列、也就沒有人拿到過試用。現在第一次查方案
+  // 就建立那一列，試用從那一刻起算。
+  it("creates the missing User row and starts the trial from it", async () => {
+    const fresh = { ...OLD_USER, createdAt: NOW.toISOString() };
+    const d = deps();
+    vi.mocked(d.user.find).mockResolvedValue(null);
+    vi.mocked(d.user.ensureExists).mockResolvedValue(fresh);
 
-    await expect(result).resolves.toMatchObject({ tier: "ADVISOR" });
+    const result = await getEntitlement("uid", NOW, d);
+
+    expect(d.user.ensureExists).toHaveBeenCalledWith("uid");
+    expect(result).toMatchObject({ tier: "PRO", source: "trial" });
   });
 
-  it("falls back to PRO for an unrecognised plan rather than granting the expensive tier", async () => {
+  it("grants PRO for any plan identifier", async () => {
     const result = getEntitlement("uid", NOW, deps({ subscription: subscription({ plan: "something-new" }) }));
 
     await expect(result).resolves.toMatchObject({ tier: "PRO" });
@@ -133,11 +142,6 @@ describe("getEntitlement — reverse trial", () => {
     await expect(result).resolves.toMatchObject({ tier: "PRO", source: "subscription" });
   });
 
-  it("treats a user with no row as FREE instead of throwing", async () => {
-    const result = getEntitlement("uid", NOW, deps({ user: null }));
-
-    await expect(result).resolves.toMatchObject({ tier: "FREE", source: "none" });
-  });
 });
 
 describe("getEntitlement — Phase 0 allowlist", () => {
@@ -151,10 +155,10 @@ describe("getEntitlement — Phase 0 allowlist", () => {
     const result = getEntitlement(
       "allowlisted-uid",
       NOW,
-      deps({ subscription: subscription({ firebaseUid: "allowlisted-uid", plan: "advisor-annual" }) }),
+      deps({ subscription: subscription({ firebaseUid: "allowlisted-uid", plan: "pro-annual" }) }),
     );
 
-    await expect(result).resolves.toMatchObject({ tier: "ADVISOR", source: "subscription" });
+    await expect(result).resolves.toMatchObject({ tier: "PRO", source: "subscription" });
   });
 });
 

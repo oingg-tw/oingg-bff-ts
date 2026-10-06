@@ -3,15 +3,17 @@ import type { BillingProvider, RenewalMode, SubscriptionStatus } from "@/generat
 export type { BillingProvider, RenewalMode, SubscriptionStatus };
 
 /**
- * The three-step ladder. Deliberately NOT a Prisma enum and NOT tied to a price: prices are expected to
- * move (a Van Westendorp study is still pending), and this service isn't the source of truth for the
- * price list — a plan identifier string on the Subscription row is, so a new price point needs no
- * migration here.
+ * Deliberately NOT a Prisma enum and NOT tied to a price: prices are expected to move (a Van Westendorp
+ * study is still pending), and this service isn't the source of truth for the price list — a plan
+ * identifier string on the Subscription row is, so a new price point needs no migration here.
+ *
+ * 2026-10-06 使用者決定只留 FREE＋PRO：ADVISOR 拿掉，投顧的需求歸 ifa.rocks。拿掉時 subscription 表是空的，
+ * 沒有任何一列需要搬。
  */
-export type BillingTier = "FREE" | "PRO" | "ADVISOR";
+export type BillingTier = "FREE" | "PRO";
 
 /**
- * Every metered resource. Adding one here forces the tier table to cover it for all three tiers
+ * Every metered resource. Adding one here forces the tier table to cover it for every tier
  * (Record, not Partial), so a new quota can't silently default to "unlimited for everyone".
  */
 export type QuotaResource = "watchlistItems" | "screenerPresets" | "columnPresets" | "customHoldingColumns" | "watchlistColumns";
