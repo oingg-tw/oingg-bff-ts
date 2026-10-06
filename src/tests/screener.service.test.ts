@@ -238,7 +238,7 @@ describe("runScreener", () => {
       ],
     });
     vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
-      new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28" }]]),
+      new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null }]]),
     );
 
     const result = await runScreener(
@@ -456,7 +456,7 @@ describe("runRanking", () => {
       results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 1 } } }],
     });
     vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
-      new Map([["2330", { close: "2410.0000", tradeDate: "2026-08-28" }]]),
+      new Map([["2330", { close: "2410.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null }]]),
     );
 
     const result = await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "stock.price" }], undefined, undefined, deps);
@@ -516,7 +516,7 @@ describe("runRanking", () => {
         rankings: [{ symbol: "2330", name: "台積電", value: 27.82 }],
       });
       vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
-        new Map([["2330", { close: "2420.0000", tradeDate: "2026-08-28" }]]),
+        new Map([["2330", { close: "2420.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null }]]),
       );
 
       const result = await runRanking("exchangePeRatio.EOD", "asc", 10, [{ field: "stock.price" }], undefined, undefined, deps);
@@ -671,15 +671,34 @@ describe("runScreenerValues", () => {
   it('merges in "stock.price" from twse/tpex, not passed through to analysis-ts', async () => {
     vi.mocked(screenerGateway.getValues).mockResolvedValue({ results: [{ symbol: "2330", name: "台積電", values: {} }] });
     vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
-      new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28" }]]),
+      new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null }]]),
     );
 
     const result = await runScreenerValues(["2330"], [{ field: "stock.price" }], deps);
 
-    expect(screenerGateway.getValues).toHaveBeenCalledWith(["2330"], []);
+    // 只要報價欄位時不打 analysis-ts——它對空的 columns 回 400（2026-10-06 實測），所以 name 是 null。
+    expect(screenerGateway.getValues).not.toHaveBeenCalled();
     expect(result.columns).toContainEqual({ field: "stock.price", metricName: "股票", fieldName: "股價", unit: "currency" });
     expect(result.results).toEqual([
-      { symbol: "2330", name: "台積電", values: { "stock.price": { value: "2350.0000", knowledgeDate: "2026-08-28", nullReason: null, formulaVersion: null } } },
+      { symbol: "2330", name: null, values: { "stock.price": { value: "2350.0000", knowledgeDate: "2026-08-28", nullReason: null, formulaVersion: null } } },
+    ]);
+  });
+
+  // 2026-10-06：前一日收盤價原樣來自同一次批次報價，knowledgeDate 是它真正的日期（可能跳過沒成交的日子）。
+  // 只要了 stock.previousClose 就只回它；沒有報價的代號兩個值都是 null。
+  it('merges "stock.previousClose" from the same price lookup, with its own date', async () => {
+    vi.mocked(screenerGateway.getValues).mockResolvedValue({ results: [{ symbol: "2330", name: "台積電", values: {} }] });
+    vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
+      new Map([["2330", { close: "2575", tradeDate: "2026-10-05", previousClose: "2500", previousTradeDate: "2026-10-02" }]]),
+    );
+
+    const result = await runScreenerValues(["2330", "9999"], [{ field: "stock.previousClose" }], deps);
+
+    expect(stockGateway.getLatestClosePrices).toHaveBeenCalledTimes(1);
+    expect(result.columns).toEqual([{ field: "stock.previousClose", metricName: "股票", fieldName: "前一日收盤價", unit: "currency" }]);
+    expect(result.results.map((row) => row.values)).toEqual([
+      { "stock.previousClose": { value: "2500", knowledgeDate: "2026-10-02", nullReason: null, formulaVersion: null } },
+      { "stock.previousClose": { value: null, knowledgeDate: null, nullReason: null, formulaVersion: null } },
     ]);
   });
 

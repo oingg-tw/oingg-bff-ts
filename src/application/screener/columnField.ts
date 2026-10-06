@@ -22,6 +22,9 @@ export interface ColumnFieldInfo {
  */
 export const SPECIAL_COLUMNS: Record<string, { metricName: string; fieldName: string; unit: string | null }> = {
   "stock.price": { metricName: "股票", fieldName: "股價", unit: "currency" },
+  // 2026-10-06：自選股頁算漲跌用，省掉每檔一次 daily-price-history。值與 knowledgeDate 原樣來自
+  // analysis-ts 的 previousClose／previousTradeDate，bff-ts 不算漲跌（代理不加工）。
+  "stock.previousClose": { metricName: "股票", fieldName: "前一日收盤價", unit: "currency" },
 };
 
 /**

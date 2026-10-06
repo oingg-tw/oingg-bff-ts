@@ -36,4 +36,12 @@ export interface StockQuote {
 export interface ClosePrice {
   close: string | null;
   tradeDate: string | null;
+  /**
+   * 2026-10-06 analysis-ts 新增（DEV d25ce186；PRD 還沒有，那邊缺欄位會正規化成 null）。tradeDate 之前
+   * 最近一個**有成交**的收盤，沒成交的日子會往前跳，所以 previousTradeDate 可能離 tradeDate 好幾個交易日。
+   * 新上市／第一天沒有更早的成交 → 兩個都是 null。是原始收盤，不是除權息參考價：除息日拿它算漲跌會含配息
+   * 造成的跌幅（交易所資料沒有參考價欄位）。
+   */
+  previousClose: string | null;
+  previousTradeDate: string | null;
 }

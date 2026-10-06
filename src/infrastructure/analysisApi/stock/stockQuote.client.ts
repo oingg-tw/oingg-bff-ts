@@ -66,7 +66,12 @@ function normalizeStockQuote(quote: StockQuote): StockQuote {
 }
 
 function normalizeClosePrice(price: ClosePrice): ClosePrice {
-  return { close: toStringOrNull(price.close), tradeDate: price.tradeDate === null ? null : String(price.tradeDate) };
+  return {
+    close: toStringOrNull(price.close),
+    tradeDate: price.tradeDate === null ? null : String(price.tradeDate),
+    previousClose: toStringOrNull(price.previousClose),
+    previousTradeDate: toStringOrNull(price.previousTradeDate),
+  };
 }
 
 /** Fetches a single stock's latest price/valuation from oingg-analysis-ts. Null on a 404 (unknown symbol in either market — analysis-ts checks both). */

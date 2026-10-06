@@ -117,7 +117,7 @@ registry.registerPath({
   path: "/screener/values",
   summary: "針對一批已知的股票代號，只查詢指定的欄位——不篩選、不分頁",
   description:
-    "給前端「已經顯示一批股票，現在要多加一欄」這種情境用：不用把整個帶篩選條件、分頁的 POST /screener 重打一次，只需要帶 symbols 跟這次要新增的 columns。field 格式、回應的 values 形狀都跟 POST /screener 一致。symbols 裡的每一個代號都保證會出現在 results 裡（就算 analysis-ts 查無資料，也是回 values 為空物件的那一列，不會整列消失）。symbols 上限 200 個。count 固定等於 results.length，附上這個欄位是為了讓前端既有的分頁元件不用特別為這支端點做例外處理。",
+    "給前端「已經顯示一批股票，現在要多加一欄」這種情境用：不用把整個帶篩選條件、分頁的 POST /screener 重打一次，只需要帶 symbols 跟這次要新增的 columns。field 格式、回應的 values 形狀都跟 POST /screener 一致。除了型錄欄位，還有兩個來自報價的特殊欄位：\"stock.price\"（最新收盤價，knowledgeDate 是那天）與 \"stock.previousClose\"（2026-10-06 新增：tradeDate 之前最近一個**有成交**的收盤價，knowledgeDate 是它真正的日期，可能跳過好幾個沒成交的交易日；新上市第一天沒有更早的成交時 value 是 null）。前一日收盤是原始收盤，不是除權息參考價——除息日拿它算漲跌會含配息造成的跌幅。bff-ts 不算漲跌，兩欄一起要時只打一次上游。PRD 的上游還沒有這個欄位，在那邊 value 一律是 null。columns 只有這兩個報價欄位時不會查 analysis-ts，所以每一列的 name 是 null（公司名稱只跟著型錄欄位一起回來）。symbols 裡的每一個代號都保證會出現在 results 裡（就算 analysis-ts 查無資料，也是回 values 為空物件的那一列，不會整列消失）。symbols 上限 200 個。count 固定等於 results.length，附上這個欄位是為了讓前端既有的分頁元件不用特別為這支端點做例外處理。",
   tags: ["Screener"],
   request: { body: { required: true, content: { "application/json": { schema: screenerValuesRequestDocSchema } } } },
   responses: {

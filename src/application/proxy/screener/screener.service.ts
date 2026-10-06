@@ -1,6 +1,7 @@
 import { AppError } from "@/domain/appError.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
 import type { AppDeps } from "@/application/deps.js";
+import type { ClosePrice } from "@/application/proxy/stock/stock.types.js";
 import { SPECIAL_COLUMNS } from "@/application/screener/columnField.js";
 import type { Pagination } from "@/application/proxy/screener/pagination.js";
 import type {
@@ -27,6 +28,24 @@ import type {
 export type ScreenerDeps = Pick<AppDeps, "screenerGateway" | "metricCatalog" | "stockGateway">;
 
 const STOCK_PRICE_FIELD = "stock.price";
+
+/**
+ * 特殊欄位都來自同一次批次報價（getLatestClosePrices），只差取哪兩個值。2026-10-06 加 stock.previousClose
+ * 時從「只有 stock.price 一個布林」改成這張表——四條路徑（screener、values、ranking、估值排行）共用。
+ */
+const PRICE_CELLS: Record<string, (price: ClosePrice) => { value: string | null; knowledgeDate: string | null }> = {
+  [STOCK_PRICE_FIELD]: (price) => ({ value: price.close, knowledgeDate: price.tradeDate }),
+  "stock.previousClose": (price) => ({ value: price.previousClose, knowledgeDate: price.previousTradeDate }),
+};
+
+/** 這次請求要了哪些特殊欄位（去重、照呼叫端順序）。 */
+function requestedPriceFields(columns: ScreenerColumnRef[]): string[] {
+  return [...new Set(columns.map((c) => c.field).filter((field) => field in PRICE_CELLS))];
+}
+
+function priceResultColumns(priceFields: string[]): ScreenerResultColumn[] {
+  return priceFields.map((field) => ({ field, ...SPECIAL_COLUMNS[field]! }));
+}
 
 /**
  * Ranking is a second-order computation over raw market data, not something this BFF should own —
@@ -111,22 +130,26 @@ async function resolveCatalogFieldRefs(fields: string[], deps: ScreenerDeps): Pr
  * `stock.price`」，因為那決定了有幾個 10 秒窗口可能越界；再問「上游當時的負載」，因為負載能把任何一條
  * 查詢乘上四五倍。別從「哪個欄位慢」開始猜。
  */
-async function mergeStockPrices(rows: ScreenerResultRow[], wantsStockPrice: boolean, deps: ScreenerDeps): Promise<void> {
-  if (!wantsStockPrice) {
+async function mergeStockPrices(rows: ScreenerResultRow[], priceFields: string[], deps: ScreenerDeps): Promise<void> {
+  if (priceFields.length === 0) {
     return;
   }
-  applyStockPrices(rows, await deps.stockGateway.getLatestClosePrices(rows.map((row) => row.symbol)));
+  applyStockPrices(rows, await deps.stockGateway.getLatestClosePrices(rows.map((row) => row.symbol)), priceFields);
 }
 
 function applyStockPrices(
   rows: ScreenerResultRow[],
   pricesBySymbol: Awaited<ReturnType<ScreenerDeps["stockGateway"]["getLatestClosePrices"]>>,
+  priceFields: string[],
 ): void {
+  const noPrice: ClosePrice = { close: null, tradeDate: null, previousClose: null, previousTradeDate: null };
   for (const row of rows) {
-    const price = pricesBySymbol.get(row.symbol);
+    const price = pricesBySymbol.get(row.symbol) ?? noPrice;
     // formulaVersion 是 null 而不是某個數字：股價不是型錄裡的公式算出來的，是報價原樣帶進來的，
     // 所以「第幾版公式」對它沒有意義。下游看到 null 就知道不必拿它跟型錄的版本號比。
-    row.values[STOCK_PRICE_FIELD] = { value: price?.close ?? null, knowledgeDate: price?.tradeDate ?? null, nullReason: null, formulaVersion: null };
+    for (const field of priceFields) {
+      row.values[field] = { ...PRICE_CELLS[field]!(price), nullReason: null, formulaVersion: null };
+    }
   }
 }
 
@@ -194,7 +217,7 @@ export async function runScreener(
     excludeSectorCodes,
   );
 
-  const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
+  const priceFields = requestedPriceFields(specialColumns);
 
   const resultColumns: ScreenerResultColumn[] = resolvedColumns.map((c) => ({
     field: c.field,
@@ -202,16 +225,14 @@ export async function runScreener(
     fieldName: c.fieldName,
     unit: c.unit,
   }));
-  if (wantsStockPrice) {
-    resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
-  }
+  resultColumns.push(...priceResultColumns(priceFields));
 
   const results: ScreenerResultRow[] = apiResult.results.map((row) => ({
     symbol: row.symbol,
     name: row.name,
     values: row.values,
   }));
-  await mergeStockPrices(results, wantsStockPrice, deps);
+  await mergeStockPrices(results, priceFields, deps);
 
   return {
     count: apiResult.count,
@@ -253,7 +274,7 @@ export async function runScreenerValues(
   const specialColumns = columns.filter((c) => c.field in SPECIAL_COLUMNS);
   const catalogColumnRefs = columns.filter((c) => !(c.field in SPECIAL_COLUMNS));
 
-  const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
+  const priceFields = requestedPriceFields(specialColumns);
 
   /**
    * **股價跟數值查詢並行**，不像 runScreener／runRanking 那樣接在後面：這支端點的代號是呼叫端給的，
@@ -268,13 +289,19 @@ export async function runScreenerValues(
         catalogColumnRefs.map((c) => c.field),
         deps,
       );
+      // 只要了報價欄位（stock.price／stock.previousClose）時不打 analysis-ts：它對空的 columns 回 400
+      // 「columns 至少要有一個欄位」——2026-10-06 實測，本機與 DEV 都是，所以「只要股價」這種請求原本一直是壞的。
+      // 代價是這種請求的 name 是 null（公司名稱只跟著 analysis-ts 的數值列回來）。
+      if (resolved.length === 0) {
+        return { resolvedColumns: resolved, apiResult: { results: [] } };
+      }
       const values = await deps.screenerGateway.getValues(
         symbols,
         resolved.map((c) => ({ field: c.field })),
       );
       return { resolvedColumns: resolved, apiResult: values };
     })(),
-    wantsStockPrice ? deps.stockGateway.getLatestClosePrices(symbols) : Promise.resolve(null),
+    priceFields.length > 0 ? deps.stockGateway.getLatestClosePrices(symbols) : Promise.resolve(null),
   ]);
 
   const resultColumns: ScreenerResultColumn[] = resolvedColumns.map((c) => ({
@@ -283,9 +310,7 @@ export async function runScreenerValues(
     fieldName: c.fieldName,
     unit: c.unit,
   }));
-  if (wantsStockPrice) {
-    resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
-  }
+  resultColumns.push(...priceResultColumns(priceFields));
 
   const rowBySymbol = new Map(apiResult.results.map((row) => [row.symbol, row]));
   const results: ScreenerResultRow[] = symbols.map((symbol) => ({
@@ -294,7 +319,7 @@ export async function runScreenerValues(
     values: rowBySymbol.get(symbol)?.values ?? {},
   }));
   if (pricesBySymbol) {
-    applyStockPrices(results, pricesBySymbol);
+    applyStockPrices(results, pricesBySymbol, priceFields);
   }
 
   return { count: results.length, columns: resultColumns, results };
@@ -352,23 +377,21 @@ export async function runRanking(
     excludeSectorCodes,
   );
 
-  const wantsStockPrice = specialColumns.some((c) => c.field === STOCK_PRICE_FIELD);
+  const priceFields = requestedPriceFields(specialColumns);
   const resultColumns: ScreenerResultColumn[] = allColumnRefs.map((c) => ({
     field: c.field,
     metricName: c.metricName,
     fieldName: c.fieldName,
     unit: c.unit,
   }));
-  if (wantsStockPrice) {
-    resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
-  }
+  resultColumns.push(...priceResultColumns(priceFields));
 
   const results: ScreenerResultRow[] = apiResult.results.map((row) => ({
     symbol: row.symbol,
     name: row.name,
     values: row.values,
   }));
-  await mergeStockPrices(results, wantsStockPrice, deps);
+  await mergeStockPrices(results, priceFields, deps);
 
   return { field, direction, columns: resultColumns, results };
 }
@@ -387,19 +410,19 @@ async function runValuationRanking(
   columns: ScreenerColumnRef[],
   deps: ScreenerDeps,
 ): Promise<RankingResult> {
-  const unsupportedColumn = columns.find((c) => c.field !== STOCK_PRICE_FIELD);
+  const unsupportedColumn = columns.find((c) => !(c.field in PRICE_CELLS));
   if (unsupportedColumn) {
     throw new AppError(
       `"${unsupportedColumn.field}" can't be combined with a "${field}" ranking (sourced from ` +
-        `oingg-analysis-ts's ranking endpoint, not the general screener path) — only "stock.price" ` +
-        `is supported alongside it`,
+        `oingg-analysis-ts's ranking endpoint, not the general screener path) — only "stock.price" and ` +
+        `"stock.previousClose" are supported alongside it`,
       400,
     );
   }
 
   const [rankedRef] = await resolveCatalogFieldRefs([field], deps);
   const { tradeDate, rankings } = await deps.screenerGateway.getValuationRanking(metric, direction, limit);
-  const wantsStockPrice = columns.some((c) => c.field === STOCK_PRICE_FIELD);
+  const priceFields = requestedPriceFields(columns);
 
   const results: ScreenerResultRow[] = rankings.map((row) => ({
     symbol: row.symbol,
@@ -408,14 +431,12 @@ async function runValuationRanking(
     // 帶版本號，所以這裡也給 null——不是漏接，是「無法得知」，而 null 正好是那個意思。
     values: { [field]: { value: String(row.value), knowledgeDate: tradeDate, nullReason: null, formulaVersion: null } },
   }));
-  await mergeStockPrices(results, wantsStockPrice, deps);
+  await mergeStockPrices(results, priceFields, deps);
 
   const resultColumns: ScreenerResultColumn[] = [
     { field, metricName: rankedRef!.metricName, fieldName: rankedRef!.fieldName, unit: rankedRef!.unit },
   ];
-  if (wantsStockPrice) {
-    resultColumns.push({ field: STOCK_PRICE_FIELD, ...SPECIAL_COLUMNS[STOCK_PRICE_FIELD]! });
-  }
+  resultColumns.push(...priceResultColumns(priceFields));
 
   return { field, direction, columns: resultColumns, results };
 }

@@ -122,7 +122,7 @@ describe("fetchStockPrices", () => {
 
     const result = await fetchStockPrices(["2330", "1240"]);
 
-    expect(result).toEqual(new Map([["2330", { close: "1090", tradeDate: "2026-09-01" }]]));
+    expect(result).toEqual(new Map([["2330", { close: "1090", tradeDate: "2026-09-01", previousClose: null, previousTradeDate: null }]]));
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/stocks/prices?symbols=2330%2C1240");
   });
@@ -133,7 +133,20 @@ describe("fetchStockPrices", () => {
 
     const result = await fetchStockPrices(["2330"]);
 
-    expect(result).toEqual(new Map([["2330", { close: "2420", tradeDate: "2026-08-28" }]]));
+    expect(result).toEqual(new Map([["2330", { close: "2420", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null }]]));
+  });
+
+  // 2026-10-06 analysis-ts 新增 previousClose／previousTradeDate（DEV 先上，PRD 還沒有）：有就原樣轉成字串，
+  // 沒有這兩個欄位的舊上游（上一個測試的形狀）讀成 null 而不是 undefined 或 "undefined"。
+  it("passes previousClose and previousTradeDate through", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { prices: { "2330": { close: 2575, tradeDate: "2026-10-05", previousClose: 2500, previousTradeDate: "2026-10-02" } } },
+    });
+
+    const result = await fetchStockPrices(["2330"]);
+
+    expect(result.get("2330")).toEqual({ close: "2575", tradeDate: "2026-10-05", previousClose: "2500", previousTradeDate: "2026-10-02" });
   });
 
   // Regression-shaped: analysis-ts confirmed a symbol with no data is simply absent from `prices` — not
