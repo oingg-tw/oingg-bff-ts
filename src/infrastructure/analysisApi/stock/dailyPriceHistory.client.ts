@@ -20,8 +20,9 @@ function normalizeEntry(raw: unknown): DailyPriceHistoryEntry {
     high: toNumberOrNull(r.high),
     low: toNumberOrNull(r.low),
     close: toNumberOrNull(r.close),
-    // volume 不走 toNumberOrNull：即使 OHLC 全 null 它仍是實數，而型別上它不可為 null。
-    volume: Number(r.volume),
+    // volume 也可能是 null（2026-10-07 analysis-ts 實測：上市今年有 200 列，16 列是一般股票，例如 1538
+    // 2026-09-03）。原本這裡寫「它永遠是實數」並用 Number()，會把「沒有資料」變成「成交 0 股」。
+    volume: toNumberOrNull(r.volume),
   };
 }
 

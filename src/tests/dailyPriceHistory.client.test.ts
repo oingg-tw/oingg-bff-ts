@@ -143,8 +143,9 @@ describe("沒成交的交易日", () => {
   });
 
   /**
-   * volume 不跟著變 null —— 沒成交的列上它仍是實數（零股或盤後）。所以**不能用 volume 判斷當天有沒有
-   * 成交**，這一條就是防止有人「順手」把 volume 也改成 nullable 或拿它當判斷依據。
+   * OHLC 全 null 的列上 volume 仍可能是非 0 的實數（零股或盤後），所以**不能用 volume 判斷當天有沒有成交**。
+   * 這裡原本還寫著「防止有人把 volume 改成 nullable」——2026-10-07 analysis-ts 實測推翻了：上市沒成交的
+   * 日子 volume 有時就是 null（見下一條）。兩件事同時成立：有值時照原樣，null 時保留 null。
    */
   it("OHLC 全 null 時 volume 仍是實數且可能非 0", async () => {
     mockFetchOnce({ ok: true, body: NO_TRADE_BODY });
@@ -183,6 +184,18 @@ describe("沒成交的交易日", () => {
 
     expect(entries.map((e) => e.close)).toEqual([null, 8.3, null, null, null]);
     expect(entries.map((e) => e.volume)).toEqual([1252, 3452, 110, 167, 1]);
+  });
+  // 2026-10-07 analysis-ts 實測：上市今年有 200 列 volume 是 null（16 列一般股票，例如 1538 2026-09-03）。
+  // 原本用 Number()，「沒有資料」會變成「成交 0 股」。
+  it("volume 是 null 時保留 null，不得變成 0", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { entries: [{ tradeDate: "2026-09-03", open: null, high: null, low: null, close: null, volume: null }], earliestAvailableTradeDate: null },
+    });
+
+    const entry = (await fetchDailyPriceHistory("1538")).entries[0];
+
+    expect(entry?.volume).toBeNull();
   });
 });
 

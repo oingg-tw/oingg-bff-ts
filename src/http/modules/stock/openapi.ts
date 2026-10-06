@@ -1355,7 +1355,7 @@ const dailyPriceHistoryEntrySchema = z.object({
   high: z.number().nullable().openapi({ description: NO_TRADE_DOC }),
   low: z.number().nullable().openapi({ description: NO_TRADE_DOC }),
   close: z.number().nullable().openapi({ description: NO_TRADE_DOC }),
-  volume: z.number().openapi({ description: "成交量。**即使 OHLC 全是 null 也可能非 0**，所以不要用 volume 判斷當天有沒有成交。" }),
+  volume: z.number().nullable().openapi({ description: "成交量。**即使 OHLC 全是 null 也可能非 0**，所以不要用 volume 判斷當天有沒有成交。本身也可能是 null（上市沒成交的日子有時如此；上櫃沒成交則是 0）——null 是「沒有資料」，不是「成交 0 股」。" }),
 });
 
 const dailyPriceHistorySchema = z

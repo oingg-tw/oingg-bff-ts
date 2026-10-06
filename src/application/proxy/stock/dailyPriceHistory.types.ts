@@ -14,8 +14,12 @@ export interface DailyPriceHistoryEntry {
   high: number | null;
   low: number | null;
   close: number | null;
-  /** 即使 OHLC 全是 null 也可能非 0，見上面的說明。 */
-  volume: number;
+  /**
+   * 即使 OHLC 全是 null 也可能非 0，見上面的說明。**本身也可能是 null**，而且兩個市場寫法不同
+   * （2026-10-07 analysis-ts 實測）：上市沒成交的日子有時 volume 是 null（今年 200 列，16 列是一般股票，
+   * 例如 1538 2026-09-03、6807 2026-09-24），上櫃沒成交一律是 0。null 是「沒有資料」，不是「成交 0 股」。
+   */
+  volume: number | null;
 }
 
 export interface DailyPriceHistoryResult {
