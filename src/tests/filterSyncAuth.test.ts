@@ -42,8 +42,7 @@ describe("requireFilterSyncSecret", () => {
 
     requireFilterSyncSecret(req, res, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
   });
 
   it("rejects with 401 when the header value is wrong", () => {
@@ -53,8 +52,7 @@ describe("requireFilterSyncSecret", () => {
 
     requireFilterSyncSecret(req, res, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
   });
 
   it("fails closed (throws) when FILTERS_SYNC_SECRET isn't configured, even outside production", () => {

@@ -12,7 +12,14 @@ export function parseBody<T>(schema: ZodType<T>, body: unknown): T {
     const message = result.error.issues
       .map((issue) => `${issue.path.length > 0 ? issue.path.join(".") : "(body)"}: ${issue.message}`)
       .join("; ");
-    throw new AppError(message, 400);
+    // RFC 9457 的 invalid_params（2026-10-08）：name 是 RFC 6901 JSON Pointer，code 是 zod 的 issue code
+    // （invalid_type、too_big…），前端靠 name／code 分支，不必拿 regex 去拆上面那句 detail。
+    const invalidParams = result.error.issues.map((issue) => ({
+      name: issue.path.map((part) => `/${String(part).replaceAll("~", "~0").replaceAll("/", "~1")}`).join(""),
+      reason: issue.message,
+      code: issue.code,
+    }));
+    throw new AppError(message, 400, undefined, undefined, { invalid_params: invalidParams });
   }
   return result.data;
 }

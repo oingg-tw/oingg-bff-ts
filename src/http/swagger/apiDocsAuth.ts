@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "ultimate-express";
+import { AppError } from "@/domain/appError.js";
 import { env, requireEnv } from "@/shared/env.js";
 import { stripQuotes, timingSafeEqualString } from "@/shared/secretAuth.js";
 
@@ -42,5 +43,5 @@ export function requireApiDocsAuth(req: Request, res: Response, next: NextFuncti
   }
 
   res.set("WWW-Authenticate", 'Basic realm="oingg-bff-ts API docs"');
-  res.status(401).json({ error: { message: "Unauthorized" } });
+  next(new AppError("Unauthorized", 401));
 }

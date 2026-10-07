@@ -66,27 +66,60 @@ describe("jsonBodyErrorHandler", () => {
 });
 
 describe("errorHandler", () => {
-  it("responds with the AppError's own status code, message, and details", () => {
-    const res = createMockResponse();
-    const error = new AppError("watchlist item 1 not found", 404);
+  function problemResponse() {
+    const res = { locals: {} } as Response;
+    res.set = vi.fn().mockReturnValue(res);
+    res.status = vi.fn().mockReturnValue(res);
+    res.type = vi.fn().mockReturnValue(res);
+    res.send = vi.fn().mockReturnValue(res);
+    return res;
+  }
 
-    errorHandler(error, {} as Request, res, vi.fn());
+  function sentBody(res: Response): Record<string, unknown> {
+    return JSON.parse(vi.mocked(res.send).mock.calls[0]?.[0] as string) as Record<string, unknown>;
+  }
 
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({
-      error: { message: "watchlist item 1 not found", details: undefined },
+  it("寫成 RFC 9457 problem+json：status 跟狀態列一致、instance 跟 X-Request-Id 同值、舊的 error 物件仍在", () => {
+    const res = problemResponse();
+
+    errorHandler(new AppError("Your plan allows 10 items", 403, { debug: true }, "quota_exceeded", { limit: 10, used: 10 }), {} as Request, res, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.type).toHaveBeenCalledWith("application/problem+json");
+    const body = sentBody(res);
+    const requestId = (res.locals as { requestId: string }).requestId;
+    expect(res.set).toHaveBeenCalledWith("X-Request-Id", requestId);
+    expect(body).toMatchObject({
+      type: "about:blank",
+      title: "Forbidden",
+      status: 403,
+      detail: "Your plan allows 10 items",
+      instance: `urn:uuid:${requestId}`,
+      code: "quota_exceeded",
+      // 擴充成員在頂層、每個環境都送；details 只是除錯用，不會出現在頂層。
+      limit: 10,
+      used: 10,
+      error: { message: "Your plan allows 10 items", code: "quota_exceeded" },
     });
+    expect(body).not.toHaveProperty("details");
   });
 
-  it("hides unexpected errors behind a generic 500 message", () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const res = createMockResponse();
+  it("擴充成員蓋不掉標準成員", () => {
+    const res = problemResponse();
+
+    errorHandler(new AppError("x", 400, undefined, undefined, { status: 200, detail: "spoofed" }), {} as Request, res, vi.fn());
+
+    expect(sentBody(res)).toMatchObject({ status: 400, detail: "x" });
+  });
+
+  it("hides unexpected errors behind a generic 500 problem", () => {
+    const res = problemResponse();
 
     errorHandler(new Error("something broke"), {} as Request, res, vi.fn());
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: { message: "Internal server error" } });
-
-    vi.restoreAllMocks();
+    const body = sentBody(res);
+    expect(body).toMatchObject({ title: "Internal Server Error", status: 500, detail: "Internal server error" });
+    expect(JSON.stringify(body)).not.toContain("something broke");
   });
 });

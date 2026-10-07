@@ -43,8 +43,9 @@ export async function updateWatchlistColumns(
       throw new AppError(
         `Your plan allows ${limit} ${QUOTA_RESOURCE_LABELS.watchlistColumns}; you're saving ${columns.length}.`,
         403,
-        { resource: "watchlistColumns", limit, used: current, tier: entitlement.tier },
+        undefined,
         QUOTA_EXCEEDED_CODE,
+        { resource: "watchlistColumns", limit, used: current, tier: entitlement.tier },
       );
     }
   }

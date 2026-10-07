@@ -119,7 +119,18 @@ describe("fetchAnalysisService", () => {
 
     await expect(fetchAnalysisService(buildAnalysisServiceUrl("/companies"))).rejects.toMatchObject({
       statusCode: 502,
+      code: "UPSTREAM_UNAVAILABLE",
       message: "Could not reach the analysis service",
+    });
+  });
+
+  it("逾時是 504 UPSTREAM_TIMEOUT，跟連不上的 502 分得開", async () => {
+    // AbortSignal.timeout 到期時 fetch 丟的就是這個（DOMException，name 為 TimeoutError）。
+    globalThis.fetch = vi.fn().mockRejectedValue(new DOMException("The operation was aborted due to timeout", "TimeoutError")) as unknown as typeof fetch;
+
+    await expect(fetchAnalysisService(buildAnalysisServiceUrl("/companies"))).rejects.toMatchObject({
+      statusCode: 504,
+      code: "UPSTREAM_TIMEOUT",
     });
   });
 });

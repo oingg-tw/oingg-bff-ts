@@ -25,14 +25,22 @@ export class AppError extends Error {
    * frontend depends on it.
    */
   readonly code?: string;
+  /**
+   * RFC 9457 extension members (2026-10-08): structured data the caller needs in order to act, written as
+   * top-level members of the problem object. Unlike `details` (debugging aid, stripped in production) these
+   * are part of the contract and always sent — e.g. a quota 403's limit/used, or the import 422's
+   * shortfalls. Keys must not collide with the standard members (type/title/status/detail/instance).
+   */
+  readonly extensions?: Record<string, unknown>;
 
-  constructor(message: string, statusCode = 500, details?: unknown, code?: string) {
+  constructor(message: string, statusCode = 500, details?: unknown, code?: string, extensions?: Record<string, unknown>) {
     super(message);
     this.name = "AppError";
     this.statusCode = statusCode;
     this.isOperational = true;
     this.details = details;
     this.code = code;
+    this.extensions = extensions;
     Error.captureStackTrace(this, this.constructor);
   }
 }

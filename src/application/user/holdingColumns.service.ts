@@ -40,8 +40,9 @@ export async function updateHoldingColumns(
       throw new AppError(
         `Your plan allows ${limit} ${QUOTA_RESOURCE_LABELS.customHoldingColumns}; you're saving ${columns.length}.`,
         403,
-        { resource: "customHoldingColumns", limit, used: current, tier: entitlement.tier },
+        undefined,
         QUOTA_EXCEEDED_CODE,
+        { resource: "customHoldingColumns", limit, used: current, tier: entitlement.tier },
       );
     }
   }

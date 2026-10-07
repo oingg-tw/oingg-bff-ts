@@ -1,5 +1,17 @@
+import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "ultimate-express";
 import { logger } from "@/shared/logger.js";
+
+/**
+ * 這個請求的 ID（2026-10-08）：回應的 X-Request-Id header、錯誤回應的 RFC 9457 `instance`、以及這裡的 log
+ * 都是同一個值，使用者回報時引用它就能在 log 找到那一行。永遠自己產生、不沿用客戶端送來的值——`instance`
+ * 要寫成 urn:uuid:，外來的字串不保證是 UUID。
+ */
+export function requestIdOf(res: Response): string {
+  const locals = res.locals as { requestId?: string };
+  locals.requestId ??= randomUUID();
+  return locals.requestId;
+}
 
 /**
  * One structured log line per completed request. Written by hand instead of using pino-http: verified
@@ -10,9 +22,11 @@ import { logger } from "@/shared/logger.js";
  */
 export function requestLogger(req: Request, res: Response, next: NextFunction): void {
   const startedAt = Date.now();
+  const requestId = requestIdOf(res);
   res.on("finish", () => {
     logger.info(
       {
+        requestId,
         method: req.method,
         url: req.originalUrl,
         statusCode: res.statusCode,

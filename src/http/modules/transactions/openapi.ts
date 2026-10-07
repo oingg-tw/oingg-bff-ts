@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { errorResponse, registry } from "@/http/swagger/registry.js";
+import { errorResponse, errorResponseSchema, registry } from "@/http/swagger/registry.js";
 import {
   clearTransactionsQuerySchema,
   createTransactionSchema,
@@ -61,8 +61,9 @@ const shortfallsResponse = {
     "`externalRef` 為 null 代表那筆賣超來自既有的手動交易，不在這次請求的 `transactions` 裡。",
   ].join("\n"),
   content: {
-    "application/json": {
-      schema: z.object({
+    // RFC 9457 problem 物件，shortfalls 是擴充成員、仍在頂層（2026-10-08 之前是只有 shortfalls 的物件）。
+    "application/problem+json": {
+      schema: errorResponseSchema.extend({
         shortfalls: z.array(
           z.object({
             symbol: z.string(),

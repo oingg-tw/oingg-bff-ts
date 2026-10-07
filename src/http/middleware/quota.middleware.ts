@@ -78,8 +78,9 @@ export function enforceQuota(
           new AppError(
             `Your plan allows ${limit} ${QUOTA_RESOURCE_LABELS[resource]}; you're using ${used}.`,
             403,
-            { resource, limit, used, tier: entitlement.tier },
+            undefined,
             QUOTA_EXCEEDED_CODE,
+            { resource, limit, used, tier: entitlement.tier },
           ),
         );
         return;

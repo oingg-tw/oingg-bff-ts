@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "ultimate-express";
+import { AppError } from "@/domain/appError.js";
 import { requireEnv } from "@/shared/env.js";
 import { stripQuotes, timingSafeEqualString } from "@/shared/secretAuth.js";
 
@@ -17,7 +18,7 @@ const HEADER_NAME = "x-filters-sync-secret";
  * the 2026-09-11 Filter*->Metric* domain/DB rename — it's an internal auth mechanism name, not part of
  * the ubiquitous-language communication surface, and web-nuxt already has it configured in their own .env.
  */
-export function requireFilterSyncSecret(req: Request, res: Response, next: NextFunction): void {
+export function requireFilterSyncSecret(req: Request, _res: Response, next: NextFunction): void {
   const expected = stripQuotes(requireEnv("FILTERS_SYNC_SECRET"));
   const provided = req.headers[HEADER_NAME];
 
@@ -26,5 +27,5 @@ export function requireFilterSyncSecret(req: Request, res: Response, next: NextF
     return;
   }
 
-  res.status(401).json({ error: { message: "Unauthorized" } });
+  next(new AppError("Unauthorized", 401));
 }

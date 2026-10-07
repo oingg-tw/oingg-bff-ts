@@ -22,6 +22,8 @@ import {
 } from "@/application/transactions/transactionImport.service.js";
 import type { TransactionInput, TransactionUpdate } from "@/application/transactions/transactions.types.js";
 
+const SHORTFALL_DETAIL = "Some sells exceed the shares held at that point; see shortfalls for the opening positions to add";
+
 function requireUser(req: AuthenticatedRequest): string {
   if (!req.user) {
     throw new AppError("Authenticated request is missing decoded user", 401);
@@ -189,11 +191,10 @@ export function createTransactionsRouter(
       deps,
     );
 
-    // 422 不走 AppError：錯誤處理在 production 會把 details 整個拿掉，而前端必須在正式環境拿得到
-    // 完整的 shortfalls 才能請使用者補期初部位。所以它是一等公民的回應主體。
+    // 422 的 shortfalls 是 RFC 9457 的擴充成員（2026-10-08）：跟 details 不同，production 也會送，而且仍是
+    // 回應頂層的 `shortfalls`，前端原本讀的位置不變。
     if (!outcome.ok) {
-      res.status(422).json({ shortfalls: outcome.shortfalls });
-      return;
+      throw new AppError(SHORTFALL_DETAIL, 422, undefined, undefined, { shortfalls: outcome.shortfalls });
     }
     res.status(outcome.result.importId ? 201 : 200).json(outcome.result);
   });
@@ -204,8 +205,7 @@ export function createTransactionsRouter(
 
     const outcome = await revertTransactionImport(firebaseUid, importId, deps);
     if (!outcome.ok) {
-      res.status(422).json({ shortfalls: outcome.shortfalls });
-      return;
+      throw new AppError(SHORTFALL_DETAIL, 422, undefined, undefined, { shortfalls: outcome.shortfalls });
     }
     res.status(200).json({ deleted: outcome.deleted });
   });

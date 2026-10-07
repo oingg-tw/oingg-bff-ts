@@ -2,6 +2,8 @@ import cors from "cors";
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import { Router } from "ultimate-express";
+import { AppError } from "@/domain/appError.js";
+import { requestIdOf } from "@/http/requestLogger.js";
 import { requireApiDocsAuth } from "@/http/swagger/apiDocsAuth.js";
 import { swaggerSpec, swaggerUi } from "@/http/swagger/index.js";
 import { createAuthRouter } from "@/http/modules/auth/route.js";
@@ -62,7 +64,13 @@ export function createRoutes(deps: AppDeps): Router {
   // app-level middleware once the request descends into this Router, so helmet/cors must live here
   // to actually appear on responses (verified via curl, not just code inspection — see security report).
   routes.use(helmet());
-  routes.use(cors({ origin: env.corsOrigins }));
+  // 瀏覽器預設讀不到這兩個 header：X-Request-Id 讓錯誤對話框能顯示參考編號，Retry-After 讓它倒數。
+  routes.use(cors({ origin: env.corsOrigins, exposedHeaders: ["X-Request-Id", "Retry-After"] }));
+  // 設在內層 Router：外層 app 的 middleware 設的 header 會被 ultimate-express 丟掉（上面那段說明）。
+  routes.use((_req, res, next) => {
+    res.set("X-Request-Id", requestIdOf(res));
+    next();
+  });
   routes.use(
     rateLimit({
       windowMs: RATE_LIMIT_WINDOW_MS,
@@ -70,8 +78,9 @@ export function createRoutes(deps: AppDeps): Router {
       standardHeaders: true,
       legacyHeaders: false,
       keyGenerator: rateLimitKey,
-      handler: (_req, res) => {
-        res.status(429).json({ error: { message: "Too many requests" } });
+      // Retry-After 已由套件在呼叫 handler 之前設好（standardHeaders）；這裡只負責讓本體走 RFC 9457。
+      handler: (_req, _res, next) => {
+        next(new AppError("Too many requests", 429, undefined, "RATE_LIMITED"));
       },
     }),
   );

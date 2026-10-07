@@ -128,7 +128,8 @@ describe("enforceQuota", () => {
     const error = next.mock.calls[0]?.[0] as AppError | undefined;
     expect(error?.statusCode).toBe(403);
     expect(error?.code).toBe(QUOTA_EXCEEDED_CODE);
-    expect(error?.details).toMatchObject({ resource: "watchlistItems", limit: 10, used: 10, tier: "FREE" });
+    // 放在 extensions 而不是 details：production 會拿掉 details，前端就顯示不出「已用 10/10」（2026-10-08 修正）。
+    expect(error?.extensions).toMatchObject({ resource: "watchlistItems", limit: 10, used: 10, tier: "FREE" });
   });
 
   it("第 10 筆（還沒滿）放行", async () => {

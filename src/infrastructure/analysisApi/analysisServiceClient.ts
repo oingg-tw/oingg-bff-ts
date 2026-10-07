@@ -37,8 +37,14 @@ export async function fetchAnalysisService(url: URL, init?: RequestInit): Promis
   try {
     return await fetch(url, { ...init, headers, signal: AbortSignal.timeout(ANALYSIS_SERVICE_TIMEOUT_MS) });
   } catch (error) {
+    // AbortSignal.timeout 逾時丟的是 name 為 TimeoutError 的 DOMException。逾時回 504 而不是 502
+    // （RFC 9110 §15.6.5，2026-10-08）：前端據此分得出「上游太慢」與「上游掛了」。
+    if (error instanceof Error && error.name === "TimeoutError") {
+      logger.error({ url: url.toString(), timeoutMs: ANALYSIS_SERVICE_TIMEOUT_MS }, "The analysis service timed out");
+      throw new AppError("The analysis service did not respond in time", 504, undefined, "UPSTREAM_TIMEOUT");
+    }
     logger.error({ err: error, url: url.toString() }, "Could not reach the analysis service");
-    throw new AppError("Could not reach the analysis service", 502);
+    throw new AppError("Could not reach the analysis service", 502, undefined, "UPSTREAM_UNAVAILABLE");
   }
 }
 
@@ -141,7 +147,7 @@ export async function assertAnalysisServiceOk(response: Response, url: URL, labe
   }
 
   logger.error({ url: url.toString(), status: response.status }, `${label} returned a non-2xx status`);
-  throw new AppError(`${label} returned ${response.status}`, 502);
+  throw new AppError(`${label} returned ${response.status}`, 502, undefined, "UPSTREAM_UNAVAILABLE");
 }
 
 /**

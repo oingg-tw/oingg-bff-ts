@@ -104,9 +104,8 @@ describe("requireApiDocsAuth in production", () => {
 
     requireApiDocsAuth(req, res, next);
 
-    expect(next).not.toHaveBeenCalled();
     expect(res.set).toHaveBeenCalledWith("WWW-Authenticate", expect.stringContaining("Basic"));
-    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
   });
 
   it("rejects with 401 when the password is wrong", () => {
@@ -116,8 +115,7 @@ describe("requireApiDocsAuth in production", () => {
 
     requireApiDocsAuth(req, res, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
   });
 
   it("rejects with 401 when the user is wrong", () => {
@@ -127,8 +125,7 @@ describe("requireApiDocsAuth in production", () => {
 
     requireApiDocsAuth(req, res, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
   });
 
   it("rejects with 401 when the Authorization header isn't Basic auth", () => {
@@ -138,8 +135,7 @@ describe("requireApiDocsAuth in production", () => {
 
     requireApiDocsAuth(req, res, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
   });
 
   it("throws (fails closed) when API_DOCS_USER isn't configured", () => {
