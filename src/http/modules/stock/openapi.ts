@@ -14,6 +14,7 @@ import {
   piotroskiBreakdownQuerySchema,
   preferredStocksQuerySchema,
   roeRoaHistoryQuerySchema,
+  valuationRiverQuerySchema,
 } from "@/http/modules/stock/route.js";
 
 const symbolParam = z.object({ symbol: z.string().openapi({ example: "2330", description: "股票代號" }) });
@@ -1345,6 +1346,82 @@ registry.registerPath({
       description: "逐年的每股淨值變動拆解，查無資料時 entries 為空陣列。",
       content: { "application/json": { schema: bookValueBreakdownSchema } },
     },
+    502: unauthorized502,
+  },
+});
+
+const valuationRiverSchema = z
+  .object({
+    symbol: z.string(),
+    ratio: z.enum(["pe", "pb", "ps"]),
+    basisNote: z.string().openapi({ description: "上游給的中文方法說明（河道怎麼畫、基準用哪個指標、何時生效、股數基準怎麼換算），依 ratio 不同而不同，可以直接顯示給使用者。" }),
+    lookback: z.object({
+      requestedYears: z.number(),
+      from: z.string().nullable().openapi({ description: "實際涵蓋的第一天；歷史不足時比要求的晚。查無資料時 null。" }),
+      to: z.string().nullable(),
+    }),
+    sampleDays: z.number().openapi({ description: "計入倍數計算的天數（基準 ≤ 0 的日子不算），所以可能小於 prices 的長度；全期間虧損時是 0。" }),
+    bandMultiples: z.array(z.number()).nullable().openapi({ description: "六條河道線的倍數，由低到高。**沒有任何可算比值的日子（全期間虧損、查無代號）時是 null**——此時沒有河道可畫，只剩股價線。" }),
+    ratioRange: z.object({ min: z.number(), max: z.number() }).nullable(),
+    current: z
+      .object({
+        tradeDate: z.string(),
+        price: z.number(),
+        base: z.number().nullable().openapi({ description: "最新的每股基準。**虧損時是負數，不是 null**（1314 是 −0.8）。" }),
+        ratio: z.number().nullable().openapi({ description: "基準 ≤ 0 時 null。" }),
+        percentile: z.number().nullable().openapi({ description: "今天的比值落在窗口內的第幾百分位（0–100）。基準 ≤ 0 時 null。" }),
+      })
+      .nullable()
+      .openapi({ description: "查無代號時 null。" }),
+    prices: z.array(z.object({ tradeDate: z.string(), close: z.number() })).openapi({ description: "每日收盤，由舊到新，已換算到今天的股數基準（現金股利不換算）。" }),
+    bases: z
+      .array(
+        z.object({
+          effectiveFrom: z.string(),
+          base: z.number().nullable(),
+          fiscalYear: z.number(),
+          fiscalQuarter: z.number().nullable(),
+          knowledgeDateIsFallback: z.boolean().openapi({ description: "上游沒有這份財報的實際公告日時為 true，此時 effectiveFrom 是法定申報期限（analysis-ts valuationRiver.ts 的 statutoryDeadline）而不是真實公告日。" }),
+        }),
+      )
+      .openapi({ description: "每股基準的分段，河道線 = base × bandMultiples[i]，在 effectiveFrom 到下一段之前有效。base ≤ 0 的那段沒有河道。" }),
+  })
+  .openapi("ValuationRiver", {
+    example: {
+      symbol: "2330",
+      ratio: "pe",
+      basisNote: "河道線 = 每股基準 × 倍數；……",
+      lookback: { requestedYears: 1, from: "2025-10-07", to: "2026-10-06" },
+      sampleDays: 242,
+      bandMultiples: [23.46, 25.39, 27.33, 29.27, 31.2, 33.14],
+      ratioRange: { min: 22.47, max: 34.87 },
+      current: { tradeDate: "2026-10-06", price: 2585, base: 86.27, ratio: 29.96, percentile: 66.5 },
+      prices: [{ tradeDate: "2026-10-06", close: 2585 }],
+      bases: [{ effectiveFrom: "2026-08-11", base: 86.27, fiscalYear: 2026, fiscalQuarter: 2, knowledgeDateIsFallback: false }],
+    },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/stocks/{symbol}/valuation-river",
+  summary: "查詢本益比／股價淨值比／股價營收比河流圖",
+  description:
+    "資料來自 oingg-analysis-ts 的 GET /companies/valuation-river（2026-10-08 起代理），原樣轉發。" +
+    "ratio 必填：pe（基準是近四季 EPS）、pb（每股淨值）、ps（近四季每股營收）。lookbackYears 選填 1–10，不給時上游預設 5 年。" +
+    "**查無代號回 200**，lookback.from/to、bandMultiples、ratioRange、current 都是 null，prices、bases 是空陣列——不是 404。" +
+    "**虧損股**：基準 ≤ 0 的期間沒有比值，不計入倍數；全期間虧損時 sampleDays 0、bandMultiples null（2026-10-08 實測 6116），只剩股價線可畫。" +
+    "回應帶 `Cache-Control: public, max-age=3600`（盤後才會變）。",
+  tags: ["Stock"],
+  request: {
+    params: symbolParam,
+    query: valuationRiverQuerySchema.openapi("ValuationRiverQuery", { example: { ratio: "pe", lookbackYears: 5 } }),
+  },
+  responses: {
+    200: {
+      description: "河流圖資料；查無代號時是空殼（見上）。",
+      content: { "application/json": { schema: valuationRiverSchema } },
+    },
+    400: errorResponse("ratio 缺少或不是 pe／pb／ps，或 lookbackYears 不是 1–10 的整數。"),
     502: unauthorized502,
   },
 });

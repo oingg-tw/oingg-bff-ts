@@ -7,13 +7,13 @@ import type { StockProxyDeps } from "@/application/proxy/stock/stock.service.js"
 const MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST = 100;
 
 /** A "limit" query param bounded to [min, max] — each history endpoint below matches analysis-ts's own bound for that specific endpoint (they're not all the same). */
-function limitSchema(min: number, max: number) {
+function limitSchema(min: number, max: number, name = "limit") {
   return z.preprocess(
     (v) => (v === undefined || v === "" ? undefined : v),
     z
-      .coerce.number({ error: `"limit" must be an integer between ${min} and ${max}` })
+      .coerce.number({ error: `"${name}" must be an integer between ${min} and ${max}` })
       .refine((n) => Number.isInteger(n) && n >= min && n <= max, {
-        message: `"limit" must be an integer between ${min} and ${max}`,
+        message: `"${name}" must be an integer between ${min} and ${max}`,
       })
       .optional(),
   );
@@ -138,6 +138,15 @@ export const dupontHistoryQuerySchema = z.object({
 
 // analysis-ts's own bound for this endpoint is 1-120, NOT the same 1-40 as the other history endpoints
 // above — confirmed live, 2026-09-07.
+
+/**
+ * 估值河流圖的查詢（2026-10-08）。ratio 必填、三選一；lookbackYears 選填 1–10，**只有給了才轉發**——
+ * 省略時上游用它自己的預設（5 年），回應才會跟這個參數存在之前一樣。
+ */
+export const valuationRiverQuerySchema = z.object({
+  ratio: z.enum(["pe", "pb", "ps"], { error: '"ratio" must be one of pe, pb, ps' }),
+  lookbackYears: limitSchema(1, 10, "lookbackYears"),
+});
 
 export const monthlyRevenueHistoryQuerySchema = z.object({
   limit: limitSchema(1, 120),
@@ -345,6 +354,15 @@ export function createStockRouter(deps: StockProxyDeps): Router {
     const { symbol } = req.params;
     const breakdown = await deps.stockGateway.getBookValueBreakdown(symbol);
     res.json(breakdown);
+  });
+
+  stockRouter.get("/:symbol/valuation-river", async (req, res) => {
+    const { symbol } = req.params;
+    const query = parseBody(valuationRiverQuerySchema, req.query);
+    const river = await deps.stockGateway.getValuationRiver(symbol, query.ratio, query.lookbackYears);
+    // 一天只變一次（盤後），5 年約 1,250 列、10 年約 2,500 列。讓 web-nuxt 的 Nitro 快取可以放心存一小時。
+    res.set("Cache-Control", "public, max-age=3600");
+    res.json(river);
   });
 
   stockRouter.get("/:symbol/monthly-revenue-history", async (req, res) => {

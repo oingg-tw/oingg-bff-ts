@@ -6,6 +6,7 @@ import type { CompanyProfile } from "@/application/proxy/stock/companyProfile.ty
 import type { DailyPriceHistoryResult } from "@/application/proxy/stock/dailyPriceHistory.types.js";
 import type { DividendHistoryResult } from "@/application/proxy/stock/dividendHistory.types.js";
 import type { BookValueBreakdownResult } from "@/application/proxy/stock/bookValueBreakdown.types.js";
+import type { ValuationRiverRatio, ValuationRiverResult } from "@/application/proxy/stock/valuationRiver.types.js";
 import type { DupontHistoryBasis, DupontHistoryResult } from "@/application/proxy/stock/dupontHistory.types.js";
 import type { ExDividendCalendarEntry, ExDividendCalendarResult } from "@/application/proxy/stock/exDividendCalendar.types.js";
 import type { FinancialStatementResult, FinancialStatementType } from "@/application/proxy/stock/financialStatement.types.js";
@@ -79,6 +80,7 @@ export interface StockGatewayPort {
    * 每一列是恆等式：opening + 6 個變動項 = closing，驗它的容差要 0.02 不是 0.01（見型別說明）。
    */
   getBookValueBreakdown(symbol: string): Promise<BookValueBreakdownResult>;
+  getValuationRiver(symbol: string, ratio: ValuationRiverRatio, lookbackYears?: number): Promise<ValuationRiverResult>;
   getMonthlyRevenueHistory(symbol: string, limit?: number): Promise<MonthlyRevenueHistoryResult>;
   getForeignShareholdingHistory(symbol: string, limit?: number): Promise<ForeignShareholdingHistoryResult>;
   getDailyPriceHistory(symbol: string, limit?: number): Promise<DailyPriceHistoryResult>;

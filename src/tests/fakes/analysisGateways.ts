@@ -42,7 +42,7 @@ export function fakeEtfScreenerGateway(overrides: Partial<EtfScreenerGatewayPort
 }
 
 /**
- * The biggest of these by far — 23 methods, because analysis-ts's per-company API is that wide (see
+ * The biggest of these by far — 25 methods, because analysis-ts's per-company API is that wide (see
  * StockGatewayPort). Listing them all out is the point: if that surface grows, this file is one of the
  * places that has to acknowledge it.
  */
@@ -68,6 +68,7 @@ export function fakeStockGateway(overrides: Partial<StockGatewayPort> = {}): Sto
     getRoaHistory: vi.fn(),
     getDupontHistory: vi.fn(),
     getBookValueBreakdown: vi.fn(),
+    getValuationRiver: vi.fn(),
     getMonthlyRevenueHistory: vi.fn(),
     getForeignShareholdingHistory: vi.fn(),
     getDailyPriceHistory: vi.fn(),
