@@ -103,7 +103,7 @@ export function createRoutes(deps: AppDeps): Router {
       keyGenerator: createRateLimitKey(deps),
       // Retry-After 已由套件在呼叫 handler 之前設好（standardHeaders）；這裡只負責讓本體走 RFC 9457。
       handler: (_req, _res, next) => {
-        next(new AppError("Too many requests", 429, undefined, "RATE_LIMITED"));
+        next(new AppError("Too many requests", 429, undefined, "rate_limited"));
       },
     }),
   );

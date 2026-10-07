@@ -123,7 +123,7 @@ export async function resolveTradingWindow(
       `The range is longer than the available price history; "from" must be on or after ${earliest}`,
       400,
       undefined,
-      "RANGE_BEFORE_PRICE_HISTORY",
+      "range_before_price_history",
       { earliestPriceDate: earliest },
     );
   }

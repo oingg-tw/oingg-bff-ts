@@ -134,6 +134,6 @@ describe("reorderWatchlist", () => {
   it("rejects an ids list that is not exactly the current watchlist with 400", async () => {
     const watchlist = fakeWatchlist({ reorder: vi.fn().mockResolvedValue(null) });
 
-    await expect(reorderWatchlist("uid1", [SAMPLE_ID], { watchlist })).rejects.toMatchObject({ statusCode: 400, code: "REORDER_MISMATCH" });
+    await expect(reorderWatchlist("uid1", [SAMPLE_ID], { watchlist })).rejects.toMatchObject({ statusCode: 400, code: "reorder_mismatch" });
   });
 });
