@@ -98,9 +98,11 @@ The shortest path to done is the right path.
 
 ---
 
-# oingg-bff-ts
+# 業務中台（oingg-bff-ts）
 
-前端（oingg-web-nuxt）唯一的後端。兩件事住在同一個 process：**代理層**把 oingg-analysis-ts 的 API 原樣轉發出去，**業務中台**擁有這個服務自己的資料（使用者、自選股、持股、交易、preset、訂閱）。
+這個服務叫**業務中台**，不叫 BFF（使用者 2026-10-08 正名）。回覆、跨 session 訊息、文件和新寫的註解都用這個名字；repo／package 名稱、Cloud Run 服務、`BFF_API_KEY` 這類其他服務或部署依賴的識別名稱另案處理，沒有使用者同意不要改。
+
+它是前端（oingg-web-nuxt）唯一的後端。兩件事住在同一個 process：**代理層**把 oingg-analysis-ts 的 API 原樣轉發出去，其餘是業務中台擁有的資料（使用者、自選股、持股、交易、preset、訂閱）。
 
 ponytail 的全文放在這份文件最上面，**因為它是最高優先的工作方式**。它同時以 plugin 形式安裝（user scope）所以每個 session 都會載入一次——刻意重複：subagent 拿得到 CLAUDE.md 但不保證拿得到 plugin 的 SessionStart hook，而給 subagent 的那一句正好要求它「先當作既有 pattern 沿用」，跟階梯的第 2 級是同一件事。**兩份文字若哪天不一致，以 plugin 為準**（它是本體），並回來更新這裡。
 

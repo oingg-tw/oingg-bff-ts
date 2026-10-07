@@ -35,7 +35,7 @@ function generateDocument() {
   return generator.generateDocument({
     openapi: "3.0.0",
     info: {
-      title: "oingg-bff-ts API",
+      title: "業務中台 API（oingg-bff-ts）",
       version: "1.0.0",
       description: "BFF API documentation for the oingg-bff-ts service",
     },
