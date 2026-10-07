@@ -308,6 +308,17 @@ enum StockDetailPageMode {
 /// 解析器，不用 eval）。所以這裡驗的只是形狀與長度，不驗公式的語意。
 ///
 /// 沒有列＝從來沒存過，前端套用自己的預設；跟「存了一份空清單」是兩件事。
+/// 自選指標釘選（2026-10-08）：使用者釘在側邊欄／速覽頁的指標頁 slug，順序就是側邊欄的排列順序。
+/// 原本寄存在 StockDetailPreferences.pinnedMetricSlugs，web-nuxt 刪掉卡片偏好後獨立出來。
+/// 「沒有這一列」＝從沒存過（前端套預設）；slugs 是 [] ＝使用者把釘選全取消了。兩者不同，所以 slugs 不可為 null。
+model PinnedMetricPreferences {
+  firebaseUid String   @id @map("firebase_uid")
+  slugs       Json
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("pinned_metric_preferences")
+}
+
 model HoldingColumnPreferences {
   firebaseUid String   @id @map("firebase_uid")
   columns     Json

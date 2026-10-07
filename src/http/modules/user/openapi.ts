@@ -2,6 +2,7 @@ import { z } from "zod";
 import { errorResponse, registry } from "@/http/swagger/registry.js";
 import {
   updateFullWidthSchema,
+  updatePinnedMetricsSchema,
   updateHoldingColumnsSchema,
   updateWatchlistColumnsSchema,
   updateMarketColorConventionSchema,
@@ -260,6 +261,46 @@ const holdingColumnsResponse = z
     }),
   })
   .openapi("HoldingColumnsResponse");
+
+const pinnedMetricsResponse = z
+  .object({
+    slugs: z.array(z.string()).nullable().openapi({
+      description: "釘選的指標頁 slug，順序就是側邊欄順序。**null＝這個帳號從沒存過釘選**（前端套自己的預設）；[]＝使用者把釘選全取消了，兩者不同。",
+    }),
+  })
+  .openapi("PinnedMetrics", { example: { slugs: ["roe", "pe-ratio", "dividend-yield"] } });
+
+registry.registerPath({
+  method: "get",
+  path: "/users/me/pinned-metrics",
+  summary: "查詢自選指標釘選（側邊欄／速覽頁）",
+  description:
+    "2026-10-08 新增。原本存在已移除的 /users/me/stock-detail-preferences 的 pinnedMetricSlugs，既有的釘選已搬到這裡。",
+  tags: ["Users"],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: { description: "目前的釘選；從沒存過時 slugs 是 null。", content: { "application/json": { schema: pinnedMetricsResponse } } },
+    401: unauthorized,
+  },
+});
+
+registry.registerPath({
+  method: "put",
+  path: "/users/me/pinned-metrics",
+  summary: "整份覆蓋自選指標釘選",
+  description:
+    "整份取代，**順序照存、不去重也不排序**（順序就是側邊欄順序）。最多 50 筆，每筆是 1～64 字元的非空字串；slug 不對照任何清單驗證。",
+  tags: ["Users"],
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: { required: true, content: { "application/json": { schema: updatePinnedMetricsSchema.openapi("UpdatePinnedMetricsRequest") } } },
+  },
+  responses: {
+    200: { description: "存好之後的釘選（跟 GET 同一個形狀）。", content: { "application/json": { schema: pinnedMetricsResponse } } },
+    400: errorResponse("slugs 不是陣列、超過 50 筆，或有空字串／超過 64 字元的項目。"),
+    401: unauthorized,
+  },
+});
 
 registry.registerPath({
   method: "get",

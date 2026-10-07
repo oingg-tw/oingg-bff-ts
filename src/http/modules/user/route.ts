@@ -61,6 +61,17 @@ export const updateShowAsOfDateSchema = z.object({ showAsOfDate: z.boolean() });
  * （customHoldingColumns）是另一回事，在 service 裡判斷。
  */
 export const HOLDING_COLUMNS_HARD_LIMIT = 50;
+/**
+ * 自選指標釘選（2026-10-08，web-nuxt 提的合約）：整份覆蓋、順序照存，**不去重也不排序**——順序就是側邊欄
+ * 順序，重複與否是前端的事。50 沿用舊 pinnedMetricSlugs 的上限；內容不對照任何清單驗證，slug 是 web-nuxt 的
+ * 頁面詞彙，會隨他們的新頁面增減。
+ */
+export const updatePinnedMetricsSchema = z.object({
+  slugs: z
+    .array(z.string().min(1, { message: "each slug must be a non-empty string" }).max(64, { message: "each slug must be at most 64 characters" }))
+    .max(50, { message: '"slugs" must contain at most 50 items' }),
+});
+
 export const updateHoldingColumnsSchema = z.object({
   columns: z
     .array(
@@ -162,6 +173,17 @@ export function createUserRouter(deps: UserRouterDeps): Router {
       res.json({ displaySettings });
     },
   );
+
+  // 沒有業務邏輯（驗證在上面的 zod schema），route 直接呼叫 port，不留 use case 殼。
+  userRouter.get("/me/pinned-metrics", requireAuth, async (req: AuthenticatedRequest, res) => {
+    res.json({ slugs: await deps.userPreferences.getPinnedMetrics(requireUser(req)) });
+  });
+
+  userRouter.put("/me/pinned-metrics", requireAuth, async (req: AuthenticatedRequest, res) => {
+    const firebaseUid = requireUser(req);
+    const body = parseBody(updatePinnedMetricsSchema, req.body);
+    res.json({ slugs: await deps.userPreferences.savePinnedMetrics(firebaseUid, body.slugs) });
+  });
 
   userRouter.get("/me/holding-columns", requireAuth, async (req: AuthenticatedRequest, res) => {
     const holdingColumns = await getHoldingColumns(requireUser(req), deps);

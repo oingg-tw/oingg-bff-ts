@@ -40,6 +40,11 @@ export interface UserPreferencesPort {
   getScreenerDisplaySettings(firebaseUid: string): Promise<StoredScreenerDisplaySettings | null>;
   saveScreenerDisplaySettings(firebaseUid: string, showAsOfDate: boolean): Promise<StoredScreenerDisplaySettings>;
 
+  /** 自選指標釘選（側邊欄順序）。null＝從沒存過，前端套預設；[]＝使用者把釘選全取消了。 */
+  getPinnedMetrics(firebaseUid: string): Promise<string[] | null>;
+  /** 整份覆蓋，順序照存、不去重不排序（順序就是側邊欄順序）。 */
+  savePinnedMetrics(firebaseUid: string, slugs: string[]): Promise<string[]>;
+
   /** 持股頁自訂欄位。null＝沒有列（從來沒存過）。 */
   getHoldingColumns(firebaseUid: string): Promise<HoldingColumn[] | null>;
   /** 整份覆蓋，順序就是顯示順序。 */

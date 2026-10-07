@@ -307,6 +307,13 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
   }
   await api("/transactions?all=true", { method: "DELETE", token: userB.idToken }).catch(() => undefined);
 
+  // pinned-metrics is self-scoped too (no id in the path): A's PUT must never touch B's pins.
+  await api("/users/me/pinned-metrics", { method: "PUT", token: userB.idToken, body: { slugs: ["b-marker"] } });
+  await api("/users/me/pinned-metrics", { method: "PUT", token: userA.idToken, body: { slugs: ["a-marker"] } });
+  const bPins = (await api("/users/me/pinned-metrics", { token: userB.idToken })).json as { slugs?: unknown };
+  const bPinsOk = Array.isArray(bPins?.slugs) && bPins.slugs.length === 1 && bPins.slugs[0] === "b-marker";
+  record("BOLA: pinned-metrics", bPinsOk ? "PASS" : "FAIL", bPinsOk ? undefined : `B's pins after A's PUT: ${JSON.stringify(bPins?.slugs)}`);
+
   // holding-columns is self-scoped (no id in the path): A's PUT must never touch B's list.
   const bColumns = [{ id: "b-marker", label: "B", formula: "=D/A", format: "number", decimals: 2 }];
   await api("/users/me/holding-columns", { method: "PUT", token: userB.idToken, body: { columns: bColumns } });
@@ -400,6 +407,7 @@ async function main() {
       await prisma.columnPreset.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await prisma.userThemePreference.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await prisma.screenerDisplaySettings.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
+      await prisma.pinnedMetricPreferences.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await prisma.holdingColumnPreferences.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await auth.deleteUser(uid).catch(() => undefined);
     }

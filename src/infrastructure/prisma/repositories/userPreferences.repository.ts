@@ -1,3 +1,4 @@
+import { findPinnedMetrics, upsertPinnedMetrics } from "@/infrastructure/prisma/repositories/pinnedMetrics.repository.js";
 import { findHoldingColumns, upsertHoldingColumns } from "@/infrastructure/prisma/repositories/holdingColumns.repository.js";
 import { findWatchlistColumns, upsertWatchlistColumns } from "@/infrastructure/prisma/repositories/watchlistColumns.repository.js";
 import {
@@ -30,6 +31,8 @@ export const prismaUserPreferences: UserPreferencesPort = {
 
 
 
+  getPinnedMetrics: findPinnedMetrics,
+  savePinnedMetrics: upsertPinnedMetrics,
   getHoldingColumns: findHoldingColumns,
   saveHoldingColumns: upsertHoldingColumns,
 

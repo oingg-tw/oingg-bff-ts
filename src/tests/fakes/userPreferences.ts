@@ -20,6 +20,8 @@ export function fakeUserPreferences(overrides: Partial<UserPreferencesPort> = {}
     saveTheme: vi.fn(),
     getScreenerDisplaySettings: vi.fn().mockResolvedValue(null),
     saveScreenerDisplaySettings: vi.fn(),
+    getPinnedMetrics: vi.fn().mockResolvedValue(null),
+    savePinnedMetrics: vi.fn(),
     getHoldingColumns: vi.fn().mockResolvedValue(null),
     saveHoldingColumns: vi.fn().mockImplementation(async (_uid: string, columns: unknown) => columns),
     getWatchlistColumns: vi.fn().mockResolvedValue(null),
