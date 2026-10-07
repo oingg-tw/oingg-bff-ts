@@ -26,9 +26,6 @@ export const errorResponseSchema = z
       .array(z.object({ name: z.string(), reason: z.string(), code: z.string() }))
       .optional()
       .openapi({ description: "參數驗證失敗（400）時才有。name 是 RFC 6901 JSON Pointer（例如 /lookbackYears、/transactions/0/price），code 是 zod 的 issue code。" }),
-    error: z
-      .object({ message: z.string(), code: z.string().optional(), details: z.unknown().optional() })
-      .openapi({ description: "**過渡期保留的舊格式**，message 等於 detail、code 等於頂層 code。前端改讀頂層欄位後會移除。" }),
   })
   .passthrough()
   .openapi("Problem");

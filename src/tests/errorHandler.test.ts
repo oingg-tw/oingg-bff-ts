@@ -79,7 +79,7 @@ describe("errorHandler", () => {
     return JSON.parse(vi.mocked(res.send).mock.calls[0]?.[0] as string) as Record<string, unknown>;
   }
 
-  it("寫成 RFC 9457 problem+json：status 跟狀態列一致、instance 跟 X-Request-Id 同值、舊的 error 物件仍在", () => {
+  it("寫成 RFC 9457 problem+json：status 跟狀態列一致、instance 跟 X-Request-Id 同值", () => {
     const res = problemResponse();
 
     errorHandler(new AppError("Your plan allows 10 items", 403, { debug: true }, "quota_exceeded", { limit: 10, used: 10 }), {} as Request, res, vi.fn());
@@ -99,9 +99,10 @@ describe("errorHandler", () => {
       // 擴充成員在頂層、每個環境都送；details 只是除錯用，不會出現在頂層。
       limit: 10,
       used: 10,
-      error: { message: "Your plan allows 10 items", code: "quota_exceeded" },
     });
-    expect(body).not.toHaveProperty("details");
+    // 舊的 error 信封 2026-10-08 web-nuxt 改讀頂層後拿掉；details 只在非 production 出現（測試環境不是 production）。
+    expect(body).not.toHaveProperty("error");
+    expect(body.details).toEqual({ debug: true });
   });
 
   it("擴充成員蓋不掉標準成員", () => {

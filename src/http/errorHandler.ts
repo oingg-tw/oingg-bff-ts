@@ -35,11 +35,10 @@ export function jsonBodyErrorHandler(err: unknown, _req: Request, _res: Response
  *   resolve is worse than the standard's own fallback — so callers branch on `status` and the `code`
  *   extension, never on `type`.
  * - `instance` is urn:uuid:<the request ID>, the same value as the X-Request-Id header and the log line.
- * - `code` and AppError.extensions are extension members, sent in every environment. `details` stays a
- *   debugging aid and only appears (inside the legacy `error` object) outside production.
- * - **`error: { message, code }` is the pre-9457 envelope, kept as an extension member during the
- *   transition** so web-nuxt's describeBffError/bffErrorCode keep working unchanged. Delete it once
- *   web-nuxt reads `detail`/`code` from the top level.
+ * - `code` and AppError.extensions are extension members, sent in every environment. `details` is a
+ *   debugging aid and only appears outside production.
+ * - The pre-9457 `error: { message, code }` envelope was sent alongside for one day and removed once
+ *   web-nuxt read the top-level members (their e51cc66, 2026-10-08).
  *
  * Sent as application/problem+json; ofetch's JSON detection (/^application\/(?:[\w!#$%&*.^`~-]*\+)?json/)
  * parses it the same as application/json.
@@ -75,7 +74,7 @@ function sendProblem(
     detail,
     instance: `urn:uuid:${requestId}`,
     ...(code === undefined ? {} : { code }),
-    error: { message: detail, code, details },
+    ...(details === undefined ? {} : { details }),
   };
   res.set("X-Request-Id", requestId);
   res.status(status).type("application/problem+json").send(JSON.stringify(problem));
