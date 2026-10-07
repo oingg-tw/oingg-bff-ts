@@ -98,9 +98,9 @@ The shortest path to done is the right path.
 
 ---
 
-# 業務中台（oingg-bff-ts）
+# 業務中台（oingg-business-ts）
 
-這個服務叫**業務中台**，不叫 BFF（使用者 2026-10-08 正名）。回覆、跨 session 訊息、文件和新寫的註解都用這個名字；repo／package 名稱、Cloud Run 服務、`BFF_API_KEY` 這類其他服務或部署依賴的識別名稱另案處理，沒有使用者同意不要改。
+這個服務叫**業務中台**，不叫 BFF（使用者 2026-10-08 正名）。repo 同日改名為 oingg-business-ts（舊名 oingg-bff-ts，GitHub 會轉址）。回覆、跨 session 訊息、文件和新寫的註解都用新名字；Cloud Run 服務與 GCP 專案（`oingg-bff`）、`BFF_API_KEY` 這類其他服務或部署依賴的識別名稱另案處理，沒有使用者同意不要改。
 
 它是前端（oingg-web-nuxt）唯一的後端。兩件事住在同一個 process：**代理層**把 oingg-analysis-ts 的 API 原樣轉發出去，其餘是業務中台擁有的資料（使用者、自選股、持股、交易、preset、訂閱）。
 

@@ -1,5 +1,5 @@
 {
-  "name": "oingg-bff-ts",
+  "name": "oingg-business-ts",
   "version": "1.0.0",
   "description": "BFF service aggregating data from multiple Neon databases, built on ultimate-express",
   "type": "module",
