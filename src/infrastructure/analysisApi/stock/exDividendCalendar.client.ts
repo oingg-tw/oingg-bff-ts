@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type {
   ExDividendCalendarEntry,
@@ -14,27 +14,17 @@ function toNumberOrNull(value: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
 
-function isExDividendType(value: unknown): value is ExDividendType {
-  return value === "息" || value === "權" || value === "權息";
-}
-
-function isCalendarStatus(value: unknown): value is ExDividendCalendarStatus {
-  return value === "announced" || value === "realized";
-}
+const KNOWN_EX_TYPES: readonly ExDividendType[] = ["息", "權", "權息"];
+const KNOWN_STATUSES: readonly ExDividendCalendarStatus[] = ["announced", "realized"];
+const KNOWN_SECURITY_TYPES: readonly ExDividendCalendarSecurityType[] = ["ETF", "COMMON"];
 
 /**
- * Unknown values become null rather than throwing, unlike exType/status above. Those two gate fields the
- * whole row's meaning depends on; this one is a label, and a new upstream security type (回饋型? 槓桿型?)
- * shouldn't take down the whole month's calendar. The logged warning is how we find out.
+ * 2026-10-08 起 exType／status／securityType 三個 enum 一律 passThroughEnum：未知的新值照樣放行（並記 warn），
+ * 不再讓一筆新種類的除權息讓整個月的行事曆 502。exType／status 缺欄位仍是上游壞了（502）；securityType 本來就
+ * 可能沒有，缺了是 null。業務中台自己沒有依 status 或 exType 分支的邏輯（配股只看 stockDividendRatio）。
  */
 function toSecurityTypeOrNull(value: unknown, symbol: string): ExDividendCalendarSecurityType | null {
-  if (value === "ETF" || value === "COMMON") {
-    return value;
-  }
-  if (value !== null && value !== undefined) {
-    logger.warn({ symbol, securityType: value }, "Ex-dividend calendar entry has an unrecognized securityType");
-  }
-  return null;
+  return passThroughEnum(value, KNOWN_SECURITY_TYPES, { field: "securityType", symbol });
 }
 
 /**
@@ -59,20 +49,19 @@ function toCompositionOrNull(value: unknown): ExDividendCompositionBreakdown | n
 export function normalizeExDividendCalendarEntry(raw: unknown): ExDividendCalendarEntry {
   const r = raw as Record<string, unknown>;
   const symbol = String(r.symbol);
-  if (!isExDividendType(r.exType)) {
-    throw new AppError(`Ex-dividend calendar entry for "${symbol}" has an unrecognized exType`, 502);
-  }
-  if (!isCalendarStatus(r.status)) {
-    throw new AppError(`Ex-dividend calendar entry for "${symbol}" has an unrecognized status`, 502);
+  const exType = passThroughEnum(r.exType, KNOWN_EX_TYPES, { field: "exType", symbol });
+  const status = passThroughEnum(r.status, KNOWN_STATUSES, { field: "status", symbol });
+  if (exType === null || status === null) {
+    throw new AppError(`Ex-dividend calendar entry for "${symbol}" is missing exType or status`, 502);
   }
   return {
     symbol,
     companyName: typeof r.companyName === "string" ? r.companyName : null,
-    status: r.status,
+    status,
     paymentDate: typeof r.paymentDate === "string" ? r.paymentDate : null,
     fiscalYear: toNumberOrNull(r.fiscalYear),
     exDate: String(r.exDate),
-    exType: r.exType,
+    exType,
     stockDividendRatio: toNumberOrNull(r.stockDividendRatio),
     subscriptionRatio: toNumberOrNull(r.subscriptionRatio),
     subscriptionPricePerShare: toNumberOrNull(r.subscriptionPricePerShare),

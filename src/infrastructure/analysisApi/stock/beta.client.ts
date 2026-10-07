@@ -1,21 +1,18 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { BetaResult, BetaTimeframe, BetaWindow } from "@/application/proxy/stock/beta.types.js";
 
-const VALID_TIMEFRAMES: BetaTimeframe[] = ["1Y_1D", "2Y_1W", "3Y_1W", "5Y_1M"];
-
-function isBetaTimeframe(value: unknown): value is BetaTimeframe {
-  return typeof value === "string" && (VALID_TIMEFRAMES as string[]).includes(value);
-}
+const KNOWN_TIMEFRAMES: readonly BetaTimeframe[] = ["1Y_1D", "2Y_1W", "3Y_1W", "5Y_1M"];
 
 function normalizeWindow(raw: unknown): BetaWindow {
   const r = raw as Record<string, unknown>;
-  if (!isBetaTimeframe(r.timeframe)) {
-    throw new AppError(`Beta endpoint response has an unrecognized timeframe: ${String(r.timeframe)}`, 502);
+  const timeframe = passThroughEnum(r.timeframe, KNOWN_TIMEFRAMES, { field: "windows[].timeframe" });
+  if (timeframe === null) {
+    throw new AppError("Beta endpoint response has a window without a timeframe", 502);
   }
   return {
-    timeframe: r.timeframe,
+    timeframe,
     value: typeof r.value === "number" ? r.value : null,
     nullReason: typeof r.nullReason === "string" ? r.nullReason : null,
     tradeDate: typeof r.tradeDate === "string" ? r.tradeDate : null,

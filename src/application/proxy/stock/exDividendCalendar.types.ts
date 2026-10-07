@@ -5,7 +5,7 @@ import type { ExDividendNoticeEntry } from "@/application/proxy/stock/exDividend
  * distribution for an ex-date < today. Added by analysis-ts 2026-09-22 (cf1b752e) when the calendar
  * gained past-month coverage — before that every entry was implicitly an announcement.
  */
-export type ExDividendCalendarStatus = "announced" | "realized";
+export type ExDividendCalendarStatus = "announced" | "realized" | (string & {}); // 未知的新值照樣放行（passThroughEnum）
 
 /**
  * Same fields as ExDividendNoticeEntry (one entry = one company's one ex-dividend/ex-rights event), plus
@@ -96,7 +96,7 @@ export interface ExDividendCompositionBreakdown {
   otherIncomePct: number | null;
 }
 
-export type ExDividendCalendarSecurityType = "ETF" | "COMMON";
+export type ExDividendCalendarSecurityType = "ETF" | "COMMON" | (string & {});
 
 export interface ExDividendCalendarResult {
   entries: ExDividendCalendarEntry[];

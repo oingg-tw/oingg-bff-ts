@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { CompanyProfile } from "@/application/proxy/stock/companyProfile.types.js";
 import type { Market } from "@/application/proxy/market/market.types.js";
@@ -9,9 +9,6 @@ function toStringOrNull(value: unknown): string | null {
   return value === null || value === undefined ? null : String(value);
 }
 
-function isMetricDataType(value: unknown): value is "1" | "2" {
-  return value === "1" || value === "2";
-}
 
 /**
  * `market` 會收斂成 `"TWSE" | "TPEx"`，而**未知值會落到 TWSE**——所以這裡要出聲。2026-10-01 的實例：
@@ -27,20 +24,26 @@ function isMetricDataType(value: unknown): value is "1" | "2" {
  * 真的出現第三處再抽。
  */
 function normalizeProfileMarket(value: unknown, symbol: string): Market {
-  if (value === "TPEx" || value === "TWSE") {
-    return value;
+  // 未知的字串照樣放行（2026-10-08，passThroughEnum）：以前改寫成 TWSE，等於把新的市場別悄悄標成上市。
+  // 缺欄位才沿用舊行為落到 TWSE 並記 warn。
+  const market = passThroughEnum(value, KNOWN_MARKETS, { field: "market", symbol });
+  if (market !== null) {
+    return market;
   }
-  logger.warn({ symbol, market: value }, "Company profile has an unrecognized market — defaulting to TWSE");
+  logger.warn({ symbol, market: value }, "Company profile is missing its market — defaulting to TWSE");
   return "TWSE";
 }
 
+const KNOWN_MARKETS: readonly Market[] = ["TWSE", "TPEx"];
+
 function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
-  if (!isMetricDataType(raw.metricDataType)) {
-    throw new AppError(`Company profile for "${String(raw.symbol)}" has an unrecognized metricDataType`, 502);
+  const metricDataType = passThroughEnum(raw.metricDataType, ["1", "2"] as const, { field: "metricDataType", symbol: raw.symbol });
+  if (metricDataType === null) {
+    throw new AppError(`Company profile for "${String(raw.symbol)}" is missing metricDataType`, 502);
   }
   return {
     symbol: String(raw.symbol),
-    metricDataType: raw.metricDataType,
+    metricDataType,
     market: normalizeProfileMarket(raw.market, String(raw.symbol)),
     // 缺席給 null 不給 false——理由見 companyProfile.types.ts。上游 PRD 還沒有這個欄位，而把興櫃說成
     // 「不是興櫃」是錯的標籤；null 讓呼叫端知道「還不知道」。

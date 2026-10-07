@@ -1,4 +1,4 @@
-export type BetaTimeframe = "1Y_1D" | "2Y_1W" | "3Y_1W" | "5Y_1M";
+export type BetaTimeframe = "1Y_1D" | "2Y_1W" | "3Y_1W" | "5Y_1M" | (string & {}); // 未知的新值照樣放行（passThroughEnum）
 
 export interface BetaWindow {
   timeframe: BetaTimeframe;

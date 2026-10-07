@@ -103,9 +103,13 @@ describe("fetchExDividendCalendar", () => {
     expect(result.entries[1]).toMatchObject({ status: "realized", paymentDate: "2026-08-28", fiscalYear: 2025 });
   });
 
-  it("throws a 502 AppError when an entry has an unrecognized status", async () => {
+  // 2026-10-08 起回應裡沒見過的 enum 值照樣放行（passThroughEnum，對 analysis-ts 的承諾），缺欄位才是 502。
+  it("passes an unrecognized status through; a missing one is a 502", async () => {
     mockFetchOnce({ ok: true, body: { entries: [{ ...RAW_BODY.entries[0], status: "pending" }] } });
+    await expect(fetchExDividendCalendar("2026-09")).resolves.toMatchObject({ entries: [{ status: "pending" }] });
 
+    const { status: _s, ...withoutStatus } = RAW_BODY.entries[0] as Record<string, unknown>;
+    mockFetchOnce({ ok: true, body: { entries: [withoutStatus] } });
     await expect(fetchExDividendCalendar("2026-09")).rejects.toMatchObject({ statusCode: 502 });
   });
 
@@ -133,10 +137,10 @@ describe("fetchExDividendCalendar", () => {
     await expect(fetchExDividendCalendar("2026-09")).rejects.toMatchObject({ statusCode: 502 });
   });
 
-  it("throws a 502 AppError when an entry has an unrecognized exType", async () => {
+  it("passes an unrecognized exType through", async () => {
     mockFetchOnce({ ok: true, body: { entries: [{ ...RAW_BODY.entries[0], exType: "not-a-real-type" }] } });
 
-    await expect(fetchExDividendCalendar("2026-09")).rejects.toMatchObject({ statusCode: 502 });
+    await expect(fetchExDividendCalendar("2026-09")).resolves.toMatchObject({ entries: [{ exType: "not-a-real-type" }] });
   });
 });
 
@@ -275,15 +279,12 @@ describe("fetchExDividendCalendar ETF 欄位", () => {
     expect(entry?.composition?.dividendIncomePct).toBeNull();
   });
 
-  /**
-   * 沒見過的 securityType 回 null 並記 warning，**不丟 502**——那是個標籤，不是整列意義的前提，
-   * 上游多一種類型不該讓整個月的行事曆掛掉（exType/status 才丟 502，那兩個是前提）。
-   */
-  it("沒見過的 securityType 變成 null 而不是丟 502", async () => {
+  /** 沒見過的 securityType 照樣放行（2026-10-08 以前是變成 null）、不丟 502，上游多一種類型不該讓整個月的行事曆掛掉。 */
+  it("沒見過的 securityType 原樣放行而不是丟 502", async () => {
     mockFetchOnce({ ok: true, body: { entries: [{ ...RAW_ETF_ROW, securityType: "LEVERAGED" }] } });
     const entry = (await fetchExDividendCalendar("2026-09")).entries[0];
 
-    expect(entry?.securityType).toBeNull();
+    expect(entry?.securityType).toBe("LEVERAGED");
     expect(entry?.distributionPerUnit).toBe(0.125);
   });
 

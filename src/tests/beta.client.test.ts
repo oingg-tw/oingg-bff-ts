@@ -96,12 +96,13 @@ describe("fetchBeta", () => {
     await expect(fetchBeta("2330")).rejects.toMatchObject({ statusCode: 502 });
   });
 
-  it("throws a 502 AppError when a window has an unrecognized timeframe", async () => {
-    mockFetchOnce({
-      ok: true,
-      body: { symbol: "2330", windows: [{ timeframe: "3Y_1D", value: 1, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false }] },
-    });
+  // 2026-10-08 起回應裡沒見過的 enum 值照樣放行（passThroughEnum，對 analysis-ts 的承諾），缺欄位才是 502。
+  it("passes an unrecognized timeframe through instead of failing; a missing one is a 502", async () => {
+    const win = { value: 1, nullReason: null, tradeDate: "2026-09-11", knowledgeDate: "2026-09-11", knowledgeDateIsFallback: false };
+    mockFetchOnce({ ok: true, body: { symbol: "2330", windows: [{ ...win, timeframe: "3Y_1D" }] } });
+    await expect(fetchBeta("2330")).resolves.toMatchObject({ windows: [{ timeframe: "3Y_1D", value: 1 }] });
 
+    mockFetchOnce({ ok: true, body: { symbol: "2330", windows: [win] } });
     await expect(fetchBeta("2330")).rejects.toMatchObject({ statusCode: 502 });
   });
 });

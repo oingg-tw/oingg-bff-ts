@@ -39,7 +39,7 @@ export interface MaterialAnnouncementsResult {
 
 /// TWSE+TPEx merged as of 2026-09-01 (tpex-ts opened a matching export dataset) — every row in these
 /// 5 endpoints below now carries `market` so the frontend can tell which exchange a symbol is on.
-export type Market = "TWSE" | "TPEx";
+export type Market = "TWSE" | "TPEx" | (string & {}); // 未知的新值照樣放行（passThroughEnum），不再改寫成 TWSE
 
 export type RevenueRankingMetric = "yoy" | "mom" | "revenue";
 export type RankingOrder = "asc" | "desc";

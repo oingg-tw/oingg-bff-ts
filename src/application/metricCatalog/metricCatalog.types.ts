@@ -30,7 +30,7 @@ export interface MetricBadgeThreshold {
    * (2026-09-20, first seen on piotroskiFScore's nested `warning` threshold) is the inclusive counterpart
    * to the pre-existing "lt" — "gte" already existed as gt's inclusive counterpart, "lte" had just never
    * been used until this threshold needed a ≤ comparison. */
-  comparator?: "gt" | "lt" | "gte" | "lte" | "abs_lt" | "in_range";
+  comparator?: "gt" | "lt" | "gte" | "lte" | "abs_lt" | "in_range" | (string & {});
   value?: number;
   /** Only set (and only meaningful) when comparator is "in_range" — the inclusive lower/upper bounds. */
   valueMin?: number;

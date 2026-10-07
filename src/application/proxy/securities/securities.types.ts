@@ -1,4 +1,4 @@
-export type SecurityType = "COMMON" | "PREFERRED" | "ETF";
+export type SecurityType = "COMMON" | "PREFERRED" | "ETF" | (string & {}); // 未知的新值照樣放行（passThroughEnum）
 
 export interface SecurityListEntry {
   symbol: string;

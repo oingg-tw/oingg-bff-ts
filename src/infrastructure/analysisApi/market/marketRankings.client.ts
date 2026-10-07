@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toNumberOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum, toNumberOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type {
   AttentionStockCriteriaDetail,
@@ -66,10 +66,12 @@ function toStringOrNull(value: unknown): string | null {
  * 完整說明）：上游若新增一種市場別（例如把興櫃分出 `EMERGING`），沒跟上的話排行榜會把它靜默標成「上市」。
  */
 function normalizeMarket(value: unknown, symbol?: string): Market {
-  if (value === "TPEx" || value === "TWSE") {
-    return value;
+  // 未知的字串照樣放行（2026-10-08，passThroughEnum），不再改寫成 TWSE；缺欄位才沿用舊行為。
+  const market = passThroughEnum(value, ["TWSE", "TPEx"] as const, { field: "market", symbol });
+  if (market !== null) {
+    return market;
   }
-  logger.warn({ symbol, market: value }, "Market ranking row has an unrecognized market — defaulting to TWSE");
+  logger.warn({ symbol, market: value }, "Market ranking row is missing its market — defaulting to TWSE");
   return "TWSE";
 }
 

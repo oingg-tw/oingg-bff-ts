@@ -1,4 +1,4 @@
-export type ExDividendType = "息" | "權" | "權息";
+export type ExDividendType = "息" | "權" | "權息" | (string & {}); // 未知的新值照樣放行（passThroughEnum）
 
 /**
  * "權" covers two distinct mechanisms whose fields never appear together on the same entry (confirmed

@@ -153,9 +153,11 @@ describe("fetchExDividendNotices", () => {
     await expect(fetchExDividendNotices(["2330"])).rejects.toMatchObject({ statusCode: 502 });
   });
 
-  it("throws a 502 AppError when an entry has an unrecognized exType", async () => {
+  // 2026-10-08 起回應裡沒見過的 enum 值照樣放行（passThroughEnum，對 analysis-ts 的承諾），缺欄位才是 502。
+  it("passes an unrecognized exType through", async () => {
     mockFetchOnce({ ok: true, body: { notices: { "2330": [{ ...CASH_ONLY_ENTRY, exType: "unknown" }] } } });
 
-    await expect(fetchExDividendNotices(["2330"])).rejects.toMatchObject({ statusCode: 502 });
+    const notices = await fetchExDividendNotices(["2330"]);
+    expect(notices.get("2330")?.[0]?.exType).toBe("unknown");
   });
 });

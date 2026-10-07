@@ -1,4 +1,4 @@
-export type CompanyProfileMarket = "TWSE" | "TPEx";
+export type CompanyProfileMarket = "TWSE" | "TPEx" | (string & {}); // 未知的新值照樣放行（passThroughEnum），不再改寫成 TWSE
 
 /**
  * Company basic-info profile from oingg-analysis-ts's GET /companies/profile — sourced from their
@@ -61,7 +61,7 @@ export interface CompanyProfile {
    * 2849/2851/5863) are "1" and only began getting metric values with this change. Deliberately typed as a
    * closed union since analysis-ts declares it as a two-value enum.
    */
-  metricDataType: "1" | "2";
+  metricDataType: "1" | "2" | (string & {});
   stockTransferAgency: string | null;
   transferAgencyPhone: string | null;
   transferAgencyAddress: string | null;

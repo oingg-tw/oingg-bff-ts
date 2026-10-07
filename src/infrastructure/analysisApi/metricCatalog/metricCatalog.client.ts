@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { MetricCatalogGatewayPort } from "@/application/ports/metricCatalogGateway.js";
 import type {
@@ -34,7 +34,8 @@ function isRawBadgeThreshold(value: unknown): value is MetricBadgeThreshold {
   return (
     typeof t.description === "string" &&
     (t.denominator === undefined || typeof t.denominator === "number") &&
-    (t.comparator === undefined || (BADGE_COMPARATORS as readonly string[]).includes(t.comparator)) &&
+    // comparator 只要是字串就收（2026-10-08）：寫死的清單曾讓一個新 comparator 拖垮整份型錄同步。
+    (t.comparator === undefined || passThroughEnum(t.comparator, BADGE_COMPARATORS, { field: "badge.threshold.comparator" }) !== null) &&
     (t.value === undefined || typeof t.value === "number") &&
     (t.valueMin === undefined || typeof t.valueMin === "number") &&
     (t.valueMax === undefined || typeof t.valueMax === "number") &&

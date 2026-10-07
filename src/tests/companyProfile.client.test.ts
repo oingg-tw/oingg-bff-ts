@@ -128,9 +128,14 @@ describe("fetchCompanyProfile", () => {
     expect(result?.metricDataType).toBe("1");
   });
 
-  it("throws a 502 AppError when metricDataType is missing or not '1'/'2'", async () => {
-    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, metricDataType: "3" } });
+  // 2026-10-08 起回應裡沒見過的 enum 值照樣放行（passThroughEnum，對 analysis-ts 的承諾），缺欄位才是 502。
+  it("passes an unrecognized metricDataType or market through; a missing metricDataType is a 502", async () => {
+    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, metricDataType: "3", market: "EMERGING" } });
+    // market 以前會被改寫成 TWSE——把新的市場別悄悄標成上市，比報錯更糟。
+    await expect(fetchCompanyProfile("2330")).resolves.toMatchObject({ metricDataType: "3", market: "EMERGING" });
 
+    const { metricDataType: _m, ...withoutType } = RAW_PROFILE;
+    mockFetchOnce({ ok: true, body: withoutType });
     await expect(fetchCompanyProfile("2330")).rejects.toMatchObject({ statusCode: 502 });
   });
 });

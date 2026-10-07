@@ -59,12 +59,12 @@ describe("fetchSecurityList", () => {
     expect(calledUrl.toString()).toBe("http://filters.test/securities");
   });
 
-  it("throws a 502 AppError when an entry has an unrecognized type", async () => {
-    mockFetchOnce({
-      ok: true,
-      body: { count: 1, limit: 200, offset: 0, entries: [{ symbol: "9999", companyName: "x", type: "BOND" }] },
-    });
+  // 2026-10-08 起回應裡沒見過的 enum 值照樣放行（passThroughEnum，對 analysis-ts 的承諾），缺欄位才是 502。
+  it("passes an unrecognized type through; a missing one is a 502", async () => {
+    mockFetchOnce({ ok: true, body: { count: 1, limit: 200, offset: 0, entries: [{ symbol: "9999", companyName: "x", type: "BOND" }] } });
+    await expect(fetchSecurityList()).resolves.toMatchObject({ entries: [{ symbol: "9999", type: "BOND" }] });
 
+    mockFetchOnce({ ok: true, body: { count: 1, limit: 200, offset: 0, entries: [{ symbol: "9999", companyName: "x" }] } });
     await expect(fetchSecurityList()).rejects.toMatchObject({ statusCode: 502 });
   });
 

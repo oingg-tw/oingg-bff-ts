@@ -251,3 +251,19 @@ export async function pingAnalysisService(): Promise<void> {
   const url = buildAnalysisServiceUrl("/health");
   await assertAnalysisServiceOk(await fetchAnalysisService(url), url, "Analysis service liveness");
 }
+
+/**
+ * 回應裡的 enum 欄位：已知值以外的字串**照樣放行**，只記一筆 warn 提醒我們跟上型別與文件（2026-10-08 對
+ * analysis-ts 的承諾，寫在他們的 docs/api-conventions.md：「回應裡新增 enum 值不算破壞性」）。在這之前有 6 處
+ * 遇到新值會整支回 502、或把未知的市場別悄悄改成 TWSE——badge 的 comparator 'lte' 就曾讓整份指標型錄同步失敗。
+ * 不是字串（缺欄位、型別錯）才是上游真的壞了，回 null 讓呼叫端決定要不要 502。
+ */
+export function passThroughEnum<T extends string>(value: unknown, known: readonly T[], context: Record<string, unknown>): T | (string & {}) | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  if (!(known as readonly string[]).includes(value)) {
+    logger.warn({ ...context, value }, "Unrecognized enum value from analysis-ts, passed through");
+  }
+  return value;
+}

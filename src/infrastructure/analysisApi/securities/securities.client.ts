@@ -1,21 +1,18 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toStringOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum, toStringOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { SecurityListEntry, SecurityListResult, SecurityType } from "@/application/proxy/securities/securities.types.js";
 import type { SecuritiesGatewayPort } from "@/application/ports/securitiesGateway.js";
 
-const VALID_TYPES: SecurityType[] = ["COMMON", "PREFERRED", "ETF"];
-
-function isSecurityType(value: unknown): value is SecurityType {
-  return typeof value === "string" && (VALID_TYPES as string[]).includes(value);
-}
+const KNOWN_TYPES: readonly SecurityType[] = ["COMMON", "PREFERRED", "ETF"];
 
 function normalizeEntry(raw: unknown): SecurityListEntry {
   const r = raw as Record<string, unknown>;
-  if (!isSecurityType(r.type)) {
-    throw new AppError(`Securities list entry has an unrecognized type: ${String(r.type)}`, 502);
+  const type = passThroughEnum(r.type, KNOWN_TYPES, { field: "type", symbol: r.symbol });
+  if (type === null) {
+    throw new AppError("Securities list entry is missing its type", 502);
   }
-  return { symbol: String(r.symbol), name: toStringOrNull(r.companyName), type: r.type };
+  return { symbol: String(r.symbol), name: toStringOrNull(r.companyName), type };
 }
 
 function isSecurityListResponse(body: unknown): body is { count: unknown; limit: unknown; offset: unknown; entries: unknown[] } {
