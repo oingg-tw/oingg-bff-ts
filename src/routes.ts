@@ -5,6 +5,7 @@ import { Router } from "ultimate-express";
 import { AppError } from "@/domain/appError.js";
 import { requestIdOf } from "@/http/requestLogger.js";
 import { clientIpOf } from "@/http/clientIdentity.js";
+import { requestContext } from "@/shared/requestContext.js";
 import { requireApiDocsAuth } from "@/http/swagger/apiDocsAuth.js";
 import { swaggerSpec, swaggerUi } from "@/http/swagger/index.js";
 import { createBillingRouter } from "@/http/modules/billing/route.js";
@@ -88,9 +89,10 @@ export function createRoutes(deps: AppDeps): Router {
   // no-store。反過來（預設可快取、個資端點自己記得關）的話，新增一支 per-user 端點時忘了關就會讓中間層
   // （Nitro 的快取、瀏覽器）把一個人的資料存起來給另一個人。
   routes.use((_req, res, next) => {
-    res.set("X-Request-Id", requestIdOf(res));
+    const requestId = requestIdOf(res);
+    res.set("X-Request-Id", requestId);
     res.set("Cache-Control", "no-store");
-    next();
+    requestContext.run({ requestId }, next);
   });
   routes.use(
     rateLimit({

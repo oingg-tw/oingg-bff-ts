@@ -1,6 +1,7 @@
 import { AppError } from "@/domain/appError.js";
 import { ANALYSIS_SERVICE_TIMEOUT_MS, requireEnv } from "@/shared/env.js";
 import { logger } from "@/shared/logger.js";
+import { requestContext } from "@/shared/requestContext.js";
 
 /** Builds a URL against analysis-ts's FILTERS_SERVICE_URL host, optionally setting query params. */
 export function buildAnalysisServiceUrl(path: string, searchParams?: Record<string, string>): URL {
@@ -20,7 +21,7 @@ export function buildAnalysisServiceUrl(path: string, searchParams?: Record<stri
  * bff-ts's internal service topology to the end user — see errorHandler.ts, which only gates `details`
  * by NODE_ENV, never `message`).
  *
- * analysis-ts requires an `X-Api-Key` header on every domainApi request as of 2026-09-04 (its root `GET /`
+ * analysis-ts requires an `X-Api-Key` header on every domainApi request as of 2026-09-04 (`GET /health`
  * doesn't, but pingAnalysisService sends the key anyway since it goes through here) — attached here, the single
  * place every outbound request already flows through, so every call site gets it automatically.
  *
@@ -30,6 +31,10 @@ export function buildAnalysisServiceUrl(path: string, searchParams?: Record<stri
 export async function fetchAnalysisService(url: URL, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
   headers.set("X-Api-Key", requireEnv("BFF_API_KEY"));
+  const requestId = requestContext.getStore()?.requestId;
+  if (requestId) {
+    headers.set("X-Request-Id", requestId);
+  }
   const idToken = await analysisServiceIdToken();
   if (idToken) {
     headers.set("Authorization", `Bearer ${idToken}`);
@@ -143,7 +148,10 @@ export async function assertAnalysisServiceOk(response: Response, url: URL, labe
     if (message === null) {
       logger.error({ url: url.toString() }, `Invalid ${label} request, no message in response body`);
     }
-    throw new AppError(message ?? `Invalid ${label} request`, 400);
+    // 上游的 code（unknown_metric、unsupported_timeframe…）原樣轉出，前端只靠 code 分支（2026-10-08）；
+    // type 由 errorHandler 從 code 推出，跟 analysis-ts 的 tag URI 一字不差。未知的值照樣放行。
+    const code = (body as { code?: unknown } | null)?.code;
+    throw new AppError(message ?? `Invalid ${label} request`, 400, undefined, typeof code === "string" ? code : undefined);
   }
 
   logger.error({ url: url.toString(), status: response.status }, `${label} returned a non-2xx status`);
@@ -206,6 +214,19 @@ export function toStringOrNull(value: unknown): string | null {
  */
 function readUpstreamValidationMessage(body: unknown): string | null {
   const errors = (body as { errors?: unknown } | null)?.errors;
+  // RFC 9457（analysis-ts 2026-10-08 起）：驗證錯誤的 detail 是籠統的 "Invalid query parameters."，逐欄位的
+  // 說明在 errors[].detail，全部串起來；其他錯誤讀 detail。下面兩種舊形狀等 analysis-ts 移除 message 後可刪。
+  // 注意 errors 的 parameter 是上游的參數名（timeframe），跟我們公開的（basis）不一定相同，所以不轉出陣列本身。
+  if (Array.isArray(errors)) {
+    const details = errors.map((e) => (e as { detail?: unknown } | null)?.detail).filter((d): d is string => typeof d === "string" && d !== "");
+    if (details.length > 0) {
+      return details.join("; ");
+    }
+  }
+  const detail = (body as { detail?: unknown } | null)?.detail;
+  if (typeof detail === "string" && detail !== "") {
+    return detail;
+  }
   if (errors !== null && typeof errors === "object") {
     // `_errors` 是 zod 放在每一層的同名陣列；根層的通常是空的，欄位層的才有訊息，所以跳過根層那把。
     for (const [key, node] of Object.entries(errors as Record<string, unknown>)) {
@@ -223,10 +244,10 @@ function readUpstreamValidationMessage(body: unknown): string | null {
 }
 
 /**
- * analysis-ts 的存活檢查（health check 用）。它沒有健康檢查端點；`GET /` 回 `{ startupTime }`、不碰資料庫，
- * 2026-10-08 實測不帶金鑰也是 200。這不是寫進合約的端點，已請 analysis-ts 正式提供一支。
+ * analysis-ts 的健康檢查：`GET /health`（2026-10-08 起，他們的 docs/api-conventions.md），會對 analysis DB
+ * 跑一個最小查詢，所以 ok 也代表他們的資料庫醒著；失敗回 503。在那之前打的是不碰資料庫的 `GET /`。
  */
 export async function pingAnalysisService(): Promise<void> {
-  const url = buildAnalysisServiceUrl("/");
+  const url = buildAnalysisServiceUrl("/health");
   await assertAnalysisServiceOk(await fetchAnalysisService(url), url, "Analysis service liveness");
 }

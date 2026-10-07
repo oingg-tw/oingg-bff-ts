@@ -151,6 +151,25 @@ describe("assertAnalysisServiceOk", () => {
     await expect(assertAnalysisServiceOk(respond(200, {}), url, "Test endpoint")).resolves.toBeUndefined();
   });
 
+  /** analysis-ts 2026-10-08 起的 RFC 9457 形狀（實測他們的 DEV 回應）。 */
+  it("RFC 9457 的驗證錯誤：串起 errors[].detail，不用籠統的頂層 detail", async () => {
+    const body = {
+      message: "metricCode is required.",
+      errors: [{ detail: "metricCode is required.", parameter: "metricCode" }, { detail: "timeframe is required.", parameter: "timeframe" }],
+      type: "about:blank",
+      status: 400,
+      detail: "Invalid query parameters.",
+    };
+    await expect(assertAnalysisServiceOk(respond(400, body), url, "Test endpoint"))
+      .rejects.toMatchObject({ statusCode: 400, message: "metricCode is required.; timeframe is required.", code: undefined });
+  });
+
+  it("RFC 9457 帶 code 的錯誤：detail 當訊息、code 原樣轉出（前端只靠 code 分支）", async () => {
+    const body = { type: "tag:oingg.com,2026:unsupported-timeframe", status: 400, detail: "不支援 periodType Q", code: "unsupported_timeframe" };
+    await expect(assertAnalysisServiceOk(respond(400, body), url, "Test endpoint"))
+      .rejects.toMatchObject({ statusCode: 400, message: "不支援 periodType Q", code: "unsupported_timeframe" });
+  });
+
   it("扁平的 400 直接帶出頂層 message", async () => {
     await expect(assertAnalysisServiceOk(respond(400, { message: "metricCodes 最多 10 個，收到 11 個。" }), url, "Test endpoint"))
       .rejects.toMatchObject({ statusCode: 400, message: "metricCodes 最多 10 個，收到 11 個。" });
