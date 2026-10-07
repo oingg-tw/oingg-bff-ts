@@ -23,8 +23,6 @@ import { resetHealthReportCache } from "@/application/system/system.service.js";
 process.env.FILTERS_SERVICE_URL = "http://filters.test";
 process.env.BFF_API_KEY = "test-key";
 process.env.FILTERS_SYNC_SECRET = "test-sync-secret";
-process.env.API_DOCS_USER = "test-docs-user";
-process.env.API_DOCS_PASSWORD = "test-docs-password";
 process.env.RESEND_API_KEY = "re_test_key";
 process.env.DATABASE_URL = "postgresql://placeholder:placeholder@localhost:5432/placeholder";
 

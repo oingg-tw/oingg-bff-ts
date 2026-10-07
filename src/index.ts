@@ -25,8 +25,8 @@ async function main(): Promise<void> {
   const app = createApp(deps);
 
   const server = app.listen(env.port, () => {
-    logger.info(`oingg-bff-ts listening on port ${env.port} (${env.nodeEnv})`);
-    logger.info(`API docs available at http://localhost:${env.port}/api-docs`);
+    logger.info(`oingg-business-ts listening on port ${env.port} (${env.nodeEnv})`);
+    logger.info(`OpenAPI spec at http://localhost:${env.port}/openapi.json`);
   });
 
   const shutdown = async (signal: string): Promise<void> => {

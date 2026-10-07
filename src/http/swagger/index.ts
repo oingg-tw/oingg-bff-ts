@@ -1,5 +1,4 @@
 import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
-import swaggerUi from "swagger-ui-express";
 import { registry } from "@/http/swagger/registry.js";
 import { env } from "@/shared/env.js";
 
@@ -36,7 +35,7 @@ function generateDocument() {
     info: {
       title: "業務中台 API（oingg-business-ts）",
       version: "1.0.0",
-      description: "BFF API documentation for the oingg-bff-ts service",
+      description: "業務中台（oingg-business-ts）的 API 合約。Nitro 是唯一呼叫端；錯誤一律是 RFC 9457 problem+json。"
     },
     servers: [
       {
@@ -46,7 +45,6 @@ function generateDocument() {
     ],
     tags: [
       { name: "System", description: "伺服器狀態" },
-      { name: "Auth", description: "Firebase 登入驗證" },
       { name: "User", description: "使用者資料" },
       { name: "Billing", description: "訂閱方案與額度（只鎖查詢廣度／歷史深度／匯出推播，不影響任何個股分析內容）" },
       { name: "Stock", description: "股票資料查詢——股價、本益比、本淨比、殖利率" },
@@ -64,5 +62,8 @@ function generateDocument() {
   });
 }
 
-export const swaggerSpec = generateDocument();
-export { swaggerUi };
+/**
+ * 2026-10-08 起只以 JSON 提供（GET /openapi.json），Swagger UI 頁面拿掉了——使用者不再看它，而合約說明
+ * 仍然有人要用（web-nuxt 查欄位語意、日後做 CI diff），跟 analysis-ts 的 GET /openapi.json 同一個慣例。
+ */
+export const openApiSpec = generateDocument();

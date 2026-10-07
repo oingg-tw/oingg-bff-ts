@@ -20,9 +20,8 @@
  *   specific points get caught automatically instead of relying on another manual scan:
  *   - Security headers (helmet) present on a plain response.
  *   - No CORS at all: browsers can't read our responses cross-origin (Nitro is the only caller since 2026-10-08).
- *   - /api-docs is reachable with no auth and serves bff-ts's real spec (not a static demo) — this is a
- *     KNOWN, accepted gap for local dev (see [[project_pre_deploy_swagger_auth]]); reported as an
- *     informational WARN, not a FAIL, since fixing it is a pre-deploy task, not a dev-time regression.
+ *   - /openapi.json serves the real spec locally (it's 404 in production unless the caller proves it's
+ *     Nitro — that gate is unit-free and only visible against a deployed instance).
  *   - A 400 response body doesn't leak a stack trace / file path.
  *
  * This is intentionally NOT a general-purpose scanner or a permanent CI gate — see conductor's own
@@ -347,23 +346,13 @@ async function runStaticChecks() {
     record("No CORS headers (browsers can't call us)", "PASS");
   }
 
-  const apiDocs = await fetch(`${BASE_URL}/api-docs/`);
-  const apiDocsBody = await apiDocs.text();
-  if (apiDocs.status === 200) {
-    const initJs = await fetch(`${BASE_URL}/api-docs/swagger-ui-init.js`).then((r) => r.text());
-    // 認 spec 裡一定有的路徑，不認標題：2026-10-08 標題改成「業務中台 API」，舊的標題比對讓這項悄悄變成「看起來不是真的 spec」。
-    const isRealSpec = initJs.includes('"/system/health"');
-    record(
-      "/api-docs reachable without auth",
-      "WARN",
-      isRealSpec
-        ? "Known accepted gap for local dev — real API spec exposed with no auth, must gate/disable before production (see project_pre_deploy_swagger_auth memory)"
-        : "Reachable but does not appear to serve the real spec — investigate before trusting this result",
-    );
-  } else {
-    record("/api-docs reachable without auth", "PASS", `Now returns ${apiDocs.status} — pre-deploy gap appears to be fixed`);
-  }
-  void apiDocsBody;
+  const spec = await fetch(`${BASE_URL}/openapi.json`);
+  const specText = spec.status === 200 ? await spec.text() : "";
+  record(
+    "/openapi.json serves the real spec",
+    specText.includes('"/system/health"') ? "PASS" : "FAIL",
+    specText.includes('"/system/health"') ? undefined : `status ${spec.status}`,
+  );
 
   // /transactions, not /holdings: since 2026-10-05 the holdings path param is a symbol, not a UUID, so
   // it no longer exercises the UUID parser this probe is aimed at.

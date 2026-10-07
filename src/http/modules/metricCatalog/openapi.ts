@@ -190,7 +190,7 @@ registry.registerPath({
   path: "/metrics/sync",
   summary: "手動觸發重新拉取 oingg-analysis-ts 的指標目錄（不用重啟整個服務）",
   description:
-    "2026-09-09 新增，2026-09-10 隨 GET /metrics 一起從 /filters/sync 改名——在 POST /metrics/sync 出現之前，analysis-ts 那邊調整分類/指標的中文顯示名稱時，bff-ts 只有在啟動時才會拉取一次最新目錄，導致每次文案異動都要重啟整個服務才會生效。這支端點讓一個持有共用密鑰的呼叫方（人或內部工具）主動觸發重新拉取，取代重啟。仍然是 bff-ts 主動去拉，不是 analysis-ts 推送過來——analysis-ts 完全不需要知道這支端點存在，維持「數據中台不知道業務中台存在」的邊界。用 `X-Filters-Sync-Secret` header 帶密鑰驗證（header/環境變數名稱維持不變，只有路徑改名），任何環境都 fail-closed（跟 /api-docs 的 Basic Auth 只在 production 生效不同——這支端點會真的寫資料庫，不是單純的偵查面問題）。同步邏輯跟啟動時完全一樣：如果 analysis-ts 這次回傳空的 categories（0 筆），會拒絕套用並回錯誤，不會把本地資料庫清空。",
+    "2026-09-09 新增，2026-09-10 隨 GET /metrics 一起從 /filters/sync 改名——在 POST /metrics/sync 出現之前，analysis-ts 那邊調整分類/指標的中文顯示名稱時，bff-ts 只有在啟動時才會拉取一次最新目錄，導致每次文案異動都要重啟整個服務才會生效。這支端點讓一個持有共用密鑰的呼叫方（人或內部工具）主動觸發重新拉取，取代重啟。仍然是 bff-ts 主動去拉，不是 analysis-ts 推送過來——analysis-ts 完全不需要知道這支端點存在，維持「數據中台不知道業務中台存在」的邊界。用 `X-Filters-Sync-Secret` header 帶密鑰驗證（header/環境變數名稱維持不變，只有路徑改名），任何環境都 fail-closed（跟舊的 /api-docs Basic Auth 只在 production 生效不同——這支端點會真的寫資料庫，不是單純的偵查面問題）。同步邏輯跟啟動時完全一樣：如果 analysis-ts 這次回傳空的 categories（0 筆），會拒絕套用並回錯誤，不會把本地資料庫清空。",
   tags: ["Screener"],
   responses: {
     200: {

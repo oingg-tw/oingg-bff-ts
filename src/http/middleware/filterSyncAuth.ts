@@ -11,7 +11,7 @@ const HEADER_NAME = "x-filters-sync-secret";
  * restarting the whole bff-ts process; see feedback_analysis_ts_must_not_know_bff_exists.md for why this
  * has to be a manually-triggered pull, not analysis-ts pushing to bff-ts) behind a shared-secret header,
  * same TASK_SECRET convention as
- * oingg-twse-ts (stripQuotes + timingSafeEqual). Unlike /api-docs's Basic Auth gate, this fails closed in
+ * oingg-twse-ts (stripQuotes + timingSafeEqual). Unlike the old /api-docs Basic Auth gate (removed 2026-10-08), this fails closed in
  * every environment including dev — this endpoint actually triggers a DB write (replaceMetricCatalog),
  * not just a reconnaissance-surface concern, so there's no dev-friction tradeoff to make here. The header
  * name/env var below (X-Filters-Sync-Secret / FILTERS_SYNC_SECRET) is deliberately NOT renamed to match

@@ -3,10 +3,9 @@ import helmet from "helmet";
 import { Router } from "ultimate-express";
 import { AppError } from "@/domain/appError.js";
 import { requestIdOf } from "@/http/requestLogger.js";
-import { clientIpOf } from "@/http/clientIdentity.js";
+import { clientIpOf, isFromNitro } from "@/http/clientIdentity.js";
 import { requestContext } from "@/shared/requestContext.js";
-import { requireApiDocsAuth } from "@/http/swagger/apiDocsAuth.js";
-import { swaggerSpec, swaggerUi } from "@/http/swagger/index.js";
+import { openApiSpec } from "@/http/swagger/index.js";
 import { createBillingRouter } from "@/http/modules/billing/route.js";
 import { createEtfScreenerRouter } from "@/http/modules/etfScreener/route.js";
 import { createDataVersionRouter, createMetricCatalogRouter } from "@/http/modules/metricCatalog/route.js";
@@ -23,7 +22,7 @@ import { startedAt } from "@/application/system/system.state.js";
 import { createTransactionsRouter } from "@/http/modules/transactions/route.js";
 import { createUserRouter } from "@/http/modules/user/route.js";
 import { createWatchlistRouter } from "@/http/modules/watchlist/route.js";
-import { GLOBAL_RATE_LIMIT_PER_INSTANCE, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from "@/shared/env.js";
+import { env, GLOBAL_RATE_LIMIT_PER_INSTANCE, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from "@/shared/env.js";
 import type { AppDeps } from "@/application/deps.js";
 
 /**
@@ -138,7 +137,16 @@ export function createRoutes(deps: AppDeps): Router {
     });
   });
 
-  routes.use("/api-docs", requireApiDocsAuth, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  // 合約的機器可讀版本。開發環境直接給；正式環境（含部署的 DEV，NODE_ENV=production）只給證明自己是
+  // Nitro 的呼叫端，其餘一律 404——它列出每支端點與欄位，是 OWASP API9 說的偵查面，原本由 /api-docs 的
+  // Basic Auth 擋（2026-10-08 連同 Swagger UI 一起拿掉）。
+  routes.get("/openapi.json", (req, res, next) => {
+    if (env.isProduction && !isFromNitro(req)) {
+      next();
+      return;
+    }
+    res.json(openApiSpec);
+  });
 
   routes.use("/system", createSystemRouter(deps)); // GET /system/health
   routes.use("/billing", createBillingRouter(deps)); // GET /billing/entitlement
