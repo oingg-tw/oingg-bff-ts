@@ -23,7 +23,7 @@ import { startedAt } from "@/application/system/system.state.js";
 import { createTransactionsRouter } from "@/http/modules/transactions/route.js";
 import { createUserRouter } from "@/http/modules/user/route.js";
 import { createWatchlistRouter } from "@/http/modules/watchlist/route.js";
-import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from "@/shared/env.js";
+import { GLOBAL_RATE_LIMIT_PER_INSTANCE, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from "@/shared/env.js";
 import type { AppDeps } from "@/application/deps.js";
 
 /**
@@ -104,6 +104,28 @@ export function createRoutes(deps: AppDeps): Router {
       // Retry-After 已由套件在呼叫 handler 之前設好（standardHeaders）；這裡只負責讓本體走 RFC 9457。
       handler: (_req, _res, next) => {
         next(new AppError("Too many requests", 429, undefined, "rate_limited"));
+      },
+    }),
+  );
+  // 全站總上限（見 env.ts 的 GLOBAL_RATE_LIMIT_PER_INSTANCE）。掛在每人限流**之後**：被每人限流擋下的請求
+  // 不會再吃全站額度，一個濫用者不會把全站額度用光。
+  //
+  // 回 503 不是 429（RFC 9110）：429 是「你送太多了」，503 是「伺服器暫時過載」——超過全站上限不是這位使用者
+  // 的錯，前端的讀取失敗對話框也據 code 顯示「伺服器忙碌」而不是「你太快了」。不送 RateLimit-* header，否則會
+  // 蓋掉上面每人限流的那組（客戶端看的應該是自己的剩餘額度）；Retry-After 在 handler 裡自己算。
+  routes.use(
+    rateLimit({
+      windowMs: RATE_LIMIT_WINDOW_MS,
+      limit: GLOBAL_RATE_LIMIT_PER_INSTANCE,
+      standardHeaders: false,
+      legacyHeaders: false,
+      keyGenerator: () => "global",
+      requestPropertyName: "globalRateLimit",
+      handler: (req, res, next) => {
+        const resetTime = (req as { globalRateLimit?: { resetTime?: Date } }).globalRateLimit?.resetTime;
+        const seconds = resetTime ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000)) : RATE_LIMIT_WINDOW_MS / 1000;
+        res.set("Retry-After", String(seconds));
+        next(new AppError("The server is busy, try again shortly", 503, undefined, "server_busy"));
       },
     }),
   );
