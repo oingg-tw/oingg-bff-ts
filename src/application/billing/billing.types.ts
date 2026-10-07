@@ -8,7 +8,7 @@ export type { BillingProvider, RenewalMode, SubscriptionStatus };
  * identifier string on the Subscription row is, so a new price point needs no migration here.
  *
  * 2026-10-06 使用者決定只留 FREE＋PRO：ADVISOR 拿掉，投顧的需求歸 ifa.rocks。拿掉時 subscription 表是空的，
- * 沒有任何一列需要搬。
+ * 沒有任何一列需要搬。2026-10-07 使用者再確認：「以後也只會有兩層方案」，這是長期定案，不是暫時狀態。
  */
 export type BillingTier = "FREE" | "PRO";
 

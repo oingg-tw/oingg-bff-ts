@@ -52,8 +52,8 @@ export async function getEntitlement(
   const subscription = await deps.subscriptions.find(firebaseUid);
   if (subscription && isWithinPaidPeriod(subscription.status, subscription.currentPeriodEnd, now)) {
     return {
-      // 只有一個付費層級（2026-10-06 拿掉 ADVISOR），所以任何 plan 字串（pro-monthly、pro-annual……）
-      // 都是 PRO。哪天再有第二個付費層級，在這裡依 plan 前綴分流。
+      // 只有一個付費層級，所以任何 plan 字串（pro-monthly、pro-annual……）都是 PRO。2026-10-06 拿掉
+      // ADVISOR；使用者 2026-10-07 定案「以後也只會有兩層方案」——不要再加第三層。
       tier: "PRO",
       source: "subscription",
       status: subscription.status,
