@@ -176,6 +176,8 @@ registry.registerPath({
     "- `annualized`：年化的 twr／mwr。**期間不滿 365 天時是 null**——把幾個月的報酬年化會把運氣放大。",
     "- `trading`：期間內買進、賣出金額，手續費、證交稅（元）。`turnover` ＝ min(買進, 賣出) ÷ 平均市值，`costRatio` ＝ (手續費＋證交稅) ÷ 平均市值，都是整段期間、不年化。成本不明的取得與配股不算交易。",
     "- `benchmarkComparison`：跟加權指數逐日比。上漲／下跌捕獲率＝大盤漲（跌）的那些天，組合的幾何平均日報酬 ÷ 大盤的幾何平均日報酬（Morningstar 定義；不是整段複利相比——大盤大漲的年度那會把比值壓得很低）；Omega（門檻 0）＝賺錢日報酬總和 ÷ 賠錢日報酬總和。`sampleDays` 少於 120 時三個值都是 null。",
+    "- `riskAdjusted`：夏普、索提諾、卡瑪（年化 twr ÷ |實際最大跌幅|，期間不滿 365 天時 null）、M²（把組合風險調到跟大盤一樣時的年化報酬）、beta 與詹森 α（對大盤超額報酬回歸）、追蹤誤差、資訊比率。全部年化、只用實際績效；`sampleDays` 少於 120 或無風險利率取不到時全部 null。",
+    "- `riskFree`：無風險利率用**五大銀行一年期定存**（使用者定案）。`rates` 逐月列出套用的年利率 %；`sourcePeriod` 跟 `period` 不同，代表那個月還沒有資料、沿用較早的月份（央行月報落後一到兩個月）。取不到時是 null，此時 `riskAdjusted` 全 null、其他欄位照常。",
     "",
     "全部只描述統計，不含任何評等或建議。",
   ].join("\n"),
@@ -216,6 +218,24 @@ registry.registerPath({
                 downCapture: z.string().nullable().openapi({ example: "0.701234" }),
                 omega: z.string().nullable().openapi({ example: "1.234567" }),
               }),
+              riskAdjusted: z.object({
+                sampleDays: z.number(),
+                sharpe: z.string().nullable().openapi({ example: "1.234567" }),
+                sortino: z.string().nullable(),
+                calmar: z.string().nullable(),
+                m2: z.string().nullable(),
+                beta: z.string().nullable(),
+                jensenAlpha: z.string().nullable(),
+                trackingError: z.string().nullable(),
+                informationRatio: z.string().nullable(),
+              }),
+              riskFree: z
+                .object({
+                  source: z.literal("five-major-bank-1y-deposit"),
+                  latestPeriod: z.string().nullable().openapi({ example: "2026-08" }),
+                  rates: z.array(z.object({ period: z.string(), ratePct: z.number().openapi({ example: 1.7 }), sourcePeriod: z.string() })),
+                })
+                .nullable(),
             })
             .openapi("PortfolioPerformanceReport"),
         },

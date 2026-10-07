@@ -103,6 +103,32 @@ export interface PortfolioPerformanceReport {
    * 少於 120 天時三個值都是 null。
    */
   benchmarkComparison: { sampleDays: number; upCapture: string | null; downCapture: string | null; omega: string | null };
+  /**
+   * 經風險調整的報酬（只用實際績效，全部年化，6 位小數字串）：夏普、索提諾、卡瑪（年化 twr ÷ |實際最大跌幅|，
+   * 期間不滿 365 天時是 null）、M²（年化報酬）、beta 與詹森 α（對大盤超額報酬回歸）、追蹤誤差、資訊比率。
+   * sampleDays 少於 120、或無風險利率取不到（riskFree 是 null）時，全部是 null。
+   */
+  riskAdjusted: {
+    sampleDays: number;
+    sharpe: string | null;
+    sortino: string | null;
+    calmar: string | null;
+    m2: string | null;
+    beta: string | null;
+    jensenAlpha: string | null;
+    trackingError: string | null;
+    informationRatio: string | null;
+  };
+  /**
+   * 實際用到的無風險利率：五大銀行一年期定存（年利率 %，1.7 ＝ 1.7%）。`rates` 逐月列出期間內每個月套用的
+   * 利率；`sourcePeriod` 跟 `period` 不同就是那個月還沒有資料、沿用了較早的月份（CBC 月報落後一到兩個月）。
+   * 取不到時整個是 null——那時 riskAdjusted 全是 null，其他欄位照常。
+   */
+  riskFree: {
+    source: "five-major-bank-1y-deposit";
+    latestPeriod: string | null;
+    rates: { period: string; ratePct: number; sourcePeriod: string }[];
+  } | null;
 }
 
 /**

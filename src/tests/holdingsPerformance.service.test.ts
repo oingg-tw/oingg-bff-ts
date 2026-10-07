@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fakeTransactions } from "@/tests/fakes/transactions.js";
-import { fakeMarketGateway, fakeStockGateway } from "@/tests/fakes/analysisGateways.js";
+import { fakeMarketGateway, fakeStockGateway, fakeMacroGateway } from "@/tests/fakes/analysisGateways.js";
 import type { StockTransaction } from "@/application/transactions/transactions.types.js";
 import { getPortfolioPerformance } from "@/application/holdings/holdingsPerformance.service.js";
 
@@ -33,6 +33,8 @@ function row(symbol: string, action: "BUY" | "SELL", quantity: number, price: nu
 function deps(ledger: StockTransaction[], taiexDates = TAIEX) {
   const prices: Record<string, number[]> = { "2330": [100, 101, 102, 103, 104], "0056": [30, 30, 31, 31, 32], "2317": [200, 200, 200, 200, 200] };
   return {
+    // 預設：無風險利率取不到（上游還沒有這支）。riskAdjusted 全 null，其他欄位照常。
+    macroGateway: fakeMacroGateway({ getFiveMajorBankRate: vi.fn().mockRejectedValue(new Error("upstream down")) }),
     transactions: fakeTransactions({ list: vi.fn().mockResolvedValue(ledger) }),
     marketGateway: fakeMarketGateway({
       getTaiexDailyPrice: vi.fn().mockResolvedValue({ entries: taiexDates.map((tradeDate) => ({ tradeDate, close: "20000" })) }),
@@ -93,5 +95,32 @@ describe("getPortfolioPerformance", () => {
     const report = await getPortfolioPerformance("uid1", undefined, "2028-02-29", deps([]));
 
     expect(report.from).toBe("2027-02-28");
+  });
+});
+
+describe("risk-free rate", () => {
+  it("still returns everything else when the risk-free rate is unavailable", async () => {
+    const report = await getPortfolioPerformance("uid1", "2026-03-01", "2026-03-05", deps([row("2330", "BUY", 10, 99, "2026-02-01")]));
+
+    expect(report.twr).toBe("0.040000");
+    expect(report.riskFree).toBeNull();
+    expect(report.riskAdjusted.sharpe).toBeNull();
+  });
+
+  // CBC 月報落後一到兩個月：期間的月份還沒有資料時沿用最後一個有資料的月份，並照實列出來源月份。
+  it("discloses the rate used per month, including months carried forward", async () => {
+    const d = deps([row("2330", "BUY", 10, 99, "2026-02-01")]);
+    d.macroGateway.getFiveMajorBankRate = vi.fn().mockResolvedValue({
+      latestPeriod: "2026-01",
+      entries: [{ period: "2026-01", year: 2026, month: 1, depositRate1mPct: 1.23, depositRate1yPct: 1.7, baseLendingRatePct: 3.264 }],
+    });
+
+    const report = await getPortfolioPerformance("uid1", "2026-03-01", "2026-03-05", d);
+
+    expect(report.riskFree).toEqual({
+      source: "five-major-bank-1y-deposit",
+      latestPeriod: "2026-01",
+      rates: [{ period: "2026-03", ratePct: 1.7, sourcePeriod: "2026-01" }],
+    });
   });
 });

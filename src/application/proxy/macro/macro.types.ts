@@ -251,6 +251,26 @@ export interface CpiEntry {
   yoyChangePercent: number | null;
 }
 
+/**
+ * 五大銀行存款利率（CBC EG2BM01en，gov-ts 2026-10-07 收進來），月資料，**年利率百分比**（1.7 ＝ 1.7%）。
+ * 給 /holdings/performance 的無風險利率用（使用者經 GOV 定案：一年期定存）。
+ */
+export interface FiveMajorBankRateEntry {
+  /** "YYYY-MM" */
+  period: string;
+  year: number;
+  month: number;
+  depositRate1mPct: number | null;
+  depositRate1yPct: number | null;
+  baseLendingRatePct: number | null;
+}
+
+export interface FiveMajorBankRateResult {
+  /** 整段最新的一個月，不受 from 影響。通常落後一到兩個月（CBC 月報每月 25 日前後補上個月）。 */
+  latestPeriod: string | null;
+  entries: FiveMajorBankRateEntry[];
+}
+
 export interface CpiResult {
   /** The category actually applied (defaults to "total" upstream when omitted). */
   category: CpiCategory;

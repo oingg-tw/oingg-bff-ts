@@ -9,6 +9,7 @@ import type {
   CpiResult,
   GdpCategory,
   GdpResult,
+  FiveMajorBankRateResult,
   GovBondYield10yHistoryResult,
   GovBondYield10yResult,
   MonetaryAggregateResult,
@@ -40,4 +41,6 @@ export interface MacroGatewayPort {
   getUsdTwdRate(limit?: number, interval?: UsdTwdRateInterval): Promise<UsdTwdRateResult>;
   getCpi(from?: string, category?: CpiCategory): Promise<CpiResult>;
   getGdp(from?: string, category?: GdpCategory): Promise<GdpResult>;
+  /** 由舊到新；from 是 "YYYY-MM"。 */
+  getFiveMajorBankRate(from?: string): Promise<FiveMajorBankRateResult>;
 }

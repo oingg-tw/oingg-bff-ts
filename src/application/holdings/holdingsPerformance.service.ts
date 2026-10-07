@@ -1,4 +1,5 @@
-import { compareWithBenchmark, computePortfolioReturn } from "@/domain/portfolioReturn.js";
+import { compareWithBenchmark, computePortfolioReturn, dailyRiskFreeRates, riskAdjustedReturns } from "@/domain/portfolioReturn.js";
+import { logger } from "@/shared/logger.js";
 import { toLedgerEntry } from "@/application/transactions/transactions.service.js";
 import { applyStockDividends } from "@/application/holdings/stockDividendLedger.js";
 import { fetchCloses, resolveTradingWindow } from "@/application/holdings/marketWindow.js";
@@ -13,7 +14,7 @@ import type { PortfolioPerformanceReport } from "@/application/holdings/holdings
  *
  * 期間、交易日曆、收盤價的取得跟 /holdings/risk 共用 marketWindow.ts。
  */
-export type HoldingsPerformanceDeps = Pick<AppDeps, "transactions" | "stockGateway" | "marketGateway">;
+export type HoldingsPerformanceDeps = Pick<AppDeps, "transactions" | "stockGateway" | "marketGateway" | "macroGateway">;
 
 const RETURN_DECIMALS = 6;
 /** 捕獲率與 Omega 的最低樣本（呈現規則）：跟 beta 一樣，約 120 個交易日以下估不穩。 */
@@ -26,6 +27,27 @@ function fixed(value: number | null): string | null {
 
 function annualize(periodReturn: number | null, days: number): string | null {
   return periodReturn === null || days < 365 ? null : fixed((1 + periodReturn) ** (365 / days) - 1);
+}
+
+function emptyRiskAdjusted(sampleDays: number): PortfolioPerformanceReport["riskAdjusted"] {
+  return { sampleDays, sharpe: null, sortino: null, calmar: null, m2: null, beta: null, jensenAlpha: null, trackingError: null, informationRatio: null };
+}
+
+/**
+ * 無風險利率的月資料。**取不到不讓整支端點失敗**：它只影響 riskAdjusted 那一組，其他欄位照常回傳，
+ * 所以這裡吞掉錯誤、記一筆 warn、回 null。
+ */
+async function riskFreeMonthly(fromPeriod: string, deps: HoldingsPerformanceDeps) {
+  try {
+    const result = await deps.macroGateway.getFiveMajorBankRate(fromPeriod);
+    const monthly = result.entries.flatMap((entry) =>
+      entry.depositRate1yPct === null ? [] : [{ period: entry.period, annualPct: entry.depositRate1yPct }],
+    );
+    return monthly.length > 0 ? { latestPeriod: result.latestPeriod, monthly } : null;
+  } catch (error) {
+    logger.warn({ err: error }, "Risk-free rate unavailable — /holdings/performance returns riskAdjusted as nulls");
+    return null;
+  }
 }
 
 export async function getPortfolioPerformance(
@@ -46,6 +68,8 @@ export async function getPortfolioPerformance(
       annualized: { twr: null, mwr: null },
       trading: { buyAmount: "0", sellAmount: "0", fees: "0", taxes: "0", averageMarketValue: null, turnover: null, costRatio: null },
       benchmarkComparison: { sampleDays: 0, upCapture: null, downCapture: null, omega: null },
+      riskAdjusted: emptyRiskAdjusted(0),
+      riskFree: null,
     };
   }
 
@@ -68,19 +92,49 @@ export async function getPortfolioPerformance(
 
   // close 為 null 的日子不在 closes 裡，domain 會沿用前一個收盤價並計入 missingPrices。
   const closes = await fetchCloses(symbols, tradingDaysNeeded, deps);
+  // 往前多抓一年：期間開始那個月可能還沒有資料，要能沿用更早的月份。先發出去，跟下面的計算重疊。
+  const riskFreePending = riskFreeMonthly(`${Number(baseDate.slice(0, 4)) - 1}${baseDate.slice(4, 7)}`, deps);
   const result = computePortfolioReturn({ entries, calendar, baseDate, closes });
+  const riskFreeSource = await riskFreePending;
   const comparison = compareWithBenchmark(result.dailyReturns, taiexCloses, calendar, baseDate);
   const comparisonOk = comparison.sampleDays >= MIN_DAYS_FOR_COMPARISON;
   const periodDays = (Date.parse(`${calendar.at(-1)!}T00:00:00Z`) - Date.parse(`${baseDate}T00:00:00Z`)) / MS_PER_DAY;
   const { buyAmount, sellAmount, fees, taxes, averageMarketValue } = result.trading;
   const perAverage = (numerator: number) => (averageMarketValue ? fixed(numerator / averageMarketValue) : null);
+  const annualizedTwr = annualize(result.twr, periodDays);
+
+  let riskAdjusted = emptyRiskAdjusted(0);
+  let riskFree: PortfolioPerformanceReport["riskFree"] = null;
+  if (riskFreeSource) {
+    const rates = dailyRiskFreeRates(calendar, riskFreeSource.monthly);
+    const adjusted = riskAdjustedReturns(result.dailyReturns, taiexCloses, calendar, baseDate, rates.byDate);
+    riskFree = {
+      source: "five-major-bank-1y-deposit",
+      latestPeriod: riskFreeSource.latestPeriod,
+      rates: rates.used.map((rate) => ({ period: rate.period, ratePct: rate.annualPct, sourcePeriod: rate.sourcePeriod })),
+    };
+    riskAdjusted =
+      adjusted.sampleDays < MIN_DAYS_FOR_COMPARISON
+        ? emptyRiskAdjusted(adjusted.sampleDays)
+        : {
+            sampleDays: adjusted.sampleDays,
+            sharpe: fixed(adjusted.sharpe),
+            sortino: fixed(adjusted.sortino),
+            calmar: annualizedTwr !== null && adjusted.maxDrawdown < 0 ? fixed(Number(annualizedTwr) / Math.abs(adjusted.maxDrawdown)) : null,
+            m2: fixed(adjusted.m2),
+            beta: fixed(adjusted.beta),
+            jensenAlpha: fixed(adjusted.jensenAlpha),
+            trackingError: fixed(adjusted.trackingError),
+            informationRatio: fixed(adjusted.informationRatio),
+          };
+  }
 
   return {
     from,
     to,
     twr: fixed(result.twr),
     mwr: fixed(result.mwr),
-    annualized: { twr: annualize(result.twr, periodDays), mwr: annualize(result.mwr, periodDays) },
+    annualized: { twr: annualizedTwr, mwr: annualize(result.mwr, periodDays) },
     trading: {
       buyAmount: buyAmount.toFixed(0),
       sellAmount: sellAmount.toFixed(0),
@@ -96,6 +150,8 @@ export async function getPortfolioPerformance(
       downCapture: comparisonOk ? fixed(comparison.downCapture) : null,
       omega: comparisonOk ? fixed(comparison.omega) : null,
     },
+    riskAdjusted,
+    riskFree,
     series: result.series.map((point) => ({
       date: point.date,
       cumulative: point.cumulative === null ? null : point.cumulative.toFixed(RETURN_DECIMALS),

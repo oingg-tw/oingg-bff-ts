@@ -117,6 +117,145 @@ export function moneyWeightedReturn(flows: readonly { date: string; amount: numb
   return (low + high) / 2;
 }
 
+/** 組合的日報酬配上同一天的加權指數日報酬；大盤當天或前一天沒有收盤的日子不列。 */
+function pairWithBenchmark(
+  daily: readonly { date: string; r: number }[],
+  marketCloses: ReadonlyMap<string, number>,
+  calendar: readonly string[],
+  baseDate: string,
+): { date: string; p: number; b: number }[] {
+  const previous = new Map(calendar.map((date, i) => [date, i === 0 ? baseDate : calendar[i - 1]!]));
+  const pairs: { date: string; p: number; b: number }[] = [];
+  for (const { date, r } of daily) {
+    const before = marketCloses.get(previous.get(date) ?? "");
+    const close = marketCloses.get(date);
+    if (before !== undefined && close !== undefined && before > 0) {
+      pairs.push({ date, p: r, b: close / before - 1 });
+    }
+  }
+  return pairs;
+}
+
+const TRADING_DAYS_PER_YEAR = 252;
+
+/**
+ * 月利率（年利率 %）→ 每個交易日的單日無風險報酬 (1 + y)^(1/252) − 1。
+ *
+ * 用的是五大銀行**一年期定存**（使用者 2026-10-07 經 GOV 定案）：期限配一年的窗口，也是散戶真正做得到的
+ * 無風險替代；台灣基金實務的夏普值也用定存。十年期公債是錯的期限（含存續期溢酬），隔夜拆款是同業利率。
+ *
+ * 某個月還沒有資料（CBC 月報落後一到兩個月）就**沿用最近一個有資料的月份，缺口長度不寫死**。這支序列是
+ * 階梯函數、只在央行理監事會的 3／6／9／12 月動（GOV 實測：2024-03 起連續 30 個月 1.70%），所以沿用
+ * 在非理監事會月份誤差是 0。`used` 逐月列出實際套用的利率與它來自哪個月，讓呼叫端照實揭露。
+ * 比最早的資料還早的月份沒有利率，那幾天不列入（1987-01 起，實務上碰不到）。
+ */
+export function dailyRiskFreeRates(
+  dates: readonly string[],
+  monthly: readonly { period: string; annualPct: number }[],
+): { byDate: Map<string, number>; used: { period: string; annualPct: number; sourcePeriod: string }[] } {
+  const sorted = [...monthly].sort((a, b) => a.period.localeCompare(b.period));
+  const byDate = new Map<string, number>();
+  const used = new Map<string, { period: string; annualPct: number; sourcePeriod: string }>();
+  let cursor = -1;
+  for (const date of [...dates].sort()) {
+    const period = date.slice(0, 7);
+    while (cursor + 1 < sorted.length && sorted[cursor + 1]!.period <= period) {
+      cursor++;
+    }
+    if (cursor < 0) {
+      continue;
+    }
+    const source = sorted[cursor]!;
+    byDate.set(date, (1 + source.annualPct / 100) ** (1 / TRADING_DAYS_PER_YEAR) - 1);
+    used.set(period, { period, annualPct: source.annualPct, sourcePeriod: source.period });
+  }
+  return { byDate, used: [...used.values()] };
+}
+
+function average(xs: readonly number[]): number {
+  return xs.reduce((sum, x) => sum + x, 0) / xs.length;
+}
+
+function sampleCovariance(xs: readonly number[], ys: readonly number[]): number {
+  const mx = average(xs);
+  const my = average(ys);
+  return xs.reduce((sum, x, i) => sum + (x - mx) * (ys[i]! - my), 0) / (xs.length - 1);
+}
+
+/**
+ * 經風險調整的報酬，**只用實際績效**（回推的報酬帶事後挑股的偏誤，見 portfolioRisk.ts）。全部年化：
+ * 平均 × 252、標準差 × √252。超額報酬 e = 日報酬 − 當天的單日無風險報酬。
+ *
+ * - 夏普 ＝ 平均(e) ÷ 標準差(e)；索提諾把分母換成 e 的下行半標準差（門檻 0）。
+ * - M² ＝ 平均無風險 ＋ 夏普 × 大盤波動：把組合的風險調到跟大盤一樣時的年化報酬，可以直接跟大盤比。
+ * - Beta、詹森 α：組合超額報酬對大盤超額報酬回歸；α 是扣掉大盤那部分之後的年化超額報酬。
+ * - 追蹤誤差 ＝ 標準差(組合 − 大盤)；資訊比率 ＝ 平均(組合 − 大盤) ÷ 追蹤誤差。
+ * - maxDrawdown：實際組合的最大跌幅（≤ 0），給呼叫端算卡瑪比率。
+ *
+ * 只用三樣都有的日子（組合、大盤、無風險利率）。樣本門檻由呼叫端決定。
+ */
+export function riskAdjustedReturns(
+  daily: readonly { date: string; r: number }[],
+  marketCloses: ReadonlyMap<string, number>,
+  calendar: readonly string[],
+  baseDate: string,
+  riskFreeByDate: ReadonlyMap<string, number>,
+): {
+  sampleDays: number;
+  sharpe: number | null;
+  sortino: number | null;
+  m2: number | null;
+  beta: number | null;
+  jensenAlpha: number | null;
+  trackingError: number | null;
+  informationRatio: number | null;
+  maxDrawdown: number;
+} {
+  const rows = pairWithBenchmark(daily, marketCloses, calendar, baseDate).flatMap((x) => {
+    const rf = riskFreeByDate.get(x.date);
+    return rf === undefined ? [] : [{ ...x, rf }];
+  });
+
+  let level = 1;
+  let peak = 1;
+  let maxDrawdown = 0;
+  for (const { r } of daily) {
+    level *= 1 + r;
+    peak = Math.max(peak, level);
+    maxDrawdown = Math.min(maxDrawdown, level / peak - 1);
+  }
+
+  const n = rows.length;
+  if (n < 2) {
+    return { sampleDays: n, sharpe: null, sortino: null, m2: null, beta: null, jensenAlpha: null, trackingError: null, informationRatio: null, maxDrawdown };
+  }
+  const excess = rows.map((x) => x.p - x.rf);
+  const marketExcess = rows.map((x) => x.b - x.rf);
+  const active = rows.map((x) => x.p - x.b);
+  const yearly = TRADING_DAYS_PER_YEAR;
+  const rootYear = Math.sqrt(TRADING_DAYS_PER_YEAR);
+
+  const excessSd = Math.sqrt(sampleCovariance(excess, excess));
+  const sharpe = excessSd > 0 ? (average(excess) / excessSd) * rootYear : null;
+  const downside = Math.sqrt(average(excess.map((e) => Math.min(e, 0) ** 2)));
+  const marketVar = sampleCovariance(marketExcess, marketExcess);
+  const beta = marketVar > 0 ? sampleCovariance(excess, marketExcess) / marketVar : null;
+  const trackingError = Math.sqrt(sampleCovariance(active, active)) * rootYear;
+  const marketSd = Math.sqrt(sampleCovariance(rows.map((x) => x.b), rows.map((x) => x.b))) * rootYear;
+  return {
+    sampleDays: n,
+    sharpe,
+    sortino: downside > 0 ? (average(excess) * yearly) / (downside * rootYear) : null,
+    m2: sharpe === null ? null : average(rows.map((x) => x.rf)) * yearly + sharpe * marketSd,
+    beta,
+    jensenAlpha: beta === null ? null : (average(excess) - beta * average(marketExcess)) * yearly,
+    trackingError,
+    // 組合幾乎就是大盤時，追蹤誤差只剩浮點雜訊（~1e-17），雜訊 ÷ 雜訊會算出一個看起來正常的比率。
+    informationRatio: trackingError > 1e-9 ? (average(active) * yearly) / trackingError : null,
+    maxDrawdown,
+  };
+}
+
 /**
  * 跟加權指數逐日比較（只用實際績效，不用回推——回推的報酬帶著事後挑股的偏誤）。
  *
@@ -135,15 +274,7 @@ export function compareWithBenchmark(
   calendar: readonly string[],
   baseDate: string,
 ): { sampleDays: number; upCapture: number | null; downCapture: number | null; omega: number | null } {
-  const previous = new Map(calendar.map((date, i) => [date, i === 0 ? baseDate : calendar[i - 1]!]));
-  const pairs: { p: number; b: number }[] = [];
-  for (const { date, r } of daily) {
-    const before = marketCloses.get(previous.get(date) ?? "");
-    const close = marketCloses.get(date);
-    if (before !== undefined && close !== undefined && before > 0) {
-      pairs.push({ p: r, b: close / before - 1 });
-    }
-  }
+  const pairs = pairWithBenchmark(daily, marketCloses, calendar, baseDate);
   const geometricMean = (xs: number[]) => Math.exp(xs.reduce((sum, x) => sum + Math.log1p(x), 0) / xs.length) - 1;
   const capture = (selected: { p: number; b: number }[]) => {
     if (selected.length === 0) {

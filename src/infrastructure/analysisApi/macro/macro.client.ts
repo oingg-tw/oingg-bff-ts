@@ -17,6 +17,8 @@ import type {
   CpiCategory,
   CpiEntry,
   CpiResult,
+  FiveMajorBankRateEntry,
+  FiveMajorBankRateResult,
   GdpCategory,
   GdpEntry,
   GdpResult,
@@ -398,6 +400,27 @@ export async function fetchGdp(from?: string, category?: GdpCategory): Promise<G
   return { category: body.category as GdpCategory, entries: entries.map(normalizeGdpEntry) };
 }
 
+function normalizeFiveMajorBankRateEntry(raw: unknown): FiveMajorBankRateEntry {
+  const r = raw as Record<string, unknown>;
+  return {
+    period: String(r.period),
+    year: Number(r.year),
+    month: Number(r.month),
+    depositRate1mPct: toNumberOrNull(r.depositRate1mPct),
+    depositRate1yPct: toNumberOrNull(r.depositRate1yPct),
+    baseLendingRatePct: toNumberOrNull(r.baseLendingRatePct),
+  };
+}
+
+/** 五大銀行存款利率，月資料 — GET /macro/five-major-bank-rate（analysis-ts 11cd839d）。 */
+export async function fetchFiveMajorBankRate(from?: string): Promise<FiveMajorBankRateResult> {
+  const { body, entries } = await getEntriesBody("/macro/five-major-bank-rate", { from }, "Five major bank rate endpoint");
+  return {
+    latestPeriod: typeof body.latestPeriod === "string" ? body.latestPeriod : null,
+    entries: entries.map(normalizeFiveMajorBankRateEntry),
+  };
+}
+
 /**
  * MacroGatewayPort 的實作。這一層底下的 fetchX 函式已經做完正規化與 502 判定，所以這裡只是把它們對應到
  * port 的方法名；重構前中間還隔著一支 macro.service.ts，但那支檔案每個函式都是 `getX(a) => fetchX(a)`，
@@ -416,5 +439,6 @@ export const analysisMacroGateway: MacroGatewayPort = {
   getStockMarketSummary: fetchStockMarketSummary,
   getUsdTwdRate: fetchUsdTwdRate,
   getCpi: fetchCpi,
+  getFiveMajorBankRate: fetchFiveMajorBankRate,
   getGdp: fetchGdp,
 };

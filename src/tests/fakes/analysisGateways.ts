@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import type { EtfScreenerGatewayPort } from "@/application/ports/etfScreenerGateway.js";
+import type { MacroGatewayPort } from "@/application/ports/macroGateway.js";
 import type { MarketGatewayPort } from "@/application/ports/marketGateway.js";
 import type { ScreenerGatewayPort } from "@/application/ports/screenerGateway.js";
 import type { SecuritiesGatewayPort } from "@/application/ports/securitiesGateway.js";
@@ -91,4 +92,23 @@ export function fakeScreenerGateway(overrides: Partial<ScreenerGatewayPort> = {}
 /** 只有一個方法——assertSymbolExists 在報價查不到時用它做成員檢查（ETF 與特別股沒有公司檔案）。 */
 export function fakeSecuritiesGateway(overrides: Partial<SecuritiesGatewayPort> = {}): SecuritiesGatewayPort {
   return { getSecurityList: vi.fn(), ...overrides };
+}
+
+export function fakeMacroGateway(overrides: Partial<MacroGatewayPort> = {}): MacroGatewayPort {
+  return {
+    getCbcPolicyRate: vi.fn(),
+    getUsPolicyRate: vi.fn(),
+    getEcbPolicyRate: vi.fn(),
+    getEquityRiskPremium: vi.fn(),
+    getBusinessCycleIndicator: vi.fn(),
+    getMonetaryAggregate: vi.fn(),
+    getGovBondYield10y: vi.fn(),
+    getGovBondYield10yHistory: vi.fn(),
+    getStockMarketSummary: vi.fn(),
+    getUsdTwdRate: vi.fn(),
+    getCpi: vi.fn(),
+    getGdp: vi.fn(),
+    getFiveMajorBankRate: vi.fn(),
+    ...overrides,
+  };
 }

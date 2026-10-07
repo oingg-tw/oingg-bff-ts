@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LedgerEntry } from "@/domain/holdingProjection.js";
-import { compareWithBenchmark, computePortfolioReturn, moneyWeightedReturn } from "@/domain/portfolioReturn.js";
+import { compareWithBenchmark, computePortfolioReturn, dailyRiskFreeRates, moneyWeightedReturn, riskAdjustedReturns } from "@/domain/portfolioReturn.js";
 
 /**
  * 這裡的測試刻意都是**不變量**，而不是「算出來是 0.1234」：一個寫錯的報酬率公式算出來的數字看起來
@@ -207,5 +207,60 @@ describe("compareWithBenchmark", () => {
     const losses = -r.filter((x) => x < 0).reduce((s, x) => s + x, 0);
 
     expect(compareWithBenchmark(result.dailyReturns, market, CALENDAR, BASE).omega).toBeCloseTo(gains / losses, 12);
+  });
+});
+
+describe("dailyRiskFreeRates", () => {
+  it("compounds back to the annual rate over 252 trading days", () => {
+    const { byDate } = dailyRiskFreeRates(["2026-08-03"], [{ period: "2026-08", annualPct: 1.7 }]);
+
+    expect((1 + byDate.get("2026-08-03")!) ** 252).toBeCloseTo(1.017, 12);
+  });
+
+  // 缺口長度不寫死：最新資料是 08 月，09、10 月都沿用 08 月。
+  it("carries the last known month forward over a gap of any length", () => {
+    const { used } = dailyRiskFreeRates(["2026-08-31", "2026-09-30", "2026-10-07"], [{ period: "2026-08", annualPct: 1.7 }]);
+
+    expect(used).toEqual([
+      { period: "2026-08", annualPct: 1.7, sourcePeriod: "2026-08" },
+      { period: "2026-09", annualPct: 1.7, sourcePeriod: "2026-08" },
+      { period: "2026-10", annualPct: 1.7, sourcePeriod: "2026-08" },
+    ]);
+  });
+});
+
+describe("riskAdjustedReturns", () => {
+  const market = new Map(A_CLOSES);
+  const zeroRf = new Map(CALENDAR.map((d) => [d, 0]));
+
+  it("a portfolio that is the market has beta 1, no alpha and no tracking error", () => {
+    const { dailyReturns } = run([trade("A", "BUY", 300, 90, "2026-02-01")]);
+    const result = riskAdjustedReturns(dailyReturns, market, CALENDAR, BASE, zeroRf);
+
+    expect(result.beta).toBeCloseTo(1, 12);
+    expect(result.jensenAlpha).toBeCloseTo(0, 12);
+    expect(result.trackingError).toBeCloseTo(0, 12);
+    expect(result.informationRatio).toBeNull();
+  });
+
+  // 夏普只看超額報酬：組合與無風險利率每天同加一個常數，超額報酬不變，夏普與索提諾都不能變。
+  it("Sharpe and Sortino depend only on excess returns", () => {
+    const { dailyReturns } = run([trade("A", "BUY", 300, 90, "2026-02-01")]);
+    const shifted = dailyReturns.map((d) => ({ date: d.date, r: d.r + 0.001 }));
+    const shiftedRf = new Map(CALENDAR.map((d) => [d, 0.001]));
+    const base = riskAdjustedReturns(dailyReturns, market, CALENDAR, BASE, zeroRf);
+    const moved = riskAdjustedReturns(shifted, market, CALENDAR, BASE, shiftedRf);
+
+    expect(moved.sharpe).toBeCloseTo(base.sharpe!, 12);
+    expect(moved.sortino).toBeCloseTo(base.sortino!, 12);
+  });
+
+  // M² 把組合的風險調到跟大盤一樣：組合就是大盤時，M² 等於大盤自己的年化平均報酬。
+  it("M² of the market itself is the market's annualized mean return", () => {
+    const { dailyReturns } = run([trade("A", "BUY", 300, 90, "2026-02-01")]);
+    const result = riskAdjustedReturns(dailyReturns, market, CALENDAR, BASE, zeroRf);
+    const meanDaily = dailyReturns.reduce((s, d) => s + d.r, 0) / dailyReturns.length;
+
+    expect(result.m2).toBeCloseTo(meanDaily * 252, 12);
   });
 });
