@@ -19,7 +19,7 @@
  * - A handful of the static findings from conductor's OWASP scan (2026-09-02), so regressions on these
  *   specific points get caught automatically instead of relying on another manual scan:
  *   - Security headers (helmet) present on a plain response.
- *   - CORS does not reflect a disallowed Origin.
+ *   - No CORS at all: browsers can't read our responses cross-origin (Nitro is the only caller since 2026-10-08).
  *   - /api-docs is reachable with no auth and serves bff-ts's real spec (not a static demo) — this is a
  *     KNOWN, accepted gap for local dev (see [[project_pre_deploy_swagger_auth]]); reported as an
  *     informational WARN, not a FAIL, since fixing it is a pre-deploy task, not a dev-time regression.
@@ -345,10 +345,10 @@ async function runStaticChecks() {
 
   const corsResponse = await fetch(`${BASE_URL}/`, { headers: { Origin: "https://evil-not-allowed.example" } });
   const acao = corsResponse.headers.get("access-control-allow-origin");
-  if (acao === "https://evil-not-allowed.example") {
-    record("CORS rejects disallowed origin", "FAIL", `Reflected disallowed origin: ${acao}`);
+  if (acao !== null) {
+    record("No CORS headers (browsers can't call us)", "FAIL", `Access-Control-Allow-Origin present: ${acao}`);
   } else {
-    record("CORS rejects disallowed origin", "PASS");
+    record("No CORS headers (browsers can't call us)", "PASS");
   }
 
   const apiDocs = await fetch(`${BASE_URL}/api-docs/`);

@@ -1,4 +1,3 @@
-import cors from "cors";
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import { Router } from "ultimate-express";
@@ -24,7 +23,7 @@ import { startedAt } from "@/application/system/system.state.js";
 import { createTransactionsRouter } from "@/http/modules/transactions/route.js";
 import { createUserRouter } from "@/http/modules/user/route.js";
 import { createWatchlistRouter } from "@/http/modules/watchlist/route.js";
-import { env, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from "@/shared/env.js";
+import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from "@/shared/env.js";
 import type { AppDeps } from "@/application/deps.js";
 
 /**
@@ -77,11 +76,12 @@ export function createRoutes(deps: AppDeps): Router {
   const routes = Router();
 
   // Mounted on this inner Router rather than the outer app: ultimate-express drops headers set by
-  // app-level middleware once the request descends into this Router, so helmet/cors must live here
+  // app-level middleware once the request descends into this Router, so helmet must live here
   // to actually appear on responses (verified via curl, not just code inspection — see security report).
   routes.use(helmet());
-  // 瀏覽器預設讀不到這兩個 header：X-Request-Id 讓錯誤對話框能顯示參考編號，Retry-After 讓它倒數。
-  routes.use(cors({ origin: env.corsOrigins, exposedHeaders: ["X-Request-Id", "Retry-After"] }));
+  // 沒有 CORS（2026-10-08 拿掉）：Nitro 成為唯一呼叫端、瀏覽器不再直連業務中台（web-nuxt 58340ed 實測 12 頁
+  // 零請求）。不送任何 Access-Control-* header，等於瀏覽器的跨站呼叫一律讀不到回應——這正是要的。
+  // 要恢復瀏覽器直連，先問使用者：那推翻的是「Nitro 是真正的 BFF」這個架構決定，不是一個設定。
   // 設在內層 Router：外層 app 的 middleware 設的 header 會被 ultimate-express 丟掉（上面那段說明）。
   //
   // Cache-Control 預設 no-store、要快取的路由自己覆寫（目前只有 valuation-river 的 public, max-age=3600）

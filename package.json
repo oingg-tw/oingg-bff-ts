@@ -28,7 +28,6 @@
     "@asteasolutions/zod-to-openapi": "^9.1.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
-    "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express-rate-limit": "^8.7.0",
     "firebase-admin": "^14.3.0",
@@ -41,7 +40,6 @@
   },
   "devDependencies": {
     "@swc/core": "^1.16.2",
-    "@types/cors": "^2.8.19",
     "@types/node": "^26.2.0",
     "@types/pg": "^8.23.1",
     "@types/swagger-ui-express": "^4.1.8",
