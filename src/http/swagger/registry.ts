@@ -21,7 +21,7 @@ export const errorResponseSchema = z
     status: z.number().openapi({ example: 400, description: "等於 HTTP 回應的狀態碼。" }),
     detail: z.string().openapi({ description: "給人看的說明。措辭不保證穩定，**不要拿 regex 解析**，結構化資料在擴充成員裡。" }),
     instance: z.string().openapi({ example: "urn:uuid:f47ac10b-58cc-4372-a567-0e02b2c3d479", description: "這次請求的 ID，跟 X-Request-Id header 同值；回報問題時引用它。" }),
-    code: z.string().optional().openapi({ description: "穩定的機器可讀原因，只有呼叫端需要分支時才帶：quota_exceeded（403）、LEDGER_OVERSOLD（400）、LEDGER_SHORTFALL（422）、RATE_LIMITED（429）、UPSTREAM_TIMEOUT（504）、UPSTREAM_UNAVAILABLE（502）。" }),
+    code: z.string().optional().openapi({ description: "穩定的機器可讀原因，只有呼叫端需要分支時才帶：quota_exceeded（403）、LEDGER_OVERSOLD（400）、LEDGER_SHORTFALL（422）、REORDER_MISMATCH（400，三支 reorder）、RANGE_BEFORE_PRICE_HISTORY（400，帶 earliestPriceDate）、RATE_LIMITED（429）、UPSTREAM_TIMEOUT（504）、UPSTREAM_UNAVAILABLE（502）。" }),
     errors: z
       .array(z.object({ detail: z.string(), pointer: z.string().optional(), parameter: z.string().optional() }))
       .optional()

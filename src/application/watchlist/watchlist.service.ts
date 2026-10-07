@@ -1,4 +1,4 @@
-import { AppError } from "@/domain/appError.js";
+import { AppError, REORDER_MISMATCH_CODE } from "@/domain/appError.js";
 import type { AppDeps } from "@/application/deps.js";
 import type { WatchlistItem } from "@/application/watchlist/watchlist.types.js";
 
@@ -62,7 +62,7 @@ export async function editWatchlistItemNote(
 export async function reorderWatchlist(firebaseUid: string, orderedIds: string[], deps: WatchlistDeps): Promise<WatchlistItem[]> {
   const items = await deps.watchlist.reorder(firebaseUid, orderedIds);
   if (!items) {
-    throw new AppError('"ids" must list every item in your watchlist exactly once, in the new order', 400);
+    throw new AppError('"ids" must list every item in your watchlist exactly once, in the new order', 400, undefined, REORDER_MISMATCH_CODE);
   }
   return items;
 }

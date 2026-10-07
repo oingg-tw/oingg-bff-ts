@@ -88,7 +88,12 @@ describe("getPortfolioPerformance", () => {
 
     await expect(
       getPortfolioPerformance("uid1", "2018-01-10", "2023-09-01", deps([row("2330", "BUY", 10, 99, "2017-01-01")], longCalendar)),
-    ).rejects.toMatchObject({ statusCode: 400, message: expect.stringMatching(/on or after \d{4}-\d{2}-\d{2}/) });
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: "RANGE_BEFORE_PRICE_HISTORY",
+      // 前端讀這個欄位，不再拿正則拆訊息（2026-10-08）。
+      extensions: { earliestPriceDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) },
+    });
   });
 
   it("defaults to the year before `to`, mapping 2/29 to 2/28", async () => {

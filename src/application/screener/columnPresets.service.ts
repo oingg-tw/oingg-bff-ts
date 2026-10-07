@@ -1,4 +1,4 @@
-import { AppError } from "@/domain/appError.js";
+import { AppError, REORDER_MISMATCH_CODE } from "@/domain/appError.js";
 import type { ScreenerColumnRef } from "@/domain/screenerCriteria.js";
 import { logger } from "@/shared/logger.js";
 import type { AppDeps } from "@/application/deps.js";
@@ -190,7 +190,7 @@ export async function reorderColumnPresetsForUser(
 ): Promise<ColumnPresetView[]> {
   const rows = await deps.columnPresets.reorder(firebaseUid, orderedIds);
   if (!rows) {
-    throw new AppError("`ids` must be exactly this user's current set of column preset ids, in the new order", 400);
+    throw new AppError("`ids` must be exactly this user's current set of column preset ids, in the new order", 400, undefined, REORDER_MISMATCH_CODE);
   }
 
   const allFields = [...new Set(rows.flatMap((row) => row.columns))];

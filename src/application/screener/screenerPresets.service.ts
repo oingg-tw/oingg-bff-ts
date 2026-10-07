@@ -1,4 +1,4 @@
-import { AppError } from "@/domain/appError.js";
+import { AppError, REORDER_MISMATCH_CODE } from "@/domain/appError.js";
 import type { ScreenerFilter } from "@/domain/screenerCriteria.js";
 import { parseFieldRef, toFieldRefString } from "@/shared/fieldRef.js";
 import type { AppDeps } from "@/application/deps.js";
@@ -266,7 +266,7 @@ export async function reorderPresetsForUser(
 ): Promise<PresetView[]> {
   const rows = await deps.screenerPresets.reorder(firebaseUid, orderedIds);
   if (!rows) {
-    throw new AppError("`ids` must be exactly this user's current set of screener preset ids, in the new order", 400);
+    throw new AppError("`ids` must be exactly this user's current set of screener preset ids, in the new order", 400, undefined, REORDER_MISMATCH_CODE);
   }
   return rows.map(toView);
 }

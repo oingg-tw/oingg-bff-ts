@@ -117,9 +117,15 @@ export async function resolveTradingWindow(
   const tradingDaysNeeded = taiexDates.filter((date) => date >= start).length + CLOSE_LOOKBACK_DAYS;
   if (tradingDaysNeeded > STOCK_PRICE_LIMIT) {
     const earliest = taiexDates.at(-(STOCK_PRICE_LIMIT - CLOSE_LOOKBACK_DAYS));
-    // web-nuxt 用正則從這句話抽出「on or after YYYY-MM-DD」的日期再翻成中文（2026-10-05 告知）。
-    // 改措辭時請保留那一段；日期只存在訊息裡，因為 AppError 的 details 在 production 會被拿掉。
-    throw new AppError(`The range is longer than the available price history; "from" must be on or after ${earliest}`, 400);
+    // 日期放在 RFC 9457 擴充成員 earliestPriceDate（2026-10-08）。在那之前它只存在訊息裡，web-nuxt 只能用
+    // 正則 /on or after (\d{4}-\d{2}-\d{2})/ 去抽——現在 detail 的措辭可以自由改，前端讀 code 與這個欄位。
+    throw new AppError(
+      `The range is longer than the available price history; "from" must be on or after ${earliest}`,
+      400,
+      undefined,
+      "RANGE_BEFORE_PRICE_HISTORY",
+      { earliestPriceDate: earliest },
+    );
   }
 
   return { from, to, calendar, baseDate, tradingDaysNeeded, taiexCloses };

@@ -13,6 +13,12 @@
  * and the alternative — a parallel enum plus a mapping table at the edge — would buy portability this
  * service will never spend. The rule that keeps it from spreading: nothing here may import anything.
  */
+/**
+ * 三支整批重排（觀察清單、選股 Preset、欄位 Preset）共用：`ids` 不等於使用者當下的完整集合（多了、少了、重複）。
+ * 同一個語意用同一個 code，前端不必按端點分別記（2026-10-08）。
+ */
+export const REORDER_MISMATCH_CODE = "REORDER_MISMATCH";
+
 export class AppError extends Error {
   readonly statusCode: number;
   readonly isOperational: boolean;
