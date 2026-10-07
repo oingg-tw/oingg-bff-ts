@@ -224,3 +224,19 @@ describe("correlations and period return", () => {
     expect(risk.periodReturn.benchmark).toBeCloseTo(MARKET.at(-1)! / MARKET[0]! - 1, 12);
   });
 });
+
+describe("holding contributions", () => {
+  // 逐日歸因的定義性質：各檔貢獻加起來剛好等於組合的期間報酬——連期中才有股價（權重重新分配）的情況也一樣。
+  it("contributions add up exactly to the portfolio's period return, even with a late listing", () => {
+    const late = [NaN, NaN, NaN, 30, 31, 29, 33];
+    const closesB = new Map(late.flatMap((v, i) => (Number.isNaN(v) ? [] : [[[BASE, ...CALENDAR][i]!, v] as const])));
+    const risk = computePortfolioRisk(
+      input({ weights: new Map([["A", 0.6], ["B", 0.4]]), closes: new Map([["A", series(MARKET)], ["B", closesB]]) }),
+    );
+    const total = [...risk.holdingReturns.values()].reduce((sum, h) => sum + h.contribution, 0);
+
+    expect(total).toBeCloseTo(risk.periodReturn.portfolio!, 12);
+    expect(risk.holdingReturns.get("A")!.periodReturn).toBeCloseTo(MARKET.at(-1)! / MARKET[0]! - 1, 12);
+    expect(risk.holdingReturns.get("B")!.periodReturn).toBeCloseTo(33 / 30 - 1, 12);
+  });
+});

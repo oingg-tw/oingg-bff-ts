@@ -92,6 +92,13 @@ export interface PortfolioRisk {
    */
   periodReturn: { portfolio: number | null; benchmark: number | null };
   /**
+   * 每一檔在整段期間的表現（2026-10-07，壓力情境要列出「主要是哪幾檔」）：periodReturn 是它自己的複利報酬
+   * （只算它有報酬的日子）；contribution 是逐日歸因 Σ_t (當天權重 × 當天報酬 × 前一天為止的組合累積)，
+   * **全部加總剛好等於組合的 periodReturn**。「權重 × 期間報酬」在每天維持比例的回推裡加不回去，所以不用它。
+   * 沒參與（coverage none）的不列。
+   */
+  holdingReturns: Map<string, { periodReturn: number; contribution: number }>;
+  /**
    * 兩兩之間的日報酬相關係數（2026-10-07），只用兩檔都有報酬的日子；少於 2 天的那一對是 null。
    * symbols 依權重由大到小，matrix[i][j] 對應 symbols[i] 與 symbols[j]，對角線是 1。
    */
@@ -380,6 +387,8 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
   const benchmark: number[] = [];
   /** 納入計算的那些天在 calendar 裡的位置，給風險貢獻對齊每一檔自己的報酬用。 */
   const dayIndexes: number[] = [];
+  const holdingReturns = new Map<string, { periodReturn: number; contribution: number }>();
+  let growth = 1;
   // 最大回撤的起點：第一個有報酬的交易日的前一天（通常就是 baseDate）。
   let startDate = input.baseDate;
   input.calendar.forEach((date, i) => {
@@ -401,6 +410,17 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
       dates.push(date);
       dayIndexes.push(i);
       portfolio.push(weighted / weightSum);
+      for (const [symbol, weight] of input.weights) {
+        const r = perSymbol.get(symbol)!.returns[i];
+        if (r === null || r === undefined) {
+          continue;
+        }
+        const entry = holdingReturns.get(symbol) ?? { periodReturn: 0, contribution: 0 };
+        entry.periodReturn = (1 + entry.periodReturn) * (1 + r) - 1;
+        entry.contribution += (weight / weightSum) * r * growth;
+        holdingReturns.set(symbol, entry);
+      }
+      growth *= 1 + weighted / weightSum;
       benchmark.push(m);
     }
   });
@@ -420,6 +440,7 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
       riskContributions: new Map(),
       correlations: { symbols: [], matrix: [] },
       periodReturn,
+      holdingReturns,
       coverage,
     };
   }
@@ -470,6 +491,7 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
     riskContributions,
     correlations: correlationMatrix(input, perSymbol, dayIndexes),
     periodReturn,
+    holdingReturns,
     coverage,
   };
 }

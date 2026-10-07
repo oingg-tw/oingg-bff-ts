@@ -276,6 +276,7 @@ export async function getStressScenarios(firebaseUid: string, deps: HoldingsRisk
     benchmark: { periodReturn: null },
     coveredWeight: null,
     notCovered: [],
+    holdings: [],
   });
   if (held.length === 0) {
     return { weightsAsOf: null, scenarios: STRESS_SCENARIOS.map(unavailable) };
@@ -328,6 +329,16 @@ export async function getStressScenarios(firebaseUid: string, deps: HoldingsRisk
       benchmark: { periodReturn: fixed(risk.periodReturn.benchmark) },
       coveredWeight: coveredWeight.toFixed(DECIMALS),
       notCovered,
+      holdings: [...weights]
+        .map(([symbol, weight]) => ({ symbol, weight, result: risk.holdingReturns.get(symbol) }))
+        // 沒參與的（result 是 undefined）用 −1 排在所有 |contribution| ≥ 0 之後。
+        .sort((a, b) => (b.result ? Math.abs(b.result.contribution) : -1) - (a.result ? Math.abs(a.result.contribution) : -1))
+        .map(({ symbol, weight, result }) => ({
+          symbol,
+          weight: weight.toFixed(DECIMALS),
+          periodReturn: result ? result.periodReturn.toFixed(DECIMALS) : null,
+          contribution: result ? result.contribution.toFixed(DECIMALS) : null,
+        })),
     });
   }
   return { weightsAsOf, scenarios };

@@ -287,6 +287,12 @@ export interface StressScenariosReport {
     benchmark: { periodReturn: string | null };
     coveredWeight: string | null;
     notCovered: { symbol: string; coverage: "partial" | "none"; firstPriceDate: string | null }[];
+    /**
+     * 每一檔的表現（2026-10-07，web-nuxt 要列出前三大貢獻）。weight 是現在的權重；periodReturn 是它自己在
+     * 這段期間的報酬；contribution 是逐日歸因，**全部加總剛好等於 portfolio.periodReturn**（不是 weight ×
+     * periodReturn——每天維持比例的回推裡那個加不回去）。依 |contribution| 由大到小，沒參與的排最後、兩個值是 null。
+     */
+    holdings: { symbol: string; weight: string; periodReturn: string | null; contribution: string | null }[];
   }[];
 }
 

@@ -165,5 +165,7 @@ describe("getStressScenarios", () => {
     expect(Number(yen.coveredWeight)).toBeCloseTo(6 / 7, 6);
     expect(yen.notCovered).toEqual([{ symbol: "B", coverage: "none", firstPriceDate: null }]);
     expect(report!.scenarios.find((s) => s.key === "covid-2020")!.available).toBe(false);
+    // 只有 A 參與：它的貢獻就是整個組合的報酬；B 沒參與，排最後、值是 null。
+    expect(yen.holdings.map((h) => [h.symbol, h.contribution === null ? null : Number(h.contribution).toFixed(4)])).toEqual([["A", "-0.2000"], ["B", null]]);
   });
 });

@@ -427,6 +427,17 @@ registry.registerPath({
                   benchmark: z.object({ periodReturn: z.string().nullable().openapi({ example: "-0.287235" }) }),
                   coveredWeight: z.string().nullable(),
                   notCovered: z.array(z.object({ symbol: z.string(), coverage: z.enum(["partial", "none"]), firstPriceDate: z.string().nullable() })),
+                  holdings: z.array(
+                    z.object({
+                      symbol: z.string(),
+                      weight: z.string(),
+                      periodReturn: z.string().nullable().openapi({ example: "3.551020" }),
+                      contribution: z.string().nullable().openapi({
+                        description: "逐日歸因，全部加總剛好等於 portfolio.periodReturn（不是 weight × periodReturn）。依絕對值由大到小；沒參與的排最後、是 null。",
+                        example: "0.212345",
+                      }),
+                    }),
+                  ),
                 }),
               ),
             })
