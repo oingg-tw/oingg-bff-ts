@@ -86,6 +86,16 @@ export interface PortfolioRisk {
   diversificationRatio: number | null;
   /** symbol → 佔組合變異數的比例，加總約為 1。沒參與（coverage none）的不列。 */
   riskContributions: Map<string, number>;
+  /**
+   * 回推組合與大盤在整段期間的累積報酬（2026-10-07，只給歷史壓力情境用）。風險端點 **不公開它**：
+   * 一般期間的回推報酬帶事後挑股的偏誤；壓力情境問的是「這組持股在那段大跌裡會跌多少」，是損失幅度。
+   */
+  periodReturn: { portfolio: number | null; benchmark: number | null };
+  /**
+   * 兩兩之間的日報酬相關係數（2026-10-07），只用兩檔都有報酬的日子；少於 2 天的那一對是 null。
+   * symbols 依權重由大到小，matrix[i][j] 對應 symbols[i] 與 symbols[j]，對角線是 1。
+   */
+  correlations: { symbols: string[]; matrix: (number | null)[][] };
   /** 每一檔的資料涵蓋範圍，讓前端照實註明哪幾檔不是整段都有參與。 */
   coverage: Map<string, Coverage>;
 }
@@ -137,6 +147,72 @@ function distributionRisk(returns: readonly number[]): DistributionRisk {
     ulcerIndex: Math.sqrt(mean(squaredDrawdowns)),
     valueAtRisk95: tail.at(-1)!,
     expectedShortfall95: mean(tail),
+  };
+}
+
+/**
+ * 類股配置（2026-10-07）：依現在的市值權重加總到每個類股，權重大的在前；有效類股數 ＝ 1 ÷ Σ類股權重²。
+ * 查不到類股的（ETF、還沒分類的公司）歸在 sectorCode null 那一組，照實列出，不猜。
+ */
+export function sectorAllocation(
+  weights: ReadonlyMap<string, number>,
+  sectorOf: ReadonlyMap<string, { sectorCode: string | null; sectorName: string | null }>,
+): { sectors: { sectorCode: string | null; sectorName: string | null; weight: number; symbols: string[] }[]; effectiveSectors: number | null } {
+  const groups = new Map<string, { sectorCode: string | null; sectorName: string | null; weight: number; symbols: string[] }>();
+  for (const [symbol, weight] of weights) {
+    const sector = sectorOf.get(symbol) ?? { sectorCode: null, sectorName: null };
+    const key = sector.sectorCode ?? "";
+    const group = groups.get(key) ?? { sectorCode: sector.sectorCode, sectorName: sector.sectorName, weight: 0, symbols: [] };
+    group.weight += weight;
+    group.symbols.push(symbol);
+    groups.set(key, group);
+  }
+  const sectors = [...groups.values()].sort((a, b) => b.weight - a.weight);
+  const hhi = sectors.reduce((sum, g) => sum + g.weight ** 2, 0);
+  return { sectors, effectiveSectors: hhi > 0 ? 1 / hhi : null };
+}
+
+/**
+ * 組合層級的基本面（2026-10-07），全部只描述數字：
+ *
+ * - 近 12 個月股利收入 ＝ Σ 股數 × 每股股利（近 12 個月實際配發，不是預估）；殖利率 ＝ 收入 ÷ 有股利資料
+ *   那幾檔的市值。
+ * - 本益比、股價淨值比用**調和加權**：Σ市值 ÷ Σ(市值 ÷ 倍數)，等於「整個組合的價格 ÷ 整個組合分到的
+ *   盈餘（淨值）」。算術平均會被一兩檔高本益比的股票拉高。交易所不公布虧損公司的本益比，所以那幾檔
+ *   不在本益比裡——coverage 是有值那幾檔的市值佔比，前端要一起顯示。
+ */
+export function portfolioFundamentals(
+  holdings: readonly { quantity: number; marketValue: number; dividendPerShare: number | null; peRatio: number | null; pbRatio: number | null }[],
+): {
+  dividendIncome: number | null;
+  dividendYield: number | null;
+  dividendCoverage: number;
+  peRatio: number | null;
+  peCoverage: number;
+  pbRatio: number | null;
+  pbCoverage: number;
+} {
+  const total = holdings.reduce((sum, h) => sum + h.marketValue, 0);
+  const share = (value: number) => (total > 0 ? value / total : 0);
+  const withDividend = holdings.filter((h) => h.dividendPerShare !== null);
+  const income = withDividend.reduce((sum, h) => sum + h.quantity * h.dividendPerShare!, 0);
+  const dividendValue = withDividend.reduce((sum, h) => sum + h.marketValue, 0);
+  const harmonic = (pick: (h: (typeof holdings)[number]) => number | null) => {
+    const usable = holdings.filter((h) => (pick(h) ?? 0) > 0);
+    const value = usable.reduce((sum, h) => sum + h.marketValue, 0);
+    const earnings = usable.reduce((sum, h) => sum + h.marketValue / pick(h)!, 0);
+    return { ratio: earnings > 0 ? value / earnings : null, coverage: share(value) };
+  };
+  const pe = harmonic((h) => h.peRatio);
+  const pb = harmonic((h) => h.pbRatio);
+  return {
+    dividendIncome: withDividend.length > 0 ? income : null,
+    dividendYield: dividendValue > 0 ? income / dividendValue : null,
+    dividendCoverage: share(dividendValue),
+    peRatio: pe.ratio,
+    peCoverage: pe.coverage,
+    pbRatio: pb.ratio,
+    pbCoverage: pb.coverage,
   };
 }
 
@@ -261,6 +337,40 @@ function marketReturns(input: PortfolioRiskInput): (number | null)[] {
   });
 }
 
+function correlationMatrix(
+  input: PortfolioRiskInput,
+  perSymbol: ReadonlyMap<string, { returns: (number | null)[] }>,
+  dayIndexes: readonly number[],
+): { symbols: string[]; matrix: (number | null)[][] } {
+  const symbols = [...input.weights].sort(([, a], [, b]) => b - a).map(([symbol]) => symbol);
+  const matrix = symbols.map((a, i) =>
+    symbols.map((b, j) => {
+      if (i === j) {
+        return 1;
+      }
+      const ra = perSymbol.get(a)!.returns;
+      const rb = perSymbol.get(b)!.returns;
+      const xs: number[] = [];
+      const ys: number[] = [];
+      for (const day of dayIndexes) {
+        const x = ra[day];
+        const y = rb[day];
+        if (x !== null && x !== undefined && y !== null && y !== undefined) {
+          xs.push(x);
+          ys.push(y);
+        }
+      }
+      if (xs.length < 2) {
+        return null;
+      }
+      const vx = covariance(xs, xs);
+      const vy = covariance(ys, ys);
+      return vx > 0 && vy > 0 ? covariance(xs, ys) / Math.sqrt(vx * vy) : null;
+    }),
+  );
+  return { symbols, matrix };
+}
+
 export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
   const perSymbol = new Map([...input.weights.keys()].map((symbol) => [symbol, dailyReturns(input, symbol)]));
   const market = marketReturns(input);
@@ -297,6 +407,8 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
 
   const n = portfolio.length;
   const coverage = new Map([...perSymbol].map(([symbol, s]) => [symbol, s.coverage]));
+  const compound = (xs: number[]) => (xs.length === 0 ? null : xs.reduce((g, r) => g * (1 + r), 1) - 1);
+  const periodReturn = { portfolio: compound(portfolio), benchmark: compound(benchmark) };
   if (n < 2) {
     const flat: Drawdown = { depth: 0, peakDate: null, troughDate: null, recoveryDate: null };
     const none = distributionRisk([]);
@@ -306,6 +418,8 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
       benchmark: { annualizedVolatility: null, maxDrawdown: flat, ...none },
       diversificationRatio: null,
       riskContributions: new Map(),
+      correlations: { symbols: [], matrix: [] },
+      periodReturn,
       coverage,
     };
   }
@@ -354,6 +468,8 @@ export function computePortfolioRisk(input: PortfolioRiskInput): PortfolioRisk {
     },
     diversificationRatio: varP > 0 ? weightedVolatility / Math.sqrt(varP) : null,
     riskContributions,
+    correlations: correlationMatrix(input, perSymbol, dayIndexes),
+    periodReturn,
     coverage,
   };
 }

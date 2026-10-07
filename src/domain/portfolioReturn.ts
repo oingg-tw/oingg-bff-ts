@@ -257,6 +257,122 @@ export function riskAdjustedReturns(
 }
 
 /**
+ * 月報酬與年報酬表（2026-10-07，使用者要求）：每個月（年）組合與大盤各自的複利報酬。只用兩邊都有報酬的
+ * 日子，所以同一列的兩個數字涵蓋同一批交易日；期間頭尾的月份可能不是整月，tradingDays 照實給。
+ * 沒有曝險的月份不列。
+ */
+export function periodReturns(
+  daily: readonly { date: string; r: number }[],
+  marketCloses: ReadonlyMap<string, number>,
+  calendar: readonly string[],
+  baseDate: string,
+): { monthly: PeriodReturn[]; yearly: PeriodReturn[] } {
+  const pairs = pairWithBenchmark(daily, marketCloses, calendar, baseDate);
+  const group = (keyLength: number) => {
+    const rows = new Map<string, PeriodReturn>();
+    for (const { date, p, b } of pairs) {
+      const period = date.slice(0, keyLength);
+      const row = rows.get(period) ?? { period, portfolio: 0, benchmark: 0, tradingDays: 0 };
+      row.portfolio = (1 + row.portfolio) * (1 + p) - 1;
+      row.benchmark = (1 + row.benchmark) * (1 + b) - 1;
+      row.tradingDays += 1;
+      rows.set(period, row);
+    }
+    return [...rows.values()];
+  };
+  return { monthly: group(7), yearly: group(4) };
+}
+
+export interface PeriodReturn {
+  /** "YYYY-MM" 或 "YYYY" */
+  period: string;
+  portfolio: number;
+  benchmark: number;
+  tradingDays: number;
+}
+
+/**
+ * 實際組合的回撤期間統計（2026-10-07）：最大回撤與它的日期、在前高下方的交易日數、最長一段連續在
+ * 前高下方的交易日數，以及期末距前高多少。水位從 1 開始，startDate（期間起點）也算前高。從沒跌過時
+ * maxDrawdown 是 0、三個日期都是 null。
+ */
+export function drawdownStatistics(daily: readonly { date: string; r: number }[], startDate: string): {
+  maxDrawdown: number;
+  peakDate: string | null;
+  troughDate: string | null;
+  recoveryDate: string | null;
+  underwaterDays: number;
+  longestUnderwaterDays: number;
+  currentDrawdown: number;
+} {
+  let level = 1;
+  let peak = 1;
+  // 起點（第一個有報酬那天的前一個交易日）也算前高，跟 portfolioRisk 的 maxDrawdown 一致。
+  let peakDate: string | null = startDate;
+  let worst = { depth: 0, peakDate: null as string | null, troughDate: null as string | null, peakLevel: 1 };
+  let recoveryDate: string | null = null;
+  let underwaterDays = 0;
+  let run = 0;
+  let longest = 0;
+  for (const { date, r } of daily) {
+    level *= 1 + r;
+    if (level >= peak) {
+      if (worst.troughDate !== null && recoveryDate === null && level >= worst.peakLevel) {
+        recoveryDate = date;
+      }
+      peak = level;
+      peakDate = date;
+      run = 0;
+      continue;
+    }
+    underwaterDays += 1;
+    run += 1;
+    longest = Math.max(longest, run);
+    const depth = level / peak - 1;
+    if (depth < worst.depth) {
+      worst = { depth, peakDate, troughDate: date, peakLevel: peak };
+      recoveryDate = null;
+    }
+  }
+  return {
+    maxDrawdown: worst.depth,
+    peakDate: worst.troughDate === null ? null : worst.peakDate,
+    troughDate: worst.troughDate,
+    recoveryDate,
+    underwaterDays,
+    longestUnderwaterDays: longest,
+    currentDrawdown: level / peak - 1,
+  };
+}
+
+/**
+ * 滾動 N 日（預設 60）的年化波動與對大盤的 beta，畫成趨勢線用（2026-10-07）。只用兩邊都有報酬的日子；
+ * 第 N 天起才有值。
+ */
+export function rollingRisk(
+  daily: readonly { date: string; r: number }[],
+  marketCloses: ReadonlyMap<string, number>,
+  calendar: readonly string[],
+  baseDate: string,
+  window: number,
+): { date: string; volatility: number; beta: number | null }[] {
+  const pairs = pairWithBenchmark(daily, marketCloses, calendar, baseDate);
+  const out: { date: string; volatility: number; beta: number | null }[] = [];
+  for (let end = window; end <= pairs.length; end++) {
+    const slice = pairs.slice(end - window, end);
+    const ps = slice.map((x) => x.p);
+    const bs = slice.map((x) => x.b);
+    const varB = sampleCovariance(bs, bs);
+    out.push({
+      date: slice.at(-1)!.date,
+      volatility: Math.sqrt(sampleCovariance(ps, ps)) * Math.sqrt(TRADING_DAYS_PER_YEAR),
+      beta: varB > 0 ? sampleCovariance(ps, bs) / varB : null,
+    });
+  }
+  return out;
+}
+
+/**
  * 跟加權指數逐日比較（只用實際績效，不用回推——回推的報酬帶著事後挑股的偏誤）。
  *
  * - 上漲／下跌捕獲率：大盤上漲（下跌）的那些天，組合的**幾何平均日報酬** ÷ 大盤的幾何平均日報酬

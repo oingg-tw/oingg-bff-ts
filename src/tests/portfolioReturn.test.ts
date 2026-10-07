@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { LedgerEntry } from "@/domain/holdingProjection.js";
-import { compareWithBenchmark, computePortfolioReturn, dailyRiskFreeRates, moneyWeightedReturn, riskAdjustedReturns } from "@/domain/portfolioReturn.js";
+import {
+  compareWithBenchmark,
+  computePortfolioReturn,
+  dailyRiskFreeRates,
+  drawdownStatistics,
+  moneyWeightedReturn,
+  periodReturns,
+  riskAdjustedReturns,
+  rollingRisk,
+} from "@/domain/portfolioReturn.js";
 
 /**
  * 這裡的測試刻意都是**不變量**，而不是「算出來是 0.1234」：一個寫錯的報酬率公式算出來的數字看起來
@@ -262,5 +271,46 @@ describe("riskAdjustedReturns", () => {
     const meanDaily = dailyReturns.reduce((s, d) => s + d.r, 0) / dailyReturns.length;
 
     expect(result.m2).toBeCloseTo(meanDaily * 252, 12);
+  });
+});
+
+/** 2026-10-07：月／年報酬表、回撤期間統計、滾動風險。 */
+describe("periodReturns", () => {
+  // 同一個月的日報酬連乘起來，就是那個月的報酬；全部月份再連乘，等於整段的 TWR。
+  it("monthly returns compound back to the whole-period TWR", () => {
+    const result = run([trade("A", "BUY", 300, 90, "2026-02-01")]);
+    const { monthly } = periodReturns(result.dailyReturns, new Map(A_CLOSES), CALENDAR, BASE);
+
+    expect(monthly.reduce((g, m) => g * (1 + m.portfolio), 1) - 1).toBeCloseTo(result.twr!, 12);
+    expect(monthly[0]).toMatchObject({ period: "2026-03", tradingDays: 5 });
+  });
+});
+
+describe("drawdownStatistics", () => {
+  const daily = [0.1, -0.2, 0.05, 0.2, -0.1].map((r, i) => ({ date: `2026-03-0${i + 2}`, r }));
+
+  // 水位 1.1 → 0.88 → 0.924 → 1.1088 → 0.99792。最深一次：從 1.1 跌到 0.88 = −20%，03-05 回到 1.1 以上。
+  it("finds the deepest fall, its recovery, and the time spent under water", () => {
+    const stats = drawdownStatistics(daily, "2026-03-01");
+
+    expect(stats.maxDrawdown).toBeCloseTo(-0.2, 12);
+    expect(stats).toMatchObject({ peakDate: "2026-03-02", troughDate: "2026-03-03", recoveryDate: "2026-03-05", underwaterDays: 3, longestUnderwaterDays: 2 });
+    expect(stats.currentDrawdown).toBeCloseTo(-0.1, 12);
+  });
+
+  it("treats the window start as a peak when the very first day falls", () => {
+    expect(drawdownStatistics([{ date: "2026-03-02", r: -0.05 }], "2026-03-01")).toMatchObject({ peakDate: "2026-03-01", recoveryDate: null });
+  });
+});
+
+describe("rollingRisk", () => {
+  it("a portfolio that is the market has a rolling beta of exactly 1", () => {
+    const result = run([trade("A", "BUY", 300, 90, "2026-02-01")]);
+    const points = rollingRisk(result.dailyReturns, new Map(A_CLOSES), CALENDAR, BASE, 3);
+
+    expect(points.map((p) => p.date)).toEqual(["2026-03-04", "2026-03-05", "2026-03-06"]);
+    for (const point of points) {
+      expect(point.beta).toBeCloseTo(1, 12);
+    }
   });
 });

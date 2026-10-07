@@ -25,6 +25,13 @@ const holdingSchema = z
   })
   .openapi("Holding");
 
+const periodReturnSchema = z.object({
+  period: z.string().openapi({ example: "2026-03" }),
+  portfolio: z.string().openapi({ example: "0.034567" }),
+  benchmark: z.string().openapi({ example: "0.051234" }),
+  tradingDays: z.number(),
+});
+
 const unauthorized = errorResponse("缺少或無效的 Authorization header / token。");
 
 registry.registerPath({
@@ -100,6 +107,8 @@ registry.registerPath({
     "",
     "只有區間內至少一筆賣出的代號才會列出。`totalRealizedProfitLoss` 是各列（已四捨五入）的加總，",
     "所以畫面上的列一定加得起來等於它。股利不計入。",
+    "",
+    "`tradeStats`（2026-10-07）：區間內賣出的描述統計。勝率＝賺錢筆數 ÷（賺錢＋賠錢筆數）；平均賺／賠金額；獲利因子＝賺錢總額 ÷ |賠錢總額|（沒有賠錢的筆數時 null）；平均持有天數依股數加權（FIFO 批次的買進日到賣出日，配股那一批從除權日起算）。整筆成本不明的賣出不計勝負。只描述，不評等。",
   ].join("\n"),
   tags: ["Holdings"],
   security: [{ bearerAuth: [] }],
@@ -124,6 +133,16 @@ registry.registerPath({
               totalRealizedProfitLoss: z.string().openapi({ example: "389025.0000" }),
               excludedSellCount: z.number().openapi({ description: "全部合計。用來顯示「N 筆成本不明，未計入」。" }),
               excludedShares: z.number(),
+              tradeStats: z.object({
+                sellCount: z.number(),
+                winCount: z.number(),
+                lossCount: z.number(),
+                winRate: z.string().nullable().openapi({ example: "0.583333" }),
+                averageWin: z.string().nullable().openapi({ example: "18250.5000" }),
+                averageLoss: z.string().nullable().openapi({ example: "-9120.0000" }),
+                profitFactor: z.string().nullable().openapi({ example: "2.801234" }),
+                averageHoldingDays: z.string().nullable().openapi({ example: "87.5" }),
+              }),
             })
             .openapi("RealizedProfitLossReport"),
         },
@@ -178,6 +197,10 @@ registry.registerPath({
     "- `benchmarkComparison`：跟加權指數逐日比。上漲／下跌捕獲率＝大盤漲（跌）的那些天，組合的幾何平均日報酬 ÷ 大盤的幾何平均日報酬（Morningstar 定義；不是整段複利相比——大盤大漲的年度那會把比值壓得很低）；Omega（門檻 0）＝賺錢日報酬總和 ÷ 賠錢日報酬總和。`sampleDays` 少於 120 時三個值都是 null。",
     "- `riskAdjusted`：夏普、索提諾、卡瑪（年化 twr ÷ |實際最大跌幅|，期間不滿 365 天時 null）、M²（把組合風險調到跟大盤一樣時的年化報酬）、beta 與詹森 α（對大盤超額報酬回歸）、追蹤誤差、資訊比率。全部年化、只用實際績效；`sampleDays` 少於 120 或無風險利率取不到時全部 null。",
     "- `riskFree`：無風險利率用**五大銀行一年期定存**（使用者定案）。`rates` 逐月列出套用的年利率 %；`sourcePeriod` 跟 `period` 不同，代表那個月還沒有資料、沿用較早的月份（央行月報落後一到兩個月）。取不到時是 null，此時 `riskAdjusted` 全 null、其他欄位照常。",
+    "",
+    "- `periodReturns`：月報酬與年報酬表，組合對加權指數；同一列的兩個數字涵蓋同一批交易日，頭尾可能不是整月，看 `tradingDays`。",
+    "- `drawdown`：實際組合的回撤期間統計（最大回撤與日期、在前高下方的交易日數、最長一段連續在前高下方的天數、期末距前高）。",
+    "- `rolling`：滾動 60 個交易日的年化波動與 beta，畫趨勢線用。",
     "",
     "全部只描述統計，不含任何評等或建議。",
   ].join("\n"),
@@ -236,6 +259,22 @@ registry.registerPath({
                   rates: z.array(z.object({ period: z.string(), ratePct: z.number().openapi({ example: 1.7 }), sourcePeriod: z.string() })),
                 })
                 .nullable(),
+              periodReturns: z.object({ monthly: z.array(periodReturnSchema), yearly: z.array(periodReturnSchema) }),
+              drawdown: z
+                .object({
+                  maxDrawdown: z.string().openapi({ example: "-0.146574" }),
+                  peakDate: z.string().nullable(),
+                  troughDate: z.string().nullable(),
+                  recoveryDate: z.string().nullable(),
+                  underwaterDays: z.number(),
+                  longestUnderwaterDays: z.number(),
+                  currentDrawdown: z.string(),
+                })
+                .nullable(),
+              rolling: z.object({
+                windowDays: z.number(),
+                series: z.array(z.object({ date: z.string(), volatility: z.string(), beta: z.string().nullable() })),
+              }),
             })
             .openapi("PortfolioPerformanceReport"),
         },
@@ -282,6 +321,9 @@ registry.registerPath({
     "- `valueAtRisk95`／`expectedShortfall95`：單日 95% 歷史 VaR／CVaR（報酬，通常 ≤ 0），直接取實際日報酬，不假設常態；`tradingDays` 少於 100 時是 null。組合另有 `…Amount`：乘上現在市值 `marketValue` 的金額（元）。",
     "- `concentration`：只看現在權重。`effectiveHoldings` ＝ 1 ÷ HHI，「有 26 檔，實際上等於平均分散在幾檔」。",
     "- `diversificationRatio` ＝ Σ w_i σ_i ÷ σ_p（≥ 1）；`holdings[].riskContribution` ＝ 佔組合變異數的比例，加總約為 1。兩者在 `tradingDays` 少於 120 時是 null。",
+    "- `sectors`：依現在權重的類股配置（查不到類股的歸在 sectorCode null 那組）與有效類股數。取不到時 null。",
+    "- `fundamentals`：近 12 個月股利 × 現有股數（過去實際配發，不是預估）、組合殖利率、調和加權的本益比與股價淨值比；虧損公司沒有本益比，`…Coverage` 是有值那幾檔的市值佔比。取不到時 null。",
+    "- `correlations`：兩兩日報酬相關係數矩陣（回推），symbols 依權重由大到小。少於 120 個交易日時 null。",
     "",
     "只描述統計，不含任何建議或風險等級。",
   ].join("\n"),
@@ -323,12 +365,75 @@ registry.registerPath({
                   riskContribution: z.string().nullable(),
                 }),
               ),
+              sectors: z
+                .object({
+                  effectiveSectors: z.string().nullable(),
+                  groups: z.array(
+                    z.object({ sectorCode: z.string().nullable(), sectorName: z.string().nullable(), weight: z.string(), symbols: z.array(z.string()) }),
+                  ),
+                })
+                .nullable(),
+              fundamentals: z
+                .object({
+                  dividendIncome: z.string().nullable().openapi({ example: "401000" }),
+                  dividendYield: z.string().nullable().openapi({ example: "0.051600" }),
+                  dividendCoverage: z.string(),
+                  peRatio: z.string().nullable().openapi({ example: "15.234567" }),
+                  peCoverage: z.string(),
+                  pbRatio: z.string().nullable(),
+                  pbCoverage: z.string(),
+                })
+                .nullable(),
+              correlations: z.object({ symbols: z.array(z.string()), matrix: z.array(z.array(z.string().nullable())) }).nullable(),
             })
             .openapi("PortfolioRiskReport"),
         },
       },
     },
     400: errorResponse("日期格式錯誤、from 晚於 to，或期間超過收盤價能回溯的深度（約 8 年）。"),
+    401: unauthorized,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/holdings/stress",
+  summary: "歷史壓力情境：現在的持股遇到過去幾次大跌會跌多少",
+  description: [
+    "用**現在的市值權重**回推過去幾段大跌（加權指數從高點到低點，日期是實際收盤找出來的）：2020 新冠疫情、2022 升息熊市、2024 日圓套利平倉、2025 關稅衝擊。",
+    "問的是「這組持股遇到那樣的跌勢會跌多少」，不是預測，也不是你當時的組合。權重每天維持現在的比例（等於每天再平衡），跟「當時買進後放著不動」的結果不同。除權（配股）會還原，現金股利不還原。單一持股可能主導整段結果（例如某檔那段期間大漲數倍）。",
+    "",
+    "`coveredWeight`：當時就已經有股價的持股佔現在市值的比例；還沒上市的那幾檔不參與、比例分給其他持股，列在 `notCovered`，請照實註明。",
+    "期間早於個股股價能回溯的深度（約 8 年）時 `available` 是 false、數值都是 null。只描述，不評等。",
+  ].join("\n"),
+  tags: ["Holdings"],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "每一段情境的回推結果。",
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              weightsAsOf: z.string().nullable(),
+              scenarios: z.array(
+                z.object({
+                  key: z.string().openapi({ example: "covid-2020" }),
+                  name: z.string().openapi({ example: "2020 新冠疫情" }),
+                  peakDate: z.string(),
+                  troughDate: z.string(),
+                  available: z.boolean(),
+                  portfolio: z.object({ periodReturn: z.string().nullable().openapi({ example: "-0.214567" }), maxDrawdown: z.string().nullable() }),
+                  benchmark: z.object({ periodReturn: z.string().nullable().openapi({ example: "-0.287235" }) }),
+                  coveredWeight: z.string().nullable(),
+                  notCovered: z.array(z.object({ symbol: z.string(), coverage: z.enum(["partial", "none"]), firstPriceDate: z.string().nullable() })),
+                }),
+              ),
+            })
+            .openapi("StressScenariosReport"),
+        },
+      },
+    },
     401: unauthorized,
   },
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectHoldings, type LedgerEntry } from "@/domain/holdingProjection.js";
+import { projectHoldings, tradeStatistics, type LedgerEntry } from "@/domain/holdingProjection.js";
 
 /**
  * 這個檔案守的是整個持股功能唯一的非平凡邏輯：那個 fold。持股不再是一張表之後，**算錯跟存錯是同一件事**
@@ -175,5 +175,34 @@ describe("projectHoldings", () => {
     projectHoldings(entries);
 
     expect(entries.map((e) => e.tradeDate)).toEqual(["2026-05-01", "2026-01-01"]);
+  });
+});
+
+/** 2026-10-07：交易統計與持有天數。 */
+describe("trade statistics", () => {
+  it("weights holding days by shares across the lots a sale consumes (FIFO)", () => {
+    const { realizations } = projectHoldings([
+      entry({ action: "BUY", quantity: 100, price: 10, tradeDate: "2026-01-01", createdAt: "2026-01-01T00:00:00.001Z" }),
+      entry({ action: "BUY", quantity: 300, price: 10, tradeDate: "2026-01-11", createdAt: "2026-01-11T00:00:00.001Z" }),
+      entry({ action: "SELL", quantity: 200, price: 12, tradeDate: "2026-01-21", createdAt: "2026-01-21T00:00:00.001Z" }),
+    ]);
+
+    // 100 股持有 20 天、100 股持有 10 天 → 15 天。
+    expect(realizations[0]!.holdingDays).toBe(15);
+    expect(realizations[0]!.shares).toBe(200);
+  });
+
+  it("counts wins and losses, and leaves profit factor null when nothing lost", () => {
+    const stats = tradeStatistics([
+      { symbol: "A", tradeDate: "2026-02-01", profitLoss: 300, excludedShares: 0, shares: 100, holdingDays: 10 },
+      { symbol: "B", tradeDate: "2026-02-02", profitLoss: -100, excludedShares: 0, shares: 100, holdingDays: 30 },
+      { symbol: "C", tradeDate: "2026-02-03", profitLoss: 100, excludedShares: 0, shares: 200, holdingDays: 40 },
+      // 整筆成本不明：不計勝負，否則會被當成打平。
+      { symbol: "D", tradeDate: "2026-02-04", profitLoss: 0, excludedShares: 50, shares: 50, holdingDays: 5 },
+    ]);
+
+    expect(stats).toMatchObject({ sellCount: 3, winCount: 2, lossCount: 1, averageWin: 200, averageLoss: -100, profitFactor: 4 });
+    expect(stats.winRate).toBeCloseTo(2 / 3, 12);
+    expect(tradeStatistics([{ symbol: "A", tradeDate: "2026-02-01", profitLoss: 5, excludedShares: 0, shares: 1, holdingDays: 1 }]).profitFactor).toBeNull();
   });
 });

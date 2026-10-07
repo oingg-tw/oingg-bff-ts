@@ -116,7 +116,9 @@ describe("getRealizedProfitLoss", () => {
         { symbol: "0056", realizedProfitLoss: "10000.0000", excludedSellCount: 0, excludedShares: 0 },
         { symbol: "2330", realizedProfitLoss: "0.0000", excludedSellCount: 0, excludedShares: 0 },
       ],
-      totalRealizedProfitLoss: "10000.0000", excludedSellCount: 0, excludedShares: 0
+      totalRealizedProfitLoss: "10000.0000", excludedSellCount: 0, excludedShares: 0,
+      // 賺 100,000 與 10,000、賠 100,000：獲利因子 110,000 ÷ 100,000，總和跟 totalRealizedProfitLoss 對得上。
+      tradeStats: { sellCount: 3, winCount: 2, lossCount: 1, winRate: "0.666667", averageWin: "55000.0000", averageLoss: "-100000.0000", profitFactor: "1.100000", averageHoldingDays: "151.4" },
     });
   });
 
@@ -141,6 +143,14 @@ describe("getRealizedProfitLoss", () => {
   it("returns an empty report for a window with no sells", async () => {
     const report = await getRealizedProfitLoss("uid1", "2026-01-01", "2026-04-30", deps());
 
-    expect(report).toEqual({ from: "2026-01-01", to: "2026-04-30", symbols: [], totalRealizedProfitLoss: "0.0000", excludedSellCount: 0, excludedShares: 0 });
+    expect(report).toEqual({
+      from: "2026-01-01",
+      to: "2026-04-30",
+      symbols: [],
+      totalRealizedProfitLoss: "0.0000",
+      excludedSellCount: 0,
+      excludedShares: 0,
+      tradeStats: { sellCount: 0, winCount: 0, lossCount: 0, winRate: null, averageWin: null, averageLoss: null, profitFactor: null, averageHoldingDays: null },
+    });
   });
 });

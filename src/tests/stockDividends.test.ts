@@ -80,7 +80,7 @@ describe("cost-unknown acquisitions in projectHoldings", () => {
     ]);
 
     expect(holdings[0]).toMatchObject({ quantity: 1000, costUnknownQuantity: 0, averageCost: 100, realizedProfitLoss: 0 });
-    expect(realizations).toEqual([{ symbol: "5314", tradeDate: "2026-08-18", profitLoss: 0, excludedShares: 12_628 }]);
+    expect(realizations).toMatchObject([{ symbol: "5314", tradeDate: "2026-08-18", profitLoss: 0, excludedShares: 12_628 }]);
   });
 
   // 反過來（成本不明的日期比較晚）FIFO 會先賣成本已知的那批——這就是前端要把它的日期往前放的原因。
@@ -91,7 +91,7 @@ describe("cost-unknown acquisitions in projectHoldings", () => {
       e("A", "SELL", 1000, 120, "2026-04-01"),
     ]);
 
-    expect(realizations[0]).toEqual({ symbol: "A", tradeDate: "2026-04-01", profitLoss: 20_000, excludedShares: 0 });
+    expect(realizations[0]).toMatchObject({ symbol: "A", tradeDate: "2026-04-01", profitLoss: 20_000, excludedShares: 0 });
   });
 
   it("splits a sale that spans both kinds, counting only the known part", () => {
@@ -102,7 +102,7 @@ describe("cost-unknown acquisitions in projectHoldings", () => {
     ]);
 
     // 300 股成本不明先賣、100 股成本已知：淨價金 23,880 的 1/4 是 5,970，減成本 5,000 = 970。
-    expect(realizations[0]).toEqual({ symbol: "A", tradeDate: "2026-03-02", profitLoss: 970, excludedShares: 300 });
+    expect(realizations[0]).toMatchObject({ symbol: "A", tradeDate: "2026-03-02", profitLoss: 970, excludedShares: 300 });
     expect(holdings[0]).toMatchObject({ quantity: 0, costUnknownQuantity: 0 });
   });
 

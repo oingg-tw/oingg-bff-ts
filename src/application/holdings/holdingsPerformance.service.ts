@@ -1,4 +1,12 @@
-import { compareWithBenchmark, computePortfolioReturn, dailyRiskFreeRates, riskAdjustedReturns } from "@/domain/portfolioReturn.js";
+import {
+  compareWithBenchmark,
+  computePortfolioReturn,
+  dailyRiskFreeRates,
+  drawdownStatistics,
+  periodReturns,
+  riskAdjustedReturns,
+  rollingRisk,
+} from "@/domain/portfolioReturn.js";
 import { logger } from "@/shared/logger.js";
 import { toLedgerEntry } from "@/application/transactions/transactions.service.js";
 import { applyStockDividends } from "@/application/holdings/stockDividendLedger.js";
@@ -19,6 +27,8 @@ export type HoldingsPerformanceDeps = Pick<AppDeps, "transactions" | "stockGatew
 const RETURN_DECIMALS = 6;
 /** 捕獲率與 Omega 的最低樣本（呈現規則）：跟 beta 一樣，約 120 個交易日以下估不穩。 */
 const MIN_DAYS_FOR_COMPARISON = 120;
+/** 滾動視窗：約一季。60 天的波動已可用（見 /holdings/risk 的說明），beta 在這個長度上偏雜訊，畫趨勢看就好。 */
+const ROLLING_WINDOW_DAYS = 60;
 const MS_PER_DAY = 86_400_000;
 
 function fixed(value: number | null): string | null {
@@ -27,6 +37,15 @@ function fixed(value: number | null): string | null {
 
 function annualize(periodReturn: number | null, days: number): string | null {
   return periodReturn === null || days < 365 ? null : fixed((1 + periodReturn) ** (365 / days) - 1);
+}
+
+function formatPeriod(row: { period: string; portfolio: number; benchmark: number; tradingDays: number }) {
+  return {
+    period: row.period,
+    portfolio: row.portfolio.toFixed(RETURN_DECIMALS),
+    benchmark: row.benchmark.toFixed(RETURN_DECIMALS),
+    tradingDays: row.tradingDays,
+  };
 }
 
 function emptyRiskAdjusted(sampleDays: number): PortfolioPerformanceReport["riskAdjusted"] {
@@ -70,6 +89,9 @@ export async function getPortfolioPerformance(
       benchmarkComparison: { sampleDays: 0, upCapture: null, downCapture: null, omega: null },
       riskAdjusted: emptyRiskAdjusted(0),
       riskFree: null,
+      periodReturns: { monthly: [], yearly: [] },
+      drawdown: null,
+      rolling: { windowDays: ROLLING_WINDOW_DAYS, series: [] },
     };
   }
 
@@ -102,6 +124,11 @@ export async function getPortfolioPerformance(
   const { buyAmount, sellAmount, fees, taxes, averageMarketValue } = result.trading;
   const perAverage = (numerator: number) => (averageMarketValue ? fixed(numerator / averageMarketValue) : null);
   const annualizedTwr = annualize(result.twr, periodDays);
+  const periods = periodReturns(result.dailyReturns, taiexCloses, calendar, baseDate);
+  // 回撤的起點是第一個有報酬那天的前一個交易日（期間中才開始投資時不是 baseDate）。
+  const firstReturnIndex = result.dailyReturns.length > 0 ? calendar.indexOf(result.dailyReturns[0]!.date) : -1;
+  const drawdown =
+    firstReturnIndex < 0 ? null : drawdownStatistics(result.dailyReturns, firstReturnIndex === 0 ? baseDate : calendar[firstReturnIndex - 1]!);
 
   let riskAdjusted = emptyRiskAdjusted(0);
   let riskFree: PortfolioPerformanceReport["riskFree"] = null;
@@ -152,6 +179,23 @@ export async function getPortfolioPerformance(
     },
     riskAdjusted,
     riskFree,
+    periodReturns: {
+      monthly: periods.monthly.map(formatPeriod),
+      yearly: periods.yearly.map(formatPeriod),
+    },
+    drawdown: drawdown && {
+      ...drawdown,
+      maxDrawdown: drawdown.maxDrawdown.toFixed(RETURN_DECIMALS),
+      currentDrawdown: drawdown.currentDrawdown.toFixed(RETURN_DECIMALS),
+    },
+    rolling: {
+      windowDays: ROLLING_WINDOW_DAYS,
+      series: rollingRisk(result.dailyReturns, taiexCloses, calendar, baseDate, ROLLING_WINDOW_DAYS).map((point) => ({
+        date: point.date,
+        volatility: point.volatility.toFixed(RETURN_DECIMALS),
+        beta: fixed(point.beta),
+      })),
+    },
     series: result.series.map((point) => ({
       date: point.date,
       cumulative: point.cumulative === null ? null : point.cumulative.toFixed(RETURN_DECIMALS),

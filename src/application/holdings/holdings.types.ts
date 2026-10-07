@@ -55,6 +55,21 @@ export interface RealizedProfitLossReport {
   /** 全部代號合計。前端用來顯示「N 筆成本不明，未計入」。 */
   excludedSellCount: number;
   excludedShares: number;
+  /**
+   * 區間內賣出的描述統計（2026-10-07）。只算成本已知的部分；整筆成本不明的賣出不計勝負。金額 4 位、
+   * 比率 6 位小數字串，平均持有天數依股數加權（配股那一批從除權日起算）。沒有賣出時數值都是 null。
+   * profitFactor ＝ 賺錢總額 ÷ |賠錢總額|，沒有賠錢的筆數時是 null。
+   */
+  tradeStats: {
+    sellCount: number;
+    winCount: number;
+    lossCount: number;
+    winRate: string | null;
+    averageWin: string | null;
+    averageLoss: string | null;
+    profitFactor: string | null;
+    averageHoldingDays: string | null;
+  };
 }
 
 /**
@@ -129,6 +144,30 @@ export interface PortfolioPerformanceReport {
     latestPeriod: string | null;
     rates: { period: string; ratePct: number; sourcePeriod: string }[];
   } | null;
+  /**
+   * 月報酬與年報酬表（2026-10-07），組合對加權指數。同一列的兩個數字涵蓋同一批交易日（兩邊都有報酬的
+   * 日子）；期間頭尾可能不是整月／整年，看 tradingDays。報酬是 6 位小數字串。
+   */
+  periodReturns: {
+    monthly: { period: string; portfolio: string; benchmark: string; tradingDays: number }[];
+    yearly: { period: string; portfolio: string; benchmark: string; tradingDays: number }[];
+  };
+  /**
+   * 實際組合的回撤期間統計。peakDate 可能是期間起點（第一個有報酬那天的前一個交易日）。underwaterDays：
+   * 在前高下方的交易日數；longestUnderwaterDays：最長一段連續在前高下方的交易日數；currentDrawdown：期末距前高
+   * （≤ 0）。沒有曝險時整個是 null。
+   */
+  drawdown: {
+    maxDrawdown: string;
+    peakDate: string | null;
+    troughDate: string | null;
+    recoveryDate: string | null;
+    underwaterDays: number;
+    longestUnderwaterDays: number;
+    currentDrawdown: string;
+  } | null;
+  /** 滾動 60 個交易日的年化波動與 beta（實際組合對大盤），第 60 天起才有點。 */
+  rolling: { windowDays: number; series: { date: string; volatility: string; beta: string | null }[] };
 }
 
 /**
@@ -184,6 +223,34 @@ export interface PortfolioRiskReport {
      */
     riskContribution: string | null;
   }[];
+  /**
+   * 類股配置（2026-10-07），依現在市值權重，權重大的在前。sectorCode／sectorName 是 null 的那組是查不到類股的
+   * （ETF、還沒分類的公司）。effectiveSectors ＝ 1 ÷ Σ類股權重²。類股資料取不到時整個是 null。
+   */
+  sectors: {
+    effectiveSectors: string | null;
+    groups: { sectorCode: string | null; sectorName: string | null; weight: string; symbols: string[] }[];
+  } | null;
+  /**
+   * 組合層級的基本面（2026-10-07），只描述數字。dividendIncome：近 12 個月每股股利 × 現有股數（元，整數字串，
+   * 是過去實際配發，不是預估）；dividendYield ＝ 收入 ÷ 有股利資料那幾檔的市值。peRatio／pbRatio 是調和加權
+   * （組合價格 ÷ 組合分到的盈餘／淨值），交易所不公布虧損公司的本益比，所以那幾檔不在本益比裡。
+   * …Coverage 是有值那幾檔的市值佔比，前端要一起顯示。資料取不到時整個是 null。
+   */
+  fundamentals: {
+    dividendIncome: string | null;
+    dividendYield: string | null;
+    dividendCoverage: string;
+    peRatio: string | null;
+    peCoverage: string;
+    pbRatio: string | null;
+    pbCoverage: string;
+  } | null;
+  /**
+   * 兩兩之間的日報酬相關係數（回推），symbols 依權重由大到小，matrix[i][j] 對應 symbols[i] 與 symbols[j]、
+   * 對角線是 "1.000000"。樣本少於 120 個交易日時整個是 null。
+   */
+  correlations: { symbols: string[]; matrix: (string | null)[][] } | null;
 }
 
 /**
@@ -195,6 +262,32 @@ export interface DistributionRiskView {
   ulcerIndex: string | null;
   valueAtRisk95: string | null;
   expectedShortfall95: string | null;
+}
+
+/**
+ * GET /holdings/stress 的回應（2026-10-07）：**用現在的持股**回推過去幾次大跌，各段是加權指數從高點到低點
+ * （日期是實際收盤找出來的）。問的是「這組持股遇到那樣的跌勢會跌多少」，不是預測，也不是當時的你。
+ * 權重每天維持現在的比例（等於每天再平衡），所以跟「當時買進後放著不動」不同：2026-10-07 使用者的組合在
+ * 2022 那段回推是 +3.6%、不再平衡是 +9.1%，主因是 2364 那段期間漲了 355%（逐日上漲，不是減資跳空）。
+ * 單一持股可以主導整段結果，前端最好一起顯示各持股自己的漲跌（目前回應沒有，需要再說）。
+ *
+ * coveredWeight：當時就已經有股價的持股佔現在市值的比例。還沒上市的那幾檔不參與、比例分給其他持股，
+ * 列在 notCovered，前端要照實註明（例如「你現在 12% 的持股在 2020 年還沒上市」）。
+ * 期間比股價能回溯的深度還早時 available 是 false，數值都是 null。
+ */
+export interface StressScenariosReport {
+  weightsAsOf: string | null;
+  scenarios: {
+    key: string;
+    name: string;
+    peakDate: string;
+    troughDate: string;
+    available: boolean;
+    portfolio: { periodReturn: string | null; maxDrawdown: string | null };
+    benchmark: { periodReturn: string | null };
+    coveredWeight: string | null;
+    notCovered: { symbol: string; coverage: "partial" | "none"; firstPriceDate: string | null }[];
+  }[];
 }
 
 export interface DrawdownView {

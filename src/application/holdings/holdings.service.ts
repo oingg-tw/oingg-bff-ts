@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { projectHoldings, type LedgerEntry, type ProjectedHolding } from "@/domain/holdingProjection.js";
+import { projectHoldings, type LedgerEntry, type ProjectedHolding, tradeStatistics } from "@/domain/holdingProjection.js";
 import { toLedgerEntry } from "@/application/transactions/transactions.service.js";
 import { applyStockDividends } from "@/application/holdings/stockDividendLedger.js";
 import type { AppDeps } from "@/application/deps.js";
@@ -65,10 +65,10 @@ export async function getRealizedProfitLoss(
   const rows = await deps.transactions.list(firebaseUid);
   const { entries } = await applyStockDividends(rows.map(toLedgerEntry), deps);
   const bySymbol = new Map<string, { profitLoss: number; excludedSellCount: number; excludedShares: number }>();
-  for (const realization of projectHoldings(entries).realizations) {
-    if ((from && realization.tradeDate < from) || (to && realization.tradeDate > to)) {
-      continue;
-    }
+  const inWindow = projectHoldings(entries).realizations.filter(
+    (realization) => !(from && realization.tradeDate < from) && !(to && realization.tradeDate > to),
+  );
+  for (const realization of inWindow) {
     const row = bySymbol.get(realization.symbol) ?? { profitLoss: 0, excludedSellCount: 0, excludedShares: 0 };
     row.profitLoss += realization.profitLoss;
     if (realization.excludedShares > 0) {
@@ -95,6 +95,22 @@ export async function getRealizedProfitLoss(
     totalRealizedProfitLoss: total.toFixed(DECIMAL_PLACES),
     excludedSellCount: symbols.reduce((sum, row) => sum + row.excludedSellCount, 0),
     excludedShares: symbols.reduce((sum, row) => sum + row.excludedShares, 0),
+    tradeStats: formatTradeStats(tradeStatistics(inWindow)),
+  };
+}
+
+function formatTradeStats(stats: ReturnType<typeof tradeStatistics>): RealizedProfitLossReport["tradeStats"] {
+  const money = (value: number | null) => (value === null ? null : value.toFixed(DECIMAL_PLACES));
+  const ratio = (value: number | null) => (value === null ? null : value.toFixed(6));
+  return {
+    sellCount: stats.sellCount,
+    winCount: stats.winCount,
+    lossCount: stats.lossCount,
+    winRate: ratio(stats.winRate),
+    averageWin: money(stats.averageWin),
+    averageLoss: money(stats.averageLoss),
+    profitFactor: ratio(stats.profitFactor),
+    averageHoldingDays: stats.averageHoldingDays === null ? null : stats.averageHoldingDays.toFixed(1),
   };
 }
 

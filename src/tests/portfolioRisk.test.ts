@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computePortfolioRisk, concentration, type PortfolioRiskInput } from "@/domain/portfolioRisk.js";
+import { computePortfolioRisk, concentration, sectorAllocation, type PortfolioRiskInput } from "@/domain/portfolioRisk.js";
 
 /**
  * 都是不變量：一個寫錯的風險公式算出來的數字看起來一樣合理，所以每一條都是這些指標的定義性質。
@@ -190,5 +190,37 @@ describe("downside and tail risk", () => {
 
     expect(risk.portfolio.ulcerIndex!).toBeLessThanOrEqual(depth);
     expect(risk.portfolio.ulcerIndex!).toBeGreaterThanOrEqual(depth / Math.sqrt(risk.tradingDays));
+  });
+});
+
+/** 2026-10-07：類股配置、相關係數矩陣、回推期間報酬（壓力情境用）。 */
+describe("sectorAllocation", () => {
+  it("adds weights per sector and keeps unclassified holdings as their own group", () => {
+    const result = sectorAllocation(
+      new Map([["A", 0.5], ["B", 0.3], ["C", 0.2]]),
+      new Map([["A", { sectorCode: "24", sectorName: "半導體業" }], ["B", { sectorCode: "24", sectorName: "半導體業" }]]),
+    );
+
+    expect(result.sectors.map((s) => [s.sectorCode, s.weight, s.symbols])).toEqual([["24", 0.8, ["A", "B"]], [null, 0.2, ["C"]]]);
+    expect(result.effectiveSectors).toBeCloseTo(1 / (0.8 ** 2 + 0.2 ** 2), 12);
+  });
+});
+
+describe("correlations and period return", () => {
+  it("identical holdings correlate at exactly 1 and the matrix is symmetric", () => {
+    const risk = computePortfolioRisk(
+      input({ weights: new Map([["A", 0.7], ["B", 0.3]]), closes: new Map([["A", series(MARKET)], ["B", series(MARKET)]]) }),
+    );
+
+    expect(risk.correlations.symbols).toEqual(["A", "B"]);
+    expect(risk.correlations.matrix[0]![1]).toBeCloseTo(1, 12);
+    expect(risk.correlations.matrix[1]![0]).toBe(risk.correlations.matrix[0]![1]);
+  });
+
+  it("the period return of a holding identical to the market is the market's own return", () => {
+    const risk = computePortfolioRisk(input({ closes: new Map([["A", series(MARKET)]]) }));
+
+    expect(risk.periodReturn.portfolio).toBeCloseTo(MARKET.at(-1)! / MARKET[0]! - 1, 12);
+    expect(risk.periodReturn.benchmark).toBeCloseTo(MARKET.at(-1)! / MARKET[0]! - 1, 12);
   });
 });

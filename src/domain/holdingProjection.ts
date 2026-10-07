@@ -102,6 +102,56 @@ export interface Realization {
   profitLoss: number;
   /** 這筆賣出裡成本不明、所以沒有計入 profitLoss 的股數。0 代表整筆都計入。 */
   excludedShares: number;
+  /** 實際賣出的股數（賣超被夾掉的部分不算）。 */
+  shares: number;
+  /**
+   * 賣掉的那幾批從買進到賣出的天數，依股數加權平均（2026-10-07，交易統計的平均持有天數用）。
+   * 自動入帳的配股那一批從除權日起算。賣出 0 股時是 null。
+   */
+  holdingDays: number | null;
+}
+
+/**
+ * 已實現交易的描述統計（2026-10-07，使用者要求）。只算**成本已知**的部分：整筆都是成本不明的賣出
+ * （profitLoss 只剩 0）不計入勝負，否則會被當成「打平」拉低勝率。損益剛好是 0 的那筆也不算勝也不算負。
+ *
+ * - winRate ＝ 賺錢筆數 ÷（賺錢＋賠錢筆數）
+ * - averageWin／averageLoss：賺錢（賠錢）那幾筆的平均金額，averageLoss ≤ 0
+ * - profitFactor ＝ 賺錢總額 ÷ |賠錢總額|；沒有賠錢的筆數時是 null（不是無限大）
+ * - averageHoldingDays：依股數加權
+ */
+export function tradeStatistics(realizations: readonly Realization[]): {
+  sellCount: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number | null;
+  averageWin: number | null;
+  averageLoss: number | null;
+  profitFactor: number | null;
+  averageHoldingDays: number | null;
+} {
+  const counted = realizations.filter((r) => r.shares > 0 && r.excludedShares < r.shares);
+  const wins = counted.filter((r) => r.profitLoss > 0).map((r) => r.profitLoss);
+  const losses = counted.filter((r) => r.profitLoss < 0).map((r) => r.profitLoss);
+  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+  const withDays = realizations.filter((r) => r.holdingDays !== null && r.shares > 0);
+  const shareTotal = sum(withDays.map((r) => r.shares));
+  return {
+    sellCount: counted.length,
+    winCount: wins.length,
+    lossCount: losses.length,
+    winRate: wins.length + losses.length > 0 ? wins.length / (wins.length + losses.length) : null,
+    averageWin: wins.length > 0 ? sum(wins) / wins.length : null,
+    averageLoss: losses.length > 0 ? sum(losses) / losses.length : null,
+    profitFactor: losses.length > 0 ? sum(wins) / Math.abs(sum(losses)) : null,
+    averageHoldingDays: shareTotal > 0 ? sum(withDays.map((r) => r.holdingDays! * r.shares)) / shareTotal : null,
+  };
+}
+
+const MS_PER_DAY = 86_400_000;
+
+function daysBetween(from: string, to: string): number {
+  return (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / MS_PER_DAY;
 }
 
 export interface Projection {
@@ -148,7 +198,7 @@ function byReplayOrder(a: LedgerEntry, b: LedgerEntry): number {
 export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
   const positions = new Map<string, ProjectedHolding>();
   /** 每個代號的批次，最舊的在前。`cost` 是那一批剩下股數的總成本；成本不明的批次是 0 且不參與均價。 */
-  const lotsBySymbol = new Map<string, { quantity: number; cost: number; costUnknown: boolean }[]>();
+  const lotsBySymbol = new Map<string, { quantity: number; cost: number; costUnknown: boolean; acquiredOn: string }[]>();
   const oversold: Oversold[] = [];
   const realizations: Realization[] = [];
 
@@ -163,7 +213,7 @@ export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
 
     if (entry.action === "BUY") {
       const costUnknown = entry.costUnknown === true;
-      lots.push({ quantity: entry.quantity, cost: costUnknown ? 0 : entry.quantity * entry.price + entry.fee, costUnknown });
+      lots.push({ quantity: entry.quantity, cost: costUnknown ? 0 : entry.quantity * entry.price + entry.fee, costUnknown, acquiredOn: entry.tradeDate });
     } else {
       const sold = Math.min(entry.quantity, position.quantity);
       if (sold < entry.quantity) {
@@ -186,9 +236,11 @@ export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
       let knownSold = 0;
       let unknownSold = 0;
       let costRemoved = 0;
+      let shareDays = 0;
       while (remaining > 0) {
         const lot = lots[0]!;
         const take = Math.min(remaining, lot.quantity);
+        shareDays += take * daysBetween(lot.acquiredOn, entry.tradeDate);
         const portion = take === lot.quantity ? lot.cost : (lot.cost * take) / lot.quantity;
         if (lot.costUnknown) {
           unknownSold += take;
@@ -208,7 +260,14 @@ export function projectHoldings(entries: readonly LedgerEntry[]): Projection {
       // sold 為 0（賣超被夾成 0 股）時維持原本的行為：手續費與稅照樣記成損失。
       const profitLoss = sold === 0 ? netProceeds : (netProceeds * knownSold) / sold - costRemoved;
       position.realizedProfitLoss += profitLoss;
-      realizations.push({ symbol: entry.symbol, tradeDate: entry.tradeDate, profitLoss, excludedShares: unknownSold });
+      realizations.push({
+        symbol: entry.symbol,
+        tradeDate: entry.tradeDate,
+        profitLoss,
+        excludedShares: unknownSold,
+        shares: sold,
+        holdingDays: sold === 0 ? null : shareDays / sold,
+      });
     }
 
     // 摘要欄位每次都從批次重算，而不是增量加減：批次很少（一檔幾十筆），重算就不可能跟批次漂開。
