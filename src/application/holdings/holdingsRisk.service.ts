@@ -6,7 +6,7 @@ import { toLedgerEntry } from "@/application/transactions/transactions.service.j
 import { applyStockDividends, stockDividendEventsFor } from "@/application/holdings/stockDividendLedger.js";
 import { fetchCloses, resolveTradingWindow } from "@/application/holdings/marketWindow.js";
 import type { AppDeps } from "@/application/deps.js";
-import type { DistributionRiskView, DrawdownView, PortfolioRiskReport, StressScenariosReport } from "@/application/holdings/holdings.types.js";
+import type { DistributionRiskView, DrawdownView, PortfolioRiskReport } from "@/application/holdings/holdings.types.js";
 
 /**
  * GET /holdings/risk 的編排：現在的持股（含自動配股、FIFO）→ 用最新收盤價算市值權重 → 抓期間的收盤價與
@@ -241,105 +241,4 @@ export async function getPortfolioRisk(
       })
       .sort((a, b) => Number(b.weight ?? -1) - Number(a.weight ?? -1)),
   };
-}
-
-/**
- * 歷史壓力情境（2026-10-07，使用者要求）。每一段是加權指數從高點到低點，日期是 2026-10-07 從加權指數
- * 收盤實際找出來的（在大致的區間裡取最高收盤與它之後的最低收盤），不是憑印象寫的。
- *
- * 2018 年的貿易戰不列：個股股價只回溯約 2000 個交易日，配股行事曆也只從 2019 年起有資料，還原不了。
- * 隨著時間過去，最早那段也會超出股價能回溯的深度——那時它回 available: false，不是錯誤。
- */
-const STRESS_SCENARIOS = [
-  { key: "covid-2020", name: "2020 新冠疫情", peakDate: "2020-01-14", troughDate: "2020-03-19" },
-  { key: "rate-hikes-2022", name: "2022 升息熊市", peakDate: "2022-01-04", troughDate: "2022-10-25" },
-  { key: "yen-carry-2024", name: "2024 日圓套利平倉", peakDate: "2024-07-11", troughDate: "2024-08-05" },
-  { key: "tariffs-2025", name: "2025 關稅衝擊", peakDate: "2025-02-21", troughDate: "2025-04-09" },
-] as const;
-
-function nextDay(date: string): string {
-  return new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
-}
-
-/**
- * 用現在的持股回推每一段大跌：權重跟 /holdings/risk 一樣（股數 × 最新收盤），除權一樣還原。期間是
- * (高點, 低點]，起點是高點那天的收盤。
- */
-export async function getStressScenarios(firebaseUid: string, deps: HoldingsRiskDeps): Promise<StressScenariosReport> {
-  const { entries } = await applyStockDividends((await deps.transactions.list(firebaseUid)).map(toLedgerEntry), deps);
-  const held = projectHoldings(entries).holdings.filter((position) => position.quantity > 0);
-  const symbols = held.map((position) => position.symbol);
-  const unavailable = (scenario: (typeof STRESS_SCENARIOS)[number]) => ({
-    ...scenario,
-    available: false,
-    portfolio: { periodReturn: null, maxDrawdown: null },
-    benchmark: { periodReturn: null },
-    coveredWeight: null,
-    notCovered: [],
-    holdings: [],
-  });
-  if (held.length === 0) {
-    return { weightsAsOf: null, scenarios: STRESS_SCENARIOS.map(unavailable) };
-  }
-
-  // 權重只需要最新收盤：抓最近一小段就好（快取會被後面更長的那幾段覆蓋成超集）。
-  const { weights, weightsAsOf, totalValue } = currentWeights(held, await fetchCloses(symbols, 30, deps));
-  if (totalValue <= 0) {
-    return { weightsAsOf, scenarios: STRESS_SCENARIOS.map(unavailable) };
-  }
-
-  const scenarios: StressScenariosReport["scenarios"] = [];
-  for (const scenario of STRESS_SCENARIOS) {
-    let window: Awaited<ReturnType<typeof resolveTradingWindow>>;
-    try {
-      window = await resolveTradingWindow(nextDay(scenario.peakDate), scenario.troughDate, deps);
-    } catch {
-      // 比股價能回溯的深度還早：resolveTradingWindow 回 400。這裡不是錯誤，只是這一段做不了。
-      scenarios.push(unavailable(scenario));
-      continue;
-    }
-    if (!window.baseDate) {
-      scenarios.push(unavailable(scenario));
-      continue;
-    }
-    const [closes, events] = await Promise.all([
-      fetchCloses(symbols, window.tradingDaysNeeded, deps),
-      stockDividendEventsFor(new Set(symbols), window.baseDate, deps),
-    ]);
-    const risk = computePortfolioRisk({
-      weights,
-      calendar: window.calendar,
-      baseDate: window.baseDate,
-      closes,
-      stockDividends: stockDividendsBySymbol(events),
-      marketCloses: window.taiexCloses,
-    });
-    const notCovered = [...weights.keys()].flatMap((symbol) => {
-      const coverage = risk.coverage.get(symbol);
-      if (coverage?.kind === "full") {
-        return [];
-      }
-      return [{ symbol, coverage: coverage?.kind === "partial" ? ("partial" as const) : ("none" as const), firstPriceDate: coverage?.kind === "partial" ? coverage.firstPriceDate : null }];
-    });
-    const coveredWeight = [...weights].reduce((sum, [symbol, weight]) => (risk.coverage.get(symbol)?.kind === "full" ? sum + weight : sum), 0);
-    scenarios.push({
-      ...scenario,
-      available: true,
-      portfolio: { periodReturn: fixed(risk.periodReturn.portfolio), maxDrawdown: risk.portfolio.maxDrawdown.depth.toFixed(DECIMALS) },
-      benchmark: { periodReturn: fixed(risk.periodReturn.benchmark) },
-      coveredWeight: coveredWeight.toFixed(DECIMALS),
-      notCovered,
-      holdings: [...weights]
-        .map(([symbol, weight]) => ({ symbol, weight, result: risk.holdingReturns.get(symbol) }))
-        // 沒參與的（result 是 undefined）用 −1 排在所有 |contribution| ≥ 0 之後。
-        .sort((a, b) => (b.result ? Math.abs(b.result.contribution) : -1) - (a.result ? Math.abs(a.result.contribution) : -1))
-        .map(({ symbol, weight, result }) => ({
-          symbol,
-          weight: weight.toFixed(DECIMALS),
-          periodReturn: result ? result.periodReturn.toFixed(DECIMALS) : null,
-          contribution: result ? result.contribution.toFixed(DECIMALS) : null,
-        })),
-    });
-  }
-  return { weightsAsOf, scenarios };
 }

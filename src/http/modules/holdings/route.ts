@@ -12,7 +12,6 @@ import {
 } from "@/application/holdings/holdingsPerformance.service.js";
 import {
   getPortfolioRisk,
-  getStressScenarios,
   type HoldingsRiskDeps,
 } from "@/application/holdings/holdingsRisk.service.js";
 
@@ -57,11 +56,6 @@ export function createHoldingsRouter(deps: HoldingsDeps & HoldingsPerformanceDep
     const firebaseUid = requireUser(req);
     const { from, to } = parseBody(dateRangeQuerySchema, req.query);
     res.json(await getPortfolioPerformance(firebaseUid, from, to, deps));
-  });
-
-  // 歷史壓力情境：期間是固定的幾段大跌，所以沒有 from/to。
-  holdingsRouter.get("/stress", async (req: AuthenticatedRequest, res) => {
-    res.json(await getStressScenarios(requireUser(req), deps));
   });
 
   holdingsRouter.get("/risk", async (req: AuthenticatedRequest, res) => {

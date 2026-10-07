@@ -264,38 +264,6 @@ export interface DistributionRiskView {
   expectedShortfall95: string | null;
 }
 
-/**
- * GET /holdings/stress 的回應（2026-10-07）：**用現在的持股**回推過去幾次大跌，各段是加權指數從高點到低點
- * （日期是實際收盤找出來的）。問的是「這組持股遇到那樣的跌勢會跌多少」，不是預測，也不是當時的你。
- * 權重每天維持現在的比例（等於每天再平衡），所以跟「當時買進後放著不動」不同：2026-10-07 使用者的組合在
- * 2022 那段回推是 +3.6%、不再平衡是 +9.1%，主因是 2364 那段期間漲了 355%（逐日上漲，不是減資跳空）。
- * 單一持股可以主導整段結果，前端最好一起顯示各持股自己的漲跌（目前回應沒有，需要再說）。
- *
- * coveredWeight：當時就已經有股價的持股佔現在市值的比例。還沒上市的那幾檔不參與、比例分給其他持股，
- * 列在 notCovered，前端要照實註明（例如「你現在 12% 的持股在 2020 年還沒上市」）。
- * 期間比股價能回溯的深度還早時 available 是 false，數值都是 null。
- */
-export interface StressScenariosReport {
-  weightsAsOf: string | null;
-  scenarios: {
-    key: string;
-    name: string;
-    peakDate: string;
-    troughDate: string;
-    available: boolean;
-    portfolio: { periodReturn: string | null; maxDrawdown: string | null };
-    benchmark: { periodReturn: string | null };
-    coveredWeight: string | null;
-    notCovered: { symbol: string; coverage: "partial" | "none"; firstPriceDate: string | null }[];
-    /**
-     * 每一檔的表現（2026-10-07，web-nuxt 要列出前三大貢獻）。weight 是現在的權重；periodReturn 是它自己在
-     * 這段期間的報酬；contribution 是逐日歸因，**全部加總剛好等於 portfolio.periodReturn**（不是 weight ×
-     * periodReturn——每天維持比例的回推裡那個加不回去）。依 |contribution| 由大到小，沒參與的排最後、兩個值是 null。
-     */
-    holdings: { symbol: string; weight: string; periodReturn: string | null; contribution: string | null }[];
-  }[];
-}
-
 export interface DrawdownView {
   /** 最大跌幅（≤ 0）。期間內從來沒跌過時是 "0.000000"、日期都是 null。 */
   depth: string;

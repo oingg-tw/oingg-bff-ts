@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fakeTransactions } from "@/tests/fakes/transactions.js";
 import { fakeMarketGateway, fakeScreenerGateway, fakeStockGateway } from "@/tests/fakes/analysisGateways.js";
 import type { StockTransaction } from "@/application/transactions/transactions.types.js";
-import { getPortfolioRisk, getStressScenarios } from "@/application/holdings/holdingsRisk.service.js";
+import { getPortfolioRisk } from "@/application/holdings/holdingsRisk.service.js";
 
 /** 編排：權重、沒有股價的持股、除權比例有沒有傳到計算。風險公式本身在 portfolioRisk.test.ts。 */
 const TAIEX = ["2026-02-27", "2026-03-02", "2026-03-03", "2026-03-04"];
@@ -127,45 +127,5 @@ describe("getPortfolioRisk", () => {
     const report = await getPortfolioRisk("uid1", "2026-03-01", "2026-03-04", deps([], {}));
 
     expect(report).toMatchObject({ tradingDays: 0, weightsAsOf: null, holdings: [], portfolio: { annualizedVolatility: null } });
-  });
-});
-
-/** 2026-10-07：歷史壓力情境。只有 2024 日圓套利那一段有假的大盤資料，其他段應該是 available: false。 */
-describe("getStressScenarios", () => {
-  const DATES = ["2024-07-11", "2024-07-12", "2024-08-05", "2026-03-04"];
-  function stressDeps(ledger: StockTransaction[], prices: Record<string, (number | null)[]>) {
-    return {
-      ...deps(ledger, {}),
-      marketGateway: fakeMarketGateway({
-        getTaiexDailyPrice: vi.fn().mockResolvedValue({ entries: DATES.map((tradeDate, i) => ({ tradeDate, close: String([100, 95, 80, 120][i]) })) }),
-      }),
-      stockGateway: fakeStockGateway({
-        getDailyPriceHistory: vi.fn().mockImplementation(async (symbol: string) => ({
-          symbol,
-          entries: DATES.flatMap((tradeDate, i) => {
-            const close = prices[symbol]?.[i];
-            return close === null || close === undefined ? [] : [{ tradeDate, open: null, high: null, low: null, close, volume: 1 }];
-          }),
-          earliestAvailableTradeDate: null,
-        })),
-        getExDividendCalendar: vi.fn().mockResolvedValue({ entries: [] }),
-      }),
-    };
-  }
-
-  it("back-tests current weights through a crash and names the holdings that were not listed yet", async () => {
-    // A 從 50 跌到 40（−20%）；B 那段還沒上市，只有最新價。
-    const report = await getStressScenarios("uid1", stressDeps([row("A", 1000), row("B", 100)], { A: [50, 48, 40, 60], B: [null, null, null, 100] }));
-    const yen = report!.scenarios.find((s) => s.key === "yen-carry-2024")!;
-
-    expect(yen).toMatchObject({ available: true, peakDate: "2024-07-11", troughDate: "2024-08-05" });
-    expect(Number(yen.portfolio.periodReturn)).toBeCloseTo(-0.2, 6);
-    expect(Number(yen.benchmark.periodReturn)).toBeCloseTo(-0.2, 6);
-    // 權重：A 1000 × 60 = 60,000、B 100 × 100 = 10,000 → A 佔 6/7，B 沒參與。
-    expect(Number(yen.coveredWeight)).toBeCloseTo(6 / 7, 6);
-    expect(yen.notCovered).toEqual([{ symbol: "B", coverage: "none", firstPriceDate: null }]);
-    expect(report!.scenarios.find((s) => s.key === "covid-2020")!.available).toBe(false);
-    // 只有 A 參與：它的貢獻就是整個組合的報酬；B 沒參與，排最後、值是 null。
-    expect(yen.holdings.map((h) => [h.symbol, h.contribution === null ? null : Number(h.contribution).toFixed(4)])).toEqual([["A", "-0.2000"], ["B", null]]);
   });
 });
