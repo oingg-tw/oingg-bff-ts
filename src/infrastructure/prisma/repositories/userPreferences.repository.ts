@@ -1,10 +1,6 @@
 import { findHoldingColumns, upsertHoldingColumns } from "@/infrastructure/prisma/repositories/holdingColumns.repository.js";
 import { findWatchlistColumns, upsertWatchlistColumns } from "@/infrastructure/prisma/repositories/watchlistColumns.repository.js";
 import {
-  findDashboardCardSettings,
-  upsertDashboardCardSettings,
-} from "@/infrastructure/prisma/repositories/dashboardCardSettings.repository.js";
-import {
   findPreferredStocksPreferences,
   upsertPreferredStocksPreferences,
 } from "@/infrastructure/prisma/repositories/preferredStocksPreferences.repository.js";
@@ -12,10 +8,6 @@ import {
   findDisplaySettings,
   upsertDisplaySettings,
 } from "@/infrastructure/prisma/repositories/screenerDisplaySettings.repository.js";
-import {
-  findStockDetailPreferences,
-  upsertStockDetailPreferences,
-} from "@/infrastructure/prisma/repositories/stockDetailPreferences.repository.js";
 import { findThemePreference, upsertThemePreference } from "@/infrastructure/prisma/repositories/theme.repository.js";
 import type { UserPreferencesPort } from "@/application/ports/userPreferences.js";
 
@@ -36,11 +28,7 @@ export const prismaUserPreferences: UserPreferencesPort = {
   getScreenerDisplaySettings: findDisplaySettings,
   saveScreenerDisplaySettings: upsertDisplaySettings,
 
-  getDashboardCards: findDashboardCardSettings,
-  saveDashboardCards: upsertDashboardCardSettings,
 
-  getStockDetailPreferences: findStockDetailPreferences,
-  saveStockDetailPreferences: upsertStockDetailPreferences,
 
   getHoldingColumns: findHoldingColumns,
   saveHoldingColumns: upsertHoldingColumns,

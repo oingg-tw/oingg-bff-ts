@@ -214,7 +214,9 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
   // this sweep exists for — the key just isn't an id. B seeds a transaction, A deletes the same symbol,
   // B's ledger must be untouched.
   const holdingSymbol = "2412";
-  await api("/transactions", {
+  // B 的種子資料沒建成功時是 WARN（無法驗證），不是 FAIL：否則 B 本來就沒有帳本，讀回空陣列會被誤判成「被 A 刪了」。
+  // 2026-10-08 實際發生過——上游除權息行事曆 500，新增交易跟著 502，這裡報出兩個假的越權失敗。
+  const bSeed = await api("/transactions", {
     method: "POST",
     token: userB.idToken,
     body: { symbol: holdingSymbol, action: "BUY", quantity: 1000, price: 100, tradeDate: "2026-08-01" },
@@ -222,7 +224,9 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
   await api(`/holdings/${holdingSymbol}`, { method: "DELETE", token: userA.idToken });
   const bLedger = await api(`/transactions?symbol=${holdingSymbol}`, { token: userB.idToken });
   const bRows = (bLedger.json as { transactions?: unknown[] })?.transactions;
-  if (Array.isArray(bRows) && bRows.length > 0) {
+  if (bSeed.status !== 201) {
+    record("BOLA: DELETE /holdings/{symbol} setup", "WARN", `Could not seed B's transaction (status ${bSeed.status}) — skipped`);
+  } else if (Array.isArray(bRows) && bRows.length > 0) {
     record("BOLA: DELETE /holdings/{symbol}", "PASS");
   } else {
     record("BOLA: DELETE /holdings/{symbol}", "FAIL", `A's delete wiped B's ${holdingSymbol} ledger (${JSON.stringify(bRows)})`);
@@ -285,7 +289,7 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
   // DELETE /transactions?all=true takes no key at all — its where clause is firebaseUid alone. A bug that
   // dropped that one field would wipe EVERY user's ledger, which no unit test can see (the fake port has no
   // other users). B seeds a row, A clears, B's row must survive.
-  await api("/transactions", {
+  const bClearSeed = await api("/transactions", {
     method: "POST",
     token: userB.idToken,
     body: { symbol: "2882", action: "BUY", quantity: 1000, price: 50, tradeDate: "2026-08-01" },
@@ -293,14 +297,18 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
   await api("/transactions?all=true", { method: "DELETE", token: userA.idToken });
   const bAfterClear = await api("/transactions?symbol=2882", { token: userB.idToken });
   const bSurvived = ((bAfterClear.json as { transactions?: unknown[] })?.transactions ?? []).length > 0;
-  record(
-    "BOLA: DELETE /transactions?all=true",
-    bSurvived ? "PASS" : "FAIL",
-    bSurvived ? undefined : "A's clear-all removed B's transactions",
-  );
+  if (bClearSeed.status !== 201) {
+    record("BOLA: DELETE /transactions?all=true setup", "WARN", `Could not seed B's transaction (status ${bClearSeed.status}) — skipped`);
+  } else {
+    record(
+      "BOLA: DELETE /transactions?all=true",
+      bSurvived ? "PASS" : "FAIL",
+      bSurvived ? undefined : "A's clear-all removed B's transactions",
+    );
+  }
   await api("/transactions?all=true", { method: "DELETE", token: userB.idToken }).catch(() => undefined);
 
-  // holding-columns is self-scoped like dashboard-cards (no id in the path): A's PUT must never touch B's list.
+  // holding-columns is self-scoped (no id in the path): A's PUT must never touch B's list.
   const bColumns = [{ id: "b-marker", label: "B", formula: "=D/A", format: "number", decimals: 2 }];
   await api("/users/me/holding-columns", { method: "PUT", token: userB.idToken, body: { columns: bColumns } });
   await api("/users/me/holding-columns", {
@@ -315,18 +323,6 @@ async function runBolaSweep(userA: TestUser, userB: TestUser) {
     bIds.length === 1 && bIds[0] === "b-marker" ? "PASS" : "FAIL",
     bIds.length === 1 && bIds[0] === "b-marker" ? undefined : `B's columns after A's PUT: ${JSON.stringify(bIds)}`,
   );
-
-  // dashboard-cards has no ID param at all — it's inherently self-scoped to the caller's own token.
-  // Confirm A's PUT never touches B's stored value.
-  await api("/users/me/dashboard-cards", { method: "PUT", token: userB.idToken, body: { visibleCardIds: ["b-marker"] } });
-  await api("/users/me/dashboard-cards", { method: "PUT", token: userA.idToken, body: { visibleCardIds: ["a-marker"] } });
-  const bAfter = await api("/users/me/dashboard-cards", { token: userB.idToken });
-  const bList = (bAfter.json as { dashboardCards?: { visibleCardIds?: unknown } })?.dashboardCards?.visibleCardIds;
-  if (Array.isArray(bList) && bList.includes("b-marker") && !bList.includes("a-marker")) {
-    record("BOLA: dashboard-cards", "PASS");
-  } else {
-    record("BOLA: dashboard-cards", "FAIL", `B's list after A's PUT: ${JSON.stringify(bList)}`);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -355,7 +351,8 @@ async function runStaticChecks() {
   const apiDocsBody = await apiDocs.text();
   if (apiDocs.status === 200) {
     const initJs = await fetch(`${BASE_URL}/api-docs/swagger-ui-init.js`).then((r) => r.text());
-    const isRealSpec = initJs.includes("oingg-bff-ts API");
+    // 認 spec 裡一定有的路徑，不認標題：2026-10-08 標題改成「業務中台 API」，舊的標題比對讓這項悄悄變成「看起來不是真的 spec」。
+    const isRealSpec = initJs.includes('"/system/health"');
     record(
       "/api-docs reachable without auth",
       "WARN",
@@ -414,7 +411,6 @@ async function main() {
       await prisma.columnPreset.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await prisma.userThemePreference.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await prisma.screenerDisplaySettings.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
-      await prisma.dashboardCardSettings.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await prisma.holdingColumnPreferences.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
       await auth.deleteUser(uid).catch(() => undefined);
     }

@@ -11,7 +11,7 @@ const VALID_COLUMN_PRESETS: PreferredStocksColumnPreset[] = ["ALL", "CONTRACT_TE
 
 /**
  * `columnPresetId`/`columnOrder` both null means "no preference saved yet" — the frontend applies its
- * own local default for each, same reasoning as getStockDetailPreferences/getDashboardCardSettings.
+ * own local default for each, rather than this service materializing a default row.
  */
 export async function getPreferredStocksPreferences(
   firebaseUid: string,
@@ -34,9 +34,9 @@ function assertValidColumnOrder(columnOrder: unknown): asserts columnOrder is st
 }
 
 /**
- * Full overwrite of both fields together, never a partial update — same pattern as
- * updateStockDetailPreferences (web-nuxt's settings UI always saves both at once). Column ids aren't
- * validated against a known list, same reasoning as updateDashboardCardSettings.
+ * Full overwrite of both fields together, never a partial update (web-nuxt's settings UI always saves
+ * both at once). Column ids aren't validated against a known list: they're web-nuxt's own column
+ * vocabulary, which changes with their UI.
  */
 export async function updatePreferredStocksPreferences(
   firebaseUid: string,

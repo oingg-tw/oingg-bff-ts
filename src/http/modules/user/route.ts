@@ -4,8 +4,6 @@ import { AppError } from "@/domain/appError.js";
 import { parseBody } from "@/shared/validation.js";
 import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
-import { getDashboardCardSettings, updateDashboardCardSettings } from "@/application/user/dashboardCardSettings.service.js";
-import type { DashboardCardSettingsDeps } from "@/application/user/dashboardCardSettings.service.js";
 import {
   getPreferredStocksPreferences,
   updatePreferredStocksPreferences,
@@ -13,11 +11,6 @@ import {
 import type { PreferredStocksPreferencesDeps } from "@/application/user/preferredStocksPreferences.service.js";
 import { getDisplaySettings, updateShowAsOfDate } from "@/application/user/screenerDisplaySettings.service.js";
 import type { ScreenerDisplaySettingsDeps } from "@/application/user/screenerDisplaySettings.service.js";
-import {
-  getStockDetailPreferences,
-  updateStockDetailPreferences,
-} from "@/application/user/stockDetailPreferences.service.js";
-import type { StockDetailPreferencesDeps } from "@/application/user/stockDetailPreferences.service.js";
 import {
   getThemePreference,
   updateIsFullWidth,
@@ -38,8 +31,6 @@ import type { UserDeps } from "@/application/user/user.service.js";
 type UserRouterDeps = UserDeps &
   ThemeDeps &
   ScreenerDisplaySettingsDeps &
-  DashboardCardSettingsDeps &
-  StockDetailPreferencesDeps &
   PreferredStocksPreferencesDeps &
   HoldingColumnsDeps &
   WatchlistColumnsDeps &
@@ -61,7 +52,6 @@ export const updateMarketColorConventionSchema = z.object({
 });
 export const updateFullWidthSchema = z.object({ isFullWidth: z.boolean() });
 export const updateShowAsOfDateSchema = z.object({ showAsOfDate: z.boolean() });
-export const updateDashboardCardsSchema = z.object({ visibleCardIds: z.array(z.string()) });
 
 /**
  * 持股頁自訂欄位的信任邊界（2026-10-05，範圍照 web-nuxt 提的規格）。公式只驗長度，不驗語意——bff-ts
@@ -98,19 +88,6 @@ export const updateWatchlistColumnsSchema = z.object({
       }),
     )
     .max(WATCHLIST_COLUMNS_HARD_LIMIT),
-});
-export const updateStockDetailPreferencesSchema = z.object({
-  mode: z.enum(["CARD", "ACCOUNTING"]),
-  visibleCardIds: z.array(z.string()),
-  /**
-   * 選填：**沒送就不動既有值**，送 `[]` 才是「取消所有釘選」。這是過渡設計，理由見
-   * application/ports/userPreferences.ts 的 saveStockDetailPreferences 註解——它讓 bff-ts 與
-   * web-nuxt 誰先上線都不會壞。
-   *
-   * 50 是 web-nuxt 要求的上限（他們最多 35 個可釘）。內容不驗證：值是他們的頁面 slug，vocabulary
-   * 在他們的 hub-slugs.ts、會隨新頁面增減，在這裡驗等於每加一頁就要動 bff-ts。
-   */
-  pinnedMetricSlugs: z.array(z.string()).max(50, { message: '"pinnedMetricSlugs" must contain at most 50 items' }).optional(),
 });
 export const updatePreferredStocksPreferencesSchema = z.object({
   columnPresetId: z.enum(["ALL", "CONTRACT_TERMS", "VALUATION", "CALL_RISK"]),
@@ -185,36 +162,6 @@ export function createUserRouter(deps: UserRouterDeps): Router {
       res.json({ displaySettings });
     },
   );
-
-  userRouter.get("/me/dashboard-cards", requireAuth, async (req: AuthenticatedRequest, res) => {
-    const dashboardCards = await getDashboardCardSettings(requireUser(req), deps);
-    res.json({ dashboardCards });
-  });
-
-  userRouter.put("/me/dashboard-cards", requireAuth, async (req: AuthenticatedRequest, res) => {
-    const firebaseUid = requireUser(req);
-    const body = parseBody(updateDashboardCardsSchema, req.body);
-    const dashboardCards = await updateDashboardCardSettings(firebaseUid, body.visibleCardIds, deps);
-    res.json({ dashboardCards });
-  });
-
-  userRouter.get("/me/stock-detail-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {
-    const stockDetailPreferences = await getStockDetailPreferences(requireUser(req), deps);
-    res.json({ stockDetailPreferences });
-  });
-
-  userRouter.put("/me/stock-detail-preferences", requireAuth, async (req: AuthenticatedRequest, res) => {
-    const firebaseUid = requireUser(req);
-    const body = parseBody(updateStockDetailPreferencesSchema, req.body);
-    const stockDetailPreferences = await updateStockDetailPreferences(
-      firebaseUid,
-      body.mode,
-      body.visibleCardIds,
-      body.pinnedMetricSlugs,
-      deps,
-    );
-    res.json({ stockDetailPreferences });
-  });
 
   userRouter.get("/me/holding-columns", requireAuth, async (req: AuthenticatedRequest, res) => {
     const holdingColumns = await getHoldingColumns(requireUser(req), deps);

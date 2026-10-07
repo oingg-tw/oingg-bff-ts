@@ -1,14 +1,12 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/http/swagger/registry.js";
 import {
-  updateDashboardCardsSchema,
   updateFullWidthSchema,
   updateHoldingColumnsSchema,
   updateWatchlistColumnsSchema,
   updateMarketColorConventionSchema,
   updatePreferredStocksPreferencesSchema,
   updateShowAsOfDateSchema,
-  updateStockDetailPreferencesSchema,
   updateThemeAccentColorSchema,
   updateThemeModeSchema,
 } from "@/http/modules/user/route.js";
@@ -38,28 +36,6 @@ const themeResponseSchema = z.object({ theme: themeSchema });
 
 const displaySettingsSchema = z.object({ showAsOfDate: z.boolean() }).openapi("ScreenerDisplaySettings");
 const displaySettingsResponseSchema = z.object({ displaySettings: displaySettingsSchema });
-
-const dashboardCardsSchema = z
-  .object({ visibleCardIds: z.array(z.string()).nullable() })
-  .openapi("DashboardCardSettings", {
-    example: { visibleCardIds: ["margin-short-ratio", "revenue-ranking", "volume-top20"] },
-  });
-const dashboardCardsResponseSchema = z.object({ dashboardCards: dashboardCardsSchema });
-
-const stockDetailPreferencesSchema = z
-  .object({
-    mode: z.enum(["CARD", "ACCOUNTING"]).nullable(),
-    visibleCardIds: z.array(z.string()).nullable(),
-    pinnedMetricSlugs: z.array(z.string()).nullable(),
-  })
-  .openapi("StockDetailPreferences", {
-    example: {
-      mode: "CARD",
-      visibleCardIds: ["profile", "per-river", "pbr-river", "eps", "revenue"],
-      pinnedMetricSlugs: ["roe", "current-ratio", "pe-ratio"],
-    },
-  });
-const stockDetailPreferencesResponseSchema = z.object({ stockDetailPreferences: stockDetailPreferencesSchema });
 
 const preferredStocksPreferencesSchema = z
   .object({
@@ -219,96 +195,16 @@ registry.registerPath({
   },
 });
 
-registry.registerPath({
-  method: "get",
-  path: "/users/me/dashboard-cards",
-  summary: "查詢目前登入使用者的首頁卡片顯示偏好",
-  description:
-    "visibleCardIds 沒設定過是 null（不是 []）——null 代表「還沒存過偏好」，[] 代表「使用者主動把每張卡片都關掉」，兩者語意不同。卡片 id 是前端自訂、會持續增加的清單，這個服務不驗證/不知道目前完整清單有哪些，null 時前端應該自行套用自己的預設清單。",
-  tags: ["User"],
-  security: [{ bearerAuth: [] }],
-  responses: {
-    200: {
-      description: "顯示偏好，包在 \"dashboardCards\" 這個 key 底下。",
-      content: { "application/json": { schema: dashboardCardsResponseSchema } },
-    },
-    401: unauthorized,
-  },
-});
 
-registry.registerPath({
-  method: "put",
-  path: "/users/me/dashboard-cards",
-  summary: "更新目前登入使用者的首頁卡片顯示偏好",
-  description: "完整覆蓋整份清單（不是增量新增/刪除單一卡片）——前端要保留哪些卡片，就把完整清單傳過來。",
-  tags: ["User"],
-  security: [{ bearerAuth: [] }],
-  request: {
-    body: { content: { "application/json": { schema: updateDashboardCardsSchema.openapi("UpdateDashboardCardsRequest") } } },
-  },
-  responses: {
-    200: {
-      description: "更新後的顯示偏好，包在 \"dashboardCards\" 這個 key 底下（跟 GET 同一個 shape）。",
-      content: { "application/json": { schema: dashboardCardsResponseSchema } },
-    },
-    400: errorResponse("visibleCardIds 沒給，或不是字串陣列。"),
-    401: unauthorized,
-  },
-});
 
-registry.registerPath({
-  method: "get",
-  path: "/users/me/stock-detail-preferences",
-  summary: "查詢目前登入使用者的個股詳細頁顯示偏好",
-  description:
-    "/stock/[code].vue 的版面模式（mode: CARD/ACCOUNTING，2026-09-07 從三選一「簡易/專家/會計」收斂成二選一，因為簡易/專家從未真正呈現不同內容）與資訊卡片顯示偏好（visibleCardIds），兩者都沒設定過是 null——null 代表「還沒存過偏好」，[] 代表「使用者主動把每張卡片都關掉」，兩者語意不同（跟 dashboard-cards 一致）。卡片 id 是前端自訂清單，這個服務不驗證/不知道目前完整清單有哪些。",
-  tags: ["User"],
-  security: [{ bearerAuth: [] }],
-  responses: {
-    200: {
-      description: "顯示偏好，包在 \"stockDetailPreferences\" 這個 key 底下。",
-      content: { "application/json": { schema: stockDetailPreferencesResponseSchema } },
-    },
-    401: unauthorized,
-  },
-});
 
-registry.registerPath({
-  method: "put",
-  path: "/users/me/stock-detail-preferences",
-  summary: "更新目前登入使用者的個股詳細頁顯示偏好",
-  description:
-    "mode 跟 visibleCardIds 一起整包覆蓋（沒有只改其中一個的端點）——前端的設定彈窗本來就是兩者一起存。" +
-    "**pinnedMetricSlugs（2026-09-25 新增）是選填，而且三個狀態各有不同意思**：沒送＝不動既有值、" +
-    "送 `[]`＝使用者取消了所有釘選、送陣列＝就是側邊欄的釘選順序。" +
-    "「沒送就不動」是過渡設計，為的是讓 bff-ts 與 web-nuxt 誰先上線都不會壞——若做成必填，舊 client 每次 PUT 都會 400；" +
-    "若把沒送當成 `[]`，舊 client 每存一次設定就會清空使用者的釘選。web-nuxt 改成三個欄位一起送之後那條分支就不會再走到。" +
-    "**順序有意義且原樣儲存**，這個服務不排序、不去重。slug 的內容不驗證（值是 web-nuxt 的頁面 slug，vocabulary 在他們的 hub-slugs.ts、會隨新頁面增減），上限 50 個。",
-  tags: ["User"],
-  security: [{ bearerAuth: [] }],
-  request: {
-    body: {
-      content: {
-        "application/json": { schema: updateStockDetailPreferencesSchema.openapi("UpdateStockDetailPreferencesRequest") },
-      },
-    },
-  },
-  responses: {
-    200: {
-      description: "更新後的顯示偏好，包在 \"stockDetailPreferences\" 這個 key 底下（跟 GET 同一個 shape）。",
-      content: { "application/json": { schema: stockDetailPreferencesResponseSchema } },
-    },
-    400: errorResponse("mode 不在允許的選項內、visibleCardIds 沒給／不是字串陣列，或 pinnedMetricSlugs 不是字串陣列／超過 50 個。"),
-    401: unauthorized,
-  },
-});
 
 registry.registerPath({
   method: "get",
   path: "/users/me/preferred-stocks-preferences",
   summary: "查詢目前登入使用者的特別股清單頁顯示偏好",
   description:
-    "/preferred-stocks 頁面選中的欄位預設分頁（columnPresetId: ALL/CONTRACT_TERMS/VALUATION/CALL_RISK，對應全部欄位/契約條款/估值指標/贖回風險）與可拖曳排序的欄位順序（columnOrder）。兩者都沒設定過是 null——null 代表「還沒存過偏好」，跟 dashboard-cards/stock-detail-preferences 一致。columnOrder 的欄位 id 是前端自訂清單，這個服務不驗證/不知道目前完整清單有哪些。",
+    "/preferred-stocks 頁面選中的欄位預設分頁（columnPresetId: ALL/CONTRACT_TERMS/VALUATION/CALL_RISK，對應全部欄位/契約條款/估值指標/贖回風險）與可拖曳排序的欄位順序（columnOrder）。兩者都沒設定過是 null——null 代表「還沒存過偏好」，跟其他偏好設定端點一致。columnOrder 的欄位 id 是前端自訂清單，這個服務不驗證/不知道目前完整清單有哪些。",
   tags: ["User"],
   security: [{ bearerAuth: [] }],
   responses: {

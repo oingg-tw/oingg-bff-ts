@@ -277,6 +277,8 @@ model ScreenerDisplaySettings {
 /// the frontend later retires just becomes inert data here. No row at all (not an empty array) means "no
 /// preference saved yet" — resolved to the frontend's own default list client-side, since bff-ts has no
 /// way to know what that current full list is.
+/// **待刪（2026-10-08）**：端點已移除（web-nuxt 刪掉了這個功能，使用者決定一起拿掉）。表與資料先留著——
+/// DEV 與本機共用同一個 Neon，DROP 要等不含這支端點的程式部署到 DEV 之後才能下，否則 DEV 上的舊程式立刻壞。
 model DashboardCardSettings {
   firebaseUid    String   @id @map("firebase_uid")
   visibleCardIds Json     @map("visible_card_ids")
@@ -331,6 +333,8 @@ model WatchlistColumnPreferences {
   @@map("watchlist_column_preferences")
 }
 
+/// **待刪（2026-10-08）**：端點已移除（web-nuxt 刪掉了這個功能，使用者決定一起拿掉）。表與資料先留著——
+/// DEV 與本機共用同一個 Neon，DROP 要等不含這支端點的程式部署到 DEV 之後才能下，否則 DEV 上的舊程式立刻壞。
 model StockDetailPreferences {
   firebaseUid    String              @id @map("firebase_uid")
   mode           StockDetailPageMode

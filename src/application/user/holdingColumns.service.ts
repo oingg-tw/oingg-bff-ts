@@ -11,7 +11,7 @@ export async function getHoldingColumns(firebaseUid: string, deps: HoldingColumn
 }
 
 /**
- * 整份覆蓋，順序就是顯示順序（跟 stock-detail-preferences 同一個慣例）。形狀與長度由 route 的 zod schema
+ * 整份覆蓋，順序就是顯示順序（偏好設定類端點的共同慣例）。形狀與長度由 route 的 zod schema
  * 驗；這裡只驗 schema 表達不了的兩件事：id 不重複，以及額度。
  *
  * **額度規則：不能比現在存的更多，但可以維持或減少。** 這不是 enforceQuota middleware 的「用滿就不能

@@ -1,7 +1,6 @@
 import type { HoldingColumn } from "@/application/user/holdingColumns.types.js";
 import type { WatchlistColumn } from "@/application/user/watchlistColumns.types.js";
 import type { PreferredStocksColumnPreset } from "@/application/user/preferredStocksPreferences.types.js";
-import type { StockDetailPageMode } from "@/application/user/stockDetailPreferences.types.js";
 import type {
   MarketColorConvention,
   ThemeAccentColor,
@@ -16,7 +15,7 @@ import type {
  * 為什麼是一個 port 而不是五個：五張表雖然欄位不同，但形狀是同一件事——以 firebaseUid 為唯一鍵的
  * 1:1 偏好列，恰好一個 get 一個 save，沒有查詢、沒有列表、沒有跨列規則。拆成五個介面會得到五個彼此
  * 幾乎一樣的兩方法介面，讓 AppDeps 從「這個服務有哪些能力」退化成「資料庫有哪些表」的清單（六個
- * 條目裡五個講同一件事）。所以改成方法名帶上表名（getTheme/saveTheme、getDashboardCards/…），
+ * 條目裡五個講同一件事）。所以改成方法名帶上表名（getTheme/saveTheme、getHoldingColumns/…），
  * 讀 AppDeps 看到的是 `userPreferences` 一項，讀方法名一樣清楚知道碰的是哪一張表。
  *
  * 代價誠實講：宣告 `Pick<AppDeps, "userPreferences">` 的 use case 型別上摸得到全部五組方法，不像
@@ -41,28 +40,6 @@ export interface UserPreferencesPort {
   getScreenerDisplaySettings(firebaseUid: string): Promise<StoredScreenerDisplaySettings | null>;
   saveScreenerDisplaySettings(firebaseUid: string, showAsOfDate: boolean): Promise<StoredScreenerDisplaySettings>;
 
-  getDashboardCards(firebaseUid: string): Promise<StoredDashboardCardSettings | null>;
-  saveDashboardCards(firebaseUid: string, visibleCardIds: string[]): Promise<StoredDashboardCardSettings>;
-
-  getStockDetailPreferences(firebaseUid: string): Promise<StoredStockDetailPreferences | null>;
-  /**
-   * `mode` 與 `visibleCardIds` 一起整包覆寫，沒有部分更新——web-nuxt 的設定 popover 一向同時存兩者。
-   *
-   * `pinnedMetricSlugs` 是**唯一的例外**：傳 `undefined` 代表「不要動這一欄」，傳 `[]` 代表「使用者
-   * 取消了所有釘選」。這個例外存在的理由是部署順序——這一欄 2026-09-25 才加，而 web-nuxt 現有的
-   * client 只送兩個欄位；若把它做成必填，他們在改好之前每一次 PUT 都會 400，而若把缺席當成 `[]`，
-   * 他們每存一次設定就會把釘選清空。「不送就不動」讓兩邊誰先上都不會壞。
-   *
-   * 他們改完之後三個欄位一律都送，那條分支就不會再被走到；**它是過渡用的，不是給未來的部分更新
-   * 預留空間**——`mode`/`visibleCardIds` 的整包覆寫語意沒有改。
-   */
-  saveStockDetailPreferences(
-    firebaseUid: string,
-    mode: StockDetailPageMode,
-    visibleCardIds: string[],
-    pinnedMetricSlugs: string[] | undefined,
-  ): Promise<StoredStockDetailPreferences>;
-
   /** 持股頁自訂欄位。null＝沒有列（從來沒存過）。 */
   getHoldingColumns(firebaseUid: string): Promise<HoldingColumn[] | null>;
   /** 整份覆蓋，順序就是顯示順序。 */
@@ -74,7 +51,7 @@ export interface UserPreferencesPort {
   saveWatchlistColumns(firebaseUid: string, columns: WatchlistColumn[]): Promise<WatchlistColumn[]>;
 
   getPreferredStocksPreferences(firebaseUid: string): Promise<StoredPreferredStocksPreferences | null>;
-  /** 同樣是整包覆寫，理由跟 saveStockDetailPreferences 一樣。 */
+  /** 整包覆寫：web-nuxt 的設定 UI 一向同時存兩個欄位。 */
   savePreferredStocksPreferences(
     firebaseUid: string,
     columnPresetId: PreferredStocksColumnPreset,
@@ -92,18 +69,6 @@ export interface StoredThemePreference {
 
 export interface StoredScreenerDisplaySettings {
   showAsOfDate: boolean | null;
-}
-
-export interface StoredDashboardCardSettings {
-  /** 這一列存在就一定有值；[] 是「使用者把每張卡都關掉了」，跟「整列不存在」是兩件事。 */
-  visibleCardIds: string[];
-}
-
-export interface StoredStockDetailPreferences {
-  mode: StockDetailPageMode;
-  visibleCardIds: string[];
-  /** 這一欄可為 null（既有的列沒有它），跟 visibleCardIds 不同——理由見 schema.prisma 的註解。 */
-  pinnedMetricSlugs: string[] | null;
 }
 
 export interface StoredPreferredStocksPreferences {
