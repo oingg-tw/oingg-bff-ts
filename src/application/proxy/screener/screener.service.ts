@@ -36,6 +36,7 @@ const STOCK_PRICE_FIELD = "stock.price";
 const PRICE_CELLS: Record<string, (price: ClosePrice) => { value: string | null; knowledgeDate: string | null }> = {
   [STOCK_PRICE_FIELD]: (price) => ({ value: price.close, knowledgeDate: price.tradeDate }),
   "stock.previousClose": (price) => ({ value: price.previousClose, knowledgeDate: price.previousTradeDate }),
+  "stock.latestClose": (price) => ({ value: price.latestClose, knowledgeDate: price.latestCloseDate }),
 };
 
 /** 這次請求要了哪些特殊欄位（去重、照呼叫端順序）。 */
@@ -142,7 +143,7 @@ function applyStockPrices(
   pricesBySymbol: Awaited<ReturnType<ScreenerDeps["stockGateway"]["getLatestClosePrices"]>>,
   priceFields: string[],
 ): void {
-  const noPrice: ClosePrice = { close: null, tradeDate: null, previousClose: null, previousTradeDate: null };
+  const noPrice: ClosePrice = { close: null, tradeDate: null, previousClose: null, previousTradeDate: null, latestClose: null, latestCloseDate: null };
   for (const row of rows) {
     const price = pricesBySymbol.get(row.symbol) ?? noPrice;
     // formulaVersion 是 null 而不是某個數字：股價不是型錄裡的公式算出來的，是報價原樣帶進來的，

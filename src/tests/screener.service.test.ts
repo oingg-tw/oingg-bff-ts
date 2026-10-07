@@ -238,7 +238,7 @@ describe("runScreener", () => {
       ],
     });
     vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
-      new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null }]]),
+      new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null, latestClose: null, latestCloseDate: null }]]),
     );
 
     const result = await runScreener(
@@ -456,7 +456,7 @@ describe("runRanking", () => {
       results: [{ symbol: "2330", name: "台積電", values: { "roe.roeTtmPct": { value: "30.5", knowledgeDate: "26Q2", nullReason: null, formulaVersion: 1 } } }],
     });
     vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
-      new Map([["2330", { close: "2410.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null }]]),
+      new Map([["2330", { close: "2410.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null, latestClose: null, latestCloseDate: null }]]),
     );
 
     const result = await runRanking("roe.roeTtmPct", "desc", 10, [{ field: "stock.price" }], undefined, undefined, deps);
@@ -516,7 +516,7 @@ describe("runRanking", () => {
         rankings: [{ symbol: "2330", name: "台積電", value: 27.82 }],
       });
       vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
-        new Map([["2330", { close: "2420.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null }]]),
+        new Map([["2330", { close: "2420.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null, latestClose: null, latestCloseDate: null }]]),
       );
 
       const result = await runRanking("exchangePeRatio.EOD", "asc", 10, [{ field: "stock.price" }], undefined, undefined, deps);
@@ -671,7 +671,7 @@ describe("runScreenerValues", () => {
   it('merges in "stock.price" from twse/tpex, not passed through to analysis-ts', async () => {
     vi.mocked(screenerGateway.getValues).mockResolvedValue({ results: [{ symbol: "2330", name: "台積電", values: {} }] });
     vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
-      new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null }]]),
+      new Map([["2330", { close: "2350.0000", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null, latestClose: null, latestCloseDate: null }]]),
     );
 
     const result = await runScreenerValues(["2330"], [{ field: "stock.price" }], deps);
@@ -686,10 +686,26 @@ describe("runScreenerValues", () => {
 
   // 2026-10-06：前一日收盤價原樣來自同一次批次報價，knowledgeDate 是它真正的日期（可能跳過沒成交的日子）。
   // 只要了 stock.previousClose 就只回它；沒有報價的代號兩個值都是 null。
+  // stock.price 維持「最新交易日的收盤，沒成交就是 null」；stock.latestClose 是最近一次有成交的收盤，
+  // knowledgeDate 是那次成交的日期。兩欄並存，bff-ts 不拿其中一個去補另一個。
+  it('merges "stock.latestClose" with its own date while "stock.price" stays null on a no-trade day', async () => {
+    vi.mocked(screenerGateway.getValues).mockResolvedValue({ results: [] });
+    vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
+      new Map([["8416", { close: null, tradeDate: "2026-10-06", previousClose: "169.5", previousTradeDate: "2026-10-05", latestClose: "169.5", latestCloseDate: "2026-10-05" }]]),
+    );
+
+    const result = await runScreenerValues(["8416"], [{ field: "stock.price" }, { field: "stock.latestClose" }], deps);
+
+    expect(result.results[0]?.values).toEqual({
+      "stock.price": { value: null, knowledgeDate: "2026-10-06", nullReason: null, formulaVersion: null },
+      "stock.latestClose": { value: "169.5", knowledgeDate: "2026-10-05", nullReason: null, formulaVersion: null },
+    });
+  });
+
   it('merges "stock.previousClose" from the same price lookup, with its own date', async () => {
     vi.mocked(screenerGateway.getValues).mockResolvedValue({ results: [{ symbol: "2330", name: "台積電", values: {} }] });
     vi.mocked(stockGateway.getLatestClosePrices).mockResolvedValue(
-      new Map([["2330", { close: "2575", tradeDate: "2026-10-05", previousClose: "2500", previousTradeDate: "2026-10-02" }]]),
+      new Map([["2330", { close: "2575", tradeDate: "2026-10-05", previousClose: "2500", previousTradeDate: "2026-10-02", latestClose: "2575", latestCloseDate: "2026-10-05" }]]),
     );
 
     const result = await runScreenerValues(["2330", "9999"], [{ field: "stock.previousClose" }], deps);

@@ -71,6 +71,8 @@ function normalizeClosePrice(price: ClosePrice): ClosePrice {
     tradeDate: price.tradeDate === null ? null : String(price.tradeDate),
     previousClose: toStringOrNull(price.previousClose),
     previousTradeDate: toStringOrNull(price.previousTradeDate),
+    latestClose: toStringOrNull(price.latestClose),
+    latestCloseDate: toStringOrNull(price.latestCloseDate),
   };
 }
 

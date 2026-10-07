@@ -122,7 +122,7 @@ describe("fetchStockPrices", () => {
 
     const result = await fetchStockPrices(["2330", "1240"]);
 
-    expect(result).toEqual(new Map([["2330", { close: "1090", tradeDate: "2026-09-01", previousClose: null, previousTradeDate: null }]]));
+    expect(result).toEqual(new Map([["2330", { close: "1090", tradeDate: "2026-09-01", previousClose: null, previousTradeDate: null, latestClose: null, latestCloseDate: null }]]));
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/stocks/prices?symbols=2330%2C1240");
   });
@@ -133,7 +133,7 @@ describe("fetchStockPrices", () => {
 
     const result = await fetchStockPrices(["2330"]);
 
-    expect(result).toEqual(new Map([["2330", { close: "2420", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null }]]));
+    expect(result).toEqual(new Map([["2330", { close: "2420", tradeDate: "2026-08-28", previousClose: null, previousTradeDate: null, latestClose: null, latestCloseDate: null }]]));
   });
 
   // 2026-10-06 analysis-ts 新增 previousClose／previousTradeDate（DEV 先上，PRD 還沒有）：有就原樣轉成字串，
@@ -141,12 +141,24 @@ describe("fetchStockPrices", () => {
   it("passes previousClose and previousTradeDate through", async () => {
     mockFetchOnce({
       ok: true,
-      body: { prices: { "2330": { close: 2575, tradeDate: "2026-10-05", previousClose: 2500, previousTradeDate: "2026-10-02" } } },
+      body: { prices: { "2330": { close: 2575, tradeDate: "2026-10-05", previousClose: 2500, previousTradeDate: "2026-10-02", latestClose: 2575, latestCloseDate: "2026-10-05" } } },
     });
 
     const result = await fetchStockPrices(["2330"]);
 
-    expect(result.get("2330")).toEqual({ close: "2575", tradeDate: "2026-10-05", previousClose: "2500", previousTradeDate: "2026-10-02" });
+    expect(result.get("2330")).toEqual({ close: "2575", tradeDate: "2026-10-05", previousClose: "2500", previousTradeDate: "2026-10-02", latestClose: "2575", latestCloseDate: "2026-10-05" });
+  });
+
+  // 2026-10-07 analysis-ts e6fea8c3：最近一次真的有成交的收盤與它的日期。8416 在 10-06 沒成交（DEV 實測）。
+  it("passes latestClose and latestCloseDate through", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { prices: { "8416": { close: null, tradeDate: "2026-10-06", previousClose: 169.5, previousTradeDate: "2026-10-05", latestClose: 169.5, latestCloseDate: "2026-10-05" } } },
+    });
+
+    const result = await fetchStockPrices(["8416"]);
+
+    expect(result.get("8416")).toMatchObject({ close: null, latestClose: "169.5", latestCloseDate: "2026-10-05" });
   });
 
   // Regression-shaped: analysis-ts confirmed a symbol with no data is simply absent from `prices` — not

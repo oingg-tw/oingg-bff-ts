@@ -44,4 +44,11 @@ export interface ClosePrice {
    */
   previousClose: string | null;
   previousTradeDate: string | null;
+  /**
+   * 2026-10-07 analysis-ts e6fea8c3（使用者核准的提案：「持股不需要每天都有成交價，有最新價格就可以了」）。
+   * 最近一次**真的有成交**的收盤，不論多久以前；最新交易日有成交時等於 close。收盤 0 視為沒成交。
+   * 從來沒成交過才是 null。latestCloseDate 跟 tradeDate 不同，代表最新交易日沒有成交。
+   */
+  latestClose: string | null;
+  latestCloseDate: string | null;
 }
