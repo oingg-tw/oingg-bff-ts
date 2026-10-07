@@ -20,8 +20,8 @@ export function buildAnalysisServiceUrl(path: string, searchParams?: Record<stri
  * bff-ts's internal service topology to the end user — see errorHandler.ts, which only gates `details`
  * by NODE_ENV, never `message`).
  *
- * analysis-ts requires an `X-Api-Key` header on every domainApi request as of 2026-09-04 (health check
- * and /batch/compute are the only exceptions, neither of which bff-ts calls) — attached here, the single
+ * analysis-ts requires an `X-Api-Key` header on every domainApi request as of 2026-09-04 (its root `GET /`
+ * doesn't, but pingAnalysisService sends the key anyway since it goes through here) — attached here, the single
  * place every outbound request already flows through, so every call site gets it automatically.
  *
  * 2026-09-28: production analysis-ts 會部署成「只允許授權的服務帳戶呼叫」（沒有 allUsers），所以除了
@@ -220,4 +220,13 @@ function readUpstreamValidationMessage(body: unknown): string | null {
   }
   const topLevel = (body as { message?: unknown } | null)?.message;
   return typeof topLevel === "string" && topLevel !== "" ? topLevel : null;
+}
+
+/**
+ * analysis-ts 的存活檢查（health check 用）。它沒有健康檢查端點；`GET /` 回 `{ startupTime }`、不碰資料庫，
+ * 2026-10-08 實測不帶金鑰也是 200。這不是寫進合約的端點，已請 analysis-ts 正式提供一支。
+ */
+export async function pingAnalysisService(): Promise<void> {
+  const url = buildAnalysisServiceUrl("/");
+  await assertAnalysisServiceOk(await fetchAnalysisService(url), url, "Analysis service liveness");
 }

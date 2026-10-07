@@ -2,6 +2,7 @@ import { beforeEach } from "vitest";
 import { resetStockDividendCache } from "@/application/holdings/stockDividendLedger.js";
 import { resetMarketWindowCache } from "@/application/holdings/marketWindow.js";
 import { resetSectorDirectoryCache } from "@/application/holdings/sectorDirectory.js";
+import { resetHealthReportCache } from "@/application/system/system.service.js";
 
 /**
  * 測試環境的必要環境變數預設值。
@@ -35,4 +36,5 @@ beforeEach(() => {
   resetStockDividendCache();
   resetMarketWindowCache();
   resetSectorDirectoryCache();
+  resetHealthReportCache();
 });

@@ -1,4 +1,4 @@
-import { getPrismaClient, listNeonPoolNames, queryNeon } from "@/infrastructure/prisma/index.js";
+import { getPrismaClient } from "@/infrastructure/prisma/index.js";
 import type { SystemHealthPort } from "@/application/ports/systemHealth.js";
 
 /**
@@ -12,13 +12,7 @@ import type { SystemHealthPort } from "@/application/ports/systemHealth.js";
  * 回傳 Promise<void>：查到什麼不重要，「有沒有回話」才是被問的問題。逾時、latency、degraded 的判定全在
  * application/system/system.service.ts——這裡只負責敲門。
  */
-export const prismaSystemHealth: SystemHealthPort = {
-  listPoolNames: listNeonPoolNames,
-
-  async checkPool(name) {
-    await queryNeon(name, "select 1");
-  },
-
+export const prismaSystemHealth: Pick<SystemHealthPort, "checkAppDatabase"> = {
   async checkAppDatabase() {
     await getPrismaClient().$queryRaw`SELECT 1`;
   },

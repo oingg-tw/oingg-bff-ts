@@ -11,17 +11,15 @@
  * 方法成功就 resolve、失敗就 reject，不回傳任何狀態物件——狀態是上面那層的詞彙。
  */
 export interface SystemHealthPort {
-  /**
-   * 目前註冊了哪些 Neon 連線池（`<NAME>_DATABASE_URL` 各一個）。
-   *
-   * 同步的，跟實作一樣——這只是讀一份啟動時就建好的登錄表，包成 Promise 只會讓呼叫端多一個 await，也會
-   * 讓「這步沒有 I/O」這件事看不出來。空陣列是合法狀態（2026-09-01 之後 bff-ts 可能一個原始 pg 池都不需要）。
-   */
-  listPoolNames(): string[];
-
-  /** 對指定的 Neon 連線池發一次最小查詢；成功就 resolve，連不上就 reject。 */
-  checkPool(name: string): Promise<void>;
-
   /** 對這個服務自己的（Prisma 管理的）資料庫發一次最小查詢。 */
   checkAppDatabase(): Promise<void>;
+
+  /**
+   * 確認 analysis-ts 有回應（2026-10-08 加，web-nuxt 的讀取失敗對話框輪詢它）。只是存活檢查：analysis-ts 沒有
+   * 健康檢查端點，打的是它的 `GET /`，那支不碰資料庫，所以「ok」不保證它的資料庫醒著。
+   *
+   * 原本這裡還有 listPoolNames／checkPool，探的是 `<NAME>_DATABASE_URL` 連線池。2026-09-01 之後 bff-ts 不准
+   * 直連任何別人的資料庫，那份登錄表永遠是空的、回應裡的 `neon` 永遠是 `{}`，同一天整段刪掉。
+   */
+  checkAnalysisService(): Promise<void>;
 }

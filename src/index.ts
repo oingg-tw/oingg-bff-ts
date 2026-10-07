@@ -1,14 +1,13 @@
 import { createApp } from "@/app.js";
 import { createAppDeps } from "@/bootstrap/deps.js";
 import { initFirebase } from "@/infrastructure/firebase/index.js";
-import { closeNeonPools, closePrismaClient, initNeonPools } from "@/infrastructure/prisma/index.js";
+import { closePrismaClient } from "@/infrastructure/prisma/index.js";
 import { startMetricCatalogSync } from "@/application/metricCatalog/metricCatalog.service.js";
 import { env } from "@/shared/env.js";
 import { logger } from "@/shared/logger.js";
 
 async function main(): Promise<void> {
   initFirebase();
-  initNeonPools();
 
   // Composition root runs right after the driver init above, so every port already has a live
   // connection behind it — both for the startup sync below and for the app itself.
@@ -33,7 +32,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`Received ${signal}, shutting down...`);
     server.close();
-    await Promise.all([closeNeonPools(), closePrismaClient()]);
+    await closePrismaClient();
     process.exit(0);
   };
 

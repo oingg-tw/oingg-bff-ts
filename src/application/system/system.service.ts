@@ -1,6 +1,16 @@
 import type { AppDeps } from "@/application/deps.js";
 
 const CHECK_TIMEOUT_MS = 3_000;
+/**
+ * web-nuxt 的讀取失敗對話框會輪詢這支（經由它自己的 /api/system-health）。每個瀏覽器分頁都在輪詢時，不快取
+ * 就等於每次都替每個分頁去敲一次 app DB 和 analysis-ts——5 秒內共用同一份報告（2026-10-08，跟 web-nuxt 約定）。
+ */
+const REPORT_TTL_MS = 5_000;
+let cached: { at: number; report: Promise<HealthReport> } | null = null;
+
+export function resetHealthReportCache(): void {
+  cached = null;
+}
 
 export type SystemDeps = Pick<AppDeps, "systemHealth">;
 
@@ -15,8 +25,8 @@ export interface HealthReport {
   uptimeSeconds: number;
   startedAt: string;
   dependencies: {
-    neon: Record<string, DependencyStatus>;
     appDb: DependencyStatus;
+    analysisService: DependencyStatus;
   };
 }
 
@@ -47,36 +57,35 @@ async function checkDependency(probe: () => Promise<unknown>): Promise<Dependenc
 }
 
 /**
- * Actually exercises every dependency this service needs to function — a real minimal query per Neon
- * pool plus the Prisma-managed app DB — rather than just reporting "the process is alive" or "a pool was
- * registered at startup" (registering a pool doesn't mean it's still reachable). `status: "degraded"`
+ * Actually exercises both dependencies this service needs to function — a minimal query against the
+ * Prisma-managed app DB and a liveness ping to analysis-ts — rather than just reporting "the process is
+ * alive". `status: "degraded"`
  * means at least one dependency failed; callers (frontend, conductor) can also check per-dependency
  * detail to see exactly which one.
  *
- * What the probes are made of is the port's business (`SELECT 1`, pg vs Prisma); what counts as
+ * What the probes are made of is the port's business (`SELECT 1`, which analysis-ts path); what counts as
  * unhealthy is this function's. That split is why the port hands over probes rather than a
  * PrismaClient — a port that returned the client would let any use case reach every table through the
  * health check.
  */
-export async function getHealthReport(startedAt: Date, deps: SystemDeps): Promise<HealthReport> {
-  const poolNames = deps.systemHealth.listPoolNames();
+export function getHealthReport(startedAt: Date, deps: SystemDeps): Promise<HealthReport> {
+  const now = Date.now();
+  if (!cached || now - cached.at >= REPORT_TTL_MS) {
+    cached = { at: now, report: buildHealthReport(startedAt, deps) };
+  }
+  return cached.report;
+}
 
-  const [neonResults, appDb] = await Promise.all([
-    Promise.all(
-      poolNames.map(
-        async (name) => [name, await checkDependency(() => deps.systemHealth.checkPool(name))] as const,
-      ),
-    ),
+async function buildHealthReport(startedAt: Date, deps: SystemDeps): Promise<HealthReport> {
+  const [appDb, analysisService] = await Promise.all([
     checkDependency(() => deps.systemHealth.checkAppDatabase()),
+    checkDependency(() => deps.systemHealth.checkAnalysisService()),
   ]);
 
-  const neon = Object.fromEntries(neonResults);
-  const allOk = appDb.status === "ok" && neonResults.every(([, result]) => result.status === "ok");
-
   return {
-    status: allOk ? "ok" : "degraded",
+    status: appDb.status === "ok" && analysisService.status === "ok" ? "ok" : "degraded",
     uptimeSeconds: process.uptime(),
     startedAt: startedAt.toISOString(),
-    dependencies: { neon, appDb },
+    dependencies: { appDb, analysisService },
   };
 }

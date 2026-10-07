@@ -11,6 +11,7 @@ import { analysisStockGateway } from "@/infrastructure/analysisApi/stock/stock.g
 import { createResendEmailClient } from "@/infrastructure/email/resendEmailClient.js";
 import { firebaseTokenVerifier } from "@/infrastructure/firebase/tokenVerifier.js";
 import { prismaSystemHealth } from "@/infrastructure/prisma/systemHealth.js";
+import { pingAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { prismaColumnPresets } from "@/infrastructure/prisma/repositories/columnPresets.repository.js";
 import { prismaColumnPresetTemplates } from "@/infrastructure/prisma/repositories/columnPresetTemplates.repository.js";
 import { prismaMetricCatalog } from "@/infrastructure/prisma/repositories/metricCatalog.repository.js";
@@ -55,6 +56,6 @@ export function createAppDeps(): AppDeps {
     metricCatalogGateway: analysisMetricCatalogGateway,
     // 「這個系統用 Firebase 認身分」這件事，現在整個 repo 只有這一行知道。
     tokenVerifier: firebaseTokenVerifier,
-    systemHealth: prismaSystemHealth,
+    systemHealth: { ...prismaSystemHealth, checkAnalysisService: pingAnalysisService },
   };
 }
