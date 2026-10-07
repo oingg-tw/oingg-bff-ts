@@ -1,7 +1,7 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
-import type { FlatHistoryEntry, FlatHistoryPage, HistoryPageMeta } from "@/application/proxy/stock/historyShared.types.js";
+import type { FlatHistoryEntry, FlatHistoryPage, HistoryCoverage, HistoryPageMeta } from "@/application/proxy/stock/historyShared.types.js";
 
 /**
  * The fetch+normalize half of what used to be application/proxy/stock/metricHistoryShared.ts. It lives
@@ -42,7 +42,19 @@ function normalizeFlatHistoryEntry(raw: unknown): FlatHistoryEntry {
     knowledgeDateIsFallback: r.knowledgeDateIsFallback === true,
     formulaVersion: toFormulaVersion(r.formulaVersion),
     dataType: toDataType(r.dataType),
+    // 布林要原樣：缺席（非每股類指標）是 null，不能讀成 false——見 FlatHistoryEntry.restated。
+    restated: typeof r.restated === "boolean" ? r.restated : null,
+    shareBasisDate: toStringOrNull(r.shareBasisDate),
   };
+}
+
+/** `{ from, to }` 或 null；兩端各自可為 null（不用 String()，那會把缺值變成 "null"）。 */
+export function toCoverage(value: unknown): HistoryCoverage | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const c = value as Record<string, unknown>;
+  return { from: toStringOrNull(c.from), to: toStringOrNull(c.to) };
 }
 
 /**
@@ -102,6 +114,7 @@ export async function fetchFlatMetricHistory(
 
   return {
     ...extractHistoryPageMeta(body),
+    coverage: toCoverage((body as { coverage?: unknown }).coverage),
     entries: body.entries.map(normalizeFlatHistoryEntry),
   };
 }

@@ -1,4 +1,4 @@
-import type { FlatHistoryEntry } from "@/application/proxy/stock/historyShared.types.js";
+import type { FlatHistoryEntry, HistoryCoverage } from "@/application/proxy/stock/historyShared.types.js";
 
 /**
  * 期別不列舉，由上游驗證。**這裡曾經是 `"Q" | "Q_ANN" | "TTM"`，而那份白名單在 2026-10-01 一天內被證明
@@ -17,6 +17,8 @@ export interface RoeHistoryResult {
   total: number;
   /** Whether a higher `limit` would return more entries than this call did. */
   hasMore: boolean;
+  /** 上游 roe／roa-history 目前不送 coverage（2026-10-08 實測），所以現在一律是 null；上游加了就會帶出來。 */
+  coverage: HistoryCoverage | null;
   entries: FlatHistoryEntry[];
 }
 
@@ -27,5 +29,7 @@ export interface RoaHistoryResult {
   total: number;
   /** Whether a higher `limit` would return more entries than this call did. */
   hasMore: boolean;
+  /** 上游 roe／roa-history 目前不送 coverage（2026-10-08 實測），所以現在一律是 null；上游加了就會帶出來。 */
+  coverage: HistoryCoverage | null;
   entries: FlatHistoryEntry[];
 }

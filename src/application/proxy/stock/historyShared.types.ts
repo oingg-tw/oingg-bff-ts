@@ -65,6 +65,15 @@ export interface FlatHistoryEntry {
    */
   dataType: "1" | "2" | null;
   formulaVersion: number | null;
+  /**
+   * 每股換算（analysis-ts 2026-10-08 起，docs/api-conventions.md「每股數字的換算基準」）：每股類指標（eps、bvps…）
+   * 的歷史值已換算到**今天的股數基準**（分割、配股、股數合併式減資追溯）。`restated` 是這一期有沒有真的被換算、
+   * `shareBasisDate` 是換算基準日（查詢當天，台北日期）。**非每股類指標兩者都是 null**（上游不送），不是 false——
+   * false 的意思是「每股類，但這一期不需要換算」。股價、比值不換算，兩者相除會差一個倍數，畫河流圖請用
+   * valuation-river。
+   */
+  restated: boolean | null;
+  shareBasisDate: string | null;
 }
 
 /**
@@ -79,4 +88,13 @@ export interface HistoryPageMeta {
   hasMore: boolean;
 }
 
-export type FlatHistoryPage = HistoryPageMeta & { entries: FlatHistoryEntry[] };
+/**
+ * 最早／最晚**有值**的一期（例如 "2019Q4"），不受 limit 影響（analysis-ts 2026-10-08 起）。前端用它判斷「資料從
+ * 哪開始」，不要把 limit 截斷當成事實。上游沒送（roe／roa-history 目前沒有）時整個是 null。
+ */
+export interface HistoryCoverage {
+  from: string | null;
+  to: string | null;
+}
+
+export type FlatHistoryPage = HistoryPageMeta & { coverage: HistoryCoverage | null; entries: FlatHistoryEntry[] };

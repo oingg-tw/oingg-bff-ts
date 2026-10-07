@@ -32,9 +32,11 @@ const RAW_BODY = {
   basis: "TTM",
   total: 23,
   hasMore: false,
+  // 2026-10-08 上游新增 coverage 與每股換算欄位；比值（peRatio）不是每股類，所以 restated／shareBasisDate 是 null。
+  coverage: { from: "2019Q4", to: "2026Q2" },
   entries: [
-    { fiscalYear: 2025, fiscalQuarter: 2, value: 13.55, nullReason: null, knowledgeDate: "2025-08-12", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2" },
-    { fiscalYear: 2025, fiscalQuarter: 3, value: 15.93, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2" },
+    { fiscalYear: 2025, fiscalQuarter: 2, value: 13.55, nullReason: null, knowledgeDate: "2025-08-12", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2", restated: null, shareBasisDate: null },
+    { fiscalYear: 2025, fiscalQuarter: 3, value: 15.93, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2", restated: null, shareBasisDate: null },
   ],
 };
 
@@ -97,6 +99,7 @@ describe("fetchMetricHistory", () => {
       basis: "TTM",
       total: 0,
       hasMore: false,
+      coverage: null,
       entries: [],
     });
   });

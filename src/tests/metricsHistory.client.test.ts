@@ -38,15 +38,36 @@ const RAW_BODY = {
       fiscalQuarter: 2,
       dataType: "2",
       values: {
-        netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
-        epsGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
-        shareCountChangeRate: { value: 0, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
+        netIncomeGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3, restated: null, shareBasisDate: null },
+        epsGrowthRate: { value: 77.41, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3, restated: null, shareBasisDate: null },
+        shareCountChangeRate: { value: 0, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 3, restated: null, shareBasisDate: null },
       },
     },
   ],
 };
 
 describe("fetchMetricsHistory", () => {
+  // 上游 2026-10-08 起：每個 code 一組 coverage；每股類（eps）的格子帶 restated／shareBasisDate，非每股類（roe）沒有 → null。
+  it("帶出每個 code 的 coverage 與每股換算欄位，非每股類是 null 而不是 false", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        ...RAW_BODY,
+        coverage: { eps: { from: "2019Q4", to: "2026Q2" }, roe: { from: "2019Q4", to: null }, junk: 5 },
+        entries: [{ fiscalYear: 2026, fiscalQuarter: 1, dataType: "2", values: {
+          eps: { value: 86.27, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 2, restated: false, shareBasisDate: "2026-10-08" },
+          roe: { value: 40.94, nullReason: null, knowledgeDate: "2026-08-11", knowledgeDateIsFallback: false, formulaVersion: 2 },
+        } }],
+      },
+    });
+
+    const result = await fetchMetricsHistory("2330", ["eps", "roe"], "TTM");
+
+    expect(result.coverage).toEqual({ eps: { from: "2019Q4", to: "2026Q2" }, roe: { from: "2019Q4", to: null } });
+    expect(result.entries[0]?.values.eps).toMatchObject({ restated: false, shareBasisDate: "2026-10-08" });
+    expect(result.entries[0]?.values.roe).toMatchObject({ restated: null, shareBasisDate: null });
+  });
+
   it("requests /companies/metrics-history with symbol/metricCodes(joined by comma)/token and normalizes entries", async () => {
     mockFetchOnce({ ok: true, body: RAW_BODY });
 
@@ -58,6 +79,7 @@ describe("fetchMetricsHistory", () => {
       token: "Q",
       total: 1,
       hasMore: false,
+      coverage: {},
       entries: RAW_BODY.entries,
     });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
@@ -87,6 +109,7 @@ describe("fetchMetricsHistory", () => {
       token: "TTM",
       total: 0,
       hasMore: false,
+      coverage: {},
       entries: [],
     });
   });

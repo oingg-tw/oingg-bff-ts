@@ -1,6 +1,8 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toNumberOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
+import { toCoverage } from "@/infrastructure/analysisApi/stock/historyShared.client.js";
+import type { HistoryCoverage } from "@/application/proxy/stock/historyShared.types.js";
 import type { MetricsHistoryEntry, MetricsHistoryResult, MetricsHistoryValue } from "@/application/proxy/stock/metricsHistory.types.js";
 
 /**
@@ -23,6 +25,8 @@ function normalizeValue(raw: unknown): MetricsHistoryValue | null {
     knowledgeDateIsFallback: r.knowledgeDateIsFallback === true,
     // 缺席記 warning 而不是丟錯，理由同 FlatHistoryEntry.formulaVersion：缺了只少一個過期提示。
     formulaVersion: typeof r.formulaVersion === "number" && Number.isFinite(r.formulaVersion) ? r.formulaVersion : null,
+    restated: typeof r.restated === "boolean" ? r.restated : null,
+    shareBasisDate: typeof r.shareBasisDate === "string" ? r.shareBasisDate : null,
   };
 }
 
@@ -90,13 +94,24 @@ export async function fetchMetricsHistory(symbol: string, metricCodes: string[],
     throw new AppError("Metrics history endpoint response is missing an entries array", 502);
   }
 
-  const b = body as { total?: unknown; hasMore?: unknown };
+  const b = body as { total?: unknown; hasMore?: unknown; coverage?: unknown };
+  // 上游的 coverage 是 { [metricCode]: { from, to } }；逐個 code 正規化，不是物件的項目略過。
+  const coverage: Record<string, HistoryCoverage> = {};
+  if (typeof b.coverage === "object" && b.coverage !== null) {
+    for (const [code, raw] of Object.entries(b.coverage)) {
+      const c = toCoverage(raw);
+      if (c) {
+        coverage[code] = c;
+      }
+    }
+  }
   return {
     symbol,
     metricCodes,
     token,
     total: typeof b.total === "number" ? b.total : 0,
     hasMore: b.hasMore === true,
+    coverage,
     entries: body.entries.map(normalizeEntry),
   };
 }

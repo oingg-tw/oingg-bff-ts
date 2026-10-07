@@ -1,3 +1,4 @@
+import type { HistoryCoverage } from "@/application/proxy/stock/historyShared.types.js";
 export interface MetricsHistoryValue {
   value: number | null;
   nullReason: string | null;
@@ -12,6 +13,15 @@ export interface MetricsHistoryValue {
    *   格子存在但 formulaVersion 是 null   上游沒送這個欄位，通常是版本錯開
    */
   formulaVersion: number | null;
+  /**
+   * 每股換算（analysis-ts 2026-10-08 起，docs/api-conventions.md「每股數字的換算基準」）：每股類指標（eps、bvps…）
+   * 的歷史值已換算到**今天的股數基準**（分割、配股、股數合併式減資追溯）。`restated` 是這一期有沒有真的被換算、
+   * `shareBasisDate` 是換算基準日（查詢當天，台北日期）。**非每股類指標兩者都是 null**（上游不送），不是 false——
+   * false 的意思是「每股類，但這一期不需要換算」。股價、比值不換算，兩者相除會差一個倍數，畫河流圖請用
+   * valuation-river。
+   */
+  restated: boolean | null;
+  shareBasisDate: string | null;
 }
 
 export interface MetricsHistoryEntry {
@@ -58,6 +68,8 @@ export interface MetricsHistoryResult {
   total: number;
   /** Whether a higher `limit` would return more entries than this call did. */
   hasMore: boolean;
+  /** 每個 metricCode 各自的資料涵蓋區間（意義見 historyShared.types.ts 的 HistoryCoverage）；上游沒送的 code 不會出現在這裡。 */
+  coverage: Record<string, HistoryCoverage>;
   /** Oldest to newest, per analysis-ts's own ordering (confirmed live, same as the other history endpoints). */
   entries: MetricsHistoryEntry[];
 }

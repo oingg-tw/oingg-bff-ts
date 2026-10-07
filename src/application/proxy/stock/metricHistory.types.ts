@@ -1,4 +1,4 @@
-import type { FlatHistoryEntry } from "@/application/proxy/stock/historyShared.types.js";
+import type { FlatHistoryEntry, HistoryCoverage } from "@/application/proxy/stock/historyShared.types.js";
 
 export type MetricHistoryCode = "eps" | "peRatio" | "pbRatio" | "bvps" | "stockPrice";
 export type MetricHistoryBasis = "TTM" | "Q";
@@ -13,6 +13,7 @@ export interface MetricHistoryResult {
   total: number;
   /** Whether a higher `limit` would return more entries than this call did. */
   hasMore: boolean;
+  coverage: HistoryCoverage | null;
   /** Oldest to newest, per analysis-ts's own ordering. */
   entries: MetricHistoryEntry[];
 }

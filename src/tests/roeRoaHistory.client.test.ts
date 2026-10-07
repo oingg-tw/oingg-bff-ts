@@ -35,8 +35,8 @@ const ROE_BODY = {
   total: 20,
   hasMore: true,
   entries: [
-    { fiscalYear: 2025, fiscalQuarter: 4, value: 31.7, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2" },
-    { fiscalYear: 2026, fiscalQuarter: 1, value: 32.74, nullReason: null, knowledgeDate: "2026-05-12", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2" },
+    { fiscalYear: 2025, fiscalQuarter: 4, value: 31.7, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2", restated: null, shareBasisDate: null },
+    { fiscalYear: 2026, fiscalQuarter: 1, value: 32.74, nullReason: null, knowledgeDate: "2026-05-12", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2", restated: null, shareBasisDate: null },
   ],
 };
 
@@ -47,7 +47,7 @@ const ROA_BODY = {
   total: 20,
   hasMore: true,
   entries: [
-    { fiscalYear: 2025, fiscalQuarter: 4, value: 21.65, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2" },
+    { fiscalYear: 2025, fiscalQuarter: 4, value: 21.65, nullReason: null, knowledgeDate: "2026-02-10", knowledgeDateIsFallback: false, formulaVersion: 3, dataType: "2", restated: null, shareBasisDate: null },
   ],
 };
 
@@ -57,7 +57,7 @@ describe("fetchRoeHistory", () => {
 
     const result = await fetchRoeHistory("2330", "TTM");
 
-    expect(result).toEqual({ symbol: "2330", basis: "TTM", total: 20, hasMore: true, entries: ROE_BODY.entries });
+    expect(result).toEqual({ symbol: "2330", basis: "TTM", total: 20, hasMore: true, coverage: null, entries: ROE_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&periodType=TTM");
   });
@@ -95,6 +95,7 @@ describe("fetchRoeHistory", () => {
       basis: "TTM",
       total: 0,
       hasMore: false,
+      coverage: null,
       entries: [],
     });
   });
@@ -121,7 +122,7 @@ describe("fetchRoaHistory", () => {
 
     const result = await fetchRoaHistory("2330", "TTM");
 
-    expect(result).toEqual({ symbol: "2330", basis: "TTM", total: 20, hasMore: true, entries: ROA_BODY.entries });
+    expect(result).toEqual({ symbol: "2330", basis: "TTM", total: 20, hasMore: true, coverage: null, entries: ROA_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/roa-history?symbol=2330&periodType=TTM");
   });

@@ -895,6 +895,10 @@ const VERSION_FIELD_DOC =
   "bff-ts 這一層宣告為 nullable，雖然上游契約說必填：缺席只會讓下游少一個提示、不會讓使用者看到錯的數字，" +
   "不值得為此讓整支端點失敗；真的缺席時 bff-ts 會記一筆 warning。";
 
+const COVERAGE_DOC =
+  "最早／最晚**有值**的一期（例如 \"2019Q4\"），**不受 limit 影響**（analysis-ts 2026-10-08 起）。用它判斷「資料從哪開始」，" +
+  "不要把 limit 截斷當成事實。上游沒送時是 null（roe／roa-history 目前沒有）。";
+
 const metricHistoryEntrySchema = z.object({
   fiscalYear: z.number(),
   fiscalQuarter: z.number().nullable(),
@@ -903,6 +907,8 @@ const metricHistoryEntrySchema = z.object({
   knowledgeDate: z.string(),
   knowledgeDateIsFallback: z.boolean(),
   formulaVersion: z.number().nullable().openapi({ description: VERSION_FIELD_DOC }),
+  restated: z.boolean().nullable().openapi({ description: "每股類指標（eps、bvps…）的這一期**有沒有被換算到今天的股數基準**（分割、配股、股數合併式減資追溯；analysis-ts 2026-10-08 起）。**非每股類指標是 null，不是 false**——false 是「每股類，但這一期不需要換算」。股價、比值不換算，兩者相除會差一個倍數，畫河流圖請用 /stocks/{symbol}/valuation-river。" }),
+  shareBasisDate: z.string().nullable().openapi({ description: "換算基準日（查詢當天，台北日期 YYYY-MM-DD）。非每股類指標是 null。" }),
   dataType: z.enum(["1", "2"]).nullable().openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個體報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" + "**null 的意思是「這個指標不適用報表類型」而不是「不知道」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。季頻指標（Q／TTM／FY）缺這個欄位才代表版本錯開。" }),
 });
 
@@ -913,6 +919,7 @@ const metricHistorySchema = z
     basis: z.enum(["TTM", "Q"]),
     total: z.number(),
     hasMore: z.boolean(),
+    coverage: z.object({ from: z.string().nullable(), to: z.string().nullable() }).nullable().openapi({ description: COVERAGE_DOC }),
     entries: z.array(metricHistoryEntrySchema),
   })
   .openapi("MetricHistory", {
@@ -963,6 +970,8 @@ const metricsHistoryValueSchema = z.object({
       "指標在這一期從來沒被回填過（連格子都不存在）；格子存在但 formulaVersion 是 null，才是上游這一次" +
       "沒送這個欄位。",
   }),
+  restated: z.boolean().nullable().openapi({ description: "每股類指標（eps、bvps…）的這一期**有沒有被換算到今天的股數基準**（分割、配股、股數合併式減資追溯；analysis-ts 2026-10-08 起）。**非每股類指標是 null，不是 false**——false 是「每股類，但這一期不需要換算」。股價、比值不換算，兩者相除會差一個倍數，畫河流圖請用 /stocks/{symbol}/valuation-river。" }),
+  shareBasisDate: z.string().nullable().openapi({ description: "換算基準日（查詢當天，台北日期 YYYY-MM-DD）。非每股類指標是 null。" }),
 });
 
 const metricsHistoryEntrySchema = z.object({
@@ -980,6 +989,7 @@ const metricsHistorySchema = z
     basis: z.string(),
     total: z.number(),
     hasMore: z.boolean(),
+    coverage: z.record(z.string(), z.object({ from: z.string().nullable(), to: z.string().nullable() })).openapi({ description: "每個 metricCode 各自的 { from, to }。" + COVERAGE_DOC }),
     entries: z.array(metricsHistoryEntrySchema),
   })
   .openapi("MetricsHistory", {
