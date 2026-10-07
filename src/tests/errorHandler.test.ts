@@ -90,7 +90,8 @@ describe("errorHandler", () => {
     const requestId = (res.locals as { requestId: string }).requestId;
     expect(res.set).toHaveBeenCalledWith("X-Request-Id", requestId);
     expect(body).toMatchObject({
-      type: "about:blank",
+      // 帶 code 就代表語意超出 403 本身，所以不能是 about:blank（RFC 9457 §4.2.1），type 由 code 推出。
+      type: "tag:oingg.com,2026:quota-exceeded",
       title: "Forbidden",
       status: 403,
       detail: "Your plan allows 10 items",
@@ -103,6 +104,15 @@ describe("errorHandler", () => {
     // 舊的 error 信封 2026-10-08 web-nuxt 改讀頂層後拿掉；details 只在非 production 出現（測試環境不是 production）。
     expect(body).not.toHaveProperty("error");
     expect(body.details).toEqual({ debug: true });
+  });
+
+  it("沒有 code 的錯誤是 about:blank，title 是狀態短語", () => {
+    const res = problemResponse();
+
+    errorHandler(new AppError("watchlist item 1 not found", 404), {} as Request, res, vi.fn());
+
+    expect(sentBody(res)).toMatchObject({ type: "about:blank", title: "Not Found", status: 404 });
+    expect(sentBody(res)).not.toHaveProperty("code");
   });
 
   it("擴充成員蓋不掉標準成員", () => {

@@ -2,7 +2,7 @@ import { Router } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
-import { booleanQueryParam, parseBody } from "@/shared/validation.js";
+import { booleanQueryParam, parseBody, parseQuery } from "@/shared/validation.js";
 import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { assertSymbolExists, type StockProxyDeps } from "@/application/proxy/stock/stock.service.js";
@@ -158,7 +158,7 @@ export function createTransactionsRouter(
    */
   transactionsRouter.delete("/", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
-    const { all } = parseBody(clearTransactionsQuerySchema, req.query);
+    const { all } = parseQuery(clearTransactionsQuerySchema, req.query);
     if (all !== true) {
       throw new AppError('Clearing every transaction requires "all=true"', 400);
     }
@@ -194,7 +194,7 @@ export function createTransactionsRouter(
     // 422 的 shortfalls 是 RFC 9457 的擴充成員（2026-10-08）：跟 details 不同，production 也會送，而且仍是
     // 回應頂層的 `shortfalls`，前端原本讀的位置不變。
     if (!outcome.ok) {
-      throw new AppError(SHORTFALL_DETAIL, 422, undefined, undefined, { shortfalls: outcome.shortfalls });
+      throw new AppError(SHORTFALL_DETAIL, 422, undefined, "LEDGER_SHORTFALL", { shortfalls: outcome.shortfalls });
     }
     res.status(outcome.result.importId ? 201 : 200).json(outcome.result);
   });
@@ -205,7 +205,7 @@ export function createTransactionsRouter(
 
     const outcome = await revertTransactionImport(firebaseUid, importId, deps);
     if (!outcome.ok) {
-      throw new AppError(SHORTFALL_DETAIL, 422, undefined, undefined, { shortfalls: outcome.shortfalls });
+      throw new AppError(SHORTFALL_DETAIL, 422, undefined, "LEDGER_SHORTFALL", { shortfalls: outcome.shortfalls });
     }
     res.status(200).json({ deleted: outcome.deleted });
   });

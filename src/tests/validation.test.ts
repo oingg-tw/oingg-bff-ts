@@ -1,23 +1,33 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { parseBody } from "@/shared/validation.js";
-import { AppError } from "@/domain/appError.js";
+import { parseBody, parseQuery } from "@/shared/validation.js";
+import type { AppError } from "@/domain/appError.js";
 
-describe("parseBody", () => {
-  it("400 帶 RFC 9457 invalid_params：name 是 JSON Pointer（含 ~0／~1 跳脫），code 是 zod 的 issue code", () => {
+function caught(fn: () => unknown): AppError | undefined {
+  try {
+    fn();
+  } catch (e) {
+    return e as AppError;
+  }
+  return undefined;
+}
+
+describe("parseBody / parseQuery", () => {
+  it("body 的錯誤是 RFC 9457 §3 的 errors：pointer 是 URI fragment 形式的 JSON Pointer（含 ~0／~1 跳脫）", () => {
     const schema = z.object({ rows: z.array(z.object({ price: z.number() })), "a/b~c": z.string() });
 
-    let error: AppError | undefined;
-    try {
-      parseBody(schema, { rows: [{ price: "x" }] });
-    } catch (e) {
-      error = e as AppError;
-    }
+    const error = caught(() => parseBody(schema, { rows: [{ price: "x" }] }));
 
     expect(error?.statusCode).toBe(400);
-    expect(error?.extensions?.invalid_params).toEqual([
-      { name: "/rows/0/price", reason: expect.any(String), code: "invalid_type" },
-      { name: "/a~1b~0c", reason: expect.any(String), code: "invalid_type" },
+    expect(error?.extensions?.errors).toEqual([
+      { detail: expect.any(String), pointer: "#/rows/0/price" },
+      { detail: expect.any(String), pointer: "#/a~1b~0c" },
     ]);
+  });
+
+  it("query 的錯誤用 parameter 指名，不用 pointer（查詢字串不是請求內容）", () => {
+    const error = caught(() => parseQuery(z.object({ ratio: z.enum(["pe", "pb"]) }), { ratio: "xx" }));
+
+    expect(error?.extensions?.errors).toEqual([{ detail: expect.any(String), parameter: "ratio" }]);
   });
 });

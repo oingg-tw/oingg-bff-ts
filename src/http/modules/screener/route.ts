@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { UUID_PATTERN } from "@/shared/uuid.js";
-import { booleanQueryParam, parseBody } from "@/shared/validation.js";
+import { booleanQueryParam, parseBody, parseQuery } from "@/shared/validation.js";
 import { createOptionalAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { runRanking, runScreener, runScreenerValues, type ScreenerDeps } from "@/application/proxy/screener/screener.service.js";
@@ -181,7 +181,7 @@ export function createScreenerRouter(deps: ColumnPresetsDeps & ScreenerDeps & Au
   });
 
   screenerRouter.get("/ranking", async (req, res) => {
-    const query = parseBody(rankingQuerySchema, req.query);
+    const query = parseQuery(rankingQuerySchema, req.query);
     const direction = query.direction ?? "desc";
     const limit = query.limit ?? DEFAULT_RANKING_LIMIT;
     const columns = parseRankingColumns(query.columns);
@@ -193,13 +193,13 @@ export function createScreenerRouter(deps: ColumnPresetsDeps & ScreenerDeps & Au
   });
 
   screenerRouter.get("/company-rank", async (req, res) => {
-    const query = parseBody(companyRankQuerySchema, req.query);
+    const query = parseQuery(companyRankQuerySchema, req.query);
     const result = await deps.screenerGateway.getCompanyRank(query.symbol, query.field, query.direction, query.excludeZero);
     res.json(result);
   });
 
   screenerRouter.get("/distribution", async (req, res) => {
-    const query = parseBody(distributionQuerySchema, req.query);
+    const query = parseQuery(distributionQuerySchema, req.query);
     const result = await deps.screenerGateway.getDistribution(query.field, query.bins, query.excludeZero);
     res.json(result);
   });

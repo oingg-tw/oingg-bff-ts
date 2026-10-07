@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
-import { parseBody } from "@/shared/validation.js";
+import { parseQuery } from "@/shared/validation.js";
 import type { AppDeps } from "@/application/deps.js";
 
 export type SecuritiesDeps = Pick<AppDeps, "securitiesGateway">;
@@ -33,7 +33,7 @@ export function createSecuritiesRouter(deps: SecuritiesDeps): Router {
   const securitiesRouter = Router();
 
   securitiesRouter.get("/", async (req, res) => {
-    const query = parseBody(securityListQuerySchema, req.query);
+    const query = parseQuery(securityListQuerySchema, req.query);
     const result = await deps.securitiesGateway.getSecurityList(query.limit, query.offset);
     res.json(result);
   });

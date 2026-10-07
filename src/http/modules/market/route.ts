@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
-import { parseBody } from "@/shared/validation.js";
+import { parseQuery } from "@/shared/validation.js";
 import type { AppDeps } from "@/application/deps.js";
 
 export type MarketDeps = Pick<AppDeps, "marketGateway">;
@@ -113,17 +113,17 @@ export function createMarketRouter(deps: MarketDeps): Router {
   const marketRouter = Router();
 
   marketRouter.get("/margin-short-ratio-ranking", async (req, res) => {
-    const { limit } = parseBody(marginShortRatioRankingQuerySchema, req.query);
+    const { limit } = parseQuery(marginShortRatioRankingQuerySchema, req.query);
     res.json(await deps.marketGateway.getMarginShortRatioRanking(limit));
   });
 
   marketRouter.get("/material-announcements", async (req, res) => {
-    const { limit } = parseBody(materialAnnouncementsQuerySchema, req.query);
+    const { limit } = parseQuery(materialAnnouncementsQuerySchema, req.query);
     res.json(await deps.marketGateway.getMaterialAnnouncements(limit));
   });
 
   marketRouter.get("/revenue-ranking", async (req, res) => {
-    const { metric, order, limit } = parseBody(revenueRankingQuerySchema, req.query);
+    const { metric, order, limit } = parseQuery(revenueRankingQuerySchema, req.query);
     res.json(await deps.marketGateway.getRevenueRanking(metric, order, limit));
   });
 
@@ -132,32 +132,32 @@ export function createMarketRouter(deps: MarketDeps): Router {
   });
 
   marketRouter.get("/disposed-stocks", async (req, res) => {
-    const { limit } = parseBody(disposedStocksQuerySchema, req.query);
+    const { limit } = parseQuery(disposedStocksQuerySchema, req.query);
     res.json(await deps.marketGateway.getDisposedStocks(limit));
   });
 
   marketRouter.get("/attention-stocks", async (req, res) => {
-    const { limit } = parseBody(attentionStocksQuerySchema, req.query);
+    const { limit } = parseQuery(attentionStocksQuerySchema, req.query);
     res.json(await deps.marketGateway.getAttentionStocks(limit));
   });
 
   marketRouter.get("/price-change-ranking", async (req, res) => {
-    const { limit } = parseBody(priceChangeRankingQuerySchema, req.query);
+    const { limit } = parseQuery(priceChangeRankingQuerySchema, req.query);
     res.json(await deps.marketGateway.getPriceChangeRanking(limit));
   });
 
   marketRouter.get("/etf-ranking", async (req, res) => {
-    const { metric, order, limit } = parseBody(etfRankingQuerySchema, req.query);
+    const { metric, order, limit } = parseQuery(etfRankingQuerySchema, req.query);
     res.json(await deps.marketGateway.getEtfRanking(metric, order, limit));
   });
 
   marketRouter.get("/etf-distributions", async (req, res) => {
-    const { symbol } = parseBody(etfDistributionsQuerySchema, req.query);
+    const { symbol } = parseQuery(etfDistributionsQuerySchema, req.query);
     res.json(await deps.marketGateway.getEtfDistributions(symbol));
   });
 
   marketRouter.get("/taiex-daily-price", async (req, res) => {
-    const { limit, interval } = parseBody(taiexDailyPriceQuerySchema, req.query);
+    const { limit, interval } = parseQuery(taiexDailyPriceQuerySchema, req.query);
     res.json(await deps.marketGateway.getTaiexDailyPrice(limit, interval));
   });
 

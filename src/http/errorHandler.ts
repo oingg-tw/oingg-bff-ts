@@ -30,10 +30,12 @@ export function jsonBodyErrorHandler(err: unknown, _req: Request, _res: Response
 /**
  * Every error response is an RFC 9457 problem object (2026-10-08; the user's call: 「人家訂了標準就用吧」).
  *
- * - `type` is "about:blank" with `title` = the HTTP reason phrase, which RFC 9457 §4.2.1 prescribes when
- *   there's no problem-specific documentation URI. We have none yet, and a `type` URI that doesn't
- *   resolve is worse than the standard's own fallback — so callers branch on `status` and the `code`
- *   extension, never on `type`.
+ * - `type`: "about:blank" (RFC 9457 §4.2.1: "no additional semantics beyond that of the HTTP status code")
+ *   unless the error carries a `code` — a code exists precisely because the problem means more than its
+ *   status (quota_exceeded is not just any 403), so it gets its own type, a tag URI derived from the code
+ *   (`tag:oingg.com,2026:quota-exceeded`). §3.1.1 allows non-resolvable type URIs and names the tag scheme
+ *   as the example. Swap in resolvable documentation URLs if those ever exist — that's a contract change.
+ *   `title` stays the HTTP reason phrase, which is static per type because each code has one status.
  * - `instance` is urn:uuid:<the request ID>, the same value as the X-Request-Id header and the log line.
  * - `code` and AppError.extensions are extension members, sent in every environment. `details` is a
  *   debugging aid and only appears outside production.
@@ -68,7 +70,7 @@ function sendProblem(
 ): void {
   const problem = {
     ...extensions,
-    type: "about:blank",
+    type: code === undefined ? "about:blank" : `tag:oingg.com,2026:${code.toLowerCase().replaceAll("_", "-")}`,
     title: STATUS_CODES[status] ?? "Error",
     status,
     detail,

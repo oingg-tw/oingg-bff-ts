@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
-import { dateQueryParam, parseBody } from "@/shared/validation.js";
+import { dateQueryParam, parseQuery } from "@/shared/validation.js";
 import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { getHoldings, getRealizedProfitLoss, removeHoldingSymbol } from "@/application/holdings/holdings.service.js";
@@ -48,19 +48,19 @@ export function createHoldingsRouter(deps: HoldingsDeps & HoldingsPerformanceDep
 
   holdingsRouter.get("/realized", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
-    const { from, to } = parseBody(dateRangeQuerySchema, req.query);
+    const { from, to } = parseQuery(dateRangeQuerySchema, req.query);
     res.json(await getRealizedProfitLoss(firebaseUid, from, to, deps));
   });
 
   holdingsRouter.get("/performance", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
-    const { from, to } = parseBody(dateRangeQuerySchema, req.query);
+    const { from, to } = parseQuery(dateRangeQuerySchema, req.query);
     res.json(await getPortfolioPerformance(firebaseUid, from, to, deps));
   });
 
   holdingsRouter.get("/risk", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
-    const { from, to } = parseBody(dateRangeQuerySchema, req.query);
+    const { from, to } = parseQuery(dateRangeQuerySchema, req.query);
     res.json(await getPortfolioRisk(firebaseUid, from, to, deps));
   });
 

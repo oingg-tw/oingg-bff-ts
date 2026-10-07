@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
-import { parseBody } from "@/shared/validation.js";
+import { parseQuery } from "@/shared/validation.js";
 import type { StockProxyDeps } from "@/application/proxy/stock/stock.service.js";
 
 const MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST = 100;
@@ -221,7 +221,7 @@ export function createStockRouter(deps: StockProxyDeps): Router {
   // "/stocks/<segment>" route below regardless of registration order, since it has no path segment beyond
   // the mount point.
   stockRouter.get("/", async (req, res) => {
-    const query = parseBody(companyListQuerySchema, req.query);
+    const query = parseQuery(companyListQuerySchema, req.query);
     const result = await deps.stockGateway.getCompanyList(query.limit, query.offset);
     res.json(result);
   });
@@ -247,14 +247,14 @@ export function createStockRouter(deps: StockProxyDeps): Router {
 
   // Mounted before the "/:symbol" catch-all below, or "ex-dividend-calendar" would be captured as a symbol.
   stockRouter.get("/ex-dividend-calendar", async (req, res) => {
-    const query = parseBody(exDividendCalendarQuerySchema, req.query);
+    const query = parseQuery(exDividendCalendarQuerySchema, req.query);
     const result = await deps.stockGateway.getExDividendCalendar(query.month);
     res.json(result);
   });
 
   // Mounted before the "/:symbol" catch-all below, or "preferred-stocks" would be captured as a symbol.
   stockRouter.get("/preferred-stocks", async (req, res) => {
-    const query = parseBody(preferredStocksQuerySchema, req.query);
+    const query = parseQuery(preferredStocksQuerySchema, req.query);
     const result = await deps.stockGateway.getPreferredStocks(query.symbol);
     res.json(result);
   });
@@ -309,42 +309,42 @@ export function createStockRouter(deps: StockProxyDeps): Router {
 
   stockRouter.get("/:symbol/financial-statement", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(financialStatementQuerySchema, req.query);
+    const query = parseQuery(financialStatementQuerySchema, req.query);
     const statement = await deps.stockGateway.getFinancialStatement(symbol, query.statementType, query.year, query.season);
     res.json(statement);
   });
 
   stockRouter.get("/:symbol/metric-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(metricHistoryQuerySchema, req.query);
+    const query = parseQuery(metricHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getMetricHistory(symbol, query.metricCode, query.basis, query.limit);
     res.json(history);
   });
 
   stockRouter.get("/:symbol/metrics-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(metricsHistoryQuerySchema, req.query);
+    const query = parseQuery(metricsHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getMetricsHistory(symbol, query.metricCodes, query.basis, query.limit);
     res.json(history);
   });
 
   stockRouter.get("/:symbol/roe-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(roeRoaHistoryQuerySchema, req.query);
+    const query = parseQuery(roeRoaHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getRoeHistory(symbol, query.basis, query.limit);
     res.json(history);
   });
 
   stockRouter.get("/:symbol/roa-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(roeRoaHistoryQuerySchema, req.query);
+    const query = parseQuery(roeRoaHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getRoaHistory(symbol, query.basis, query.limit);
     res.json(history);
   });
 
   stockRouter.get("/:symbol/dupont-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(dupontHistoryQuerySchema, req.query);
+    const query = parseQuery(dupontHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getDupontHistory(symbol, query.basis, query.limit);
     res.json(history);
   });
@@ -358,7 +358,7 @@ export function createStockRouter(deps: StockProxyDeps): Router {
 
   stockRouter.get("/:symbol/valuation-river", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(valuationRiverQuerySchema, req.query);
+    const query = parseQuery(valuationRiverQuerySchema, req.query);
     const river = await deps.stockGateway.getValuationRiver(symbol, query.ratio, query.lookbackYears);
     // 一天只變一次（盤後），5 年約 1,250 列、10 年約 2,500 列。讓 web-nuxt 的 Nitro 快取可以放心存一小時。
     res.set("Cache-Control", "public, max-age=3600");
@@ -367,35 +367,35 @@ export function createStockRouter(deps: StockProxyDeps): Router {
 
   stockRouter.get("/:symbol/monthly-revenue-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(monthlyRevenueHistoryQuerySchema, req.query);
+    const query = parseQuery(monthlyRevenueHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getMonthlyRevenueHistory(symbol, query.limit);
     res.json(history);
   });
 
   stockRouter.get("/:symbol/foreign-shareholding-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(foreignShareholdingHistoryQuerySchema, req.query);
+    const query = parseQuery(foreignShareholdingHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getForeignShareholdingHistory(symbol, query.limit);
     res.json(history);
   });
 
   stockRouter.get("/:symbol/daily-price-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(dailyPriceHistoryQuerySchema, req.query);
+    const query = parseQuery(dailyPriceHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getDailyPriceHistory(symbol, query.limit);
     res.json(history);
   });
 
   stockRouter.get("/:symbol/piotroski-breakdown", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(piotroskiBreakdownQuerySchema, req.query);
+    const query = parseQuery(piotroskiBreakdownQuerySchema, req.query);
     const breakdown = await deps.stockGateway.getPiotroskiBreakdown(symbol, query.year, query.season);
     res.json(breakdown);
   });
 
   stockRouter.get("/:symbol/metric-provenance", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseBody(metricProvenanceQuerySchema, req.query);
+    const query = parseQuery(metricProvenanceQuerySchema, req.query);
     const provenance = await deps.stockGateway.getMetricProvenance(
       symbol,
       query.metricCode,

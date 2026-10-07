@@ -7,19 +7,33 @@ import { AppError } from "@/domain/appError.js";
  * service layer as ad hoc `as { field?: unknown }` casts + scattered manual checks.
  */
 export function parseBody<T>(schema: ZodType<T>, body: unknown): T {
+  return parseInput(schema, body, "body");
+}
+
+/**
+ * Same as parseBody for `req.query`. The only difference is how each RFC 9457 `errors` item points at the
+ * culprit: a JSON Pointer locates a spot in request *content*, which a query string isn't, so query
+ * failures name the `parameter` instead (the convention the conductor's RFC 9457 guide records).
+ */
+export function parseQuery<T>(schema: ZodType<T>, query: unknown): T {
+  return parseInput(schema, query, "query");
+}
+
+function parseInput<T>(schema: ZodType<T>, body: unknown, location: "body" | "query"): T {
   const result = schema.safeParse(body);
   if (!result.success) {
     const message = result.error.issues
       .map((issue) => `${issue.path.length > 0 ? issue.path.join(".") : "(body)"}: ${issue.message}`)
       .join("; ");
-    // RFC 9457 的 invalid_params（2026-10-08）：name 是 RFC 6901 JSON Pointer，code 是 zod 的 issue code
-    // （invalid_type、too_big…），前端靠 name／code 分支，不必拿 regex 去拆上面那句 detail。
-    const invalidParams = result.error.issues.map((issue) => ({
-      name: issue.path.map((part) => `/${String(part).replaceAll("~", "~0").replaceAll("/", "~1")}`).join(""),
-      reason: issue.message,
-      code: issue.code,
-    }));
-    throw new AppError(message, 400, undefined, undefined, { invalid_params: invalidParams });
+    // RFC 9457 §3 自己範例的形狀（2026-10-08）：`errors: [{ detail, pointer }]`，pointer 是 URI fragment 形式的
+    // RFC 6901 JSON Pointer（"#/rows/0/price"）。一開始用的 invalid_params 是被它取代的 RFC 7807 範例，同一天改正。
+    // 前端靠 pointer／parameter 分支，不必拿 regex 去拆上面那句 detail。
+    const errors = result.error.issues.map((issue) =>
+      location === "query"
+        ? { detail: issue.message, parameter: issue.path.map(String).join(".") }
+        : { detail: issue.message, pointer: `#${issue.path.map((part) => `/${String(part).replaceAll("~", "~0").replaceAll("/", "~1")}`).join("")}` },
+    );
+    throw new AppError(message, 400, undefined, undefined, { errors });
   }
   return result.data;
 }

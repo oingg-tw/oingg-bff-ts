@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
-import { parseBody } from "@/shared/validation.js";
+import { parseQuery } from "@/shared/validation.js";
 import type { AppDeps } from "@/application/deps.js";
 
 export type MacroDeps = Pick<AppDeps, "macroGateway">;
@@ -125,32 +125,32 @@ export function createMacroRouter(deps: MacroDeps): Router {
   const macroRouter = Router();
 
   macroRouter.get("/cbc-policy-rate", async (req, res) => {
-    const query = parseBody(cbcPolicyRateQuerySchema, req.query);
+    const query = parseQuery(cbcPolicyRateQuerySchema, req.query);
     res.json(await deps.macroGateway.getCbcPolicyRate(query.from));
   });
 
   macroRouter.get("/us-policy-rate", async (req, res) => {
-    const query = parseBody(usPolicyRateQuerySchema, req.query);
+    const query = parseQuery(usPolicyRateQuerySchema, req.query);
     res.json(await deps.macroGateway.getUsPolicyRate(query.from));
   });
 
   macroRouter.get("/equity-risk-premium", async (req, res) => {
-    const query = parseBody(equityRiskPremiumQuerySchema, req.query);
+    const query = parseQuery(equityRiskPremiumQuerySchema, req.query);
     res.json(await deps.macroGateway.getEquityRiskPremium(query));
   });
 
   macroRouter.get("/ecb-policy-rate", async (req, res) => {
-    const query = parseBody(ecbPolicyRateQuerySchema, req.query);
+    const query = parseQuery(ecbPolicyRateQuerySchema, req.query);
     res.json(await deps.macroGateway.getEcbPolicyRate(query.from));
   });
 
   macroRouter.get("/business-cycle-indicator", async (req, res) => {
-    const query = parseBody(businessCycleIndicatorQuerySchema, req.query);
+    const query = parseQuery(businessCycleIndicatorQuerySchema, req.query);
     res.json(await deps.macroGateway.getBusinessCycleIndicator(query.from));
   });
 
   macroRouter.get("/monetary-aggregate", async (req, res) => {
-    const query = parseBody(monetaryAggregateQuerySchema, req.query);
+    const query = parseQuery(monetaryAggregateQuerySchema, req.query);
     res.json(await deps.macroGateway.getMonetaryAggregate(query.from));
   });
 
@@ -160,27 +160,27 @@ export function createMacroRouter(deps: MacroDeps): Router {
   });
 
   macroRouter.get("/gov-bond-yield-10y-history", async (req, res) => {
-    const query = parseBody(govBondYield10yHistoryQuerySchema, req.query);
+    const query = parseQuery(govBondYield10yHistoryQuerySchema, req.query);
     res.json(await deps.macroGateway.getGovBondYield10yHistory(query.from));
   });
 
   macroRouter.get("/stock-market-summary", async (req, res) => {
-    const query = parseBody(stockMarketSummaryQuerySchema, req.query);
+    const query = parseQuery(stockMarketSummaryQuerySchema, req.query);
     res.json(await deps.macroGateway.getStockMarketSummary(query.from));
   });
 
   macroRouter.get("/usd-twd-rate", async (req, res) => {
-    const query = parseBody(usdTwdRateQuerySchema, req.query);
+    const query = parseQuery(usdTwdRateQuerySchema, req.query);
     res.json(await deps.macroGateway.getUsdTwdRate(query.limit, query.interval));
   });
 
   macroRouter.get("/cpi", async (req, res) => {
-    const query = parseBody(cpiQuerySchema, req.query);
+    const query = parseQuery(cpiQuerySchema, req.query);
     res.json(await deps.macroGateway.getCpi(query.from, query.category));
   });
 
   macroRouter.get("/gdp", async (req, res) => {
-    const query = parseBody(gdpQuerySchema, req.query);
+    const query = parseQuery(gdpQuerySchema, req.query);
     res.json(await deps.macroGateway.getGdp(query.from, query.category));
   });
 
