@@ -21,7 +21,7 @@ export const errorResponseSchema = z
     status: z.number().openapi({ example: 400, description: "等於 HTTP 回應的狀態碼。" }),
     detail: z.string().openapi({ description: "給人看的說明。措辭不保證穩定，**不要拿 regex 解析**，結構化資料在擴充成員裡。" }),
     instance: z.string().openapi({ example: "urn:uuid:f47ac10b-58cc-4372-a567-0e02b2c3d479", description: "這次請求的 ID，跟 X-Request-Id header 同值；回報問題時引用它。" }),
-    code: z.string().optional().openapi({ description: "穩定的機器可讀原因，只有呼叫端需要分支時才帶。**新的 code 一律小寫 snake_case**（2026-10-08 跟 analysis-ts 約定，跟 type 的 tag URI 一對一）；LEDGER_OVERSOLD 是約定之前就上線的，保留大寫不改名。比對請不分大小寫。目前有：quota_exceeded（403）、LEDGER_OVERSOLD（400）、ledger_shortfall（422）、reorder_mismatch（400，三支 reorder）、range_before_price_history（400，帶 earliestPriceDate）、rate_limited（429）、upstream_timeout（504）、upstream_unavailable（502）。" }),
+    code: z.string().optional().openapi({ description: "穩定的機器可讀原因，只有呼叫端需要分支時才帶。**code 一律小寫 snake_case**，跟 type 的 tag URI 一對一（底線換連字號）——2026-10-08 使用者定案，三個服務（analysis-ts、業務中台、web-nuxt）同一條規則，既有的大寫 code 同日一併改名（LEDGER_OVERSOLD → ledger_oversold）。未知的 code 要放行。目前有：quota_exceeded（403）、ledger_oversold（400）、ledger_shortfall（422）、reorder_mismatch（400，三支 reorder）、range_before_price_history（400，帶 earliestPriceDate）、rate_limited（429）、upstream_timeout（504）、upstream_unavailable（502）。" }),
     errors: z
       .array(z.object({ detail: z.string(), pointer: z.string().optional(), parameter: z.string().optional() }))
       .optional()

@@ -111,7 +111,7 @@ registry.registerPath({
   description: [
     "**持股明細（`GET /holdings`）由交易紀錄算出**，所以新增一筆交易就會改變持股。會先確認 symbol 存在。",
     "",
-    "賣出會驗證**整段重算**：任何時點賣超回 400、`code: \"LEDGER_OVERSOLD\"`。自動入帳的配股算在內，所以賣出配來的股票不會被誤擋。",
+    "賣出會驗證**整段重算**：任何時點賣超回 400、`code: \"ledger_oversold\"`（2026-10-08 以前是大寫 LEDGER_OVERSOLD）。自動入帳的配股算在內，所以賣出配來的股票不會被誤擋。",
     "",
     "`costUnknown: true`：成本不明的取得，只能是 BUY，`price` 可以省略（視為 0），`fee`／`tax` 必須是 0；送了非 0 的價格回 400。",
     "其他情況 `price` 必填。",

@@ -98,7 +98,7 @@ async function assertReplayStaysValid(entries: readonly LedgerEntry[], deps: Tra
       `Selling ${oversold.attempted} shares of "${oversold.symbol}" on ${oversold.tradeDate} would exceed the ${oversold.held} you hold at that point`,
       400,
       undefined,
-      "LEDGER_OVERSOLD",
+      "ledger_oversold",
     );
   }
 }

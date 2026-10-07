@@ -66,7 +66,7 @@ describe("stock dividends reach every projection path", () => {
     expect(holdings).toEqual([expect.objectContaining({ symbol: "5314", quantity: 16_628, costUnknownQuantity: 0 })]);
   });
 
-  // 最關鍵的一條：沒有接線的話，賣出配來的股票會被擋成 LEDGER_OVERSOLD。
+  // 最關鍵的一條：沒有接線的話，賣出配來的股票會被擋成 ledger_oversold。
   it("a single sale of the dividend shares is not rejected as oversold", async () => {
     const d = deps(HOLD_5314);
 

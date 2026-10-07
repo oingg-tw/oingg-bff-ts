@@ -228,7 +228,7 @@ describe("replay validation", () => {
         { ...VALID_INPUT, action: "SELL", quantity: 300, fee: 0, tradeDate: "2026-09-01" },
         { transactions, stockGateway },
       ),
-    ).rejects.toMatchObject({ statusCode: 400 });
+    ).rejects.toMatchObject({ statusCode: 400, code: "ledger_oversold" }); // web-nuxt 靠這個 code 分支
     expect(transactions.create).not.toHaveBeenCalled();
   });
 
