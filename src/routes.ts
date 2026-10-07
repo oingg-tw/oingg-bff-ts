@@ -6,7 +6,6 @@ import { AppError } from "@/domain/appError.js";
 import { requestIdOf } from "@/http/requestLogger.js";
 import { requireApiDocsAuth } from "@/http/swagger/apiDocsAuth.js";
 import { swaggerSpec, swaggerUi } from "@/http/swagger/index.js";
-import { createAuthRouter } from "@/http/modules/auth/route.js";
 import { createBillingRouter } from "@/http/modules/billing/route.js";
 import { createEtfScreenerRouter } from "@/http/modules/etfScreener/route.js";
 import { createMetricCatalogRouter } from "@/http/modules/metricCatalog/route.js";
@@ -67,8 +66,14 @@ export function createRoutes(deps: AppDeps): Router {
   // 瀏覽器預設讀不到這兩個 header：X-Request-Id 讓錯誤對話框能顯示參考編號，Retry-After 讓它倒數。
   routes.use(cors({ origin: env.corsOrigins, exposedHeaders: ["X-Request-Id", "Retry-After"] }));
   // 設在內層 Router：外層 app 的 middleware 設的 header 會被 ultimate-express 丟掉（上面那段說明）。
+  //
+  // Cache-Control 預設 no-store、要快取的路由自己覆寫（目前只有 valuation-river 的 public, max-age=3600）
+  // ——2026-10-08 依 conductor 的《Nuxt Nitro 全端架構下的個人資料保護》：快取採白名單、涉及個資的端點
+  // no-store。反過來（預設可快取、個資端點自己記得關）的話，新增一支 per-user 端點時忘了關就會讓中間層
+  // （Nitro 的快取、瀏覽器）把一個人的資料存起來給另一個人。
   routes.use((_req, res, next) => {
     res.set("X-Request-Id", requestIdOf(res));
+    res.set("Cache-Control", "no-store");
     next();
   });
   routes.use(
@@ -96,7 +101,6 @@ export function createRoutes(deps: AppDeps): Router {
   routes.use("/api-docs", requireApiDocsAuth, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   routes.use("/system", createSystemRouter(deps)); // GET /system/health
-  routes.use("/auth", createAuthRouter(deps)); // GET /auth/me
   routes.use("/billing", createBillingRouter(deps)); // GET /billing/entitlement
   // GET /users/me; GET /users/me/theme; PUT /users/me/theme/mode, /theme/accent-color,
   // /theme/market-color-convention, /theme/full-width;

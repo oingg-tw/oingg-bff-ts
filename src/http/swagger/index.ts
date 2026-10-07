@@ -10,7 +10,6 @@ import { env } from "@/shared/env.js";
 // with twse-ts, who hit this exact ordering trap themselves, 2026-09-04).
 import "@/http/root.openapi.js";
 import "@/http/modules/system/openapi.js";
-import "@/http/modules/auth/openapi.js";
 import "@/http/modules/user/openapi.js";
 import "@/http/modules/billing/openapi.js";
 import "@/http/modules/stock/openapi.js";
