@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { NextFunction, Request, Response } from "ultimate-express";
+import type { NextFunction, Response } from "ultimate-express";
 import { logger } from "@/shared/logger.js";
+import { clientIpOf } from "@/http/clientIdentity.js";
+import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 
 /**
  * 這個請求的 ID（2026-10-08）：回應的 X-Request-Id header、錯誤回應的 RFC 9457 `instance`、以及這裡的 log
@@ -52,7 +54,7 @@ function maskIp(ip: string): string {
   return `${groups.slice(0, 4).join(":")}::`;
 }
 
-export function requestLogger(req: Request, res: Response, next: NextFunction): void {
+export function requestLogger(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const startedAt = Date.now();
   const requestId = requestIdOf(res);
   res.on("finish", () => {
@@ -67,6 +69,11 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
         // XFF 還是把真實 IP 附加在後面，從外面看不出來——記下整條鏈是唯一能驗證那個鍵取對了的方式。
         // 2026-10-04 的缺陷（限流額度全站共用）就是因為沒有任何地方看得到這個值。
         forwardedFor: typeof req.headers["x-forwarded-for"] === "string" ? maskIpChain(req.headers["x-forwarded-for"]) : null,
+        // 存取軌跡（2026-10-08，個資法施行細則第 12 條第 10 款：誰、何時、從哪、存取了哪個端點）。uid 是
+        // requireAuth 驗過才掛上的，匿名請求是 null；clientIp 只信任驗證過的 Nitro 轉來的值，一樣遮罩。
+        // 保存期間（≥ 6 個月）是 Cloud Logging 的設定，不在程式裡。
+        uid: req.user?.uid ?? null,
+        clientIp: maskIpChain(clientIpOf(req)),
       },
       "request completed",
     );

@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { Router } from "ultimate-express";
 import { AppError } from "@/domain/appError.js";
 import { requestIdOf } from "@/http/requestLogger.js";
+import { clientIpOf } from "@/http/clientIdentity.js";
 import { requireApiDocsAuth } from "@/http/swagger/apiDocsAuth.js";
 import { swaggerSpec, swaggerUi } from "@/http/swagger/index.js";
 import { createBillingRouter } from "@/http/modules/billing/route.js";
@@ -47,12 +48,27 @@ import type { AppDeps } from "@/application/deps.js";
  *
  * 副作用要知道：**供了自訂 keyGenerator 之後，那兩個 ValidationError 警告就不再出現**——警告消失是因為
  * 檢查被略過，不是因為設定一定正確。驗證要看分桶行為，不要看 log 乾淨。
+ *
+ * **2026-10-08 起登入的請求改用 Firebase uid 分桶**（使用者決定，Nitro 成為唯一呼叫端之後）：Nitro 是
+ * 唯一呼叫端時 XFF 最右邊全是 Nitro 的出口位址，按 IP 分桶等於全站共用；而同一個公司 NAT 後面的多個使用者
+ * 按 IP 也會互相吃額度。匿名請求按 IP，IP 來源見 clientIdentity.ts 的 clientIpOf（只信任驗證過的 Nitro）。
+ * token 驗不過就退回按 IP 分桶，那個請求稍後會被 requireAuth 以 401 擋下。
  */
-function rateLimitKey(req: { ip?: string; headers: Record<string, unknown> }): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  const chain = Array.isArray(forwarded) ? forwarded.join(",") : typeof forwarded === "string" ? forwarded : "";
-  const rightmost = chain.split(",").at(-1)?.trim();
-  return ipKeyGenerator(rightmost || req.ip || "unknown");
+function createRateLimitKey(deps: AppDeps) {
+  return async (req: { ip?: string; headers: Record<string, unknown> }): Promise<string> => {
+    const authorization = req.headers.authorization;
+    if (typeof authorization === "string" && authorization.startsWith("Bearer ")) {
+      try {
+        // ponytail: 同一張 token 在這裡驗一次、requireAuth 再驗一次。verifyIdToken 在公鑰快取後是本地簽章檢查
+        // （沒開 checkRevoked），代價很小；真的成為瓶頸再把這裡驗出的身分掛到 req 上讓 requireAuth 重用。
+        const identity = await deps.tokenVerifier.verifyIdToken(authorization.slice("Bearer ".length));
+        return `uid:${identity.uid}`;
+      } catch {
+        // 落到下面按 IP
+      }
+    }
+    return ipKeyGenerator(clientIpOf(req));
+  };
 }
 
 // Single place to see every mounted path — check here before grepping through src/http/modules.
@@ -82,7 +98,7 @@ export function createRoutes(deps: AppDeps): Router {
       limit: RATE_LIMIT_MAX_REQUESTS,
       standardHeaders: true,
       legacyHeaders: false,
-      keyGenerator: rateLimitKey,
+      keyGenerator: createRateLimitKey(deps),
       // Retry-After 已由套件在呼叫 handler 之前設好（standardHeaders）；這裡只負責讓本體走 RFC 9457。
       handler: (_req, _res, next) => {
         next(new AppError("Too many requests", 429, undefined, "RATE_LIMITED"));
