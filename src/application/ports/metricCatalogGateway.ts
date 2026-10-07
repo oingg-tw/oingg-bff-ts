@@ -1,4 +1,4 @@
-import type { MetricCategory } from "@/application/metricCatalog/metricCatalog.types.js";
+import type { DataVersion, MetricCategory } from "@/application/metricCatalog/metricCatalog.types.js";
 
 /**
  * 指標型錄的對外取得 port（analysis-ts 的 GET /metrics）。實作住
@@ -13,4 +13,6 @@ import type { MetricCategory } from "@/application/metricCatalog/metricCatalog.t
  */
 export interface MetricCatalogGatewayPort {
   fetchCatalog(): Promise<MetricCategory[]>;
+  /** analysis-ts 的 GET /data-version，原樣轉發（route 直接呼叫，沒有 use case 殼）。 */
+  fetchDataVersion(): Promise<DataVersion>;
 }

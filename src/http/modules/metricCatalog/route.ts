@@ -33,3 +33,17 @@ export function createMetricCatalogRouter(deps: MetricCatalogSyncDeps): Router {
 
   return metricCatalogRouter;
 }
+
+/**
+ * GET /data-version：analysis-ts 同名端點的原樣轉發（2026-10-08）。掛在頂層、路徑跟上游一樣，而不是
+ * /metrics/data-version——`global` 涵蓋的不只指標。純轉發，route 直接呼叫 gateway，不留 use case 殼。
+ */
+export function createDataVersionRouter(deps: Pick<MetricCatalogSyncDeps, "metricCatalogGateway">): Router {
+  const dataVersionRouter = Router();
+
+  dataVersionRouter.get("/", async (_req, res) => {
+    res.json(await deps.metricCatalogGateway.fetchDataVersion());
+  });
+
+  return dataVersionRouter;
+}

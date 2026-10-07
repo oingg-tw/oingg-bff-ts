@@ -9,7 +9,7 @@ import { requireApiDocsAuth } from "@/http/swagger/apiDocsAuth.js";
 import { swaggerSpec, swaggerUi } from "@/http/swagger/index.js";
 import { createBillingRouter } from "@/http/modules/billing/route.js";
 import { createEtfScreenerRouter } from "@/http/modules/etfScreener/route.js";
-import { createMetricCatalogRouter } from "@/http/modules/metricCatalog/route.js";
+import { createDataVersionRouter, createMetricCatalogRouter } from "@/http/modules/metricCatalog/route.js";
 import { createHoldingsRouter } from "@/http/modules/holdings/route.js";
 import { createIndustriesRouter } from "@/http/modules/industries/route.js";
 import { createMacroRouter } from "@/http/modules/macro/route.js";
@@ -136,6 +136,7 @@ export function createRoutes(deps: AppDeps): Router {
   // GET /screener/templates, GET /screener/templates/:id, POST /screener/templates/:id/apply
   routes.use("/screener", createScreenerRoutes(deps));
   routes.use("/metrics", createMetricCatalogRouter(deps)); // GET /metrics, POST /metrics/sync
+  routes.use("/data-version", createDataVersionRouter(deps)); // GET /data-version（analysis-ts 原樣轉發）
   routes.use("/market", createMarketRouter(deps)); // GET /market/margin-short-ratio-ranking, ...
   // GET /macro/cbc-policy-rate, /macro/business-cycle-indicator, /macro/monetary-aggregate,
   // /macro/gov-bond-yield-10y, /macro/gov-bond-yield-10y-history, /macro/stock-market-summary, /macro/usd-twd-rate, /macro/cpi, /macro/gdp

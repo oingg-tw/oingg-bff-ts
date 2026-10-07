@@ -21,6 +21,7 @@ function fakeDeps(gateway: Partial<MetricCatalogGatewayPort> = {}): MetricCatalo
   const metricCatalog: MetricCatalogPort = fakeMetricCatalog();
   const metricCatalogGateway: MetricCatalogGatewayPort = {
     fetchCatalog: vi.fn().mockResolvedValue([SAMPLE_CATEGORY]),
+    fetchDataVersion: vi.fn(),
     ...gateway,
   };
   return { metricCatalog, metricCatalogGateway };

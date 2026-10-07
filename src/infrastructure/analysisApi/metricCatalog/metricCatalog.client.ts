@@ -3,6 +3,7 @@ import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService,
 import { logger } from "@/shared/logger.js";
 import type { MetricCatalogGatewayPort } from "@/application/ports/metricCatalogGateway.js";
 import type {
+  DataVersion,
   MetricBadge,
   MetricBadgePercentileRank,
   MetricBadgeThreshold,
@@ -287,4 +288,28 @@ export async function fetchMetricCatalog(): Promise<MetricCategory[]> {
  */
 export const analysisMetricCatalogGateway: MetricCatalogGatewayPort = {
   fetchCatalog: fetchMetricCatalog,
+  fetchDataVersion,
 };
+
+/**
+ * GET /data-version 原樣轉發（2026-10-08）。global／catalog 是上游保證的字串，缺了回 502；metrics 逐項只收字串
+ * 值（版本字串只比對相等，所以不做任何格式檢查）。
+ */
+async function fetchDataVersion(): Promise<DataVersion> {
+  const url = buildAnalysisServiceUrl("/data-version");
+  const response = await fetchAnalysisService(url);
+  await assertAnalysisServiceOk(response, url, "Data version endpoint");
+  const body = (await response.json()) as Record<string, unknown> | null;
+  if (typeof body?.global !== "string" || typeof body.catalog !== "string") {
+    throw new AppError("Data version endpoint response is missing global/catalog", 502);
+  }
+  const metrics: Record<string, string> = {};
+  if (typeof body.metrics === "object" && body.metrics !== null) {
+    for (const [code, version] of Object.entries(body.metrics)) {
+      if (typeof version === "string") {
+        metrics[code] = version;
+      }
+    }
+  }
+  return { global: body.global, catalog: body.catalog, metrics };
+}

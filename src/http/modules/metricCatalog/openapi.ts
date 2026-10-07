@@ -201,3 +201,28 @@ registry.registerPath({
     500: errorResponse("analysis-ts 服務無法連線，或這次回傳了空的 categories（0 筆，視為異常狀態，拒絕套用避免清空本地資料）。"),
   },
 });
+
+const dataVersionSchema = z
+  .object({
+    global: z.string().openapi({ description: "整體資料版本。" }),
+    catalog: z.string().openapi({ description: "GET /metrics 內容的雜湊，指標目錄有任何改動就會變——可以拿它輪詢目錄。" }),
+    metrics: z.record(z.string(), z.string()).openapi({ description: "逐指標的版本（目前是最後重算時間的 ISO 字串）。" }),
+  })
+  .openapi("DataVersion", {
+    example: { global: "2026-10-07T20:51:31.895Z", catalog: "854912056be68b99", metrics: { eps: "2026-10-07T20:51:16.582Z" } },
+  });
+
+registry.registerPath({
+  method: "get",
+  path: "/data-version",
+  summary: "查詢資料版本號（放進快取鍵用）",
+  description:
+    "analysis-ts 的 GET /data-version 原樣轉發（2026-10-08 起）。上游伺服器端每 60 秒更新一次。" +
+    "**版本字串只拿來比對相不相等，不要解析**：把對應的版本放進快取鍵，analysis-ts 重算後版本會變、快取自然失效，" +
+    "取代人工的清快取通知。個股的指標值用 `metrics[metricCode]`，目錄（GET /metrics）用 `catalog`，其餘用 `global`。",
+  tags: ["Screener"],
+  responses: {
+    200: { description: "目前的資料版本號。", content: { "application/json": { schema: dataVersionSchema } } },
+    502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
+  },
+});

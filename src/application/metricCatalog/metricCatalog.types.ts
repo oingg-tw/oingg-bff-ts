@@ -212,6 +212,17 @@ export interface MetricDefinition {
   fields: MetricField[];
 }
 
+/**
+ * analysis-ts 的 GET /data-version（2026-10-08 起）：資料版本號，伺服器端每 60 秒更新。`global` 是整體、`catalog` 是
+ * GET /metrics 內容的雜湊（目錄有任何改動就會變）、`metrics` 是逐指標的最後重算時間。**只拿來比對相不相等，不要解析**
+ * ——放進快取鍵，重算後版本變了快取自然失效，取代人工的清快取通知。
+ */
+export interface DataVersion {
+  global: string;
+  catalog: string;
+  metrics: Record<string, string>;
+}
+
 export interface MetricCategory {
   key: string;
   name: string;
