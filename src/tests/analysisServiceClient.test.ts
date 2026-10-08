@@ -3,6 +3,7 @@ import {
   assertAnalysisServiceOk,
   buildAnalysisServiceUrl,
   fetchAnalysisService,
+  pingAnalysisService,
   resetAnalysisServiceIdTokenCache,
 } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 
@@ -206,5 +207,23 @@ describe("assertAnalysisServiceOk", () => {
       expect(error).toMatchObject({ statusCode: 502 });
       expect(String((error as Error).message)).not.toContain("analysis.test");
     }
+  });
+});
+
+describe("pingAnalysisService", () => {
+  it("analysis-ts 的 /health 503 時，把它說的是哪個上游帶進錯誤訊息", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: () => Promise.resolve({ status: 503, detail: "Database or upstream export view not available: twse, sitca." }),
+    }) as unknown as typeof fetch;
+
+    await expect(pingAnalysisService()).rejects.toThrow("analysis-ts /health returned 503: Database or upstream export view not available: twse, sitca.");
+  });
+
+  it("200 時什麼都不做", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ status: "ok" }) }) as unknown as typeof fetch;
+
+    await expect(pingAnalysisService()).resolves.toBeUndefined();
   });
 });

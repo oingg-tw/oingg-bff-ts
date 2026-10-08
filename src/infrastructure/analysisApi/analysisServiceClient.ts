@@ -244,12 +244,21 @@ function readUpstreamValidationMessage(body: unknown): string | null {
 }
 
 /**
- * analysis-ts 的健康檢查：`GET /health`（2026-10-08 起，他們的 docs/api-conventions.md），會對 analysis DB
- * 跑一個最小查詢，所以 ok 也代表他們的資料庫醒著；失敗回 503。在那之前打的是不碰資料庫的 `GET /`。
+ * analysis-ts 的健康檢查：`GET /health`（2026-10-08 起，他們的 docs/api-conventions.md）。對 analysis DB 跑
+ * SELECT 1，並對 mops／gov／tpex／twse／sitca 各探一個代表 view（他們 56790cdb，同日加的——那天三個上游把 view
+ * 改名而 SELECT 1 看不出來）；失敗回 503，detail 寫明是哪幾個，例如 "…not available: twse, sitca."。
+ *
+ * 失敗時把那句 detail 原樣帶進錯誤訊息，它會出現在 /system/health 的 dependencies.analysisService.error——
+ * 只寫「回了 503」的話，查問題的人還得再去打一次他們的 /health 才知道是哪個上游。
  */
 export async function pingAnalysisService(): Promise<void> {
   const url = buildAnalysisServiceUrl("/health");
-  await assertAnalysisServiceOk(await fetchAnalysisService(url), url, "Analysis service liveness");
+  const response = await fetchAnalysisService(url);
+  if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
+    const detail = (body as { detail?: unknown } | null)?.detail;
+    throw new Error(`analysis-ts /health returned ${response.status}${typeof detail === "string" && detail ? `: ${detail}` : ""}`);
+  }
 }
 
 /**
