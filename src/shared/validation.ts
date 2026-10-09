@@ -89,3 +89,19 @@ export function dateQueryParam(name: string) {
       .optional(),
   );
 }
+
+/**
+ * 選填的整數 query 參數，範圍 [min, max]；沒給或空字串＝沒給（undefined），route 只在有給時才轉發。每支歷史端點的
+ * 上下限照 analysis-ts 那支端點自己的上限，不是全站一個數字。原本住在 stock/route.ts，2026-10-08 類股端點也要用，搬來共用。
+ */
+export function limitSchema(min: number, max: number, name = "limit") {
+  return z.preprocess(
+    (v) => (v === undefined || v === "" ? undefined : v),
+    z
+      .coerce.number({ error: `"${name}" must be an integer between ${min} and ${max}` })
+      .refine((n) => Number.isInteger(n) && n >= min && n <= max, {
+        message: `"${name}" must be an integer between ${min} and ${max}`,
+      })
+      .optional(),
+  );
+}

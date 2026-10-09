@@ -1,23 +1,11 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
-import { parseQuery } from "@/shared/validation.js";
+import { limitSchema, parseQuery } from "@/shared/validation.js";
 import type { StockProxyDeps } from "@/application/proxy/stock/stock.service.js";
 
 const MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST = 100;
 
-/** A "limit" query param bounded to [min, max] — each history endpoint below matches analysis-ts's own bound for that specific endpoint (they're not all the same). */
-function limitSchema(min: number, max: number, name = "limit") {
-  return z.preprocess(
-    (v) => (v === undefined || v === "" ? undefined : v),
-    z
-      .coerce.number({ error: `"${name}" must be an integer between ${min} and ${max}` })
-      .refine((n) => Number.isInteger(n) && n >= min && n <= max, {
-        message: `"${name}" must be an integer between ${min} and ${max}`,
-      })
-      .optional(),
-  );
-}
 
 /** Shared by metric-history/roe-history/roa-history/dupont-history — matches analysis-ts's own 1-40 bound. */
 const historyLimitSchema = limitSchema(1, 40);

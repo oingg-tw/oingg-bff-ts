@@ -1,6 +1,9 @@
 import type {
   SecuritiesSectorList,
   SectorDividendSummary,
+  SectorMetricHistory,
+  SectorMonthlyRevenueHistory,
+  SectorSummary,
 } from "@/application/proxy/industries/industries.types.js";
 
 /**
@@ -17,4 +20,7 @@ import type {
 export interface IndustriesGatewayPort {
   getSecuritiesSectors(): Promise<SecuritiesSectorList>;
   getSectorDividendSummary(): Promise<SectorDividendSummary>;
+  getSectorMetricHistory(sectorCode: string, metricCode: string, basis: string, limit?: number): Promise<SectorMetricHistory>;
+  getSectorMonthlyRevenueHistory(sectorCode: string, limit?: number): Promise<SectorMonthlyRevenueHistory>;
+  getSectorSummary(fields: string): Promise<SectorSummary>;
 }

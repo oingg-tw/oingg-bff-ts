@@ -94,3 +94,69 @@ export interface SectorDividendSummaryRow {
   dividendYield: SectorMetricStats;
   dividendGrowthRate3y: SectorMetricStats;
 }
+
+/**
+ * 類股的指標分布歷史（analysis-ts GET /industries/{sectorCode}/metric-history，2026-10-09 起代理）。每一期是同一期
+ * 對齊、排除興櫃的上市櫃公司在這支指標上的分布；只收季報型、非每股類指標（每股類跨公司取中位數沒有意義，上游回 400）。
+ * 原樣轉發，`basis` 是上游的 `timeframe`（跟業務中台其他歷史端點同名）。
+ */
+export interface SectorMetricHistory {
+  sectorCode: string;
+  sectorName: string;
+  metricCode: string;
+  basis: string;
+  /** 由舊到新。 */
+  entries: SectorMetricHistoryEntry[];
+}
+
+export interface SectorMetricHistoryEntry {
+  fiscalYear: number;
+  /** 年度（FY）列沒有季別，是 null。 */
+  fiscalQuarter: number | null;
+  /** 這一期有值、計入分布的公司數。 */
+  count: number;
+  median: number | null;
+  q1: number | null;
+  q3: number | null;
+  /** 整個類股這一期算不出分布的原因（例如 not_applicable_industry）；有分布時是 null。 */
+  nullReason: string | null;
+}
+
+/** 類股月營收歷史（GET /industries/{sectorCode}/monthly-revenue-history）。年增率用同一批公司計算。 */
+export interface SectorMonthlyRevenueHistory {
+  sectorCode: string;
+  sectorName: string;
+  total: number;
+  hasMore: boolean;
+  entries: SectorMonthlyRevenueEntry[];
+}
+
+export interface SectorMonthlyRevenueEntry {
+  /** "YYYY-MM" */
+  yearMonth: string;
+  /** 新台幣千元，字串（大整數，跟 monthly-revenue-history 一樣）。 */
+  revenue: string | null;
+  lastYearRevenue: string | null;
+  yoyChangePercent: number | null;
+  companyCount: number;
+}
+
+/** 各類股的指標分布摘要（GET /industries/sector-summary?fields=…，最多 10 個欄位）。 */
+export interface SectorSummary {
+  sectors: SectorSummaryRow[];
+}
+
+export interface SectorSummaryRow {
+  sectorCode: string;
+  sectorName: string;
+  companyCount: number;
+  /** key 是請求的欄位（"roe.TTM"）。 */
+  fields: Record<string, SectorFieldStats>;
+}
+
+export interface SectorFieldStats {
+  count: number;
+  median: number | null;
+  q1: number | null;
+  q3: number | null;
+}

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchSectorDividendSummary,
+  fetchSectorMetricHistory,
+  fetchSectorMonthlyRevenueHistory,
   fetchSecuritiesSectors,
 } from "@/infrastructure/analysisApi/industries/industries.client.js";
 
@@ -159,5 +161,51 @@ describe("fetchSectorDividendSummary", () => {
   it("上游非 2xx 時丟 502", async () => {
     mockFetchOnce({ ok: false, status: 500, body: {} });
     await expect(fetchSectorDividendSummary()).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+/** 類股分布（analysis-ts ae14be5e，2026-10-09）。用的是實測回應的形狀。 */
+describe("fetchSectorMetricHistory", () => {
+  it("basis 轉成上游的 timeframe、limit 有給才送；null 原樣保留", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        sectorCode: "17", sectorName: "金融保險業", metricCode: "operatingMargin", timeframe: "Q",
+        entries: [{ fiscalYear: 2026, fiscalQuarter: 2, count: 0, median: null, q1: null, q3: null, nullReason: "not_applicable_industry" }],
+      },
+    });
+
+    const result = await fetchSectorMetricHistory("17", "operatingMargin", "Q");
+
+    expect(result).toEqual({
+      sectorCode: "17", sectorName: "金融保險業", metricCode: "operatingMargin", basis: "Q",
+      entries: [{ fiscalYear: 2026, fiscalQuarter: 2, count: 0, median: null, q1: null, q3: null, nullReason: "not_applicable_industry" }],
+    });
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/industries/17/metric-history?metricCode=operatingMargin&timeframe=Q");
+  });
+
+  it("查無類股是 404 not_found（呼叫端的錯），不是 502", async () => {
+    mockFetchOnce({ ok: false, status: 404, body: { status: 404, detail: "查無類股 \"99\" 的上市櫃公司" } });
+
+    await expect(fetchSectorMetricHistory("99", "roe", "Q", 5)).rejects.toMatchObject({ statusCode: 404, code: "not_found", message: "查無類股 \"99\" 的上市櫃公司" });
+  });
+});
+
+describe("fetchSectorMonthlyRevenueHistory", () => {
+  it("營收是千元字串原樣帶出，limit 有給才送", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: {
+        sectorCode: "24", sectorName: "半導體業", total: 60, hasMore: true,
+        entries: [{ yearMonth: "2026-08", revenue: "1015211100", lastYearRevenue: "617857399", yoyChangePercent: 64.31, companyCount: 207 }],
+      },
+    });
+
+    const result = await fetchSectorMonthlyRevenueHistory("24", 1);
+
+    expect(result.entries[0]).toEqual({ yearMonth: "2026-08", revenue: "1015211100", lastYearRevenue: "617857399", yoyChangePercent: 64.31, companyCount: 207 });
+    const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
+    expect(url.toString()).toBe("http://filters.test/industries/24/monthly-revenue-history?limit=1");
   });
 });

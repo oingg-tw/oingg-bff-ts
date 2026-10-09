@@ -1,5 +1,7 @@
 import { Router } from "ultimate-express";
+import { z } from "zod";
 import type { AppDeps } from "@/application/deps.js";
+import { limitSchema, parseQuery } from "@/shared/validation.js";
 
 export type IndustriesDeps = Pick<AppDeps, "industriesGateway">;
 
@@ -13,6 +15,23 @@ export type IndustriesDeps = Pick<AppDeps, "industriesGateway">;
  * 刪除依據是 **web-nuxt 的 grep：零呼叫端**（結構性證據），不是我這邊的流量統計——後者是 8 天 249,939 筆
  * 請求 0 次，但那個窗的採樣有缺口（他們的站台檢查只涵蓋腳本 ROUTES 清單裡的 69 條路由，不是全站頁面）。
  */
+/**
+ * 類股分布三支（2026-10-09）。驗證只做到形狀：metricCode／basis 不列舉——哪些指標、哪些期別合法由上游判斷
+ * （每股類、非季報型回 400 並帶 code），在這裡列舉等於每加一支指標就要動業務中台。basis 對應上游的 timeframe。
+ */
+export const sectorMetricHistoryQuerySchema = z.object({
+  metricCode: z.string({ error: '"metricCode" is required' }).trim().min(1, '"metricCode" is required'),
+  basis: z.string({ error: '"basis" is required' }).trim().min(1, '"basis" is required'),
+  limit: limitSchema(1, 40),
+});
+
+export const sectorMonthlyRevenueHistoryQuerySchema = z.object({ limit: limitSchema(1, 120) });
+
+/** fields 原樣轉給上游（逗號分隔，最多 10 個由上游驗）；這裡只擋空值。 */
+export const sectorSummaryQuerySchema = z.object({
+  fields: z.string({ error: '"fields" is required' }).trim().min(1, '"fields" is required'),
+});
+
 export function createIndustriesRouter(deps: IndustriesDeps): Router {
   const industriesRouter = Router();
 
@@ -25,6 +44,21 @@ export function createIndustriesRouter(deps: IndustriesDeps): Router {
   industriesRouter.get("/sector-dividend-summary", async (_req, res) => {
     const summary = await deps.industriesGateway.getSectorDividendSummary();
     res.json(summary);
+  });
+
+  industriesRouter.get("/sector-summary", async (req, res) => {
+    const query = parseQuery(sectorSummaryQuerySchema, req.query);
+    res.json(await deps.industriesGateway.getSectorSummary(query.fields));
+  });
+
+  industriesRouter.get("/:sectorCode/metric-history", async (req, res) => {
+    const query = parseQuery(sectorMetricHistoryQuerySchema, req.query);
+    res.json(await deps.industriesGateway.getSectorMetricHistory(req.params.sectorCode ?? "", query.metricCode, query.basis, query.limit));
+  });
+
+  industriesRouter.get("/:sectorCode/monthly-revenue-history", async (req, res) => {
+    const query = parseQuery(sectorMonthlyRevenueHistoryQuerySchema, req.query);
+    res.json(await deps.industriesGateway.getSectorMonthlyRevenueHistory(req.params.sectorCode ?? "", query.limit));
   });
 
   return industriesRouter;

@@ -1,5 +1,12 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import {
+  assertAnalysisServiceOk,
+  buildAnalysisServiceUrl,
+  fetchAnalysisService,
+  requireNumber,
+  toNumberOrNull,
+  toStringOrNull,
+} from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type {
   SecuritiesSector,
@@ -7,6 +14,10 @@ import type {
   SectorDividendSummary,
   SectorDividendSummaryRow,
   SectorMetricStats,
+  SectorFieldStats,
+  SectorMetricHistory,
+  SectorMonthlyRevenueHistory,
+  SectorSummary,
 } from "@/application/proxy/industries/industries.types.js";
 import type { IndustriesGatewayPort } from "@/application/ports/industriesGateway.js";
 
@@ -35,13 +46,7 @@ export async function fetchSecuritiesSectors(): Promise<SecuritiesSectorList> {
   return { sectors: sectors.map(normalizeSector) };
 }
 
-/**
- * `Number()` 會把 null 變 0，而這裡的 mean/median 本來就可以是 null（count 為 0 時），所以逐欄位都要走這支。
- * 見 dailyPriceHistory.client.ts 的說明：那次 `Number(null)` 把沒有交易的日子變成收盤價 0。
- */
-function toNumberOrNull(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
+// mean/median 可以是 null（count 為 0 時），所以逐欄位走共用的 toNumberOrNull，不用 Number()（會把 null 變 0）。
 
 /**
  * `count` 缺席時給 0 而不是丟 502：它是用來判斷 mean/median 可不可信的欄位，缺了就當成「沒有樣本」，
@@ -107,5 +112,141 @@ export async function fetchSectorDividendSummary(): Promise<SectorDividendSummar
 export const analysisIndustriesGateway: IndustriesGatewayPort = {
   getSecuritiesSectors: fetchSecuritiesSectors,
   getSectorDividendSummary: fetchSectorDividendSummary,
+  getSectorMetricHistory: fetchSectorMetricHistory,
+  getSectorMonthlyRevenueHistory: fetchSectorMonthlyRevenueHistory,
+  getSectorSummary: fetchSectorSummary,
 };
+
+// ---------------------------------------------------------------------------
+// 類股分布三支（analysis-ts ae14be5e，2026-10-09）。逐欄位正規化：必填走 requireNumber／requireString（缺了 502 指名），
+// 可為 null 的保留 null（不用 Number()／String()）。
+// ---------------------------------------------------------------------------
+
+function requireString(value: unknown, field: string, label: string): string {
+  if (typeof value !== "string") {
+    throw new AppError(`${label} response is missing the field ${field}`, 502);
+  }
+  return value;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+/**
+ * 類股代碼查無上市櫃公司時上游回 404——這是呼叫端的錯（代碼不存在），原樣回 404，不變成 502。detail 用上游那句
+ * （「查無類股 "99" 的上市櫃公司，合法代碼見 …」）。上游沒有給 code，所以這裡補 not_found 讓前端能分支。
+ * 注意上游路由不存在（部署版本落後）也是 404，那時 detail 會是「No route matches…」——兩者目前只能靠 detail 區分，
+ * 已請 analysis-ts 補一個 code。
+ */
+async function relaySectorNotFound(response: Response): Promise<void> {
+  if (response.status !== 404) {
+    return;
+  }
+  const body = asRecord(await response.json().catch(() => null));
+  const detail = typeof body.detail === "string" && body.detail ? body.detail : "Sector not found";
+  const code = typeof body.code === "string" ? body.code : "not_found";
+  throw new AppError(detail, 404, undefined, code);
+}
+
+function normalizeSectorMetricHistory(body: unknown): SectorMetricHistory {
+  const b = asRecord(body);
+  const label = "Sector metric history";
+  if (!Array.isArray(b.entries)) {
+    throw new AppError(`${label} response is missing an entries array`, 502);
+  }
+  return {
+    sectorCode: requireString(b.sectorCode, "sectorCode", label),
+    sectorName: requireString(b.sectorName, "sectorName", label),
+    metricCode: requireString(b.metricCode, "metricCode", label),
+    basis: requireString(b.timeframe, "timeframe", label),
+    entries: b.entries.map((raw) => {
+      const e = asRecord(raw);
+      return {
+        fiscalYear: requireNumber(e.fiscalYear, "entries[].fiscalYear", label),
+        fiscalQuarter: toNumberOrNull(e.fiscalQuarter),
+        count: requireNumber(e.count, "entries[].count", label),
+        median: toNumberOrNull(e.median),
+        q1: toNumberOrNull(e.q1),
+        q3: toNumberOrNull(e.q3),
+        nullReason: toStringOrNull(e.nullReason),
+      };
+    }),
+  };
+}
+
+export async function fetchSectorMetricHistory(sectorCode: string, metricCode: string, basis: string, limit?: number): Promise<SectorMetricHistory> {
+  const params: Record<string, string> = { metricCode, timeframe: basis };
+  if (limit !== undefined) {
+    params.limit = String(limit);
+  }
+  const url = buildAnalysisServiceUrl(`/industries/${encodeURIComponent(sectorCode)}/metric-history`, params);
+  const response = await fetchAnalysisService(url);
+  await relaySectorNotFound(response);
+  await assertAnalysisServiceOk(response, url, "Sector metric history endpoint");
+  return normalizeSectorMetricHistory(await response.json());
+}
+
+export async function fetchSectorMonthlyRevenueHistory(sectorCode: string, limit?: number): Promise<SectorMonthlyRevenueHistory> {
+  const label = "Sector monthly revenue history";
+  const url = buildAnalysisServiceUrl(
+    `/industries/${encodeURIComponent(sectorCode)}/monthly-revenue-history`,
+    limit === undefined ? undefined : { limit: String(limit) },
+  );
+  const response = await fetchAnalysisService(url);
+  await relaySectorNotFound(response);
+  await assertAnalysisServiceOk(response, url, `${label} endpoint`);
+  const b = asRecord(await response.json());
+  if (!Array.isArray(b.entries)) {
+    throw new AppError(`${label} response is missing an entries array`, 502);
+  }
+  return {
+    sectorCode: requireString(b.sectorCode, "sectorCode", label),
+    sectorName: requireString(b.sectorName, "sectorName", label),
+    total: requireNumber(b.total, "total", label),
+    hasMore: b.hasMore === true,
+    entries: b.entries.map((raw) => {
+      const e = asRecord(raw);
+      return {
+        yearMonth: requireString(e.yearMonth, "entries[].yearMonth", label),
+        revenue: toStringOrNull(e.revenue),
+        lastYearRevenue: toStringOrNull(e.lastYearRevenue),
+        yoyChangePercent: toNumberOrNull(e.yoyChangePercent),
+        companyCount: requireNumber(e.companyCount, "entries[].companyCount", label),
+      };
+    }),
+  };
+}
+
+export async function fetchSectorSummary(fields: string): Promise<SectorSummary> {
+  const label = "Sector summary";
+  const url = buildAnalysisServiceUrl("/industries/sector-summary", { fields });
+  const response = await fetchAnalysisService(url);
+  await assertAnalysisServiceOk(response, url, `${label} endpoint`);
+  const b = asRecord(await response.json());
+  if (!Array.isArray(b.sectors)) {
+    throw new AppError(`${label} response is missing a sectors array`, 502);
+  }
+  return {
+    sectors: b.sectors.map((raw) => {
+      const r = asRecord(raw);
+      const fieldsOut: Record<string, SectorFieldStats> = {};
+      for (const [field, stats] of Object.entries(asRecord(r.fields))) {
+        const s = asRecord(stats);
+        fieldsOut[field] = {
+          count: requireNumber(s.count, `sectors[].fields.${field}.count`, label),
+          median: toNumberOrNull(s.median),
+          q1: toNumberOrNull(s.q1),
+          q3: toNumberOrNull(s.q3),
+        };
+      }
+      return {
+        sectorCode: requireString(r.sectorCode, "sectors[].sectorCode", label),
+        sectorName: requireString(r.sectorName, "sectors[].sectorName", label),
+        companyCount: requireNumber(r.companyCount, "sectors[].companyCount", label),
+        fields: fieldsOut,
+      };
+    }),
+  };
+}
 

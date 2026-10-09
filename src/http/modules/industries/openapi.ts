@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { errorResponse, registry } from "@/http/swagger/registry.js";
+import {
+  sectorMetricHistoryQuerySchema,
+  sectorMonthlyRevenueHistoryQuerySchema,
+  sectorSummaryQuerySchema,
+} from "@/http/modules/industries/route.js";
 
 const securitiesSectorSchema = z.object({ code: z.string(), name: z.string(), companyCount: z.number() });
 
@@ -71,6 +76,106 @@ registry.registerPath({
   tags: ["Industries"],
   responses: {
     200: { description: "全部類股的股利統計。", content: { "application/json": { schema: sectorDividendSummarySchema } } },
+    502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
+  },
+});
+
+const sectorCodeParam = z.object({ sectorCode: z.string().openapi({ example: "24", description: "證交所類股代碼（見 GET /industries/securities-sectors）" }) });
+const statsSchema = z.object({ count: z.number(), median: z.number().nullable(), q1: z.number().nullable(), q3: z.number().nullable() });
+
+registry.registerPath({
+  method: "get",
+  path: "/industries/{sectorCode}/metric-history",
+  summary: "類股的指標分布歷史（中位數與四分位數）",
+  description:
+    "analysis-ts 的 GET /industries/{sectorCode}/metric-history 原樣轉發（2026-10-09 起）。每一期是同一期對齊、排除興櫃的上市櫃公司在這支指標上的 median／q1／q3 與家數。" +
+    "**只收季報型、非每股類指標**：每股類（eps 等）跨公司取中位數沒有意義，上游回 400。basis 對應上游的 timeframe（Q／TTM／FY，由上游驗）。" +
+    "entries 由舊到新；limit 1～40，不給時上游預設 20。整個類股算不出分布時那一期的 median 等是 null，nullReason 說明原因（例如金控的三率是 not_applicable_industry）。",
+  tags: ["Industries"],
+  request: { params: sectorCodeParam, query: sectorMetricHistoryQuerySchema },
+  responses: {
+    200: {
+      description: "類股指標分布歷史。",
+      content: {
+        "application/json": {
+          schema: z.object({
+            sectorCode: z.string(),
+            sectorName: z.string(),
+            metricCode: z.string(),
+            basis: z.string(),
+            entries: z.array(statsSchema.extend({ fiscalYear: z.number(), fiscalQuarter: z.number().nullable(), nullReason: z.string().nullable() })),
+          }).openapi("SectorMetricHistory"),
+        },
+      },
+    },
+    400: errorResponse("缺 metricCode／basis、limit 超出 1～40，或上游拒絕這支指標（code: unknown_metric 等）。"),
+    404: errorResponse("類股代碼查無上市櫃公司（code: not_found）。"),
+    502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/industries/{sectorCode}/monthly-revenue-history",
+  summary: "類股月營收歷史（同一批公司的年增率）",
+  description:
+    "analysis-ts 的 GET /industries/{sectorCode}/monthly-revenue-history 原樣轉發（2026-10-09 起）。年增率用同一批公司計算。" +
+    "revenue／lastYearRevenue 是新台幣千元的字串。limit 1～120，不給時上游預設 60；total／hasMore 意義同其他歷史端點。",
+  tags: ["Industries"],
+  request: { params: sectorCodeParam, query: sectorMonthlyRevenueHistoryQuerySchema },
+  responses: {
+    200: {
+      description: "類股月營收歷史。",
+      content: {
+        "application/json": {
+          schema: z.object({
+            sectorCode: z.string(),
+            sectorName: z.string(),
+            total: z.number(),
+            hasMore: z.boolean(),
+            entries: z.array(z.object({
+              yearMonth: z.string(),
+              revenue: z.string().nullable(),
+              lastYearRevenue: z.string().nullable(),
+              yoyChangePercent: z.number().nullable(),
+              companyCount: z.number(),
+            })),
+          }).openapi("SectorMonthlyRevenueHistory"),
+        },
+      },
+    },
+    400: errorResponse("limit 超出 1～120。"),
+    404: errorResponse("類股代碼查無上市櫃公司（code: not_found）。"),
+    502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/industries/sector-summary",
+  summary: "各類股的指標分布摘要",
+  description:
+    "analysis-ts 的 GET /industries/sector-summary 原樣轉發（2026-10-09 起）。fields 是逗號分隔的欄位（\"roe.TTM,grossMargin.Q\"），最多 10 個（上游驗）。" +
+    "每個類股回 companyCount 與每個欄位的 count／median／q1／q3。",
+  tags: ["Industries"],
+  request: { query: sectorSummaryQuerySchema },
+  responses: {
+    200: {
+      description: "各類股摘要。",
+      content: {
+        "application/json": {
+          schema: z.object({
+            sectors: z.array(z.object({
+              sectorCode: z.string(),
+              sectorName: z.string(),
+              companyCount: z.number(),
+              fields: z.record(z.string(), statsSchema),
+            })),
+          }).openapi("SectorSummary"),
+        },
+      },
+    },
+    400: errorResponse("缺 fields 或超過 10 個。"),
     502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
   },
 });
