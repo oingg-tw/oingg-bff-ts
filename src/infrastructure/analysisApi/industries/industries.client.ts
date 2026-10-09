@@ -134,19 +134,23 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 /**
- * 類股代碼查無上市櫃公司時上游回 404——這是呼叫端的錯（代碼不存在），原樣回 404，不變成 502。detail 用上游那句
- * （「查無類股 "99" 的上市櫃公司，合法代碼見 …」）。上游沒有給 code，所以這裡補 not_found 讓前端能分支。
- * 注意上游路由不存在（部署版本落後）也是 404，那時 detail 會是「No route matches…」——兩者目前只能靠 detail 區分，
- * 已請 analysis-ts 補一個 code。
+ * 類股代碼查無上市櫃公司：上游回 404 ＋ `code: unknown_sector`（analysis-ts cb33e1d4，2026-10-10 應我們要求加的）。
+ * 這是呼叫端的錯，原樣回 404 並轉出同一個 code 與 detail，不變成 502。
+ *
+ * **只認這個 code**：上游其他的 404（路由不存在，例如他們的部署版本落後、這支端點還沒上）不是「類股不存在」，
+ * 交給 assertAnalysisServiceOk 當成上游故障回 502——否則前端會把「上游沒部署」讀成「你給的代碼錯了」。
+ * 在 cb33e1d4 之前上游沒有 code，只能靠 detail 區分，那是規範說不要解析的欄位。
  */
-async function relaySectorNotFound(response: Response): Promise<void> {
+async function relayUnknownSector(response: Response): Promise<void> {
   if (response.status !== 404) {
     return;
   }
-  const body = asRecord(await response.json().catch(() => null));
-  const detail = typeof body.detail === "string" && body.detail ? body.detail : "Sector not found";
-  const code = typeof body.code === "string" ? body.code : "not_found";
-  throw new AppError(detail, 404, undefined, code);
+  const body = asRecord(await response.json().catch(() => null)); // 不是 unknown_sector 時下游只看 status、不再讀 body，所以不必 clone
+  if (body.code !== "unknown_sector") {
+    return;
+  }
+  const detail = typeof body.detail === "string" && body.detail ? body.detail : "Unknown sector";
+  throw new AppError(detail, 404, undefined, "unknown_sector");
 }
 
 function normalizeSectorMetricHistory(body: unknown): SectorMetricHistory {
@@ -182,7 +186,7 @@ export async function fetchSectorMetricHistory(sectorCode: string, metricCode: s
   }
   const url = buildAnalysisServiceUrl(`/industries/${encodeURIComponent(sectorCode)}/metric-history`, params);
   const response = await fetchAnalysisService(url);
-  await relaySectorNotFound(response);
+  await relayUnknownSector(response);
   await assertAnalysisServiceOk(response, url, "Sector metric history endpoint");
   return normalizeSectorMetricHistory(await response.json());
 }
@@ -194,7 +198,7 @@ export async function fetchSectorMonthlyRevenueHistory(sectorCode: string, limit
     limit === undefined ? undefined : { limit: String(limit) },
   );
   const response = await fetchAnalysisService(url);
-  await relaySectorNotFound(response);
+  await relayUnknownSector(response);
   await assertAnalysisServiceOk(response, url, `${label} endpoint`);
   const b = asRecord(await response.json());
   if (!Array.isArray(b.entries)) {

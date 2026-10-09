@@ -108,8 +108,8 @@ registry.registerPath({
         },
       },
     },
-    400: errorResponse("缺 metricCode／basis、limit 超出 1～40，或上游拒絕這支指標（code: unknown_metric 等）。"),
-    404: errorResponse("類股代碼查無上市櫃公司（code: not_found）。"),
+    400: errorResponse("缺 metricCode／basis、limit 超出 1～40，或上游拒絕這支指標（code: unknown_metric、unsupported_timeframe、per_share_not_aggregatable）。"),
+    404: errorResponse("類股代碼查無上市櫃公司（code: unknown_sector）。上游路由不存在（部署落後）是 502，不是這個 404。"),
     502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
   },
 });
@@ -145,7 +145,7 @@ registry.registerPath({
       },
     },
     400: errorResponse("limit 超出 1～120。"),
-    404: errorResponse("類股代碼查無上市櫃公司（code: not_found）。"),
+    404: errorResponse("類股代碼查無上市櫃公司（code: unknown_sector）。上游路由不存在（部署落後）是 502，不是這個 404。"),
     502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
   },
 });

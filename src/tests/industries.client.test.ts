@@ -185,10 +185,16 @@ describe("fetchSectorMetricHistory", () => {
     expect(url.toString()).toBe("http://filters.test/industries/17/metric-history?metricCode=operatingMargin&timeframe=Q");
   });
 
-  it("查無類股是 404 not_found（呼叫端的錯），不是 502", async () => {
-    mockFetchOnce({ ok: false, status: 404, body: { status: 404, detail: "查無類股 \"99\" 的上市櫃公司" } });
+  it("上游 404 ＋ unknown_sector 是呼叫端的錯：照轉 404 與 code，不是 502", async () => {
+    mockFetchOnce({ ok: false, status: 404, body: { status: 404, code: "unknown_sector", detail: "查無類股 \"99\" 的上市櫃公司" } });
 
-    await expect(fetchSectorMetricHistory("99", "roe", "Q", 5)).rejects.toMatchObject({ statusCode: 404, code: "not_found", message: "查無類股 \"99\" 的上市櫃公司" });
+    await expect(fetchSectorMetricHistory("99", "roe", "Q", 5)).rejects.toMatchObject({ statusCode: 404, code: "unknown_sector", message: "查無類股 \"99\" 的上市櫃公司" });
+  });
+
+  it("上游其他的 404（路由不存在＝上游還沒部署）是上游故障 502，不能讀成類股不存在", async () => {
+    mockFetchOnce({ ok: false, status: 404, body: { status: 404, detail: "No route matches this method and path." } });
+
+    await expect(fetchSectorMetricHistory("24", "roe", "Q")).rejects.toMatchObject({ statusCode: 502, code: "upstream_unavailable" });
   });
 });
 
