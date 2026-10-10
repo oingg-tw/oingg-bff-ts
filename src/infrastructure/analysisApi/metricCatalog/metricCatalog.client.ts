@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum, renamedField } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { MetricCatalogGatewayPort } from "@/application/ports/metricCatalogGateway.js";
 import type {
@@ -21,7 +21,9 @@ function isRawPercentileRank(value: unknown): value is MetricBadgePercentileRank
   const p = value as MetricBadgePercentileRank;
   return (
     (PERCENTILE_RANK_SCOPES as readonly string[]).includes(p.scope) &&
-    (PERCENTILE_RANK_DIRECTIONS as readonly string[]).includes(p.direction) &&
+    // order 是 2026-10-10 起的新名（c1774625），direction 上游 2026-10-24 移除——同 topPct，只認一個的話到期那天整份型錄同步失敗。
+    // 徽章物件整個原樣轉發給 /metrics，所以並存期回應裡兩個名字都在，不用另外補。
+    (PERCENTILE_RANK_DIRECTIONS as readonly unknown[]).includes(renamedField(value as Record<string, unknown>, "order", "direction")) &&
     // topPct 是 2026-10-10 起的新名，topPercent 上游 2026-10-24 移除；只認一個的話，到期那天整份型錄會同步失敗。
     typeof (p.topPct ?? (p as { topPercent?: unknown }).topPercent) === "number" &&
     (p.excludeZero === undefined || typeof p.excludeZero === "boolean")

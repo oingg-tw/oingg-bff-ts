@@ -67,7 +67,8 @@ export interface MetricBadgeThreshold {
 
 export interface MetricBadgePercentileRank {
   scope: "market" | "sector";
-  direction: "asc" | "desc";
+  /** 2026-10-10 前叫 direction（上游 2026-10-24 移除舊名）。 */
+  order: "asc" | "desc";
   topPct: number;
   /** Whether zero-value rows are excluded from the ranking population before computing the percentile — optional, absent means not excluded. */
   excludeZero?: boolean;

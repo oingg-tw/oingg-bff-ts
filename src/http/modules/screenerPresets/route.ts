@@ -2,7 +2,7 @@ import { Router } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { UUID_PATTERN, parseUuidParam } from "@/shared/uuid.js";
-import { parseBody, parseQuery } from "@/shared/validation.js";
+import { parseBody, parseQuery, withLegacyQueryNames } from "@/shared/validation.js";
 import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/application/proxy/screener/pagination.js";
@@ -81,10 +81,10 @@ export const runPresetQuerySchema = z
       .trim()
       .min(1, '"sortField" must be a non-empty string')
       .optional(),
-    sortOrder: z.enum(["asc", "desc"], { error: '"sortOrder" must be "asc" or "desc"' }).optional(),
+    order: z.enum(["asc", "desc"], { error: '"order" must be "asc" or "desc"' }).optional(),
   })
-  .refine((data) => (data.sortField === undefined) === (data.sortOrder === undefined), {
-    message: '"sortField" and "sortOrder" must be given together, or not at all',
+  .refine((data) => (data.sortField === undefined) === (data.order === undefined), {
+    message: '"sortField" and "order" must be given together, or not at all',
     path: ["sortField"],
   });
 
@@ -159,9 +159,9 @@ export function createScreenerPresetsRouter(deps: ScreenerPresetsRouterDeps): Ro
   screenerPresetsRouter.get("/:id/run", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
     const id = parseId(req.params.id ?? "");
-    const query = parseQuery(runPresetQuerySchema, req.query);
+    const query = parseQuery(runPresetQuerySchema, withLegacyQueryNames(req.query, { sortOrder: "order" })); // 並存期舊名（2026-10-10 起叫 order）
     const pagination = { page: query.page ?? 1, pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE };
-    const sort = query.sortField !== undefined ? { field: query.sortField, order: query.sortOrder! } : undefined;
+    const sort = query.sortField !== undefined ? { field: query.sortField, order: query.order! } : undefined;
     const result = await runPreset(firebaseUid, id, pagination, query.columnPresetId, sort, deps);
     res.json(result);
   });

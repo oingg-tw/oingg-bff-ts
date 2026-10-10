@@ -395,7 +395,7 @@ describe("runRanking", () => {
     const result = await runRanking("roe.roeTtmPct", "desc", 10, [], undefined, undefined, deps);
 
     expect(result.field).toBe("roe.roeTtmPct");
-    expect(result.direction).toBe("desc");
+    expect(result.order).toBe("desc");
     expect(result.columns).toEqual([{ field: "roe.roeTtmPct", metricName: "ROE", fieldName: "ROE (TTM)", unit: "percent" }]);
     // Different symbols can legitimately have different knowledgeDate for the same field (one filed later).
     expect(result.results).toEqual([
@@ -501,7 +501,7 @@ describe("runRanking", () => {
       expect(screenerGateway.runRanking).not.toHaveBeenCalled();
       expect(result).toEqual({
         field: "exchangePeRatio.EOD",
-        direction: "asc",
+        order: "asc",
         columns: [{ field: "exchangePeRatio.EOD", metricName: "exchangePeRatio", fieldName: "EOD", unit: null }],
         results: [
           { symbol: "1240", name: "撼訊", values: { "exchangePeRatio.EOD": { value: "10.61", knowledgeDate: "2026-08-28", nullReason: null, formulaVersion: null } } },

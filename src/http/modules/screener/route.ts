@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { UUID_PATTERN } from "@/shared/uuid.js";
-import { booleanQueryParam, parseBody, parseQuery } from "@/shared/validation.js";
+import { booleanQueryParam, parseBody, parseQuery, withLegacyQueryNames } from "@/shared/validation.js";
 import { createOptionalAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { runRanking, runScreener, runScreenerValues, type ScreenerDeps } from "@/application/proxy/screener/screener.service.js";
@@ -34,15 +34,15 @@ export const screenerRequestSchema = z
       .trim()
       .min(1, '"sortField" must be a non-empty string')
       .optional(),
-    sortOrder: z.enum(["asc", "desc"], { error: '"sortOrder" must be "asc" or "desc"' }).optional(),
+    order: z.enum(["asc", "desc"], { error: '"order" must be "asc" or "desc"' }).optional(),
     sectorCodes: z.array(z.string().trim().min(1)).optional(),
     // Symmetric with sectorCodes, added 2026-09-20 for "everything except these sectors" — mutually
     // exclusive with it (see the refine below), matching analysis-ts's own POST /screener rule (a real
     // NOT IN in their query engine, not a reverse-computed sectorCodes — see analysisScreenerClient.ts).
     excludeSectorCodes: z.array(z.string().trim().min(1)).optional(),
   })
-  .refine((data) => (data.sortField === undefined) === (data.sortOrder === undefined), {
-    message: '"sortField" and "sortOrder" must be given together, or not at all',
+  .refine((data) => (data.sortField === undefined) === (data.order === undefined), {
+    message: '"sortField" and "order" must be given together, or not at all',
     path: ["sortField"],
   })
   .refine((data) => data.columnPresetId === undefined || data.columnPresetId === null || data.columns === undefined, {
@@ -83,7 +83,7 @@ function parseSectorCodes(raw: string | undefined): string[] {
 export const rankingQuerySchema = z
   .object({
     field: z.string({ error: '"field" query parameter is required' }).trim().min(1, '"field" query parameter is required'),
-    direction: z.enum(["asc", "desc"], { error: '"direction" must be "asc" or "desc"' }).optional(),
+    order: z.enum(["asc", "desc"], { error: '"order" must be "asc" or "desc"' }).optional(),
     limit: z.preprocess(
       (v) => (v === undefined || v === "" ? undefined : v),
       z
@@ -114,12 +114,12 @@ export const rankingQuerySchema = z
     path: ["excludeSectorCodes"],
   });
 
-// `direction` is required with no default here (unlike GET /screener/ranking's optional-defaults-to-desc)
+// `order` (was `direction` before 2026-10-10) is required with no default here (unlike GET /screener/ranking's optional-defaults-to-desc)
 // — matches analysis-ts's own GET /screener/company-rank, which 400s if it's omitted (confirmed live).
 export const companyRankQuerySchema = z.object({
   symbol: z.string({ error: '"symbol" query parameter is required' }).trim().min(1, '"symbol" query parameter is required'),
   field: z.string({ error: '"field" query parameter is required' }).trim().min(1, '"field" query parameter is required'),
-  direction: z.enum(["asc", "desc"], { error: '"direction" query parameter is required and must be "asc" or "desc"' }),
+  order: z.enum(["asc", "desc"], { error: '"order" query parameter is required and must be "asc" or "desc"' }),
   // Same shape as distribution's — added 2026-09-24 after web-nuxt found it was silently ignored here
   // while they were labelling the result "有配息公司中", which the un-filtered population made untrue.
   excludeZero: booleanQueryParam("excludeZero"),
@@ -156,10 +156,11 @@ export function createScreenerRouter(deps: ColumnPresetsDeps & ScreenerDeps & Au
 
   screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = req.user?.uid;
-    const body = parseBody(screenerRequestSchema, req.body);
+    // sortOrder 是並存期舊名（2026-10-10 起叫 order，跟 analysis-ts 810da900 同名），web-nuxt 改完就刪這層。
+    const body = parseBody(screenerRequestSchema, withLegacyQueryNames(req.body, { sortOrder: "order" }));
     const filters = normalizeScreenerFilters(body.filters);
     const pagination = { page: body.page ?? 1, pageSize: body.pageSize ?? DEFAULT_PAGE_SIZE };
-    const sort = body.sortField !== undefined ? { field: body.sortField, order: body.sortOrder! } : undefined;
+    const sort = body.sortField !== undefined ? { field: body.sortField, order: body.order! } : undefined;
 
     let columnPresetId: string | null;
     let columns: ScreenerColumnRef[];
@@ -181,20 +182,21 @@ export function createScreenerRouter(deps: ColumnPresetsDeps & ScreenerDeps & Au
   });
 
   screenerRouter.get("/ranking", async (req, res) => {
-    const query = parseQuery(rankingQuerySchema, req.query);
-    const direction = query.direction ?? "desc";
+    // direction 是並存期舊名（2026-10-10 起叫 order），web-nuxt 改完就刪這層與回應裡的 direction。
+    const query = parseQuery(rankingQuerySchema, withLegacyQueryNames(req.query, { direction: "order" }));
+    const order = query.order ?? "desc";
     const limit = query.limit ?? DEFAULT_RANKING_LIMIT;
     const columns = parseRankingColumns(query.columns);
     const sectorCodes = parseSectorCodes(query.sectorCodes);
     const excludeSectorCodes = parseSectorCodes(query.excludeSectorCodes);
 
-    const result = await runRanking(query.field, direction, limit, columns, sectorCodes, excludeSectorCodes, deps);
-    res.json(result);
+    const result = await runRanking(query.field, order, limit, columns, sectorCodes, excludeSectorCodes, deps);
+    res.json({ ...result, direction: result.order });
   });
 
   screenerRouter.get("/company-rank", async (req, res) => {
-    const query = parseQuery(companyRankQuerySchema, req.query);
-    const result = await deps.screenerGateway.getCompanyRank(query.symbol, query.field, query.direction, query.excludeZero);
+    const query = parseQuery(companyRankQuerySchema, withLegacyQueryNames(req.query, { direction: "order" })); // 並存期舊名，同 /ranking
+    const result = await deps.screenerGateway.getCompanyRank(query.symbol, query.field, query.order, query.excludeZero);
     res.json(result);
   });
 

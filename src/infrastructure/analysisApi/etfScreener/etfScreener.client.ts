@@ -133,7 +133,7 @@ export async function fetchEtfScreenerResults(
     columns,
     page,
     pageSize,
-    ...(sort ? { sortField: sort.field, sortOrder: sort.order } : {}),
+    ...(sort ? { sortField: sort.field, order: sort.order } : {}), // 上游 810da900 起叫 order（sortOrder 2026-10-24 移除）
   })) as { count?: unknown; page?: unknown; pageSize?: unknown; totalPages?: unknown; results?: unknown };
 
   if (

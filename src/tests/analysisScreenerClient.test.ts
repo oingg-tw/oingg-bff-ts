@@ -221,7 +221,7 @@ describe("fetchScreenerRanking", () => {
     });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(url.toString()).toBe(
-      "http://filters.test/screener/ranking?field=roe.roeTtmPct&direction=desc&limit=10&columns=debtRatio.debtRatioPct",
+      "http://filters.test/screener/ranking?field=roe.roeTtmPct&order=desc&limit=10&columns=debtRatio.debtRatioPct",
     );
   });
 
@@ -342,7 +342,7 @@ describe("fetchCompanyRank", () => {
 
     expect(result).toEqual({ symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPct: 72.8, quintile: 2 });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(url.toString()).toBe("http://filters.test/screener/company-rank?symbol=2330&field=dividendYield.EOD&direction=desc");
+    expect(url.toString()).toBe("http://filters.test/screener/company-rank?symbol=2330&field=dividendYield.EOD&order=desc");
   });
 
   // excludeZero (2026-09-24). analysis-ts parses it as "present means yes" rather than as a boolean —
@@ -363,7 +363,7 @@ describe("fetchCompanyRank", () => {
 
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(url.toString()).toBe(
-      `http://filters.test/screener/company-rank?symbol=2330&field=dividendYield.EOD&direction=desc${expectedSuffix}`,
+      `http://filters.test/screener/company-rank?symbol=2330&field=dividendYield.EOD&order=desc${expectedSuffix}`,
     );
   });
 

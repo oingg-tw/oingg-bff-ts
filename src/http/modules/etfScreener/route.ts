@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
-import { parseBody } from "@/shared/validation.js";
+import { parseBody, withLegacyQueryNames } from "@/shared/validation.js";
 import { runEtfScreener, type EtfScreenerDeps } from "@/application/proxy/etfScreener/etfScreener.service.js";
 import {
   DEFAULT_ETF_SCREENER_PAGE_SIZE,
@@ -21,10 +21,10 @@ export const etfScreenerRequestSchema = z
       .trim()
       .min(1, '"sortField" must be a non-empty string')
       .optional(),
-    sortOrder: z.enum(["asc", "desc"], { error: '"sortOrder" must be "asc" or "desc"' }).optional(),
+    order: z.enum(["asc", "desc"], { error: '"order" must be "asc" or "desc"' }).optional(),
   })
-  .refine((data) => (data.sortField === undefined) === (data.sortOrder === undefined), {
-    message: '"sortField" and "sortOrder" must be given together, or not at all',
+  .refine((data) => (data.sortField === undefined) === (data.order === undefined), {
+    message: '"sortField" and "order" must be given together, or not at all',
     path: ["sortField"],
   });
 
@@ -42,12 +42,13 @@ export function createEtfScreenerRouter(deps: EtfScreenerDeps): Router {
   });
 
   etfScreenerRouter.post("/", async (req, res) => {
-    const body = parseBody(etfScreenerRequestSchema, req.body);
+    // sortOrder 是並存期舊名（2026-10-10 起叫 order，跟 analysis-ts 810da900 同名），web-nuxt 改完就刪這層。
+    const body = parseBody(etfScreenerRequestSchema, withLegacyQueryNames(req.body, { sortOrder: "order" }));
     const filters = (body.filters ?? []).map(toEtfScreenerFilter);
     const columns = body.columns ?? [];
     const page = body.page ?? 1;
     const pageSize = body.pageSize ?? DEFAULT_ETF_SCREENER_PAGE_SIZE;
-    const sort = body.sortField !== undefined ? { field: body.sortField, order: body.sortOrder! } : undefined;
+    const sort = body.sortField !== undefined ? { field: body.sortField, order: body.order! } : undefined;
 
     const result = await runEtfScreener(filters, columns, page, pageSize, sort, deps);
     res.json(result);

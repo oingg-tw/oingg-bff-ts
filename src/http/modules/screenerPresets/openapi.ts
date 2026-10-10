@@ -185,7 +185,7 @@ registry.registerPath({
       description: "preset（名稱與條件）+ screener 結果（count/page/pageSize/totalPages/columns/results）+ 實際套用的 columnPresetId。",
       content: { "application/json": { schema: runPresetResultSchema } },
     },
-    400: errorResponse("columnPresetId 不是合法的 UUID，page/pageSize 不是合法的正整數，或 sortField/sortOrder 格式錯誤。"),
+    400: errorResponse("columnPresetId 不是合法的 UUID，page/pageSize 不是合法的正整數，或 sortField/order 格式錯誤。"),
     401: unauthorized,
     404: errorResponse("preset 不存在／不屬於使用者，或指定的 columnPresetId 不存在／不屬於使用者。"),
   },

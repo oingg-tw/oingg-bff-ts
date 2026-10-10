@@ -172,7 +172,7 @@ describe("fetchEtfScreenerResults", () => {
       page: 1,
       pageSize: 2,
       sortField: "aum",
-      sortOrder: "desc",
+      order: "desc",
     });
   });
 

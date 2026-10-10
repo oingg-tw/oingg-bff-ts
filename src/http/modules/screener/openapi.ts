@@ -128,20 +128,20 @@ registry.registerPath({
 });
 
 const rankingQueryDocSchema = rankingQuerySchema.openapi("ScreenerRankingQuery", {
-  example: { field: "dividendYield.EOD", direction: "desc", limit: 10 },
+  example: { field: "dividendYield.EOD", order: "desc", limit: 10 },
 });
 
 const rankingResultSchema = z
   .object({
     field: z.string(),
-    direction: z.enum(["asc", "desc"]),
+    order: z.enum(["asc", "desc"]),
     columns: z.array(screenerColumnSchema),
     results: z.array(screenerResultRowSchema),
   })
   .openapi("ScreenerRankingResult", {
     example: {
       field: "roe.TTM",
-      direction: "desc",
+      order: "desc",
       columns: [{ field: "roe.TTM", metricName: "roe", fieldName: "TTM", unit: null }],
       results: [{ symbol: "2330", values: { "roe.TTM": { value: "34.78", knowledgeDate: "2026-08-11", nullReason: null } } }],
     },
@@ -152,7 +152,7 @@ registry.registerPath({
   path: "/screener/ranking",
   summary: "依單一指標排行（例如殖利率最高、本益比最低）——給首頁卡片用，不是完整篩選",
   description:
-    "不需要登入。只依 field 這一個指標排序，沒有門檻條件，direction=asc 由小到大、direction=desc（預設）由大到小。排行欄位本身一定會被排除 null（沒有這個數字的公司不會出現），也一定會出現在回傳的 columns/values 裡；columns 可以額外加逗號分隔的顯示欄位（含 \"stock.price\"）。sectorCodes 是選填的逗號分隔證交所類股代碼（見 GET /industries/securities-sectors），多個代碼是聯集（OR）；excludeSectorCodes（2026-09-20 新增）跟 sectorCodes 對稱、同樣是逗號分隔字串，篩選「排除這些類股以外的全部」，兩者互斥（都給會 400）——語意跟未分類公司的處理方式跟 POST /screener 完全一致，見該端點文件。兩者都僅限一般排行路徑：exchangePeRatio.EOD／exchangePbRatio.EOD／dividendYield.EOD 這三個特例欄位是走 analysis-ts 另一支估值排行端點，沒有類股篩選能力，帶了 sectorCodes 或 excludeSectorCodes 都會回 400。results[].values 底下每個欄位都是 { value, knowledgeDate, nullReason } 物件，shape 跟 POST /screener 一致。",
+    "不需要登入。只依 field 這一個指標排序，沒有門檻條件，order=asc 由小到大、order=desc（預設）由大到小。排行欄位本身一定會被排除 null（沒有這個數字的公司不會出現），也一定會出現在回傳的 columns/values 裡；columns 可以額外加逗號分隔的顯示欄位（含 \"stock.price\"）。sectorCodes 是選填的逗號分隔證交所類股代碼（見 GET /industries/securities-sectors），多個代碼是聯集（OR）；excludeSectorCodes（2026-09-20 新增）跟 sectorCodes 對稱、同樣是逗號分隔字串，篩選「排除這些類股以外的全部」，兩者互斥（都給會 400）——語意跟未分類公司的處理方式跟 POST /screener 完全一致，見該端點文件。兩者都僅限一般排行路徑：exchangePeRatio.EOD／exchangePbRatio.EOD／dividendYield.EOD 這三個特例欄位是走 analysis-ts 另一支估值排行端點，沒有類股篩選能力，帶了 sectorCodes 或 excludeSectorCodes 都會回 400。results[].values 底下每個欄位都是 { value, knowledgeDate, nullReason } 物件，shape 跟 POST /screener 一致。",
   tags: ["Screener"],
   request: { query: rankingQueryDocSchema },
   responses: {
@@ -160,13 +160,13 @@ registry.registerPath({
       description: "排行結果（不分頁，就是前 limit 名）。knowledgeDate 統一是實際日期字串（\"YYYY-MM-DD\"，knowledge date）。",
       content: { "application/json": { schema: rankingResultSchema } },
     },
-    400: errorResponse("缺少 field，field 不存在於 filterCatalog，direction/limit/columns 格式錯誤，或 sectorCodes 和 excludeSectorCodes 同時給了。"),
+    400: errorResponse("缺少 field，field 不存在於 filterCatalog，order/limit/columns 格式錯誤，或 sectorCodes 和 excludeSectorCodes 同時給了。"),
     502: upstream502,
   },
 });
 
 const companyRankQueryDocSchema = companyRankQuerySchema.openapi("CompanyRankQuery", {
-  example: { symbol: "2330", field: "dividendYield.EOD", direction: "desc" },
+  example: { symbol: "2330", field: "dividendYield.EOD", order: "desc" },
 });
 
 const companyRankResultSchema = z
@@ -189,7 +189,7 @@ registry.registerPath({
   path: "/screener/company-rank",
   summary: "查單一公司在全市場某個欄位的排名/百分位——跟 ranking 互補（ranking 是「前幾名是誰」，這支是「這家公司排第幾」）",
   description:
-    "不需要登入。symbol/field/direction 三者都必填，沒有預設值（跟 GET /screener/ranking 的 direction 有預設不同，這支省略 direction 會回 400）。field 格式跟其他 screener 端點一致（\"<metricCode>.<token>\"）。rank 是 1-based，並列數值共用同一個名次（RANK() 語意，所以下一個名次可能不連續）。totalCount 只計入這個欄位有值（非 null）的公司數。excludeZero（2026-09-24 新增）是選填的布林值（\"true\"/\"false\"），true 時把該欄位剛好等於 0 的公司排除在母體之外，省略或 false 都不排除。對殖利率這類欄位差別很大：不配息的公司殖利率是 0，不排除的話「**有配息公司中**的排名」會被它們稀釋（實測 dividendYield.EOD 母體 1,723 vs 1,445）。它只影響 totalCount／topPct，**rank 不變**——被排除的零值在降冪排序裡本來就排在後面。前端若要在文案上宣稱「有配息公司中」，必須帶 excludeZero=true，否則那句話與數字不符。quintile（2026-09-24 接上，analysis-ts 其實早就有送、被 bff-ts 的欄位逐一正規化靜默丟掉）是這家公司落在母體的第幾個五等分（1–5），方向跟 direction 一致（desc 時 5 最好）。**不要自己用 topPct 推**：並列名次共用同一個 rank（RANK() 語意），analysis-ts 的 quintile 是對真實分布切的，不是 rank÷totalCount。found 為 false 時是 null。topPct = rank÷totalCount×100（四捨五入到小數點後一位）——數字越小代表排名越前面（例如 5 代表排在全市場前 5%），跟一般認知的「百分位」方向相反，不要混淆。查無資料（這個欄位對這家公司從沒算過，或算出來是 null，或代號不存在）時 found 為 false，value/rank/totalCount/topPct 全部是 null，仍是 200，不是 404。",
+    "不需要登入。symbol/field/order 三者都必填，沒有預設值（跟 GET /screener/ranking 的 order 有預設不同，這支省略 order 會回 400）。field 格式跟其他 screener 端點一致（\"<metricCode>.<token>\"）。rank 是 1-based，並列數值共用同一個名次（RANK() 語意，所以下一個名次可能不連續）。totalCount 只計入這個欄位有值（非 null）的公司數。excludeZero（2026-09-24 新增）是選填的布林值（\"true\"/\"false\"），true 時把該欄位剛好等於 0 的公司排除在母體之外，省略或 false 都不排除。對殖利率這類欄位差別很大：不配息的公司殖利率是 0，不排除的話「**有配息公司中**的排名」會被它們稀釋（實測 dividendYield.EOD 母體 1,723 vs 1,445）。它只影響 totalCount／topPct，**rank 不變**——被排除的零值在降冪排序裡本來就排在後面。前端若要在文案上宣稱「有配息公司中」，必須帶 excludeZero=true，否則那句話與數字不符。quintile（2026-09-24 接上，analysis-ts 其實早就有送、被 bff-ts 的欄位逐一正規化靜默丟掉）是這家公司落在母體的第幾個五等分（1–5），方向跟 direction 一致（desc 時 5 最好）。**不要自己用 topPct 推**：並列名次共用同一個 rank（RANK() 語意），analysis-ts 的 quintile 是對真實分布切的，不是 rank÷totalCount。found 為 false 時是 null。topPct = rank÷totalCount×100（四捨五入到小數點後一位）——數字越小代表排名越前面（例如 5 代表排在全市場前 5%），跟一般認知的「百分位」方向相反，不要混淆。查無資料（這個欄位對這家公司從沒算過，或算出來是 null，或代號不存在）時 found 為 false，value/rank/totalCount/topPct 全部是 null，仍是 200，不是 404。",
   tags: ["Screener"],
   request: { query: companyRankQueryDocSchema },
   responses: {
@@ -197,7 +197,7 @@ registry.registerPath({
       description: "這家公司在該欄位的排名結果，查無資料時 found 為 false、其餘欄位皆為 null。",
       content: { "application/json": { schema: companyRankResultSchema } },
     },
-    400: errorResponse("缺少 symbol/field/direction 任一個，或 field 不存在於 filterCatalog。"),
+    400: errorResponse("缺少 symbol/field/order 任一個，或 field 不存在於 filterCatalog。"),
     502: upstream502,
   },
 });

@@ -13,7 +13,7 @@ const metricFieldSchema = z.object({
 
 interface MetricBadgePercentileRankDoc {
   scope: "market" | "sector";
-  direction: "asc" | "desc";
+  order: "asc" | "desc";
   topPct: number;
   excludeZero?: boolean;
 }
@@ -21,7 +21,7 @@ interface MetricBadgePercentileRankDoc {
 const percentileRankSchema = z
   .object({
     scope: z.enum(["market", "sector"]),
-    direction: z.enum(["asc", "desc"]),
+    order: z.enum(["asc", "desc"]),
     topPct: z.number(),
     excludeZero: z.boolean().optional(),
   })

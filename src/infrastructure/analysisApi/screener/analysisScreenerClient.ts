@@ -111,7 +111,7 @@ export async function fetchScreenerResults(
     columns,
     page: pagination.page,
     pageSize: pagination.pageSize,
-    ...(sort ? { sortField: sort.field, sortOrder: sort.order } : {}),
+    ...(sort ? { sortField: sort.field, order: sort.order } : {}), // 上游 810da900 起叫 order（sortOrder 2026-10-24 移除）
     ...(sectorCodes && sectorCodes.length > 0 ? { sectorCodes } : {}),
     ...(excludeSectorCodes && excludeSectorCodes.length > 0 ? { excludeSectorCodes } : {}),
   });
@@ -146,7 +146,7 @@ export async function fetchScreenerRanking(
 ): Promise<ScreenerRankingGatewayResult> {
   const body = await getJson("/screener/ranking", {
     field,
-    direction,
+    order: direction, // 上游 810da900 起叫 order（direction 2026-10-24 移除）
     limit: String(limit),
     ...(extraColumns.length > 0 ? { columns: extraColumns.map((c) => c.field).join(",") } : {}),
     ...(sectorCodes && sectorCodes.length > 0 ? { sectorCodes: sectorCodes.join(",") } : {}),
@@ -214,7 +214,7 @@ export async function fetchCompanyRank(
   direction: "asc" | "desc",
   excludeZero: boolean | undefined,
 ): Promise<CompanyRankResult> {
-  const body = await getJson("/screener/company-rank", { symbol, field, direction, ...excludeZeroParam(excludeZero) });
+  const body = await getJson("/screener/company-rank", { symbol, field, order: direction, ...excludeZeroParam(excludeZero) });
 
   const b = body as { symbol?: unknown; field?: unknown; found?: unknown; value?: unknown; rank?: unknown; totalCount?: unknown; topPct?: unknown; topPercent?: unknown; quintile?: unknown };
   if (typeof b.symbol !== "string" || typeof b.field !== "string" || typeof b.found !== "boolean") {

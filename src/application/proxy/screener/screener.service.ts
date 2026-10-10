@@ -328,7 +328,8 @@ export async function runScreenerValues(
 
 export interface RankingResult {
   field: string;
-  direction: "asc" | "desc";
+  /** 2026-10-10 前叫 direction，跟查詢參數同名。 */
+  order: "asc" | "desc";
   columns: ScreenerResultColumn[];
   results: ScreenerResultRow[];
 }
@@ -394,7 +395,7 @@ export async function runRanking(
   }));
   await mergeStockPrices(results, priceFields, deps);
 
-  return { field, direction, columns: resultColumns, results };
+  return { field, order: direction, columns: resultColumns, results };
 }
 
 /**
@@ -439,7 +440,7 @@ async function runValuationRanking(
   ];
   resultColumns.push(...priceResultColumns(priceFields));
 
-  return { field, direction, columns: resultColumns, results };
+  return { field, order: direction, columns: resultColumns, results };
 }
 
 /*

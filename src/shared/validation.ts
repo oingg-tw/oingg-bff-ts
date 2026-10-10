@@ -112,6 +112,10 @@ export function limitSchema(min: number, max: number, name = "limit") {
  * web-nuxt 全部改用新名後，刪掉各 route 的這一層與這支函式。
  */
 export function withLegacyQueryNames(query: unknown, renames: Record<string, string>): Record<string, unknown> {
+  // 也用在 JSON body 上：不是物件就原樣交給 schema 去擋——展開陣列會變成一個「合法的空物件」。
+  if (typeof query !== "object" || query === null || Array.isArray(query)) {
+    return query as Record<string, unknown>;
+  }
   const q: Record<string, unknown> = { ...(query as Record<string, unknown>) };
   for (const [legacy, current] of Object.entries(renames)) {
     if (q[current] === undefined && q[legacy] !== undefined) {

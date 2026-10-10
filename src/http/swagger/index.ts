@@ -45,6 +45,8 @@ function generateDocument() {
         "財報（批次 2c）：year → fiscalYear（**西元整數**，舊的是民國年字串）、season → fiscalQuarter（整數）、reportDate → fiscalPeriodEndDate；" +
         "個股月營收 reportDate → announcementDate、industry → sectorName；溯源 periodType → timeframe；股利歷史的 rocFiscalYear 移除（用 fiscalYear）；" +
         "歷史端點回應裡的期別回聲 basis／token → timeframe（跟查詢參數同名）。" +
+        "排序方向（批次 3）：POST /screener、POST /etf-screener、GET /screener/presets/{id}/run 的 sortOrder → order；" +
+        "GET /screener/ranking、/screener/company-rank 的 direction → order（ranking 回應裡的 direction 也是）；/metrics 徽章 percentileRank.direction → order。" +
         "這份文件只列新名；並存期回應裡會同時帶舊名（值與舊時相同，financialReportType 維持交易所編碼），web-nuxt 改完就移除。"
     },
     servers: [
