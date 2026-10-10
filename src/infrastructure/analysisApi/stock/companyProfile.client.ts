@@ -47,7 +47,7 @@ function flipDataTypeEncoding(code: string | null): string | null {
 /**
  * 並存期舊名（2026-10-10 起，跟著 analysis-ts 批次 2b；web-nuxt 改完就刪這個型別、withLegacyProfileKeys 與它的呼叫）。
  *
- * 不放進 legacyResponseKeys.ts 那張通用表：sectorCode 的舊名在這裡是 industry，在類股字典是 code；而
+ * 不用一張通用的「新名→舊名」對照表：sectorCode 的舊名在這裡是 industry，在類股字典是 code；而
  * financialReportType 不是別名而是**舊編碼**，並存期的意思是舊欄位讀起來跟以前一樣。唯一變好的是 industryName：
  * 以前上櫃一律 null，現在跟 sectorName 一樣有值。
  */

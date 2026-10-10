@@ -37,8 +37,8 @@ function generateDocument() {
       version: "1.0.0",
       description: "業務中台（oingg-business-ts）的 API 合約。Nitro 是唯一呼叫端；錯誤一律是 RFC 9457 problem+json。" +
         "**2026-10-10 起查詢參數改用生態系統一用語**：期別 `basis`／`periodType` → `timeframe`；查某一季的民國 `year`＋字串 `season` → 西元 `fiscalYear`＋整數 `fiscalQuarter`。" +
-        "並存期舊名仍收（舊 year 為民國年、會換算），兩者都給以新名為準；web-nuxt 改完就移除舊名。" +
-        "**回應欄位也改了名（只改名、值不變）**：*Percent → *Pct（yoyChangePct、changePct、topPct…）、paidInShares → numberOfSharesIssued。" +
+        "這兩組的舊名並存到 2026-10-11（web-nuxt 確認改完）：選填的舊名（year、season、溯源的 periodType）現在給了會 400 並指出新名。" +
+        "**回應欄位也改了名**：*Percent → *Pct（yoyChangePct、changePct、topPct…）、paidInShares → numberOfSharesIssued（舊名已移除，2026-10-11）。" +
         "個股基本資料（批次 2b）：reportDate → generatedDate、industry → sectorCode、industryName → sectorName（上櫃也有值了）、" +
         "listedDate → listingDate、preferredStockShares → numberOfPreferenceShares、financialReportType → declaredDataType（**編碼反過來**，改用 MOPS：\"2\" 合併）；" +
         "類股字典 code／name → sectorCode／sectorName。" +
@@ -47,7 +47,7 @@ function generateDocument() {
         "歷史端點回應裡的期別回聲 basis／token → timeframe（跟查詢參數同名）。" +
         "排序方向（批次 3）：POST /screener、POST /etf-screener、GET /screener/presets/{id}/run 的 sortOrder → order；" +
         "GET /screener/ranking、/screener/company-rank 的 direction → order（ranking 回應裡的 direction 也是）；/metrics 徽章 percentileRank.direction → order。" +
-        "這份文件只列新名；並存期回應裡會同時帶舊名（值與舊時相同，financialReportType 維持交易所編碼），web-nuxt 改完就移除。"
+        "批次 2b、2c、3 還在並存期：這份文件只列新名，回應裡同時帶舊名（值與舊時相同，financialReportType 維持交易所編碼）、舊的請求參數照收（兩者都給以新名為準），web-nuxt 改完就移除。"
     },
     servers: [
       {

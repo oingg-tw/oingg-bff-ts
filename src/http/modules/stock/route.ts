@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
-import { limitSchema, parseQuery, withLegacyQueryNames, withLegacyRocYear } from "@/shared/validation.js";
+import { limitSchema, parseQuery, rejectRetiredParams } from "@/shared/validation.js";
 import type { StockProxyDeps } from "@/application/proxy/stock/stock.service.js";
 
 const MAX_SYMBOLS_PER_EX_DIVIDEND_REQUEST = 100;
@@ -38,8 +38,8 @@ export const preferredStocksQuerySchema = z.object({
 /**
  * 查某一季：西元 `fiscalYear` ＋ 整數 `fiscalQuarter`（2026-10-10 起，統一用語；analysis-ts 05967082 起上游也只認這組）。
  * 在那之前對外與上游都是民國年字串 `year` ＋ `season`（`year=114` 回 `fiscalYear: 2025`），曾經因為送四位數西元年
- * 被上游 400、再被顯示成「資料不足」——現在參數本身就是西元，那個陷阱沒了。舊的 year／season 在並存期仍收，
- * 由 withLegacyRocYear 換算（民國 + 1911）；兩組都給以新的為準。
+ * 被上游 400、再被顯示成「資料不足」——現在參數本身就是西元，那個陷阱沒了。舊的 year／season 並存到 2026-10-11
+ * （web-nuxt 確認改完），之後給了會 400 並指出新名（rejectRetiredParams）。
  *
  * 範圍只做基本檢查（四位數的年、1～4 季），合法期間由上游決定。
  */
@@ -52,7 +52,7 @@ const fiscalYearQuarter = {
 const bothOrNeither = (data: { fiscalYear?: number; fiscalQuarter?: number }) => (data.fiscalYear === undefined) === (data.fiscalQuarter === undefined);
 const bothOrNeitherIssue = { message: '"fiscalYear" and "fiscalQuarter" must be given together, or not at all', path: ["fiscalYear"] };
 
-/** 期別：2026-10-10 起對外叫 timeframe（統一用語），舊名 basis 在並存期仍收。值不列舉，由上游驗（理由見各 schema）。 */
+/** 期別：2026-10-10 起對外叫 timeframe（統一用語；舊名 basis 2026-10-11 起不收，timeframe 必填所以給舊名會 400）。值不列舉，由上游驗（理由見各 schema）。 */
 const timeframeParam = z.string({ error: '"timeframe" is required' }).trim().min(1, '"timeframe" is required');
 
 export const financialStatementQuerySchema = z
@@ -286,35 +286,35 @@ export function createStockRouter(deps: StockProxyDeps): Router {
 
   stockRouter.get("/:symbol/financial-statement", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseQuery(financialStatementQuerySchema, withLegacyRocYear(req.query as Record<string, unknown>));
+    const query = parseQuery(financialStatementQuerySchema, rejectRetiredParams(req.query, { year: "fiscalYear", season: "fiscalQuarter" }));
     const statement = await deps.stockGateway.getFinancialStatement(symbol, query.statementType, query.fiscalYear, query.fiscalQuarter);
     res.json(statement);
   });
 
   stockRouter.get("/:symbol/metrics-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseQuery(metricsHistoryQuerySchema, withLegacyQueryNames(req.query, { basis: "timeframe" }));
+    const query = parseQuery(metricsHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getMetricsHistory(symbol, query.metricCodes, query.timeframe, query.limit);
     res.json(history);
   });
 
   stockRouter.get("/:symbol/roe-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseQuery(roeRoaHistoryQuerySchema, withLegacyQueryNames(req.query, { basis: "timeframe" }));
+    const query = parseQuery(roeRoaHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getRoeHistory(symbol, query.timeframe, query.limit);
     res.json(history);
   });
 
   stockRouter.get("/:symbol/roa-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseQuery(roeRoaHistoryQuerySchema, withLegacyQueryNames(req.query, { basis: "timeframe" }));
+    const query = parseQuery(roeRoaHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getRoaHistory(symbol, query.timeframe, query.limit);
     res.json(history);
   });
 
   stockRouter.get("/:symbol/dupont-history", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseQuery(dupontHistoryQuerySchema, withLegacyQueryNames(req.query, { basis: "timeframe" }));
+    const query = parseQuery(dupontHistoryQuerySchema, req.query);
     const history = await deps.stockGateway.getDupontHistory(symbol, query.timeframe, query.limit);
     res.json(history);
   });
@@ -358,14 +358,15 @@ export function createStockRouter(deps: StockProxyDeps): Router {
 
   stockRouter.get("/:symbol/piotroski-breakdown", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseQuery(piotroskiBreakdownQuerySchema, withLegacyRocYear(req.query as Record<string, unknown>));
+    const query = parseQuery(piotroskiBreakdownQuerySchema, rejectRetiredParams(req.query, { year: "fiscalYear", season: "fiscalQuarter" }));
     const breakdown = await deps.stockGateway.getPiotroskiBreakdown(symbol, query.fiscalYear, query.fiscalQuarter);
     res.json(breakdown);
   });
 
   stockRouter.get("/:symbol/metric-provenance", async (req, res) => {
     const { symbol } = req.params;
-    const query = parseQuery(metricProvenanceQuerySchema, withLegacyRocYear(withLegacyQueryNames(req.query, { periodType: "timeframe" })));
+    // timeframe 在這支是選填，所以舊名 periodType 也要明確擋：靜靜丟掉會改回上游的預設期別。
+    const query = parseQuery(metricProvenanceQuerySchema, rejectRetiredParams(req.query, { year: "fiscalYear", season: "fiscalQuarter", periodType: "timeframe" }));
     const provenance = await deps.stockGateway.getMetricProvenance(
       symbol,
       query.metricCode,

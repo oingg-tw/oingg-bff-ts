@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseBody, withLegacyQueryNames } from "@/shared/validation.js";
+import { parseBody } from "@/shared/validation.js";
 import { roeRoaHistoryQuerySchema } from "@/http/modules/stock/route.js";
 import { fetchRoaHistory, fetchRoeHistory } from "@/infrastructure/analysisApi/stock/roeRoaHistory.client.js";
 
@@ -71,13 +71,12 @@ describe("fetchRoeHistory", () => {
    * 靠實打上游。所以這裡不再驗任何特定期別可不可用——basis 已改成由上游驗證（見 route.ts 的說明，
    * roe 與 roa 的合法集合已經不同，任何本地列舉必然在其中一支上是錯的），這一層只守「空值要被擋掉」。
    */
-  it("timeframe 是空字串或缺少時被擋下，不送出空的期別；並存期舊名 basis 仍收、新名優先", () => {
+  it("timeframe 是空字串或缺少時被擋下，不送出空的期別（舊名 basis 也因此是 400）", () => {
     expect(() => parseBody(roeRoaHistoryQuerySchema, { timeframe: "" })).toThrow(/timeframe/);
     expect(() => parseBody(roeRoaHistoryQuerySchema, {})).toThrow(/timeframe/);
     // 期別本身不在這裡驗：上游是唯一來源，給不支援的值會回它自己的 400（原樣中繼）。
     expect(parseBody(roeRoaHistoryQuerySchema, { timeframe: "FY" })).toMatchObject({ timeframe: "FY" });
-    expect(parseBody(roeRoaHistoryQuerySchema, withLegacyQueryNames({ basis: "FY" }, { basis: "timeframe" }))).toMatchObject({ timeframe: "FY" });
-    expect(parseBody(roeRoaHistoryQuerySchema, withLegacyQueryNames({ basis: "Q", timeframe: "TTM" }, { basis: "timeframe" }))).toMatchObject({ timeframe: "TTM" });
+    expect(() => parseBody(roeRoaHistoryQuerySchema, { basis: "FY" })).toThrow(/timeframe/);
   });
 
   it("includes limit when given", async () => {

@@ -127,22 +127,17 @@ export function withLegacyQueryNames(query: unknown, renames: Record<string, str
 }
 
 /**
- * 舊的民國 `year`／字串 `season` → 西元 `fiscalYear`／整數 `fiscalQuarter`（analysis-ts 05967082 起上游只認新的，
- * 舊參數 2026-10-24 移除）。並存期把舊參數換算過來：民國年 + 1911。舊 year 不是兩、三位數就照以前擋下並說明——
- * 那個參數名代表民國年，"2025" 放進去是錯，不猜它是西元年。
+ * 並存期結束、已退役的查詢參數名：給了就 400 並指出新名。**不能讓 schema 靜靜剝掉**——這幾個參數都是選填，
+ * 丟掉的結果不是錯誤，而是「改查最新一季／預設期別」，一個看起來正常的錯答案（例如還在送民國 year=114 的呼叫端
+ * 會拿到最新一季）。必填的新名（例如歷史端點的 timeframe）不需要這層：少了它本來就會 400。
  */
-export function withLegacyRocYear(query: Record<string, unknown>): Record<string, unknown> {
-  const q = { ...query };
-  if (q.fiscalYear === undefined && q.year !== undefined) {
-    if (typeof q.year !== "string" || !/^\d{2,3}$/.test(q.year.trim())) {
-      throw new AppError('"year" must be a ROC year, e.g. "115" for 2026 (or use fiscalYear=2026)', 400);
+export function rejectRetiredParams(query: unknown, renamed: Record<string, string>): unknown {
+  if (typeof query === "object" && query !== null) {
+    for (const [retired, current] of Object.entries(renamed)) {
+      if (retired in query) {
+        throw new AppError(`"${retired}" was renamed to "${current}" on 2026-10-10 and is no longer accepted`, 400);
+      }
     }
-    q.fiscalYear = String(Number(q.year.trim()) + 1911);
   }
-  if (q.fiscalQuarter === undefined && q.season !== undefined) {
-    q.fiscalQuarter = q.season;
-  }
-  delete q.year;
-  delete q.season;
-  return q;
+  return query;
 }

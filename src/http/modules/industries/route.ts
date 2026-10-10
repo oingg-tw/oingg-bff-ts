@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import type { AppDeps } from "@/application/deps.js";
-import { limitSchema, parseQuery, withLegacyQueryNames } from "@/shared/validation.js";
+import { limitSchema, parseQuery } from "@/shared/validation.js";
 
 export type IndustriesDeps = Pick<AppDeps, "industriesGateway">;
 
@@ -53,7 +53,7 @@ export function createIndustriesRouter(deps: IndustriesDeps): Router {
   });
 
   industriesRouter.get("/:sectorCode/metric-history", async (req, res) => {
-    const query = parseQuery(sectorMetricHistoryQuerySchema, withLegacyQueryNames(req.query, { basis: "timeframe" }));
+    const query = parseQuery(sectorMetricHistoryQuerySchema, req.query);
     res.json(await deps.industriesGateway.getSectorMetricHistory(req.params.sectorCode ?? "", query.metricCode, query.timeframe, query.limit));
   });
 
