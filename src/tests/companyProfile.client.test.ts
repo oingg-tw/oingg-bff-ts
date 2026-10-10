@@ -82,9 +82,9 @@ describe("fetchCompanyProfile", () => {
 
     const result = await fetchCompanyProfile("2330");
 
-    // RAW_PROFILE 是上游加 isEmerging 之前的樣本，刻意保留當時的形狀——這一層補 null，正好也是
-    // 「上游沒送這個欄位時給 null 而不是 false」那條規則的驗證。
-    expect(result).toEqual({ ...RAW_PROFILE, parValue: "10", isEmerging: null, ...LEGACY_KEYS });
+    // RAW_PROFILE 是上游加 isEmerging／marketCode 之前的樣本，刻意保留當時的形狀：舊編碼的 TWSE 換算成
+    // TYPEK 'sii'，而上市不可能是興櫃，所以 isEmerging 是 false（TPEx 才會是 null，見下面的 isEmerging 測試）。
+    expect(result).toEqual({ ...RAW_PROFILE, parValue: "10", marketCode: "sii", isEmerging: false, ...LEGACY_KEYS });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/profile?symbol=2330");
   });
@@ -177,14 +177,15 @@ describe("fetchCompanyProfile 的 isEmerging", () => {
     expect((await fetchCompanyProfile("8050"))?.isEmerging).toBe(false);
   });
 
-  it("上游沒送時是 null，不是 false", async () => {
-    mockFetchOnce({ ok: true, body: RAW_PROFILE });
-    expect((await fetchCompanyProfile("2330"))?.isEmerging).toBeNull();
+  // 上市（TWSE）不可能是興櫃，所以「不知道」只發生在 TPEx：舊編碼又沒送 isEmerging 時分不出上櫃或興櫃。
+  it("TPEx 而上游沒送 isEmerging 時是 null，不是 false", async () => {
+    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, market: "TPEx" } });
+    expect((await fetchCompanyProfile("8050"))?.isEmerging).toBeNull();
   });
 
   /** 非布林值（例如上游誤送字串）也當成「不知道」，不要用 truthy 判斷——"false" 會變成 true。 */
   it("非布林值當成 null", async () => {
-    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, isEmerging: "false" } });
-    expect((await fetchCompanyProfile("2330"))?.isEmerging).toBeNull();
+    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, market: "TPEx", isEmerging: "false" } });
+    expect((await fetchCompanyProfile("8050"))?.isEmerging).toBeNull();
   });
 });

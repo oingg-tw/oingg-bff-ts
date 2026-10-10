@@ -1,19 +1,22 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toStringOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
+import { readMarketFields } from "@/infrastructure/analysisApi/market/marketCode.js";
 import type { CompanyListEntry, CompanyListResult } from "@/application/proxy/stock/companyList.types.js";
 
 function normalizeEntry(raw: unknown): CompanyListEntry {
   const r = raw as Record<string, unknown>;
+  const { market, marketCode, isEmerging } = readMarketFields(r, r.symbol);
   return {
     symbol: String(r.symbol),
     name: toStringOrNull(r.companyName),
-    market: String(r.market),
+    market,
+    marketCode,
     sectorCode: typeof r.sectorCode === "string" ? r.sectorCode : null,
     sectorName: typeof r.sectorName === "string" ? r.sectorName : null,
-    // Upstream guarantees this is always a boolean; `=== true` keeps a malformed response from
-    // silently becoming "not 興櫃", which would quietly re-inflate any coverage denominator.
-    isEmerging: r.isEmerging === true,
+    // 從 TYPEK 讀（上游 2026-10-24 移除 isEmerging，直接讀它那天起會全部變成 false）。`=== true` keeps a
+    // malformed response from silently becoming "not 興櫃", which would quietly re-inflate any coverage denominator.
+    isEmerging: isEmerging === true,
   };
 }
 

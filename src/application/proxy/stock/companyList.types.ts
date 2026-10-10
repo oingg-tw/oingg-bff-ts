@@ -3,6 +3,8 @@ export interface CompanyListEntry {
   name: string | null;
   /** "TWSE" (上市) or "TPEx" (上櫃) — added 2026-09-19, for web-nuxt's SEO content thickening. */
   market: string;
+  /** 市場別的 MOPS TYPEK：'sii' 上市、'otc' 上櫃、'rotc' 興櫃（2026-10-10 新增；market 之後會改成這個編碼）。分不出時 null。 */
+  marketCode: string | null;
   /** 證交所類股代碼（見 GET /industries/securities-sectors），null if analysis-ts hasn't classified this company yet. */
   sectorCode: string | null;
   sectorName: string | null;

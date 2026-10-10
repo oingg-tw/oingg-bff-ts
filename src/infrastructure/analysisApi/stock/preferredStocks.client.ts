@@ -1,6 +1,7 @@
 import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
+import { readPreferredMarketFields } from "@/infrastructure/analysisApi/market/marketCode.js";
 import type { PreferredStockEntry, PreferredStocksResult } from "@/application/proxy/stock/preferredStocks.types.js";
 
 function toNumberOrNull(value: unknown): number | null {
@@ -25,7 +26,8 @@ function normalizeEntry(raw: unknown): PreferredStockEntry {
     // like real data. Both became nullable upstream on 2026-10-07 (see PreferredStockEntry).
     isinCode: toStringOrNull(r.isinCode),
     listedDate: toStringOrNull(r.listedDate),
-    marketType: String(r.marketType),
+    // 上游 2026-10-24 移除中文 marketType、改給 marketCode；String() 會在那天變成字串 "undefined"。見 marketCode.ts。
+    ...readPreferredMarketFields(r),
     issueDate: toStringOrNull(r.issueDate),
     issuePrice: toNumberOrNull(r.issuePrice),
     dividendRate: toNumberOrNull(r.dividendRate),

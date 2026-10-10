@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum, toNumberOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toNumberOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type {
   AttentionStockCriteriaDetail,
@@ -32,6 +32,7 @@ import type {
   VolumeTop20Result,
 } from "@/application/proxy/market/market.types.js";
 import type { MarketGatewayPort } from "@/application/ports/marketGateway.js";
+import { readMarketFields } from "@/infrastructure/analysisApi/market/marketCode.js";
 
 /** "" means "no data yet" — normalized to null, a clearer signal than an empty string. */
 function toDateOrNull(value: unknown): string | null {
@@ -60,19 +61,10 @@ function toStringOrNull(value: unknown): string | null {
   return value === null || value === undefined ? null : String(value);
 }
 
-/** Only "TWSE"/"TPEx" are documented — anything else defaults to "TWSE" rather than throwing. */
-/**
- * 未知值落到 TWSE，所以要出聲——理由與 companyProfile.client.ts 的 normalizeProfileMarket 相同（那裡有
- * 完整說明）：上游若新增一種市場別（例如把興櫃分出 `EMERGING`），沒跟上的話排行榜會把它靜默標成「上市」。
- */
-function normalizeMarket(value: unknown, symbol?: string): Market {
-  // 未知的字串照樣放行（2026-10-08，passThroughEnum），不再改寫成 TWSE；缺欄位才沿用舊行為。
-  const market = passThroughEnum(value, ["TWSE", "TPEx"] as const, { field: "market", symbol });
-  if (market !== null) {
-    return market;
-  }
-  logger.warn({ symbol, market: value }, "Market ranking row is missing its market — defaulting to TWSE");
-  return "TWSE";
+/** 排行列只帶 market 與 marketCode（不帶 isEmerging）——讀法見 marketCode.ts。 */
+function pickMarket(r: Record<string, unknown>): { market: Market; marketCode: string | null } {
+  const { market, marketCode } = readMarketFields(r, r.symbol);
+  return { market, marketCode };
 }
 
 function normalizeMarginShortRatioEntry(raw: unknown): MarginShortRatioRankingEntry {
@@ -108,7 +100,7 @@ function normalizeRevenueRankingEntry(raw: unknown): RevenueRankingEntry {
     rank: Number(r.rank),
     symbol: String(r.symbol),
     name: typeof r.companyName === "string" ? r.companyName : null,
-    market: normalizeMarket(r.market),
+    ...pickMarket(r),
     currentMonthRevenue: toStringOrEmpty(r.currentMonthRevenue),
     momChangePct: toStringOrNull((r.momChangePct ?? r.momChangePercent)),
     yoyChangePct: toStringOrNull((r.yoyChangePct ?? r.yoyChangePercent)),
@@ -121,7 +113,7 @@ function normalizeVolumeTop20Entry(raw: unknown): VolumeTop20Entry {
     rank: Number(r.rank),
     symbol: String(r.symbol),
     name: typeof r.companyName === "string" ? r.companyName : null,
-    market: normalizeMarket(r.market),
+    ...pickMarket(r),
     volume: toStringOrEmpty(r.volume),
     transaction: toStringOrNull(r.transaction),
     open: toStringOrNull(r.open),
@@ -139,7 +131,7 @@ function normalizeDisposedStockEntry(raw: unknown): DisposedStockEntry {
   return {
     symbol: String(r.symbol),
     name: typeof r.companyName === "string" ? r.companyName : null,
-    market: normalizeMarket(r.market),
+    ...pickMarket(r),
     announceDate: toStringOrEmpty(r.announceDate),
     announcementCount: typeof r.announcementCount === "number" ? r.announcementCount : null,
     reason: toStringOrEmpty(r.reason),
@@ -170,7 +162,7 @@ function normalizeAttentionStockEntry(raw: unknown): AttentionStockEntry {
   return {
     symbol: String(r.symbol),
     name: typeof r.companyName === "string" ? r.companyName : null,
-    market: normalizeMarket(r.market),
+    ...pickMarket(r),
     tradeDate: toStringOrEmpty(r.tradeDate),
     criteria: toStringOrEmpty(r.criteria),
     criteriaDetails: Array.isArray(r.criteriaDetails) ? r.criteriaDetails.map(normalizeAttentionStockCriteriaDetail) : [],
@@ -184,7 +176,7 @@ function normalizePriceChangeRankingEntry(raw: unknown): PriceChangeRankingEntry
     rank: Number(r.rank),
     symbol: String(r.symbol),
     name: typeof r.companyName === "string" ? r.companyName : null,
-    market: normalizeMarket(r.market),
+    ...pickMarket(r),
     tradeDate: toStringOrEmpty(r.tradeDate),
     previousTradeDate: toStringOrEmpty(r.previousTradeDate),
     close: toStringOrEmpty(r.close),
@@ -211,7 +203,7 @@ function normalizeEtfRankingEntry(raw: unknown): EtfRankingEntry {
     shortName: toStringOrEmpty(r.shortName),
     issuerName: typeof r.companyName === "string" ? r.companyName : null,
     category: toStringOrEmpty(r.category),
-    market: normalizeMarket(r.market),
+    ...pickMarket(r),
     assetClass: typeof r.assetClass === "string" ? (r.assetClass as EtfAssetClass) : null,
     // 上游可為 null（分類不出主動／被動）：=== true 會把「不知道」講成「被動型」。
     isActive: typeof r.isActive === "boolean" ? r.isActive : null,

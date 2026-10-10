@@ -13,8 +13,10 @@ export interface PreferredStockEntry {
   isinCode: string | null;
   /** "YYYY-MM-DD"; null for the same reason as isinCode. 8349A's comes from its first trading day. */
   listedDate: string | null;
-  /** "上市" or "上櫃" (free string upstream, not an enum). */
-  marketType: string;
+  /** "上市" or "上櫃" (free string upstream, not an enum)。2026-10-24 上游移除後由 marketCode 換算；認不出時 null。 */
+  marketType: string | null;
+  /** 市場別的 MOPS TYPEK：'sii' 上市、'otc' 上櫃、'rotc' 興櫃（2026-10-10 新增；market 之後會改成這個編碼）。分不出時 null。 */
+  marketCode: string | null;
   /*
    * 發行條款（從 issueDate 到 redemptionConditions，以及由條款算出的殖利率類欄位）在上游契約裡本來就全部
    * 可為 null（2026-10-07 對過 analysis-ts 的 OpenAPI）：查無條款時整組一起是 null。mops 的條款表從

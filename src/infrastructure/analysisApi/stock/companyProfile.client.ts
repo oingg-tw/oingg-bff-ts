@@ -2,39 +2,13 @@ import { AppError } from "@/domain/appError.js";
 import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum, renamedField } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { CompanyProfile } from "@/application/proxy/stock/companyProfile.types.js";
-import type { Market } from "@/application/proxy/market/market.types.js";
+import { readMarketFields } from "@/infrastructure/analysisApi/market/marketCode.js";
 
 /** Same convention as stockQuote.client.ts's toStringOrNull — see that file for why. */
 function toStringOrNull(value: unknown): string | null {
   return value === null || value === undefined ? null : String(value);
 }
 
-
-/**
- * `market` 會收斂成 `"TWSE" | "TPEx"`，而**未知值會落到 TWSE**——所以這裡要出聲。2026-10-01 的實例：
- * tpex-ts 指出上游的 `company_profile` 用 `source` 區分興櫃（COMPANY_PROFILE_EMERGING，365 家），
- * 並建議把 `market` 分出一個 `EMERGING`。如果上游真的那樣做而這裡沒跟上，**興櫃會被靜默標成「上市」**
- * ——一個錯的標籤比缺一個標籤糟，而且從 payload 看不出來。
- *
- * 不丟 502（對比 metricDataType）：market 是一個標籤、不是整列意義的前提，上游多一種市場別不該讓個股頁
- * 整頁掛掉。跟 exDividendCalendar 的 securityType 同一個判準（2026-09-30）。
- *
- * **同樣的寫法在 marketRankings.client.ts 的 normalizeMarket 也有一份**（排行榜的每一列）。兩處刻意不抽成
- * 共用函式：抽去哪裡都要把 Market 這個領域型別拉進通用的出向 client，而兩份加上互相指名的註解比那個耦合便宜。
- * 真的出現第三處再抽。
- */
-function normalizeProfileMarket(value: unknown, symbol: string): Market {
-  // 未知的字串照樣放行（2026-10-08，passThroughEnum）：以前改寫成 TWSE，等於把新的市場別悄悄標成上市。
-  // 缺欄位才沿用舊行為落到 TWSE 並記 warn。
-  const market = passThroughEnum(value, KNOWN_MARKETS, { field: "market", symbol });
-  if (market !== null) {
-    return market;
-  }
-  logger.warn({ symbol, market: value }, "Company profile is missing its market — defaulting to TWSE");
-  return "TWSE";
-}
-
-const KNOWN_MARKETS: readonly Market[] = ["TWSE", "TPEx"];
 
 /**
  * 交易所「編製財務報告類型」跟 MOPS dataType 對合併／個別的編號相反：交易所 "1" 合併 = MOPS "2" 合併。
@@ -82,10 +56,9 @@ function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
   return {
     symbol: String(raw.symbol),
     metricDataType,
-    market: normalizeProfileMarket(raw.market, String(raw.symbol)),
-    // 缺席給 null 不給 false——理由見 companyProfile.types.ts。上游 PRD 還沒有這個欄位，而把興櫃說成
-    // 「不是興櫃」是錯的標籤；null 讓呼叫端知道「還不知道」。
-    isEmerging: typeof raw.isEmerging === "boolean" ? raw.isEmerging : null,
+    // 市場別與興櫃旗標都從 TYPEK 讀（見 marketCode.ts）：上游 2026-10-24 移除 isEmerging、market 換編碼。
+    // 分不出時 isEmerging 給 null 不給 false——理由見 companyProfile.types.ts。
+    ...readMarketFields(raw, raw.symbol),
     generatedDate: toStringOrNull(renamedField(raw, "generatedDate", "reportDate")),
     name: toStringOrNull(raw.name),
     shortName: toStringOrNull(raw.shortName),

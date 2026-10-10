@@ -44,6 +44,7 @@ const companyListSchema = z
         symbol: z.string(),
         name: z.string().nullable(),
         market: z.string(),
+        marketCode: z.string().nullable(),
         sectorCode: z.string().nullable(),
         sectorName: z.string().nullable(),
         isEmerging: z.boolean(),
@@ -91,6 +92,8 @@ const companyProfileSchema = z
   .object({
     symbol: z.string(),
     market: z.enum(["TWSE", "TPEx"]),
+    /** 市場別的 MOPS TYPEK：'sii' 上市、'otc' 上櫃、'rotc' 興櫃（2026-10-10 新增；market 之後會改成這個編碼）。 */
+    marketCode: z.string().nullable(),
     /** 是否為興櫃。**per-symbol 層級唯一能區分興櫃的欄位**（market 只有 TWSE/TPEx，興櫃也歸在 TPEx）。上游 PRD 尚未部署時為 null。 */
     isEmerging: z.boolean().nullable(),
     generatedDate: z.string().nullable(),
@@ -647,7 +650,8 @@ const preferredStockEntrySchema = z
     name: z.string(),
     isinCode: z.string().nullable(),
     listedDate: z.string().nullable(),
-    marketType: z.string(),
+    marketType: z.string().nullable(),
+    marketCode: z.string().nullable(),
     issueDate: z.string().nullable(),
     issuePrice: z.number().nullable(),
     dividendRate: z.number().nullable(),

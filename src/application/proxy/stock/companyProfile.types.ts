@@ -9,6 +9,8 @@ export type CompanyProfileMarket = "TWSE" | "TPEx" | (string & {}); // 未知的
 export interface CompanyProfile {
   symbol: string;
   market: CompanyProfileMarket;
+  /** 市場別的 MOPS TYPEK：'sii' 上市、'otc' 上櫃、'rotc' 興櫃（2026-10-10 新增；market 之後會改成這個編碼）。分不出時 null。 */
+  marketCode: string | null;
   /**
    * 是否為興櫃（上游 2026-10-01 新增）。**在 per-symbol 層級，這是唯一能區分興櫃的欄位**——`market` 只有
    * `'TWSE' | 'TPEx'`，而興櫃在上游也歸在 TPEx（8050 上櫃與 1293 興櫃的 market 都是 'TPEx'，實測）。

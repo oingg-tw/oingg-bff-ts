@@ -48,8 +48,8 @@ describe("fetchCompanyList", () => {
       limit: 200,
       offset: 0,
       entries: [
-        { symbol: "000700", name: "兆豐證券", market: "TWSE", sectorCode: null, sectorName: null, isEmerging: false },
-        { symbol: "2330", name: "台積電", market: "TWSE", sectorCode: "24", sectorName: "半導體業", isEmerging: false },
+        { symbol: "000700", name: "兆豐證券", market: "TWSE", marketCode: "sii", sectorCode: null, sectorName: null, isEmerging: false },
+        { symbol: "2330", name: "台積電", market: "TWSE", marketCode: "sii", sectorCode: "24", sectorName: "半導體業", isEmerging: false },
       ],
     });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;

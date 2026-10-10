@@ -50,6 +50,8 @@ export interface RevenueRankingEntry {
   /** From oingg-analysis-ts's company reference table — null if not found there. */
   name: string | null;
   market: Market;
+  /** 市場別的 MOPS TYPEK：'sii' 上市、'otc' 上櫃、'rotc' 興櫃（2026-10-10 新增；market 之後會改成這個編碼）。分不出時 null。 */
+  marketCode: string | null;
   currentMonthRevenue: string;
   /** null when there's no comparable prior month/year to compute a change against — not a query failure. */
   momChangePct: string | null;
@@ -73,6 +75,8 @@ export interface VolumeTop20Entry {
   /** From oingg-analysis-ts's company reference table — null if not found there. */
   name: string | null;
   market: Market;
+  /** 市場別的 MOPS TYPEK：'sii' 上市、'otc' 上櫃、'rotc' 興櫃（2026-10-10 新增；market 之後會改成這個編碼）。分不出時 null。 */
+  marketCode: string | null;
   volume: string;
   transaction: string | null;
   open: string | null;
@@ -101,6 +105,8 @@ export interface DisposedStockEntry {
   /** From oingg-analysis-ts's company reference table — null if not found there. */
   name: string | null;
   market: Market;
+  /** 市場別的 MOPS TYPEK：'sii' 上市、'otc' 上櫃、'rotc' 興櫃（2026-10-10 新增；market 之後會改成這個編碼）。分不出時 null。 */
+  marketCode: string | null;
   announceDate: string;
   announcementCount: number | null;
   reason: string;
@@ -155,6 +161,8 @@ export interface AttentionStockEntry {
   /** From oingg-analysis-ts's company reference table — null if not found there. */
   name: string | null;
   market: Market;
+  /** 市場別的 MOPS TYPEK：'sii' 上市、'otc' 上櫃、'rotc' 興櫃（2026-10-10 新增；market 之後會改成這個編碼）。分不出時 null。 */
+  marketCode: string | null;
   tradeDate: string;
   criteria: string;
   /** Empty when analysis-ts's parse of `criteria` fails (e.g. upstream text format changes) — `criteria` itself is unaffected. */
@@ -189,6 +197,8 @@ export interface PriceChangeRankingEntry {
   /** From oingg-analysis-ts's company reference table — null if not found there. */
   name: string | null;
   market: Market;
+  /** 市場別的 MOPS TYPEK：'sii' 上市、'otc' 上櫃、'rotc' 興櫃（2026-10-10 新增；market 之後會改成這個編碼）。分不出時 null。 */
+  marketCode: string | null;
   tradeDate: string;
   previousTradeDate: string;
   close: string;
@@ -248,6 +258,8 @@ export interface EtfRankingEntry {
   category: string;
   /** `market`/`assetClass`/`isActive` are parsed out of `category` (e.g. "上市ETF_國外成分證券ETF") — `category`'s raw string is unaffected. Added by analysis-ts on 2026-09-02, as groundwork for an upcoming ETF zone/screener feature (design still being worked out with the user — expect a bigger API change later, similar in scope to POST /screener). */
   market: Market;
+  /** 市場別的 MOPS TYPEK：'sii' 上市、'otc' 上櫃、'rotc' 興櫃（2026-10-10 新增；market 之後會改成這個編碼）。分不出時 null。 */
+  marketCode: string | null;
   /** Null for actively-managed (主動式) ETFs, which don't fit this classification. */
   assetClass: EtfAssetClass | null;
   /** null when upstream can't classify the ETF as active or passive. */

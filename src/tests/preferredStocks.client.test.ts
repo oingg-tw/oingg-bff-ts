@@ -54,7 +54,7 @@ const RAW_ENTRY = {
   premiumRatePct: -13.1,
 };
 
-const EXPECTED_ENTRY = { ...RAW_ENTRY };
+const EXPECTED_ENTRY = { ...RAW_ENTRY, marketCode: "sii" }; // 舊的中文 marketType 換算成 TYPEK
 
 describe("fetchPreferredStocks", () => {
   it("requests /preferred-stocks without a symbol param when omitted (but with a large limit to defeat analysis-ts's own default pagination), and normalizes entries", async () => {
@@ -114,7 +114,7 @@ describe("fetchPreferredStocks", () => {
 
     const { entries } = await fetchPreferredStocks();
 
-    expect(entries[0]).toEqual(noTerms);
+    expect(entries[0]).toEqual({ ...noTerms, marketCode: "sii" });
   });
 
   // ytwPct/ytcPct/ytcAssumption added by analysis-ts 2026-09-07.
