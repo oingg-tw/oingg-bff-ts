@@ -7,7 +7,6 @@ import {
   financialStatementQuerySchema,
   dailyPriceHistoryQuerySchema,
   foreignShareholdingHistoryQuerySchema,
-  metricHistoryQuerySchema,
   metricProvenanceQuerySchema,
   metricsHistoryQuerySchema,
   monthlyRevenueHistoryQuerySchema,
@@ -118,7 +117,7 @@ const companyProfileSchema = z
     financialReportType: z.string().nullable(),
     /** Label for financialReportType — mapping corrected 2026-09-22 (was backwards; 2330 is 合併財報). */
     financialReportTypeName: z.string().nullable(),
-    /** Statement basis analysis-ts actually uses for this company's metrics, MOPS dataType numbering: "2" = 合併報表, "1" = 個體報表 (~249 individual-only filers). Added 2026-09-22. */
+    /** Statement basis analysis-ts actually uses for this company's metrics, MOPS dataType numbering: "2" = 合併報表, "1" = 個別報表 (~249 individual-only filers). Added 2026-09-22. */
     metricDataType: z.enum(["1", "2"]),
     stockTransferAgency: z.string().nullable(),
     transferAgencyPhone: z.string().nullable(),
@@ -909,53 +908,7 @@ const metricHistoryEntrySchema = z.object({
   formulaVersion: z.number().nullable().openapi({ description: VERSION_FIELD_DOC }),
   restated: z.boolean().nullable().openapi({ description: "每股類指標（eps、bvps…）的這一期**有沒有被換算到今天的股數基準**（分割、配股、股數合併式減資追溯；analysis-ts 2026-10-08 起）。**非每股類指標是 null，不是 false**——false 是「每股類，但這一期不需要換算」。股價、比值不換算，兩者相除會差一個倍數，畫河流圖請用 /stocks/{symbol}/valuation-river。" }),
   shareBasisDate: z.string().nullable().openapi({ description: "換算基準日（查詢當天，台北日期 YYYY-MM-DD）。非每股類指標是 null。" }),
-  dataType: z.enum(["1", "2"]).nullable().openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個體報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" + "**null 的意思是「這個指標不適用報表類型」而不是「不知道」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。季頻指標（Q／TTM／FY）缺這個欄位才代表版本錯開。" }),
-});
-
-const metricHistorySchema = z
-  .object({
-    symbol: z.string(),
-    metricCode: z.enum(["eps", "peRatio", "pbRatio", "bvps", "stockPrice"]),
-    basis: z.enum(["TTM", "Q"]),
-    total: z.number(),
-    hasMore: z.boolean(),
-    coverage: z.object({ from: z.string().nullable(), to: z.string().nullable() }).nullable().openapi({ description: COVERAGE_DOC }),
-    entries: z.array(metricHistoryEntrySchema),
-  })
-  .openapi("MetricHistory", {
-    example: {
-      symbol: "2330",
-      metricCode: "peRatio",
-      basis: "TTM",
-      total: 23,
-      hasMore: false,
-      entries: [
-        { fiscalYear: 2025, fiscalQuarter: 2, value: 13.55, nullReason: null, knowledgeDate: "2025-08-12", knowledgeDateIsFallback: false, formulaVersion: 3 },
-        { fiscalYear: 2025, fiscalQuarter: 3, value: 15.93, nullReason: null, knowledgeDate: "2025-11-11", knowledgeDateIsFallback: false, formulaVersion: 3 },
-      ],
-    },
-  });
-
-registry.registerPath({
-  method: "get",
-  path: "/stocks/{symbol}/metric-history",
-  summary: "查詢 EPS/本益比/本淨比的季度歷史數列（個股詳細頁圖表用）",
-  description:
-    "**每股數字的股數基準跟申報原值不同，兩者在股數有變動的公司身上本來就不相等**（2026-09-30 釐清）：這支端點的每股指標是上游用**季末流通股數**算的（取生效日在報告日之前的最新一筆股本），而 `GET /stocks/{symbol}/financial-statement` 的 `basic_earnings_loss_per_share` 是公司用**期間加權平均股數**申報的原值。季中發生股數變動時兩者必然有差——實測 3041 揚智 2025Q2（2025-05 增資）本端點 -0.67、申報 -0.70，差約 4.5%；同一家公司 2026Q2 股數沒變，兩者都是 -0.21。**兩個數字都對，只是分母不同。**另外這支端點還會把**分割、配股、股數合併式減資**（股數變了但公司價值沒變的事件）換算到今天的股數基準，讓跨越這類事件的每股走勢圖不會憑空跳一階；**現金增資與現金減資不換算**，因為那有真的錢進出。financial-statement 完全不換算。所以要做「成分加總等於母項」這類對帳，**母項與成分必須全部取自同一種來源**——全用每股指標，或全用申報原值，混用會在有股數變動的公司身上讓恆等式失效，而症狀看起來像資料不全。" +
-    "資料來自 oingg-analysis-ts 的 GET /companies/metric-history——這是 analysis-ts 自己用驗證過的 eps/bvps 公式重新算出來的數字，不是轉發原始 daily_valuation；knowledgeDate 對齊財報公告日，不是逐日更新的市場數據。metricCode 只允許特定的 basis 組合（實測，不是每個都一樣）：eps 可以是 TTM 或 Q，peRatio 只能 TTM，pbRatio 只能 Q，bvps（每股淨值，2026-09-07 加入）只能 Q，stockPrice（財報公告日當天股價，2026-09-07 加入，取代前端用 peRatio×EPS 反推股價的做法）也只能 Q，給錯組合 analysis-ts 會回 400，這裡原樣轉發那個錯誤訊息。limit 預設 20、最大 40。total 是這個 symbol/metricCode/basis 組合總共有幾筆（不是這次回傳的筆數），hasMore 代表加大 limit 是否還能拿到更多。查無資料（代號沒 backfill 過，或代號不存在）回傳空陣列，不是 404——截至 2026-09-07 只有 2330 有資料，其餘代號都是空的。entries 由舊到新排序。",
-  tags: ["Stock"],
-  request: {
-    params: symbolParam,
-    query: metricHistoryQuerySchema.openapi("MetricHistoryQuery", { example: { metricCode: "peRatio", basis: "TTM", limit: 20 } }),
-  },
-  responses: {
-    200: {
-      description: "季度數列，查無資料時 entries 為空陣列。",
-      content: { "application/json": { schema: metricHistorySchema } },
-    },
-    400: errorResponse("metricCode/basis 組合不合法、limit 超出 1-40 範圍，或缺少必填參數。"),
-    502: unauthorized502,
-  },
+  dataType: z.enum(["1", "2"]).nullable().openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個別報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" + "**null 的意思是「這個指標不適用報表類型」而不是「不知道」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。季頻指標（Q／TTM／FY）缺這個欄位才代表版本錯開。" }),
 });
 
 const metricsHistoryValueSchema = z.object({
@@ -978,7 +931,7 @@ const metricsHistoryEntrySchema = z.object({
   fiscalYear: z.number(),
   fiscalQuarter: z.number().nullable(),
   /** 期層級而不是 values[metricCode] 裡面：報表類型是逐期決定的，同一期的每個指標都一樣。 */
-  dataType: z.enum(["1", "2"]).nullable().openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個體報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" + "**null 的意思是「這個指標不適用報表類型」而不是「不知道」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。季頻指標（Q／TTM／FY）缺這個欄位才代表版本錯開。" }),
+  dataType: z.enum(["1", "2"]).nullable().openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個別報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" + "**null 的意思是「這個指標不適用報表類型」而不是「不知道」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。季頻指標（Q／TTM／FY）缺這個欄位才代表版本錯開。" }),
   values: z.record(z.string(), metricsHistoryValueSchema.nullable()),
 });
 
@@ -1137,7 +1090,7 @@ const dupontHistoryEntrySchema = z.object({
   dupontExtendedRoeNullReason: z.string().nullable(),
   knowledgeDate: z.string(),
   knowledgeDateIsFallback: z.boolean(),
-  dataType: z.enum(["1", "2"]).nullable().openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個體報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" + "**null 的意思是「這個指標不適用報表類型」而不是「不知道」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。季頻指標（Q／TTM／FY）缺這個欄位才代表版本錯開。" }),
+  dataType: z.enum(["1", "2"]).nullable().openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個別報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" + "**null 的意思是「這個指標不適用報表類型」而不是「不知道」**：日頻指標（exchangePeRatio、live* 等）沒有報表類型的概念，上游不送這個欄位（實測 2330 的 exchangePeRatio.EOD 有 tradeDate、沒有 dataType）。季頻指標（Q／TTM／FY）缺這個欄位才代表版本錯開。" }),
 });
 
 const dupontHistorySchema = z
@@ -1320,7 +1273,7 @@ const bookValueBreakdownEntrySchema = z.object({
   shareCountEffect: z.number(),
   other: z.number(),
   /** 這支端點只有年度資料、沒有日頻指標，所以是必填；缺了 bff-ts 回 502，不預設成 "2"。 */
-  dataType: z.enum(["1", "2"]).openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個體報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" }),
+  dataType: z.enum(["1", "2"]).openapi({ description: "這一期用的財務報表類型：**\"2\" = 合併報表、\"1\" = 個別報表**（MOPS 的 dataType 編號，**跟 profile 的 financialReportType 方向相反**）。2026-09-27 新增。逐期而不是逐公司的理由：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史接成一條線，所以同一條數列裡轉換點之前是 \"2\"、之後是 \"1\"（實測 2941：2022 年是 \"2\"、2023 年起是 \"1\"）。一般公司每期恆為 \"2\"、249 家個別申報者恆為 \"1\"、2330 對照組四支端點全是 \"2\"。" }),
   closingBvps: z.number(),
 });
 

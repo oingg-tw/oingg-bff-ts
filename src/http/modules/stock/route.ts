@@ -67,15 +67,7 @@ export const financialStatementQuerySchema = z
   })
   .refine(bothOrNeither, bothOrNeitherIssue);
 
-export const metricHistoryQuerySchema = z.object({
-  metricCode: z.enum(["eps", "peRatio", "pbRatio", "bvps", "stockPrice"], {
-    error: '"metricCode" must be "eps", "peRatio", "pbRatio", "bvps", or "stockPrice"',
-  }),
-  basis: z.enum(["TTM", "Q"], { error: '"basis" must be "TTM" or "Q"' }),
-  limit: historyLimitSchema,
-});
-
-// `basis` isn't a fixed enum here (unlike metricHistoryQuerySchema) — analysis-ts's own valid values for
+// `basis` isn't a fixed enum here — analysis-ts's own valid values for
 // this token differ per metricCode combination (e.g. growth-decomposition codes only allow "Q", not
 // "TTM") and are re-validated against GET /metrics' per-metricCode validTokens; a local enum here would
 // either be too narrow (rejecting valid combinations) or too permissive to be useful.
@@ -300,13 +292,6 @@ export function createStockRouter(deps: StockProxyDeps): Router {
     const query = parseQuery(financialStatementQuerySchema, req.query);
     const statement = await deps.stockGateway.getFinancialStatement(symbol, query.statementType, query.year, query.season);
     res.json(statement);
-  });
-
-  stockRouter.get("/:symbol/metric-history", async (req, res) => {
-    const { symbol } = req.params;
-    const query = parseQuery(metricHistoryQuerySchema, req.query);
-    const history = await deps.stockGateway.getMetricHistory(symbol, query.metricCode, query.basis, query.limit);
-    res.json(history);
   });
 
   stockRouter.get("/:symbol/metrics-history", async (req, res) => {

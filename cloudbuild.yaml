@@ -77,7 +77,7 @@ steps:
       - --set-env-vars=NODE_ENV=production,FILTERS_SERVICE_URL=${_ANALYSIS_URL},ANALYSIS_SERVICE_AUDIENCE=${_ANALYSIS_URL},FIREBASE_SERVICE_ACCOUNT_PATH=/secrets/firebase/key.json
       # 最後一項是**檔案掛載**不是環境變數（Firebase 的服務帳戶金鑰是 JSON 檔）。掛載點不能放在
       # /app：Cloud Run 掛 secret 是掛 volume，會遮蔽該目錄原有內容，/app/dist 與 node_modules 會消失。
-      - --set-secrets=DATABASE_URL=DATABASE_URL:latest,BFF_API_KEY=projects/${_ANALYSIS_PROJECT_NUMBER}/secrets/${_ANALYSIS_API_KEY_SECRET}:latest,FILTERS_SYNC_SECRET=FILTERS_SYNC_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest,/secrets/firebase/key.json=firebase-sa-key:latest
+      - --set-secrets=DATABASE_URL=DATABASE_URL:latest,BUSINESS_API_KEY=projects/${_ANALYSIS_PROJECT_NUMBER}/secrets/${_ANALYSIS_API_KEY_SECRET}:latest,FILTERS_SYNC_SECRET=FILTERS_SYNC_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest,/secrets/firebase/key.json=firebase-sa-key:latest
       # 單一 instance 同時處理的請求數（預設 80）。2026-10-05 本機壓測 production build：RSS 跟著並行數漲
       # （並行 10 約 226 MB、並行 50 約 420～520 MB），閒置後不回落；吞吐量在並行 10 和 50 幾乎一樣（約 92 req/s）。
       # 降到 20 讓尖峰離 512Mi 遠一點，多的請求由 Cloud Run 開新 instance 分攤（最多 4 台）。

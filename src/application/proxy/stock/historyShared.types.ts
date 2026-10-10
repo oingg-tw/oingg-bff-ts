@@ -4,7 +4,7 @@
  * These used to sit in metricHistoryShared.ts next to the fetch+normalize helper that produces them,
  * but that file also imported analysisServiceClient, which put an outbound HTTP client inside the
  * application layer. Only the helper needed to be down there: the shapes are part of this slice's own
- * outward contract (metricHistory.types.ts and roeRoaHistory.types.ts build their results out of them,
+ * outward contract (roeRoaHistory.types.ts builds its results out of them,
  * and those are what the routes serialize), so the file was split rather than moved wholesale — types
  * stay here, the fetching moved to infrastructure/analysisApi/stock/historyShared.client.ts.
  */
@@ -45,7 +45,7 @@ export interface FlatHistoryEntry {
    * 所以版本錯開仍然看得見，只是不會中斷服務。
    */
   /**
-   * 這一期用的財務報表類型：`"2"` = 合併報表、`"1"` = 個體報表（MOPS 的 dataType 編號，**跟
+   * 這一期用的財務報表類型：`"2"` = 合併報表、`"1"` = 個別報表（MOPS 的 dataType 編號，**跟
    * companyProfile 的 `financialReportType` 方向相反**，見那邊的說明）。2026-09-27 新增。
    *
    * **為什麼逐期而不是逐公司**：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史

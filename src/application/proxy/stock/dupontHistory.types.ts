@@ -47,7 +47,7 @@ export interface DupontHistoryEntry {
   /** True when knowledgeDate is a fallback estimate rather than the real announcement date. */
   knowledgeDateIsFallback: boolean;
   /**
-   * 這一期用的財務報表類型：`"2"` = 合併報表、`"1"` = 個體報表（MOPS 的 dataType 編號，**跟
+   * 這一期用的財務報表類型：`"2"` = 合併報表、`"1"` = 個別報表（MOPS 的 dataType 編號，**跟
    * companyProfile 的 `financialReportType` 方向相反**，見那邊的說明）。2026-09-27 新增。
    *
    * **為什麼逐期而不是逐公司**：有 31 家公司賣掉或併掉子公司後只申報個別報表，analysis-ts 把兩段歷史

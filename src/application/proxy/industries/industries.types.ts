@@ -111,7 +111,7 @@ export interface SectorMetricHistory {
 
 export interface SectorMetricHistoryEntry {
   fiscalYear: number;
-  /** 年度（FY）列沒有季別，是 null。 */
+  /** 年度（FY）列是 4，跟個股一致（2026-10-10 詞彙表）；只有上游沒送時才是 null。 */
   fiscalQuarter: number | null;
   /** 這一期有值、計入分布的公司數。 */
   count: number;

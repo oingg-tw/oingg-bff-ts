@@ -56,7 +56,7 @@ export interface CompanyProfile {
   financialReportTypeName: string | null;
   /**
    * Which financial-statement basis analysis-ts actually uses for this company's metrics — MOPS dataType
-   * numbering: "2" = 合併報表 (consolidated), "1" = 個體報表 (individual). Added 2026-09-22 (21fdd2d4). Most
+   * numbering: "2" = 合併報表 (consolidated), "1" = 個別報表 (individual). Added 2026-09-22 (21fdd2d4). Most
    * companies are "2"; ~249 that only file individual statements (mostly 興櫃, plus e.g. 2816/2820/2836/
    * 2849/2851/5863) are "1" and only began getting metric values with this change. Deliberately typed as a
    * closed union since analysis-ts declares it as a two-value enum.

@@ -11,7 +11,6 @@ import type { DupontHistoryBasis, DupontHistoryResult } from "@/application/prox
 import type { ExDividendCalendarEntry, ExDividendCalendarResult } from "@/application/proxy/stock/exDividendCalendar.types.js";
 import type { FinancialStatementResult, FinancialStatementType } from "@/application/proxy/stock/financialStatement.types.js";
 import type { ForeignShareholdingHistoryResult } from "@/application/proxy/stock/foreignShareholdingHistory.types.js";
-import type { MetricHistoryBasis, MetricHistoryCode, MetricHistoryResult } from "@/application/proxy/stock/metricHistory.types.js";
 import type { MetricProvenanceMetricCode, MetricProvenanceResult } from "@/application/proxy/stock/metricProvenance.types.js";
 import type { MetricsHistoryResult } from "@/application/proxy/stock/metricsHistory.types.js";
 import type { MonthlyRevenueHistoryResult } from "@/application/proxy/stock/monthlyRevenueHistory.types.js";
@@ -64,12 +63,6 @@ export interface StockGatewayPort {
   getPreferredStockFieldCatalog(): Promise<PreferredStockFieldCatalogResult>;
 
   // --- 歷史序列。`basis` 是 bff-ts 自己的公開參數名，上游的線路參數名不同且改過數次（見各 client）。 ---
-  getMetricHistory(
-    symbol: string,
-    metricCode: MetricHistoryCode,
-    basis: MetricHistoryBasis,
-    limit?: number,
-  ): Promise<MetricHistoryResult>;
   getMetricsHistory(symbol: string, metricCodes: string[], basis: string, limit?: number): Promise<MetricsHistoryResult>;
   getRoeHistory(symbol: string, basis: RoeRoaHistoryBasis, limit?: number): Promise<RoeHistoryResult>;
   getRoaHistory(symbol: string, basis: RoeRoaHistoryBasis, limit?: number): Promise<RoaHistoryResult>;

@@ -62,7 +62,6 @@ export function fakeStockGateway(overrides: Partial<StockGatewayPort> = {}): Sto
     getFinancialStatement: vi.fn(),
     getPreferredStocks: vi.fn(),
     getPreferredStockFieldCatalog: vi.fn(),
-    getMetricHistory: vi.fn(),
     getMetricsHistory: vi.fn(),
     getRoeHistory: vi.fn(),
     getRoaHistory: vi.fn(),

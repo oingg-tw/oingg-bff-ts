@@ -49,7 +49,7 @@ function normalizeEntry(raw: unknown): MetricsHistoryEntry {
     values[metricCode] = normalizeValue(value);
   }
   // dataType 在期層級而不是 values[metricCode] 裡面：報表類型是逐期決定的，同一期的每個指標都一樣。
-  // 年度（FY）列沒有季別，上游給 null；Number(null) 會變成「第 0 季」。
+  // 年度（FY）列上游給 4（2026-10-10 實測）。仍用 toNumberOrNull：缺值時要是 null，Number(null) 會變成「第 0 季」。
   return { fiscalYear: Number(r.fiscalYear), fiscalQuarter: toNumberOrNull(r.fiscalQuarter), dataType: toDataType(r.dataType), values };
 }
 
@@ -74,7 +74,7 @@ function isMetricsHistoryResponse(body: unknown): body is { entries: unknown[] }
  *
  * The wire query param analysis-ts expects was `token` (2026-09-08), renamed to `timeframe` 2026-09-14
  * (their user felt "token" was still semantically empty — "timeframe" is the familiar candlestick-chart
- * term, 1D/1W/1M etc.) — same pattern as metricHistory.client.ts's fetchMetricHistory. Kept this client's
+ * term, 1D/1W/1M etc.) — same pattern the singular metric-history used before it was removed (2026-10-10). Kept this client's
  * own `token` param/field name unchanged through both renames; only the wire-level key changed.
  */
 export async function fetchMetricsHistory(symbol: string, metricCodes: string[], token: string, limit?: number): Promise<MetricsHistoryResult> {

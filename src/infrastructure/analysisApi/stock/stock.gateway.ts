@@ -13,7 +13,6 @@ import { fetchExDividendCalendar } from "@/infrastructure/analysisApi/stock/exDi
 import { fetchExDividendNotices } from "@/infrastructure/analysisApi/stock/exDividendNotices.client.js";
 import { fetchFinancialStatement } from "@/infrastructure/analysisApi/stock/financialStatement.client.js";
 import { fetchForeignShareholdingHistory } from "@/infrastructure/analysisApi/stock/foreignShareholdingHistory.client.js";
-import { fetchMetricHistory } from "@/infrastructure/analysisApi/stock/metricHistory.client.js";
 import { fetchMetricProvenance } from "@/infrastructure/analysisApi/stock/metricProvenance.client.js";
 import { fetchMetricsHistory } from "@/infrastructure/analysisApi/stock/metricsHistory.client.js";
 import { fetchMonthlyRevenueHistory } from "@/infrastructure/analysisApi/stock/monthlyRevenueHistory.client.js";
@@ -50,7 +49,6 @@ export const analysisStockGateway: StockGatewayPort = {
   getFinancialStatement: fetchFinancialStatement,
   getPreferredStocks: fetchPreferredStocks,
   getPreferredStockFieldCatalog: fetchPreferredStockFieldCatalog,
-  getMetricHistory: fetchMetricHistory,
   getMetricsHistory: fetchMetricsHistory,
   getRoeHistory: fetchRoeHistory,
   getRoaHistory: fetchRoaHistory,

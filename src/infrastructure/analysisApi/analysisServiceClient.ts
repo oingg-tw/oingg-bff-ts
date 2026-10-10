@@ -15,6 +15,19 @@ export function buildAnalysisServiceUrl(path: string, searchParams?: Record<stri
 }
 
 /**
+ * 呼叫 analysis-ts 的 API 金鑰。2026-10-10 使用者核准改名 BFF_API_KEY → BUSINESS_API_KEY（服務正名為業務中台）：
+ * 過渡期兩個都讀、新名優先，部署設定改完、本機 .env 也改完之後再拿掉舊名。值是同一把金鑰（analysis-ts 專案裡的
+ * secret），只有我們這邊的環境變數名稱變。
+ */
+function analysisApiKey(): string {
+  const key = process.env.BUSINESS_API_KEY || process.env.BFF_API_KEY;
+  if (!key) {
+    throw new Error("Missing required environment variable: BUSINESS_API_KEY (or the legacy BFF_API_KEY)");
+  }
+  return key;
+}
+
+/**
  * fetch() itself throws (not a rejected-but-caught HTTP response) for connection-level failures —
  * refused/unreachable host, DNS, timeout — converted here to a clear 502 instead of an uncaught 500.
  * The internal URL is logged server-side only; the client-facing message never includes it (would leak
@@ -30,7 +43,7 @@ export function buildAnalysisServiceUrl(path: string, searchParams?: Record<stri
  */
 export async function fetchAnalysisService(url: URL, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
-  headers.set("X-Api-Key", requireEnv("BFF_API_KEY"));
+  headers.set("X-Api-Key", analysisApiKey());
   const requestId = requestContext.getStore()?.requestId;
   if (requestId) {
     headers.set("X-Request-Id", requestId);
