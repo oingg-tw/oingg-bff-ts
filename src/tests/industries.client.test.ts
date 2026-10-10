@@ -199,18 +199,29 @@ describe("fetchSectorMetricHistory", () => {
 });
 
 describe("fetchSectorMonthlyRevenueHistory", () => {
-  it("營收是千元字串原樣帶出，limit 有給才送", async () => {
+  it("讀上游的新欄名、對外新舊名並存；營收是千元字串，limit 有給才送", async () => {
     mockFetchOnce({
       ok: true,
       body: {
         sectorCode: "24", sectorName: "半導體業", total: 60, hasMore: true,
-        entries: [{ yearMonth: "2026-08", revenue: "1015211100", lastYearRevenue: "617857399", yoyChangePercent: 64.31, companyCount: 207 }],
+        // 上游 2026-10-10（40058581）起的欄名
+        entries: [{ yearMonth: "2026-08", currentMonthRevenue: "1015211100", lastYearSameMonthRevenue: "617857399", yoyChangePct: 64.31, companyCount: 207 }],
       },
     });
 
     const result = await fetchSectorMonthlyRevenueHistory("24", 1);
 
-    expect(result.entries[0]).toEqual({ yearMonth: "2026-08", revenue: "1015211100", lastYearRevenue: "617857399", yoyChangePercent: 64.31, companyCount: 207 });
+    expect(result.entries[0]).toEqual({
+      yearMonth: "2026-08",
+      currentMonthRevenue: "1015211100",
+      lastYearSameMonthRevenue: "617857399",
+      yoyChangePct: 64.31,
+      companyCount: 207,
+      // 過渡期並存的舊名，值必須跟新名一樣（web-nuxt 還在讀）
+      revenue: "1015211100",
+      lastYearRevenue: "617857399",
+      yoyChangePercent: 64.31,
+    });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(url.toString()).toBe("http://filters.test/industries/24/monthly-revenue-history?limit=1");
   });

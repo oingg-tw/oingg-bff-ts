@@ -211,12 +211,21 @@ export async function fetchSectorMonthlyRevenueHistory(sectorCode: string, limit
     hasMore: b.hasMore === true,
     entries: b.entries.map((raw) => {
       const e = asRecord(raw);
+      // 上游 2026-10-10（40058581）改成統一用語、沒有並存期：讀新名。舊名只在我們這一層並存給 web-nuxt 過渡，
+      // 他們改讀新名後把下面三個 deprecated 欄位刪掉。上游欄名再改時這裡會讀到 undefined→null 而不報錯——
+      // 那正是 2026-10-10 發生的事（三欄悄悄變 null），所以改名一律要先看上游實際回應。
+      const currentMonthRevenue = toStringOrNull(e.currentMonthRevenue);
+      const lastYearSameMonthRevenue = toStringOrNull(e.lastYearSameMonthRevenue);
+      const yoyChangePct = toNumberOrNull(e.yoyChangePct);
       return {
         yearMonth: requireString(e.yearMonth, "entries[].yearMonth", label),
-        revenue: toStringOrNull(e.revenue),
-        lastYearRevenue: toStringOrNull(e.lastYearRevenue),
-        yoyChangePercent: toNumberOrNull(e.yoyChangePercent),
+        currentMonthRevenue,
+        lastYearSameMonthRevenue,
+        yoyChangePct,
         companyCount: requireNumber(e.companyCount, "entries[].companyCount", label),
+        revenue: currentMonthRevenue,
+        lastYearRevenue: lastYearSameMonthRevenue,
+        yoyChangePercent: yoyChangePct,
       };
     }),
   };

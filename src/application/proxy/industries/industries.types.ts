@@ -131,14 +131,25 @@ export interface SectorMonthlyRevenueHistory {
   entries: SectorMonthlyRevenueEntry[];
 }
 
+/**
+ * 欄名是全系統統一用語（使用者 2026-10-10 要求，analysis-ts 40058581 改名、無並存期）：跟個股月營收同名，
+ * 百分比後綴統一 Pct。**舊名 revenue／lastYearRevenue／yoyChangePercent 在業務中台這一層暫時並存**，因為 web-nuxt
+ * 的產業頁已經在讀舊名；他們改完就刪（見 normalizer）。
+ */
 export interface SectorMonthlyRevenueEntry {
   /** "YYYY-MM" */
   yearMonth: string;
   /** 新台幣千元，字串（大整數，跟 monthly-revenue-history 一樣）。 */
-  revenue: string | null;
-  lastYearRevenue: string | null;
-  yoyChangePercent: number | null;
+  currentMonthRevenue: string | null;
+  lastYearSameMonthRevenue: string | null;
+  yoyChangePct: number | null;
   companyCount: number;
+  /** @deprecated 同 currentMonthRevenue，過渡期並存，web-nuxt 改讀新名後移除。 */
+  revenue: string | null;
+  /** @deprecated 同 lastYearSameMonthRevenue。 */
+  lastYearRevenue: string | null;
+  /** @deprecated 同 yoyChangePct。 */
+  yoyChangePercent: number | null;
 }
 
 /** 各類股的指標分布摘要（GET /industries/sector-summary?fields=…，最多 10 個欄位）。 */
