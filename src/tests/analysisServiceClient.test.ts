@@ -22,7 +22,7 @@ const METADATA_HOST = "metadata.google.internal";
 
 beforeEach(() => {
   process.env.FILTERS_SERVICE_URL = "http://analysis.test";
-  process.env.BFF_API_KEY = "test-key";
+  process.env.BUSINESS_API_KEY = "test-key";
   delete process.env.ANALYSIS_SERVICE_AUDIENCE;
   resetAnalysisServiceIdTokenCache();
 });
@@ -61,8 +61,7 @@ function headersOf(mock: ReturnType<typeof stubFetch>, host: string): Headers {
 }
 
 describe("fetchAnalysisService", () => {
-  // 2026-10-10 改名 BFF_API_KEY → BUSINESS_API_KEY，過渡期兩個都讀、新名優先。
-  it("金鑰新名 BUSINESS_API_KEY 優先，沒有才用舊名；兩個都沒有就丟錯", async () => {
+  it("金鑰 BUSINESS_API_KEY 放在 X-Api-Key；沒設就丟錯", async () => {
     const original = process.env.BUSINESS_API_KEY;
     try {
       process.env.BUSINESS_API_KEY = "new-key";
@@ -71,10 +70,7 @@ describe("fetchAnalysisService", () => {
       expect(headersOf(mock, "analysis.test").get("X-Api-Key")).toBe("new-key");
 
       delete process.env.BUSINESS_API_KEY;
-      const legacyKey = process.env.BFF_API_KEY;
-      delete process.env.BFF_API_KEY;
       await expect(fetchAnalysisService(buildAnalysisServiceUrl("/companies"))).rejects.toThrow(/BUSINESS_API_KEY/);
-      process.env.BFF_API_KEY = legacyKey;
     } finally {
       if (original === undefined) {
         delete process.env.BUSINESS_API_KEY;

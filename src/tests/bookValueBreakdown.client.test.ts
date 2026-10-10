@@ -6,7 +6,7 @@ const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
 
 beforeEach(() => {
   process.env.FILTERS_SERVICE_URL = "http://filters.test";
-  process.env.BFF_API_KEY = "test-key";
+  process.env.BUSINESS_API_KEY = "test-key";
 });
 
 afterEach(() => {

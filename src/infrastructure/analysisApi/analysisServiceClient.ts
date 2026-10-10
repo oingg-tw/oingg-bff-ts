@@ -15,14 +15,14 @@ export function buildAnalysisServiceUrl(path: string, searchParams?: Record<stri
 }
 
 /**
- * 呼叫 analysis-ts 的 API 金鑰。2026-10-10 使用者核准改名 BFF_API_KEY → BUSINESS_API_KEY（服務正名為業務中台）：
- * 過渡期兩個都讀、新名優先，部署設定改完、本機 .env 也改完之後再拿掉舊名。值是同一把金鑰（analysis-ts 專案裡的
- * secret），只有我們這邊的環境變數名稱變。
+ * 呼叫 analysis-ts 的 API 金鑰。2026-10-10 使用者核准改名 BFF_API_KEY → BUSINESS_API_KEY（服務正名為業務中台）；
+ * 舊名的後備在 DEV 以新名部署後（2026-10-11）拿掉。值是同一把金鑰（analysis-ts 專案裡的 secret），只有我們這邊的
+ * 環境變數名稱變。
  */
 function analysisApiKey(): string {
-  const key = process.env.BUSINESS_API_KEY || process.env.BFF_API_KEY;
+  const key = process.env.BUSINESS_API_KEY;
   if (!key) {
-    throw new Error("Missing required environment variable: BUSINESS_API_KEY (or the legacy BFF_API_KEY)");
+    throw new Error("Missing required environment variable: BUSINESS_API_KEY");
   }
   return key;
 }

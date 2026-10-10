@@ -8,11 +8,11 @@ import {
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_FILTERS_URL = process.env.FILTERS_SERVICE_URL;
-const ORIGINAL_BFF_API_KEY = process.env.BFF_API_KEY;
+const ORIGINAL_BUSINESS_API_KEY = process.env.BUSINESS_API_KEY;
 
 beforeEach(() => {
   process.env.FILTERS_SERVICE_URL = "http://filters.test";
-  process.env.BFF_API_KEY = "test-key";
+  process.env.BUSINESS_API_KEY = "test-key";
 });
 
 afterEach(() => {
@@ -22,10 +22,10 @@ afterEach(() => {
   } else {
     process.env.FILTERS_SERVICE_URL = ORIGINAL_FILTERS_URL;
   }
-  if (ORIGINAL_BFF_API_KEY === undefined) {
-    delete process.env.BFF_API_KEY;
+  if (ORIGINAL_BUSINESS_API_KEY === undefined) {
+    delete process.env.BUSINESS_API_KEY;
   } else {
-    process.env.BFF_API_KEY = ORIGINAL_BFF_API_KEY;
+    process.env.BUSINESS_API_KEY = ORIGINAL_BUSINESS_API_KEY;
   }
 });
 
