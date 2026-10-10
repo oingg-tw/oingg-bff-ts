@@ -35,7 +35,9 @@ function generateDocument() {
     info: {
       title: "業務中台 API（oingg-business-ts）",
       version: "1.0.0",
-      description: "業務中台（oingg-business-ts）的 API 合約。Nitro 是唯一呼叫端；錯誤一律是 RFC 9457 problem+json。"
+      description: "業務中台（oingg-business-ts）的 API 合約。Nitro 是唯一呼叫端；錯誤一律是 RFC 9457 problem+json。" +
+        "**2026-10-10 起查詢參數改用生態系統一用語**：期別 `basis`／`periodType` → `timeframe`；查某一季的民國 `year`＋字串 `season` → 西元 `fiscalYear`＋整數 `fiscalQuarter`。" +
+        "並存期舊名仍收（舊 year 為民國年、會換算），兩者都給以新名為準；web-nuxt 改完就移除舊名。回應欄位這一批沒有改。"
     },
     servers: [
       {

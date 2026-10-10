@@ -108,13 +108,13 @@ describe("fetchPiotroskiBreakdown", () => {
     expect(calledUrl.toString()).toBe("http://filters.test/companies/piotroski-breakdown?symbol=2330");
   });
 
-  it("includes year/season in the request when both are given", async () => {
+  it("sends fiscalYear/fiscalQuarter (Western year, int) when both are given", async () => {
     mockFetchOnce({ ok: true, body: FOUND_BODY });
 
-    await fetchPiotroskiBreakdown("2330", "115", "2");
+    await fetchPiotroskiBreakdown("2330", 2026, 2);
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/piotroski-breakdown?symbol=2330&year=115&season=2");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/piotroski-breakdown?symbol=2330&fiscalYear=2026&fiscalQuarter=2");
   });
 
   it("returns found:false with every other field null for an unknown symbol, without throwing", async () => {

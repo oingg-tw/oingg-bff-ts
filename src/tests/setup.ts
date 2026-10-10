@@ -22,6 +22,7 @@ import { resetHealthReportCache } from "@/application/system/system.service.js";
  */
 process.env.FILTERS_SERVICE_URL = "http://filters.test";
 process.env.BFF_API_KEY = "test-key";
+process.env.BUSINESS_API_KEY = "test-key"; // 2026-10-10 改名後的新名；新名優先，不覆寫的話本機 .env 的真金鑰會蓋過測試值
 process.env.FILTERS_SYNC_SECRET = "test-sync-secret";
 process.env.RESEND_API_KEY = "re_test_key";
 process.env.DATABASE_URL = "postgresql://placeholder:placeholder@localhost:5432/placeholder";

@@ -17,7 +17,7 @@ export async function fetchRoeHistory(
   basis: RoeRoaHistoryBasis,
   limit?: number,
 ): Promise<RoeHistoryResult> {
-  const searchParams: Record<string, string> = { symbol, periodType: basis };
+  const searchParams: Record<string, string> = { symbol, timeframe: basis }; // 上游 05967082 起叫 timeframe（periodType 2026-10-24 移除）
   if (limit !== undefined) {
     searchParams.limit = String(limit);
   }
@@ -34,7 +34,7 @@ export async function fetchRoaHistory(
   basis: RoeRoaHistoryBasis,
   limit?: number,
 ): Promise<RoaHistoryResult> {
-  const searchParams: Record<string, string> = { symbol, periodType: basis };
+  const searchParams: Record<string, string> = { symbol, timeframe: basis }; // 上游 05967082 起叫 timeframe（periodType 2026-10-24 移除）
   if (limit !== undefined) {
     searchParams.limit = String(limit);
   }

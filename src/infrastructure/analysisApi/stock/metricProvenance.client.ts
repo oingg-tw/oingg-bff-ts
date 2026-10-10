@@ -67,21 +67,23 @@ function isMetricProvenanceResponse(body: unknown): body is Record<string, unkno
 export async function fetchMetricProvenance(
   symbol: string,
   metricCode: MetricProvenanceMetricCode,
-  year?: string,
-  season?: string,
-  periodType?: string,
+  fiscalYear?: number,
+  fiscalQuarter?: number,
+  timeframe?: string,
   asOfDate?: string,
 ): Promise<MetricProvenanceResult> {
   const searchParams: Record<string, string> = { metricCode };
-  if (year !== undefined) {
-    searchParams.year = year;
+  // 上游 05967082（2026-10-10）起的參數名：fiscalYear／fiscalQuarter（西元、整數）與 timeframe；舊的 year／season／
+  // periodType 2026-10-24 移除。
+  if (fiscalYear !== undefined) {
+    searchParams.fiscalYear = String(fiscalYear);
   }
-  if (season !== undefined) {
-    searchParams.season = season;
+  if (fiscalQuarter !== undefined) {
+    searchParams.fiscalQuarter = String(fiscalQuarter);
   }
   // 省略時才不送——這幾個選填參數一旦送空字串，上游的語意就從「不限定」變成「指定一個空值」。
-  if (periodType !== undefined) {
-    searchParams.periodType = periodType;
+  if (timeframe !== undefined) {
+    searchParams.timeframe = timeframe;
   }
   if (asOfDate !== undefined) {
     searchParams.asOfDate = asOfDate;

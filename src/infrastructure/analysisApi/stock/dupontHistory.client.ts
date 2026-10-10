@@ -64,7 +64,7 @@ export async function fetchDupontHistory(
   basis: DupontHistoryBasis,
   limit?: number,
 ): Promise<DupontHistoryResult> {
-  const searchParams: Record<string, string> = { symbol, periodType: basis };
+  const searchParams: Record<string, string> = { symbol, timeframe: basis }; // 上游 05967082 起叫 timeframe（periodType 2026-10-24 移除）
   if (limit !== undefined) {
     searchParams.limit = String(limit);
   }

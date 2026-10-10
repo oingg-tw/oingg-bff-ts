@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseBody } from "@/shared/validation.js";
+import { parseBody, withLegacyQueryNames } from "@/shared/validation.js";
 import { roeRoaHistoryQuerySchema } from "@/http/modules/stock/route.js";
 import { fetchRoaHistory, fetchRoeHistory } from "@/infrastructure/analysisApi/stock/roeRoaHistory.client.js";
 
@@ -59,7 +59,7 @@ describe("fetchRoeHistory", () => {
 
     expect(result).toEqual({ symbol: "2330", basis: "TTM", total: 20, hasMore: true, coverage: null, entries: ROE_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&periodType=TTM");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&timeframe=TTM");
   });
 
   /**
@@ -71,11 +71,13 @@ describe("fetchRoeHistory", () => {
    * 靠實打上游。所以這裡不再驗任何特定期別可不可用——basis 已改成由上游驗證（見 route.ts 的說明，
    * roe 與 roa 的合法集合已經不同，任何本地列舉必然在其中一支上是錯的），這一層只守「空值要被擋掉」。
    */
-  it("basis 是空字串或缺少時被擋下，不送出空的 periodType", () => {
-    expect(() => parseBody(roeRoaHistoryQuerySchema, { basis: "" })).toThrow(/basis/);
-    expect(() => parseBody(roeRoaHistoryQuerySchema, {})).toThrow(/basis/);
+  it("timeframe 是空字串或缺少時被擋下，不送出空的期別；並存期舊名 basis 仍收、新名優先", () => {
+    expect(() => parseBody(roeRoaHistoryQuerySchema, { timeframe: "" })).toThrow(/timeframe/);
+    expect(() => parseBody(roeRoaHistoryQuerySchema, {})).toThrow(/timeframe/);
     // 期別本身不在這裡驗：上游是唯一來源，給不支援的值會回它自己的 400（原樣中繼）。
-    expect(parseBody(roeRoaHistoryQuerySchema, { basis: "FY" })).toMatchObject({ basis: "FY" });
+    expect(parseBody(roeRoaHistoryQuerySchema, { timeframe: "FY" })).toMatchObject({ timeframe: "FY" });
+    expect(parseBody(roeRoaHistoryQuerySchema, withLegacyQueryNames({ basis: "FY" }, { basis: "timeframe" }))).toMatchObject({ timeframe: "FY" });
+    expect(parseBody(roeRoaHistoryQuerySchema, withLegacyQueryNames({ basis: "Q", timeframe: "TTM" }, { basis: "timeframe" }))).toMatchObject({ timeframe: "TTM" });
   });
 
   it("includes limit when given", async () => {
@@ -84,7 +86,7 @@ describe("fetchRoeHistory", () => {
     await fetchRoeHistory("2330", "TTM", 5);
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&periodType=TTM&limit=5");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&timeframe=TTM&limit=5");
   });
 
   it("returns an empty entries array for an unbackfilled or unknown symbol, without throwing", async () => {
@@ -124,7 +126,7 @@ describe("fetchRoaHistory", () => {
 
     expect(result).toEqual({ symbol: "2330", basis: "TTM", total: 20, hasMore: true, coverage: null, entries: ROA_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/roa-history?symbol=2330&periodType=TTM");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/roa-history?symbol=2330&timeframe=TTM");
   });
 
   it("throws a 502 AppError for a non-2xx, non-400 status", async () => {

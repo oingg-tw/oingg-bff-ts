@@ -457,7 +457,7 @@ registry.registerPath({
   request: {
     params: symbolParam,
     query: financialStatementQuerySchema.openapi("FinancialStatementQuery", {
-      example: { statementType: "balanceSheet", year: "115", season: "2" },
+      example: { statementType: "balanceSheet", fiscalYear: 2026, fiscalQuarter: 2 },
     }),
   },
   responses: {
@@ -550,7 +550,7 @@ registry.registerPath({
   request: {
     params: symbolParam,
     query: piotroskiBreakdownQuerySchema.openapi("PiotroskiBreakdownQuery", {
-      example: { year: "115", season: "2" },
+      example: { fiscalYear: 2026, fiscalQuarter: 2 },
     }),
   },
   responses: {
@@ -978,7 +978,7 @@ registry.registerPath({
   request: {
     params: symbolParam,
     query: metricsHistoryQuerySchema.openapi("MetricsHistoryQuery", {
-      example: { metricCodes: "netIncomeGrowthRate,epsGrowthRate,shareCountChangeRate", basis: "Q", limit: 20 },
+      example: { metricCodes: "netIncomeGrowthRate,epsGrowthRate,shareCountChangeRate", timeframe: "Q", limit: 20 },
     }),
   },
   responses: {
@@ -1022,7 +1022,7 @@ registry.registerPath({
   tags: ["Stock"],
   request: {
     params: symbolParam,
-    query: roeRoaHistoryQuerySchema.openapi("RoeRoaHistoryQuery", { example: { basis: "TTM", limit: 20 } }),
+    query: roeRoaHistoryQuerySchema.openapi("RoeRoaHistoryQuery", { example: { timeframe: "TTM", limit: 20 } }),
   },
   responses: {
     200: {
@@ -1063,7 +1063,7 @@ registry.registerPath({
   tags: ["Stock"],
   request: {
     params: symbolParam,
-    query: roeRoaHistoryQuerySchema.openapi("RoaHistoryQuery", { example: { basis: "TTM", limit: 20 } }),
+    query: roeRoaHistoryQuerySchema.openapi("RoaHistoryQuery", { example: { timeframe: "TTM", limit: 20 } }),
   },
   responses: {
     200: {
@@ -1137,7 +1137,7 @@ registry.registerPath({
   tags: ["Stock"],
   request: {
     params: symbolParam,
-    query: dupontHistoryQuerySchema.openapi("DupontHistoryQuery", { example: { basis: "Q", limit: 20 } }),
+    query: dupontHistoryQuerySchema.openapi("DupontHistoryQuery", { example: { timeframe: "Q", limit: 20 } }),
   },
   responses: {
     200: {

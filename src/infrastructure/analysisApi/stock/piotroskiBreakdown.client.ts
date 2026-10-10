@@ -109,13 +109,14 @@ function isPiotroskiBreakdownResponse(body: unknown): body is Record<string, unk
  * client (not forwarded as a raw object the way filterCatalog's `badge` is), so an unrecognized
  * groupMetadata entry (unknown `key`) is dropped rather than passed through with a bad type.
  */
-export async function fetchPiotroskiBreakdown(symbol: string, year?: string, season?: string): Promise<PiotroskiBreakdownResult> {
+export async function fetchPiotroskiBreakdown(symbol: string, fiscalYear?: number, fiscalQuarter?: number): Promise<PiotroskiBreakdownResult> {
   const searchParams: Record<string, string> = { symbol };
-  if (year !== undefined) {
-    searchParams.year = year;
+  // 西元 fiscalYear／整數 fiscalQuarter（analysis-ts 05967082）；舊的民國 year／season 上游 2026-10-24 移除。
+  if (fiscalYear !== undefined) {
+    searchParams.fiscalYear = String(fiscalYear);
   }
-  if (season !== undefined) {
-    searchParams.season = season;
+  if (fiscalQuarter !== undefined) {
+    searchParams.fiscalQuarter = String(fiscalQuarter);
   }
 
   const url = buildAnalysisServiceUrl("/companies/piotroski-breakdown", searchParams);

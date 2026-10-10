@@ -31,15 +31,16 @@ function isFinancialStatementResponse(body: unknown): body is Record<string, unk
 export async function fetchFinancialStatement(
   symbol: string,
   statementType: FinancialStatementType,
-  year?: string,
-  season?: string,
+  fiscalYear?: number,
+  fiscalQuarter?: number,
 ): Promise<FinancialStatementResult> {
   const searchParams: Record<string, string> = { symbol, statementType };
-  if (year !== undefined) {
-    searchParams.year = year;
+  // 西元 fiscalYear／整數 fiscalQuarter（analysis-ts 05967082，2026-10-10）；舊的民國 year／season 上游 2026-10-24 移除。
+  if (fiscalYear !== undefined) {
+    searchParams.fiscalYear = String(fiscalYear);
   }
-  if (season !== undefined) {
-    searchParams.season = season;
+  if (fiscalQuarter !== undefined) {
+    searchParams.fiscalQuarter = String(fiscalQuarter);
   }
 
   const url = buildAnalysisServiceUrl("/companies/financial-statement", searchParams);

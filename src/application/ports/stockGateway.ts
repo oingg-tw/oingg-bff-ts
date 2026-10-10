@@ -56,13 +56,13 @@ export interface StockGatewayPort {
   getFinancialStatement(
     symbol: string,
     statementType: FinancialStatementType,
-    year?: string,
-    season?: string,
+    fiscalYear?: number,
+    fiscalQuarter?: number,
   ): Promise<FinancialStatementResult>;
   getPreferredStocks(symbol?: string): Promise<PreferredStocksResult>;
   getPreferredStockFieldCatalog(): Promise<PreferredStockFieldCatalogResult>;
 
-  // --- 歷史序列。`basis` 是 bff-ts 自己的公開參數名，上游的線路參數名不同且改過數次（見各 client）。 ---
+  // --- 歷史序列。期別參數 2026-10-10 起對外也叫 timeframe（統一用語）；這裡沿用的 `basis` 只是內部變數名。 ---
   getMetricsHistory(symbol: string, metricCodes: string[], basis: string, limit?: number): Promise<MetricsHistoryResult>;
   getRoeHistory(symbol: string, basis: RoeRoaHistoryBasis, limit?: number): Promise<RoeHistoryResult>;
   getRoaHistory(symbol: string, basis: RoeRoaHistoryBasis, limit?: number): Promise<RoaHistoryResult>;
@@ -79,13 +79,13 @@ export interface StockGatewayPort {
   getDailyPriceHistory(symbol: string, limit?: number): Promise<DailyPriceHistoryResult>;
 
   // --- 拆解與溯源 ---
-  getPiotroskiBreakdown(symbol: string, year?: string, season?: string): Promise<PiotroskiBreakdownResult>;
+  getPiotroskiBreakdown(symbol: string, fiscalYear?: number, fiscalQuarter?: number): Promise<PiotroskiBreakdownResult>;
   getMetricProvenance(
     symbol: string,
     metricCode: MetricProvenanceMetricCode,
-    year?: string,
-    season?: string,
-    periodType?: string,
+    fiscalYear?: number,
+    fiscalQuarter?: number,
+    timeframe?: string,
     asOfDate?: string,
   ): Promise<MetricProvenanceResult>;
 }

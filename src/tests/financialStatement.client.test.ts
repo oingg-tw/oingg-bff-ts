@@ -70,14 +70,14 @@ describe("fetchFinancialStatement", () => {
     expect(calledUrl.toString()).toBe("http://filters.test/companies/financial-statement?symbol=2330&statementType=balanceSheet");
   });
 
-  it("includes year/season in the request when both are given", async () => {
+  it("sends fiscalYear/fiscalQuarter (Western year, int) when both are given", async () => {
     mockFetchOnce({ ok: true, body: BALANCE_SHEET_BODY });
 
-    await fetchFinancialStatement("2330", "balanceSheet", "115", "2");
+    await fetchFinancialStatement("2330", "balanceSheet", 2026, 2);
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe(
-      "http://filters.test/companies/financial-statement?symbol=2330&statementType=balanceSheet&year=115&season=2",
+      "http://filters.test/companies/financial-statement?symbol=2330&statementType=balanceSheet&fiscalYear=2026&fiscalQuarter=2",
     );
   });
 

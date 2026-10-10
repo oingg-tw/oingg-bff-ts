@@ -106,13 +106,13 @@ describe("fetchMetricProvenance", () => {
     expect(calledUrl.toString()).toBe("http://filters.test/companies/2330/metric-provenance?metricCode=roe");
   });
 
-  it("includes year/season in the request when both are given", async () => {
+  it("sends fiscalYear/fiscalQuarter (Western year, int) when both are given", async () => {
     mockFetchOnce({ ok: true, body: ROE_BODY });
 
-    await fetchMetricProvenance("2330", "roe", "115", "2");
+    await fetchMetricProvenance("2330", "roe", 2026, 2);
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
-    expect(calledUrl.toString()).toBe("http://filters.test/companies/2330/metric-provenance?metricCode=roe&year=115&season=2");
+    expect(calledUrl.toString()).toBe("http://filters.test/companies/2330/metric-provenance?metricCode=roe&fiscalYear=2026&fiscalQuarter=2");
   });
 
   // Pilot scope expanded 2026-09-11 (analysis-ts commit fd0416a) from 3 metricCodes to 6 — accrualsRatio,
@@ -213,11 +213,12 @@ describe("fetchMetricProvenance", () => {
 describe("fetchMetricProvenance 的新參數與新欄位", () => {
   const sentUrl = () => String(vi.mocked(globalThis.fetch).mock.calls[0]?.[0] ?? "");
 
-  it("periodType 與 asOfDate 都會出現在送往上游的 URL 上", async () => {
+  it("timeframe 與 asOfDate 都會出現在送往上游的 URL 上（上游 05967082 起叫 timeframe）", async () => {
     mockFetchOnce({ ok: true, body: ROE_BODY });
     await fetchMetricProvenance("2330", "roe", undefined, undefined, "FY", "2026-08-01");
 
-    expect(sentUrl()).toContain("periodType=FY");
+    expect(sentUrl()).toContain("timeframe=FY");
+    expect(sentUrl()).not.toContain("periodType");
     expect(sentUrl()).toContain("asOfDate=2026-08-01");
   });
 
@@ -226,7 +227,7 @@ describe("fetchMetricProvenance 的新參數與新欄位", () => {
     mockFetchOnce({ ok: true, body: ROE_BODY });
     await fetchMetricProvenance("2330", "roe");
 
-    expect(sentUrl()).not.toContain("periodType");
+    expect(sentUrl()).not.toContain("timeframe");
     expect(sentUrl()).not.toContain("asOfDate");
   });
 
