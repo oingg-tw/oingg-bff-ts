@@ -269,45 +269,6 @@ model ScreenerDisplaySettings {
   @@map("screener_display_settings")
 }
 
-/// Which homepage dashboard cards a user has shown/hidden (see src/domainBusiness/user/dashboardCardSettings.*)
-/// — previously local-only client state (oingg-web-nuxt's useDashboardCards.ts useState, reset per
-/// device), now synced across devices. `visibleCardIds` is a plain JSON string array of frontend-owned
-/// card ids (e.g. "margin-short-ratio", "revenue-ranking") — not FK'd to anything, since the set of
-/// valid ids is a growing, frontend-defined list this service doesn't validate membership against; an id
-/// the frontend later retires just becomes inert data here. No row at all (not an empty array) means "no
-/// preference saved yet" — resolved to the frontend's own default list client-side, since bff-ts has no
-/// way to know what that current full list is.
-/// **待刪（2026-10-08）**：端點已移除（web-nuxt 刪掉了這個功能，使用者決定一起拿掉）。表與資料先留著——
-/// DEV 與本機共用同一個 Neon，DROP 要等不含這支端點的程式部署到 DEV 之後才能下，否則 DEV 上的舊程式立刻壞。
-model DashboardCardSettings {
-  firebaseUid    String   @id @map("firebase_uid")
-  visibleCardIds Json     @map("visible_card_ids")
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
-
-  @@map("dashboard_card_settings")
-}
-
-/// 卡片 vs. 會計 — oingg-web-nuxt's /stock/[code].vue layout mode. Was a 3-way 簡易/專家/會計 choice until
-/// 2026-09-07, collapsed to 2-way since 簡易/專家 never actually differentiated content.
-enum StockDetailPageMode {
-  CARD
-  ACCOUNTING
-}
-
-/// A user's /stock/[code].vue display preferences (see src/domainBusiness/user/stockDetailPreferences.*)
-/// — previously local-only client state (Vue useState, lost on reload), now synced across devices, same
-/// pattern as DashboardCardSettings above. `visibleCardIds` is a plain JSON string array of frontend-owned
-/// info-card ids (profile/per-river/pbr-river/eps/revenue/share-capital/ex-dividend) — not FK'd to
-/// anything, same reasoning as DashboardCardSettings.visibleCardIds. Both fields are always written
-/// together (the settings popover saves the whole thing at once, see updateStockDetailPreferences) — no
-/// row at all means "no preference saved yet" for both, resolved to the frontend's own local default.
-/// 持股頁的自訂欄位（使用者 2026-10-05 要求：「讓用戶可以自己定義，比如第二欄數值除以第一欄」，
-/// 比照 Excel 的公式欄，存進帳號）。一個使用者一列，整份清單存成 JSON，順序就是顯示順序。
-///
-/// **bff-ts 只存、不解析也不計算公式**：公式在瀏覽器裡對使用者自己的持股計算（web-nuxt 自己的小型
-/// 解析器，不用 eval）。所以這裡驗的只是形狀與長度，不驗公式的語意。
-///
-/// 沒有列＝從來沒存過，前端套用自己的預設；跟「存了一份空清單」是兩件事。
 /// 自選指標釘選（2026-10-08）：使用者釘在側邊欄／速覽頁的指標頁 slug，順序就是側邊欄的排列順序。
 /// 原本寄存在 StockDetailPreferences.pinnedMetricSlugs，web-nuxt 刪掉卡片偏好後獨立出來。
 /// 「沒有這一列」＝從沒存過（前端套預設）；slugs 是 [] ＝使用者把釘選全取消了。兩者不同，所以 slugs 不可為 null。
@@ -319,6 +280,13 @@ model PinnedMetricPreferences {
   @@map("pinned_metric_preferences")
 }
 
+/// 持股頁的自訂欄位（使用者 2026-10-05 要求：「讓用戶可以自己定義，比如第二欄數值除以第一欄」，
+/// 比照 Excel 的公式欄，存進帳號）。一個使用者一列，整份清單存成 JSON，順序就是顯示順序。
+///
+/// **bff-ts 只存、不解析也不計算公式**：公式在瀏覽器裡對使用者自己的持股計算（web-nuxt 自己的小型
+/// 解析器，不用 eval）。所以這裡驗的只是形狀與長度，不驗公式的語意。
+///
+/// 沒有列＝從來沒存過，前端套用自己的預設；跟「存了一份空清單」是兩件事。
 model HoldingColumnPreferences {
   firebaseUid String   @id @map("firebase_uid")
   columns     Json
@@ -344,24 +312,6 @@ model WatchlistColumnPreferences {
   @@map("watchlist_column_preferences")
 }
 
-/// **待刪（2026-10-08）**：端點已移除（web-nuxt 刪掉了這個功能，使用者決定一起拿掉）。表與資料先留著——
-/// DEV 與本機共用同一個 Neon，DROP 要等不含這支端點的程式部署到 DEV 之後才能下，否則 DEV 上的舊程式立刻壞。
-model StockDetailPreferences {
-  firebaseUid    String              @id @map("firebase_uid")
-  mode           StockDetailPageMode
-  visibleCardIds Json                @map("visible_card_ids")
-  /// 使用者釘在個股頁側邊欄的指標頁 slug，順序就是側邊欄的排列順序。
-  ///
-  /// **這一欄可為 null，而 visibleCardIds 不行，差別不是疏漏。** visibleCardIds 從這張表誕生時就存在，
-  /// 所以「列存在」就保證它有值；pinnedMetricSlugs 是 2026-09-25 才加的，既有的列沒有它。若給它
-  /// NOT NULL DEFAULT '[]'，每個已經存過偏好的使用者會瞬間變成「我把所有釘選都取消了」——而他們
-  /// 從來沒釘過任何東西，前端該套用預設而不是空清單。null 與 [] 的區別在這個欄位上是承重的。
-  pinnedMetricSlugs Json?            @map("pinned_metric_slugs")
-  updatedAt      DateTime            @default(now()) @updatedAt @map("updated_at")
-
-  @@map("stock_detail_preferences")
-}
-
 /// Which column-preset tab is selected on /preferred-stocks' table (全部欄位/契約條款/估值指標/贖回風險).
 /// SCREAMING_SNAKE_CASE for the multi-word values — no other enum in this schema has a multi-word value,
 /// this is the pattern to follow if one comes up again.
@@ -374,10 +324,10 @@ enum PreferredStocksColumnPreset {
 
 /// A user's /preferred-stocks display preferences (see
 /// src/domainBusiness/user/preferredStocksPreferences.*) — previously local-only client state (Vue
-/// useState, lost on reload), now synced across devices, same pattern as StockDetailPreferences above.
+/// useState, lost on reload), now synced across devices, same pattern as the other per-user preference tables.
 /// `columnOrder` is a plain JSON string array of frontend-owned column ids (e.g. "dividend-type",
-/// "issue-price") for the drag-reorderable table — not FK'd to anything, same reasoning as
-/// DashboardCardSettings.visibleCardIds. Both fields are always written together (the settings UI saves
+/// "issue-price") for the drag-reorderable table — not FK'd to anything, since the
+/// frontend owns that id list. Both fields are always written together (the settings UI saves
 /// both at once) — no row at all means "no preference saved yet" for both, resolved to the frontend's
 /// own local default.
 model PreferredStocksPreferences {
@@ -460,7 +410,7 @@ model ScreenerPreset {
   position    Int      @default(0)
   /// TWSE/TPEx securities-sector codes (證交所類股, e.g. "24") this preset filters to, as a plain JSON
   /// string array — not FK'd to a local catalog, since analysis-ts (GET /industries/securities-sectors)
-  /// is the sole validation authority here, same reasoning as DashboardCardSettings.visibleCardIds. An
+  /// is the sole validation authority here. An
   /// invalid/retired code saved here is only caught when the preset is actually run (GET
   /// /screener/presets/:id/run calls analysis-ts's POST /screener), not at save time. Empty array means
   /// no sector restriction.
