@@ -20,6 +20,7 @@ import type { TransactionsPort } from "@/application/ports/transactions.js";
 import type { UserPort } from "@/application/ports/user.js";
 import type { UserPreferencesPort } from "@/application/ports/userPreferences.js";
 import type { WatchlistPort } from "@/application/ports/watchlist.js";
+import type { UserWriteLockPort } from "@/application/ports/userWriteLock.js";
 
 /**
  * 這個服務所有 port 的集合，也是 application 層唯一知道「外面有東西」的地方。
@@ -79,4 +80,6 @@ export interface AppDeps {
   tokenVerifier: TokenVerifierPort;
   /** 健康檢查的探針。只有探測，沒有 client——見該 port 為什麼不交出 PrismaClient。 */
   systemHealth: SystemHealthPort;
+  /** 同一個使用者的寫入排隊：配額與帳本的「先檢查、再寫入」在並發時才不會被繞過，見該 port 的說明。 */
+  userWriteLock: UserWriteLockPort;
 }

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { NextFunction, Response } from "ultimate-express";
+import type { NextFunction } from "ultimate-express";
 
 vi.mock("@/shared/env.js", () => ({
   BILLING_PAID_UID_ALLOWLIST: [],
@@ -11,6 +11,7 @@ import { QUOTA_EXCEEDED_CODE, enforceQuota, type QuotaMiddlewareDeps } from "@/h
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import type { AppError } from "@/domain/appError.js";
 import { OLD_USER, fakeSubscriptions, fakeUserPort } from "@/tests/fakes/billing.js";
+import { fakeResponse, fakeUserWriteLock } from "@/tests/fakes/userWriteLock.js";
 
 function requestFor(uid: string | undefined): AuthenticatedRequest {
   return { user: uid ? { uid } : undefined } as AuthenticatedRequest;
@@ -27,7 +28,7 @@ function requestFor(uid: string | undefined): AuthenticatedRequest {
 let deps: QuotaMiddlewareDeps;
 
 beforeEach(() => {
-  deps = { subscriptions: fakeSubscriptions(), user: fakeUserPort() };
+  deps = { subscriptions: fakeSubscriptions(), user: fakeUserPort(), userWriteLock: fakeUserWriteLock() };
 });
 
 /** An active paid period — the only path to an unlimited tier that doesn't depend on the clock. */
@@ -49,7 +50,7 @@ describe("enforceQuota", () => {
     const next = vi.fn();
     const count = vi.fn().mockResolvedValue(2);
 
-    await enforceQuota("screenerPresets", count, deps)(requestFor("uid"), {} as Response, next as NextFunction);
+    await enforceQuota("screenerPresets", count, deps)(requestFor("uid"), fakeResponse(), next as NextFunction);
 
     expect(next).toHaveBeenCalledWith();
   });
@@ -58,7 +59,7 @@ describe("enforceQuota", () => {
     const next = vi.fn();
     const count = vi.fn().mockResolvedValue(3); // FREE allows 3
 
-    await enforceQuota("screenerPresets", count, deps)(requestFor("uid"), {} as Response, next as NextFunction);
+    await enforceQuota("screenerPresets", count, deps)(requestFor("uid"), fakeResponse(), next as NextFunction);
 
     const error = next.mock.calls[0]?.[0] as AppError;
     expect(error.statusCode).toBe(403);
@@ -72,18 +73,18 @@ describe("enforceQuota", () => {
     const next = vi.fn();
     const count = vi.fn().mockResolvedValue(10);
 
-    await enforceQuota("screenerPresets", count, deps)(requestFor("uid"), {} as Response, next as NextFunction);
+    await enforceQuota("screenerPresets", count, deps)(requestFor("uid"), fakeResponse(), next as NextFunction);
 
     const error = next.mock.calls[0]?.[0] as AppError | undefined;
     expect(error?.statusCode).toBe(403);
   });
 
   it("skips the count entirely for an unlimited tier", async () => {
-    deps = { subscriptions: proSubscription(), user: fakeUserPort() };
+    deps = { subscriptions: proSubscription(), user: fakeUserPort(), userWriteLock: fakeUserWriteLock() };
     const next = vi.fn();
     const count = vi.fn();
 
-    await enforceQuota("screenerPresets", count, deps)(requestFor("uid"), {} as Response, next as NextFunction);
+    await enforceQuota("screenerPresets", count, deps)(requestFor("uid"), fakeResponse(), next as NextFunction);
 
     expect(count).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith();
@@ -92,7 +93,7 @@ describe("enforceQuota", () => {
   it("401s when mounted without requireAuth in front of it", async () => {
     const next = vi.fn();
 
-    await enforceQuota("screenerPresets", vi.fn(), deps)(requestFor(undefined), {} as Response, next as NextFunction);
+    await enforceQuota("screenerPresets", vi.fn(), deps)(requestFor(undefined), fakeResponse(), next as NextFunction);
 
     const error = next.mock.calls[0]?.[0] as AppError | undefined;
     expect(error?.statusCode).toBe(401);
@@ -100,12 +101,13 @@ describe("enforceQuota", () => {
 
   it("forwards an unexpected failure instead of silently letting the request through", async () => {
     deps = {
+      userWriteLock: fakeUserWriteLock(),
       subscriptions: fakeSubscriptions({ find: vi.fn().mockRejectedValue(new Error("db down")) }),
       user: fakeUserPort({ find: vi.fn().mockResolvedValue(OLD_USER) }),
     };
     const next = vi.fn();
 
-    await enforceQuota("screenerPresets", vi.fn(), deps)(requestFor("uid"), {} as Response, next as NextFunction);
+    await enforceQuota("screenerPresets", vi.fn(), deps)(requestFor("uid"), fakeResponse(), next as NextFunction);
 
     expect(next).toHaveBeenCalledWith(expect.any(Error));
     expect(next.mock.calls[0]?.[0]).toBeInstanceOf(Error);
@@ -120,10 +122,10 @@ describe("enforceQuota", () => {
    * 掛載本身是用臨時帳號實測驗的：FREE 帳號加到第 11 筆要拿到 403。
    */
   it("FREE 的觀察清單上限是 10，第 11 筆被擋下來並帶出 quota_exceeded", async () => {
-    deps = { subscriptions: fakeSubscriptions(), user: fakeUserPort({ find: vi.fn().mockResolvedValue(OLD_USER) }) };
+    deps = { subscriptions: fakeSubscriptions(), user: fakeUserPort({ find: vi.fn().mockResolvedValue(OLD_USER) }), userWriteLock: fakeUserWriteLock() };
     const next = vi.fn();
 
-    await enforceQuota("watchlistItems", vi.fn().mockResolvedValue(10), deps)(requestFor("uid"), {} as Response, next as NextFunction);
+    await enforceQuota("watchlistItems", vi.fn().mockResolvedValue(10), deps)(requestFor("uid"), fakeResponse(), next as NextFunction);
 
     const error = next.mock.calls[0]?.[0] as AppError | undefined;
     expect(error?.statusCode).toBe(403);
@@ -133,11 +135,32 @@ describe("enforceQuota", () => {
   });
 
   it("第 10 筆（還沒滿）放行", async () => {
-    deps = { subscriptions: fakeSubscriptions(), user: fakeUserPort({ find: vi.fn().mockResolvedValue(OLD_USER) }) };
+    deps = { subscriptions: fakeSubscriptions(), user: fakeUserPort({ find: vi.fn().mockResolvedValue(OLD_USER) }), userWriteLock: fakeUserWriteLock() };
     const next = vi.fn();
 
-    await enforceQuota("watchlistItems", vi.fn().mockResolvedValue(9), deps)(requestFor("uid"), {} as Response, next as NextFunction);
+    await enforceQuota("watchlistItems", vi.fn().mockResolvedValue(9), deps)(requestFor("uid"), fakeResponse(), next as NextFunction);
 
     expect(next).toHaveBeenCalledWith();
+  });
+
+  // 2026-10-11 壓測（races）實測：FREE 上限 3，10 個並發建立全部成功——count 跟 insert 之間沒有鎖。
+  it("並發的建立排隊：前一個寫完、回應送出之後，後一個才算筆數", async () => {
+    deps = { subscriptions: fakeSubscriptions(), user: fakeUserPort({ find: vi.fn().mockResolvedValue(OLD_USER) }), userWriteLock: fakeUserWriteLock() };
+    let stored = 2; // 還差一個就滿（FREE screenerPresets 上限 3）
+    const count = vi.fn(async () => stored);
+    const guard = enforceQuota("screenerPresets", count, deps);
+    const [resA, resB] = [fakeResponse(), fakeResponse()];
+    const [nextA, nextB] = [vi.fn(), vi.fn()];
+
+    const a = guard(requestFor("uid"), resA, nextA as NextFunction);
+    const b = guard(requestFor("uid"), resB, nextB as NextFunction);
+    await a;
+    expect(nextA).toHaveBeenCalledWith(); // A 放行
+    expect(nextB).not.toHaveBeenCalled(); // B 還在等鎖，還沒算
+
+    stored += 1; // A 的 handler 寫入
+    resA.emit("finish"); // A 的回應送出，鎖放開
+    await b;
+    expect((nextB.mock.calls[0]?.[0] as AppError | undefined)?.statusCode).toBe(403);
   });
 });

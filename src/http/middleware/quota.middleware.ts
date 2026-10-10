@@ -1,6 +1,7 @@
 import type { NextFunction, Response } from "ultimate-express";
 import { AppError } from "@/domain/appError.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
+import { holdUserWriteLock, type UserWriteLockDeps } from "@/http/middleware/userWriteLock.middleware.js";
 import { getEntitlement, type EntitlementDeps } from "@/application/billing/entitlement.service.js";
 import type { QuotaResource } from "@/application/billing/billing.types.js";
 import { QUOTA_EXCEEDED_CODE, QUOTA_RESOURCE_LABELS, quotaLimitFor } from "@/application/billing/quota.js";
@@ -8,7 +9,7 @@ import { QUOTA_EXCEEDED_CODE, QUOTA_RESOURCE_LABELS, quotaLimitFor } from "@/app
 export { QUOTA_EXCEEDED_CODE };
 
 /** 就是 getEntitlement 要的那些 port——額度檢查自己不存取任何資料，計數是呼叫端傳進來的函式。 */
-export type QuotaMiddlewareDeps = EntitlementDeps;
+export type QuotaMiddlewareDeps = EntitlementDeps & UserWriteLockDeps;
 
 /**
  * Blocks *creating* one more of a metered resource once the caller's tier is full.
@@ -56,7 +57,7 @@ export function enforceQuota(
   count: (firebaseUid: string) => Promise<number>,
   deps: QuotaMiddlewareDeps,
 ) {
-  return async function quotaGuard(req: AuthenticatedRequest, _res: Response, next: NextFunction): Promise<void> {
+  return async function quotaGuard(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const firebaseUid = req.user?.uid;
       if (!firebaseUid) {
@@ -72,8 +73,12 @@ export function enforceQuota(
         return;
       }
 
+      // 先拿這個使用者的寫入鎖再算：count 跟後面 handler 的 insert 之間沒有鎖的話，並發的建立全部看到同一個
+      // used，全部放行（2026-10-11 壓測：FREE 上限 3，10 個並發建立全部成功）。鎖到回應送出才放。
+      const release = await holdUserWriteLock(firebaseUid, res, deps);
       const used = await count(firebaseUid);
       if (used >= limit) {
+        release();
         next(
           new AppError(
             `Your plan allows ${limit} ${QUOTA_RESOURCE_LABELS[resource]}; you're using ${used}.`,

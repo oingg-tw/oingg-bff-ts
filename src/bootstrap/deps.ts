@@ -22,6 +22,7 @@ import { prismaTransactions } from "@/infrastructure/prisma/repositories/transac
 import { prismaUser } from "@/infrastructure/prisma/repositories/user.repository.js";
 import { prismaUserPreferences } from "@/infrastructure/prisma/repositories/userPreferences.repository.js";
 import { prismaWatchlist } from "@/infrastructure/prisma/repositories/watchlist.repository.js";
+import { pgUserWriteLock } from "@/infrastructure/prisma/userWriteLock.js";
 
 /**
  * 整個服務的 composition root：全 repo 只有這個檔案（跟測試裡的 fake）知道「哪個 port 由哪個實作滿足」。
@@ -57,5 +58,6 @@ export function createAppDeps(): AppDeps {
     // 「這個系統用 Firebase 認身分」這件事，現在整個 repo 只有這一行知道。
     tokenVerifier: firebaseTokenVerifier,
     systemHealth: { ...prismaSystemHealth, checkAnalysisService: pingAnalysisService },
+    userWriteLock: pgUserWriteLock,
   };
 }

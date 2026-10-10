@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client.js";
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
+import { positionsInLockOrder } from "@/infrastructure/prisma/lockOrder.js";
 import type { WatchlistItem as WatchlistItemRow } from "@/generated/prisma/client.js";
 import type { WatchlistItem } from "@/application/watchlist/watchlist.types.js";
 import type { WatchlistPort } from "@/application/ports/watchlist.js";
@@ -60,7 +61,8 @@ export async function reorderWatchlistItems(firebaseUid: string, orderedIds: str
       return null;
     }
 
-    for (const [position, id] of orderedIds.entries()) {
+    // 依 id 順序鎖列，並發的 reorder 才不會死結（見 lockOrder.ts）。
+    for (const [position, id] of positionsInLockOrder(orderedIds)) {
       await tx.watchlistItem.update({ where: { id }, data: { position } });
     }
 

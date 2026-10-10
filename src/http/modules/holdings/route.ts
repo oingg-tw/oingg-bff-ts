@@ -1,4 +1,5 @@
 import { Router } from "ultimate-express";
+import { serializeUserWrites, type UserWriteLockDeps } from "@/http/middleware/userWriteLock.middleware.js";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { dateQueryParam, parseQuery } from "@/shared/validation.js";
@@ -36,9 +37,10 @@ export const dateRangeQuerySchema = z
  * 也因此這個 router 不再需要 `assertSymbolExists`：唯一剩下的寫入是刪除，而刪一個不存在的代號本來就
  * 因為「你在這個代號底下沒有交易」而回 404，不需要先問上游那個代號是不是真的。
  */
-export function createHoldingsRouter(deps: HoldingsDeps & HoldingsPerformanceDeps & HoldingsRiskDeps & AuthMiddlewareDeps): Router {
+export function createHoldingsRouter(deps: HoldingsDeps & HoldingsPerformanceDeps & HoldingsRiskDeps & AuthMiddlewareDeps & UserWriteLockDeps): Router {
   const holdingsRouter = Router();
   holdingsRouter.use(createRequireAuth(deps));
+  holdingsRouter.use(serializeUserWrites(deps)); // DELETE /:symbol 刪的是交易，跟 /transactions 的寫入同一把鎖
 
   holdingsRouter.get("/", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);

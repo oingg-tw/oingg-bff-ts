@@ -1,4 +1,5 @@
 import { Router } from "ultimate-express";
+import { serializeUserWrites, type UserWriteLockDeps } from "@/http/middleware/userWriteLock.middleware.js";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { parseUuidParam } from "@/shared/uuid.js";
@@ -116,10 +117,12 @@ export const updateTransactionSchema = z.object({
  * 這是 http 層不再依賴 infrastructure 的關鍵——它只認得 application 匯出的型別。
  */
 export function createTransactionsRouter(
-  deps: TransactionsDeps & StockProxyDeps & TransactionImportDeps & AuthMiddlewareDeps,
+  deps: TransactionsDeps & StockProxyDeps & TransactionImportDeps & AuthMiddlewareDeps & UserWriteLockDeps,
 ): Router {
   const transactionsRouter = Router();
   transactionsRouter.use(createRequireAuth(deps));
+  // 帳本的每個寫入都先重放、驗證再寫（超賣、重複匯入）：同一個使用者的寫入要排隊，見 userWriteLock.middleware.ts。
+  transactionsRouter.use(serializeUserWrites(deps));
 
   transactionsRouter.get("/", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);

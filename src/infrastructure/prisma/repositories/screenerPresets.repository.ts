@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client.js";
 import { getPrismaClient } from "@/infrastructure/prisma/index.js";
+import { positionsInLockOrder } from "@/infrastructure/prisma/lockOrder.js";
 import type { ScreenerPresetsPort } from "@/application/ports/screenerPresets.js";
 import type {
   PresetFilterInput,
@@ -184,7 +185,8 @@ export async function reorderPresets(firebaseUid: string, orderedIds: string[]):
 
     // Sequential, not Promise.all — a single Postgres connection (this transaction) processes one query
     // at a time regardless, and concurrent awaits against the same tx client risk interleaving badly.
-    for (const [position, id] of orderedIds.entries()) {
+    // 依 id 順序鎖列，並發的 reorder 才不會死結（見 lockOrder.ts）。
+    for (const [position, id] of positionsInLockOrder(orderedIds)) {
       await tx.screenerPreset.update({ where: { id }, data: { position } });
     }
 
