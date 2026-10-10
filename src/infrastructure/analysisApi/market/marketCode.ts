@@ -67,12 +67,17 @@ function legacyMarket(raw: Record<string, unknown>, marketCode: string | null, s
   return "TWSE";
 }
 
-/** 特別股：上游給 marketCode（新）或中文 marketType（舊，2026-10-24 移除）。 */
+/**
+ * 特別股：上游給 marketCode（新）、中文 marketType（舊，2026-10-24 移除），或 market（TYPEK——上游若一步到位、
+ * marketCode 也一起拿掉，就只剩這個；2026-10-11 analysis-ts 提議過）。
+ */
 export function readPreferredMarketFields(raw: Record<string, unknown>): { marketCode: string | null; marketType: string | null } {
   const legacyType = typeof raw.marketType === "string" ? raw.marketType : null;
   const marketCode =
     typeof raw.marketCode === "string"
       ? raw.marketCode
-      : (Object.keys(MARKET_TYPE_BY_TYPEK).find((code) => MARKET_TYPE_BY_TYPEK[code] === legacyType) ?? null);
+      : typeof raw.market === "string"
+        ? raw.market
+        : (Object.keys(MARKET_TYPE_BY_TYPEK).find((code) => MARKET_TYPE_BY_TYPEK[code] === legacyType) ?? null);
   return { marketCode, marketType: legacyType ?? (marketCode === null ? null : (MARKET_TYPE_BY_TYPEK[marketCode] ?? null)) };
 }

@@ -37,6 +37,8 @@ describe("readPreferredMarketFields", () => {
     expect(readPreferredMarketFields({ marketType: "上櫃" })).toEqual({ marketCode: "otc", marketType: "上櫃" });
     expect(readPreferredMarketFields({ marketType: "上櫃", marketCode: "otc" })).toEqual({ marketCode: "otc", marketType: "上櫃" });
     expect(readPreferredMarketFields({ marketCode: "otc" })).toEqual({ marketCode: "otc", marketType: "上櫃" });
+    // 一步到位：marketType 與 marketCode 都拿掉，只剩 TYPEK 的 market
+    expect(readPreferredMarketFields({ market: "otc" })).toEqual({ marketCode: "otc", marketType: "上櫃" });
     // 上游在三種之外給 null；舊欄位也不在時是 null，不是字串 "undefined"
     expect(readPreferredMarketFields({ marketCode: null })).toEqual({ marketCode: null, marketType: null });
   });
