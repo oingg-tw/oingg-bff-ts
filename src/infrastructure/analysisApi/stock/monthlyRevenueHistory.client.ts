@@ -20,7 +20,7 @@ function normalizeEntry(raw: unknown): MonthlyRevenueHistoryEntry {
   // 新名優先、舊名後備：上游舊名 2026-10-24 移除。
   return {
     yearMonth: String(r.yearMonth),
-    announcementDate: toStringOrNull(renamedField(r, "announcementDate", "reportDate")),
+    generatedDate: toStringOrNull(renamedField(r, "generatedDate", "reportDate")),
     sectorName: toStringOrNull(renamedField(r, "sectorName", "industry")),
     currentMonthRevenue: toStringOrNull(r.currentMonthRevenue),
     lastYearSameMonthRevenue: toStringOrNull(r.lastYearSameMonthRevenue),

@@ -1158,7 +1158,8 @@ registry.registerPath({
 
 const monthlyRevenueHistoryEntrySchema = z.object({
   yearMonth: z.string(),
-  announcementDate: z.string().nullable(),
+  /** 出表日（交易所的出表日期），不是公司公告日。2026-10-10 前叫 reportDate。 */
+  generatedDate: z.string().nullable(),
   sectorName: z.string().nullable(),
   currentMonthRevenue: z.string().nullable(),
   lastYearSameMonthRevenue: z.string().nullable(),
@@ -1185,7 +1186,7 @@ const monthlyRevenueHistorySchema = z
       entries: [
         {
           yearMonth: "2026-07",
-          announcementDate: "2026-08-10",
+          generatedDate: "2026-08-10",
           sectorName: "半導體業",
           currentMonthRevenue: "467580548",
           lastYearSameMonthRevenue: "323165707",

@@ -24,7 +24,8 @@ export interface MaterialAnnouncementEntry {
   name: string | null;
   announcementDate: string;
   announcementTime: string;
-  reportDate: string;
+  /** 出表日，通常是公告日隔天（2026-10-11 前叫 reportDate；analysis-ts 26a59941）。跟上面的 announcementDate 是兩件事。 */
+  generatedDate: string;
   subject: string;
   clause: string;
   factDate: string;

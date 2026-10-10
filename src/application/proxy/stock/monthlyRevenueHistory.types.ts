@@ -1,8 +1,11 @@
 export interface MonthlyRevenueHistoryEntry {
   /** "YYYY-MM". */
   yearMonth: string;
-  /** 公告日（2026-10-10 前叫 reportDate）。2021-08 以前與上櫃回填的列是 null。 */
-  announcementDate: string | null;
+  /**
+   * 出表日：交易所 OpenAPI 的「出表日期」，**不是**公司公告日（實測 2330 的 2026-08 月營收 9/17 出表、台積電 9/10 就公告了）——拿它當公告日會以為資料比實際早可知。
+   * 2026-10-10 前叫 reportDate；10-10～10-11 誤叫 announcementDate（analysis-ts 26a59941 更正）。2021-08 以前與上櫃回填的列是 null。
+   */
+  generatedDate: string | null;
   /** 來源原樣的類股名稱（2026-10-10 前叫 industry）。mops 補的月份是 null。 */
   sectorName: string | null;
   /** Bigint-serialized string (NT$ thousands, per MOPS convention) — avoids precision loss. */

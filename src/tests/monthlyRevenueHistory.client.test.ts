@@ -33,7 +33,7 @@ const RECENT_BODY = {
   entries: [
     {
       yearMonth: "2026-06",
-      announcementDate: "2026-07-10",
+      generatedDate: "2026-07-10",
       sectorName: "半導體業",
       currentMonthRevenue: "442679969",
       lastYearSameMonthRevenue: "263708978",
@@ -46,7 +46,7 @@ const RECENT_BODY = {
     },
     {
       yearMonth: "2026-07",
-      announcementDate: "2026-08-10",
+      generatedDate: "2026-08-10",
       sectorName: "半導體業",
       currentMonthRevenue: "467580548",
       lastYearSameMonthRevenue: "323165707",
@@ -63,7 +63,7 @@ const RECENT_BODY = {
 // The earliest month in the 60-month backfill has no prior month to compare against — real data.
 const OLDEST_ENTRY = {
   yearMonth: "2021-08",
-  announcementDate: "2021-09-10",
+  generatedDate: "2021-09-10",
   sectorName: "半導體業",
   currentMonthRevenue: "137427162",
   lastYearSameMonthRevenue: "122878244",
@@ -140,12 +140,12 @@ describe("fetchMonthlyRevenueHistory", () => {
 
   // 批次 2c 並存期：部署的 analysis-ts 可能只送舊名。
   it("reads the pre-2026-10-10 names reportDate／industry when upstream hasn't deployed batch 2c", async () => {
-    const { announcementDate, sectorName, ...rest } = OLDEST_ENTRY;
-    mockFetchOnce({ ok: true, body: { symbol: "2330", total: 60, hasMore: true, entries: [{ ...rest, reportDate: announcementDate, industry: sectorName }] } });
+    const { generatedDate, sectorName, ...rest } = OLDEST_ENTRY;
+    mockFetchOnce({ ok: true, body: { symbol: "2330", total: 60, hasMore: true, entries: [{ ...rest, reportDate: generatedDate, industry: sectorName }] } });
 
     const result = await fetchMonthlyRevenueHistory("2330");
 
-    expect(result.entries[0]).toMatchObject({ announcementDate: "2021-09-10", sectorName: "半導體業" });
+    expect(result.entries[0]).toMatchObject({ generatedDate: "2021-09-10", sectorName: "半導體業" });
   });
 
   it("keeps note null when analysis-ts sends null (no remark filed at all)", async () => {

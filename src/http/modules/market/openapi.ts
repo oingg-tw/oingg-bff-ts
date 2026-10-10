@@ -66,7 +66,8 @@ const materialAnnouncementEntrySchema = z.object({
   name: nameField,
   announcementDate: z.string(),
   announcementTime: z.string(),
-  reportDate: z.string(),
+  /** 出表日，通常是公告日隔天（2026-10-11 前叫 reportDate）。 */
+  generatedDate: z.string(),
   subject: z.string(),
   clause: z.string(),
   factDate: z.string(),
@@ -83,7 +84,7 @@ const materialAnnouncementsResultSchema = z
           name: "世紀風電",
           announcementDate: "2026-08-28",
           announcementTime: "70003",
-          reportDate: "2026-08-29",
+          generatedDate: "2026-08-29",
           subject: "公告本公司名稱由「世紀離岸風電設備股份有限公司」更名為「世紀能源設備股份有限公司」",
           clause: "第51款",
           factDate: "2026-08-24",

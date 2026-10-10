@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, toNumberOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, renamedField, toNumberOrNull } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type {
   AttentionStockCriteriaDetail,
@@ -86,7 +86,7 @@ function normalizeMaterialAnnouncementEntry(raw: unknown): MaterialAnnouncementE
     name: typeof r.companyName === "string" ? r.companyName : null,
     announcementDate: toStringOrEmpty(r.announcementDate),
     announcementTime: toStringOrEmpty(r.announcementTime),
-    reportDate: toStringOrEmpty(r.reportDate),
+    generatedDate: toStringOrEmpty(renamedField(r, "generatedDate", "reportDate")), // reportDate 上游 2026-10-24 移除
     subject: toStringOrEmpty(r.subject),
     clause: toStringOrEmpty(r.clause),
     factDate: toStringOrEmpty(r.factDate),

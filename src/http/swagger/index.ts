@@ -43,7 +43,7 @@ function generateDocument() {
         "listedDate → listingDate、preferredStockShares → numberOfPreferenceShares、financialReportType → declaredDataType（**編碼反過來**，改用 MOPS：\"2\" 合併）；" +
         "類股字典 code／name → sectorCode／sectorName。" +
         "財報（批次 2c）：year → fiscalYear（**西元整數**，舊的是民國年字串）、season → fiscalQuarter（整數）、reportDate → fiscalPeriodEndDate；" +
-        "個股月營收 reportDate → announcementDate、industry → sectorName；溯源 periodType → timeframe；股利歷史的 rocFiscalYear 移除（用 fiscalYear）；" +
+        "個股月營收 reportDate → generatedDate（**出表日，不是公告日**；10-10～10-11 誤叫 announcementDate）、industry → sectorName；重大訊息 reportDate → generatedDate；溯源 periodType → timeframe；股利歷史的 rocFiscalYear 移除（用 fiscalYear）；" +
         "歷史端點回應裡的期別回聲 basis／token → timeframe（跟查詢參數同名）。" +
         "排序方向（批次 3）：POST /screener、POST /etf-screener、GET /screener/presets/{id}/run 的 sortOrder → order；" +
         "GET /screener/ranking、/screener/company-rank 的 direction → order（ranking 回應裡的 direction 也是）；/metrics 徽章 percentileRank.direction → order。" +
