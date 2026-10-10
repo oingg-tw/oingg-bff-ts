@@ -212,6 +212,17 @@ export function toStringOrNull(value: unknown): string | null {
 }
 
 /**
+ * 欄位改名並存期的讀法（analysis-ts 2026-10-10 起分批改名，舊名 2026-10-24 移除）：新名**在**就用新名——null 也算，
+ * 上游的 null 有它的意思——不在才退回舊名（部署的 analysis-ts 可能還沒有新名）。
+ *
+ * 不要寫成 `raw.new ?? raw.old`：2026-10-10 財報 found 為 false 時，上游的新名 fiscalYear 是 null、舊名 year 卻回顯
+ * 查詢的年度，?? 會把那個回顯當成真的年度補進來。
+ */
+export function renamedField(raw: Record<string, unknown>, current: string, legacy: string): unknown {
+  return current in raw ? raw[current] : raw[legacy];
+}
+
+/**
  * 從上游的 400 body 取出「真正說得出哪裡錯」的那一句。**上游有兩種 400 形狀**，而只讀頂層 message 會在
  * 第二種上丟掉唯一有用的資訊：
  *

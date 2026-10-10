@@ -102,7 +102,7 @@ registry.registerPath({
             sectorCode: z.string(),
             sectorName: z.string(),
             metricCode: z.string(),
-            basis: z.string(),
+            timeframe: z.string(),
             entries: z.array(statsSchema.extend({ fiscalYear: z.number(), fiscalQuarter: z.number().nullable(), nullReason: z.string().nullable() })),
           }).openapi("SectorMetricHistory"),
         },

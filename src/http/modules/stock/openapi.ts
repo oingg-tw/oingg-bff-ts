@@ -372,7 +372,6 @@ const dividendHistorySchema = z
           description:
             "西元年度。**可以是 null**（2026-10-05 起）：公告沒填所屬年度、但真的有配發的那幾次，集中在**最後一列**，全市場約 15 筆（例如 2496 的 2026-08-19 現金 1.5 元）。",
         }),
-        rocFiscalYear: z.number().nullable().openapi({ description: "民國年度。跟 fiscalYear 同時為 null。" }),
         cashDividend: z.number().openapi({
           description: "現金股利（元）。特別股（例如 1312A）自 2026-10-05 起是實際的特別股股利，以前一律是 0。",
         }),
@@ -417,9 +416,12 @@ const financialStatementSchema = z
     statementType: z.enum(["balanceSheet", "incomeStatement", "cashFlowStatement"]),
     dataType: z.string().nullable(),
     subsidiaryCompanyId: z.string().nullable(),
-    year: z.string().nullable(),
-    season: z.string().nullable(),
-    reportDate: z.string().nullable(),
+    /** 西元年、整數（2026-10-10 前叫 year，是民國年字串）。 */
+    fiscalYear: z.number().int().nullable(),
+    /** 1-4、整數（2026-10-10 前叫 season，是字串）。 */
+    fiscalQuarter: z.number().int().nullable(),
+    /** 期末日（2026-10-10 前叫 reportDate）。 */
+    fiscalPeriodEndDate: z.string().nullable(),
     found: z.boolean(),
     statement: z.record(z.string(), z.string().nullable()).nullable(),
   })
@@ -429,9 +431,9 @@ const financialStatementSchema = z
       statementType: "balanceSheet",
       dataType: "2",
       subsidiaryCompanyId: "",
-      year: "115",
-      season: "2",
-      reportDate: "2026-06-30",
+      fiscalYear: 2026,
+      fiscalQuarter: 2,
+      fiscalPeriodEndDate: "2026-06-30",
       found: true,
       statement: {
         cashAndEquivalents: "3134218213",
@@ -587,8 +589,8 @@ const metricProvenanceSchema = z
     fiscalQuarter: z.number().nullable(),
     value: z.number().nullable(),
     entries: z.array(metricProvenanceEntrySchema),
-    /** 這張溯源表描述的是哪個期別（上游 2026-10-01 新增）。逐日／月頻指標是 null。 */
-    periodType: z.string().nullable(),
+    /** 這張溯源表描述的是哪個期別（上游 2026-10-01 新增；2026-10-10 前叫 periodType）。逐日／月頻指標是 null。 */
+    timeframe: z.string().nullable(),
     methodologyNote: z.string().nullable(),
   })
   .openapi("MetricProvenance", {
@@ -611,7 +613,7 @@ const metricProvenanceSchema = z
           value: "6432518334",
         },
       ],
-      periodType: "TTM",
+      timeframe: "TTM",
       methodologyNote: null,
     },
   });
@@ -940,7 +942,7 @@ const metricsHistorySchema = z
   .object({
     symbol: z.string(),
     metricCodes: z.array(z.string()),
-    basis: z.string(),
+    timeframe: z.string(),
     total: z.number(),
     hasMore: z.boolean(),
     coverage: z.record(z.string(), z.object({ from: z.string().nullable(), to: z.string().nullable() })).openapi({ description: "每個 metricCode 各自的 { from, to }。" + COVERAGE_DOC }),
@@ -950,7 +952,7 @@ const metricsHistorySchema = z
     example: {
       symbol: "2330",
       metricCodes: ["netIncomeGrowthRate", "epsGrowthRate", "shareCountChangeRate"],
-      basis: "Q",
+      timeframe: "Q",
       total: 1,
       hasMore: false,
       entries: [
@@ -996,7 +998,7 @@ const roeHistorySchema = z
   .object({
     symbol: z.string(),
     // 不列舉：期別由上游驗證且會變動（roe 2026-10-01 新增 FY，roa 還沒有）。見 route.ts 的 roeRoaHistoryQuerySchema。
-    basis: z.string(),
+    timeframe: z.string(),
     total: z.number(),
     hasMore: z.boolean(),
     entries: z.array(metricHistoryEntrySchema),
@@ -1004,7 +1006,7 @@ const roeHistorySchema = z
   .openapi("RoeHistory", {
     example: {
       symbol: "2330",
-      basis: "TTM",
+      timeframe: "TTM",
       total: 20,
       hasMore: true,
       entries: [
@@ -1038,7 +1040,7 @@ registry.registerPath({
 const roaHistorySchema = z
   .object({
     symbol: z.string(),
-    basis: z.string(),
+    timeframe: z.string(),
     total: z.number(),
     hasMore: z.boolean(),
     entries: z.array(metricHistoryEntrySchema),
@@ -1046,7 +1048,7 @@ const roaHistorySchema = z
   .openapi("RoaHistory", {
     example: {
       symbol: "2330",
-      basis: "TTM",
+      timeframe: "TTM",
       total: 20,
       hasMore: true,
       entries: [
@@ -1097,7 +1099,7 @@ const dupontHistoryEntrySchema = z.object({
 const dupontHistorySchema = z
   .object({
     symbol: z.string(),
-    basis: z.enum(["Q", "TTM"]),
+    timeframe: z.enum(["Q", "TTM"]),
     total: z.number(),
     hasMore: z.boolean(),
     entries: z.array(dupontHistoryEntrySchema),
@@ -1105,7 +1107,7 @@ const dupontHistorySchema = z
   .openapi("DupontHistory", {
     example: {
       symbol: "2330",
-      basis: "Q",
+      timeframe: "Q",
       total: 20,
       hasMore: true,
       entries: [
@@ -1152,8 +1154,8 @@ registry.registerPath({
 
 const monthlyRevenueHistoryEntrySchema = z.object({
   yearMonth: z.string(),
-  reportDate: z.string().nullable(),
-  industry: z.string().nullable(),
+  announcementDate: z.string().nullable(),
+  sectorName: z.string().nullable(),
   currentMonthRevenue: z.string().nullable(),
   lastYearSameMonthRevenue: z.string().nullable(),
   yoyChangePct: z.number().nullable(),
@@ -1179,8 +1181,8 @@ const monthlyRevenueHistorySchema = z
       entries: [
         {
           yearMonth: "2026-07",
-          reportDate: "2026-08-10",
-          industry: "半導體業",
+          announcementDate: "2026-08-10",
+          sectorName: "半導體業",
           currentMonthRevenue: "467580548",
           lastYearSameMonthRevenue: "323165707",
           yoyChangePct: 44.69,

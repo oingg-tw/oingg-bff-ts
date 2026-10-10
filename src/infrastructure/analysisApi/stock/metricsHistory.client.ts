@@ -77,7 +77,7 @@ function isMetricsHistoryResponse(body: unknown): body is { entries: unknown[] }
  * term, 1D/1W/1M etc.) — same pattern the singular metric-history used before it was removed (2026-10-10). Kept this client's
  * own `token` param/field name unchanged through both renames; only the wire-level key changed.
  */
-export async function fetchMetricsHistory(symbol: string, metricCodes: string[], token: string, limit?: number): Promise<MetricsHistoryResult> {
+export async function fetchMetricsHistory(symbol: string, metricCodes: string[], token: string, limit?: number): Promise<MetricsHistoryResult & { token: string }> {
   const searchParams: Record<string, string> = { symbol, metricCodes: metricCodes.join(","), timeframe: token };
   if (limit !== undefined) {
     searchParams.limit = String(limit);
@@ -108,10 +108,12 @@ export async function fetchMetricsHistory(symbol: string, metricCodes: string[],
   return {
     symbol,
     metricCodes,
-    token,
+    timeframe: token,
     total: typeof b.total === "number" ? b.total : 0,
     hasMore: b.hasMore === true,
     coverage,
     entries: body.entries.map(normalizeEntry),
+    // 並存期舊名（2026-10-10 起改叫 timeframe），web-nuxt 改完就刪。
+    token,
   };
 }

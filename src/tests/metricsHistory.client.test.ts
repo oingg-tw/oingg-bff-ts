@@ -76,6 +76,7 @@ describe("fetchMetricsHistory", () => {
     expect(result).toEqual({
       symbol: "2330",
       metricCodes: ["netIncomeGrowthRate", "epsGrowthRate", "shareCountChangeRate"],
+      timeframe: "Q",
       token: "Q",
       total: 1,
       hasMore: false,
@@ -106,6 +107,7 @@ describe("fetchMetricsHistory", () => {
     await expect(fetchMetricsHistory("NOPE", ["roe"], "TTM")).resolves.toEqual({
       symbol: "NOPE",
       metricCodes: ["roe"],
+      timeframe: "TTM",
       token: "TTM",
       total: 0,
       hasMore: false,

@@ -16,13 +16,14 @@ export async function fetchRoeHistory(
   symbol: string,
   basis: RoeRoaHistoryBasis,
   limit?: number,
-): Promise<RoeHistoryResult> {
+): Promise<RoeHistoryResult & { basis: string }> {
   const searchParams: Record<string, string> = { symbol, timeframe: basis }; // 上游 05967082 起叫 timeframe（periodType 2026-10-24 移除）
   if (limit !== undefined) {
     searchParams.limit = String(limit);
   }
   const page = await fetchFlatMetricHistory("/companies/roe-history", searchParams, "ROE history");
-  return { symbol, basis, ...page };
+  // basis 是並存期舊名（2026-10-10 起改叫 timeframe，跟查詢參數同名），web-nuxt 改完就刪。
+  return { symbol, timeframe: basis, ...page, basis };
 }
 
 /**
@@ -33,11 +34,12 @@ export async function fetchRoaHistory(
   symbol: string,
   basis: RoeRoaHistoryBasis,
   limit?: number,
-): Promise<RoaHistoryResult> {
+): Promise<RoaHistoryResult & { basis: string }> {
   const searchParams: Record<string, string> = { symbol, timeframe: basis }; // 上游 05967082 起叫 timeframe（periodType 2026-10-24 移除）
   if (limit !== undefined) {
     searchParams.limit = String(limit);
   }
   const page = await fetchFlatMetricHistory("/companies/roa-history", searchParams, "ROA history");
-  return { symbol, basis, ...page };
+  // basis 是並存期舊名，同 fetchRoeHistory。
+  return { symbol, timeframe: basis, ...page, basis };
 }

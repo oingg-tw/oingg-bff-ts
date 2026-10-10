@@ -178,7 +178,7 @@ describe("fetchSectorMetricHistory", () => {
     const result = await fetchSectorMetricHistory("17", "operatingMargin", "Q");
 
     expect(result).toEqual({
-      sectorCode: "17", sectorName: "金融保險業", metricCode: "operatingMargin", basis: "Q",
+      sectorCode: "17", sectorName: "金融保險業", metricCode: "operatingMargin", timeframe: "Q", basis: "Q",
       entries: [{ fiscalYear: 2026, fiscalQuarter: 2, count: 0, median: null, q1: null, q3: null, nullReason: "not_applicable_industry" }],
     });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;

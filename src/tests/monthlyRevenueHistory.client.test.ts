@@ -33,8 +33,8 @@ const RECENT_BODY = {
   entries: [
     {
       yearMonth: "2026-06",
-      reportDate: "2026-07-10",
-      industry: "半導體業",
+      announcementDate: "2026-07-10",
+      sectorName: "半導體業",
       currentMonthRevenue: "442679969",
       lastYearSameMonthRevenue: "263708978",
       yoyChangePct: 67.87,
@@ -46,8 +46,8 @@ const RECENT_BODY = {
     },
     {
       yearMonth: "2026-07",
-      reportDate: "2026-08-10",
-      industry: "半導體業",
+      announcementDate: "2026-08-10",
+      sectorName: "半導體業",
       currentMonthRevenue: "467580548",
       lastYearSameMonthRevenue: "323165707",
       yoyChangePct: 44.69,
@@ -63,8 +63,8 @@ const RECENT_BODY = {
 // The earliest month in the 60-month backfill has no prior month to compare against — real data.
 const OLDEST_ENTRY = {
   yearMonth: "2021-08",
-  reportDate: "2021-09-10",
-  industry: "半導體業",
+  announcementDate: "2021-09-10",
+  sectorName: "半導體業",
   currentMonthRevenue: "137427162",
   lastYearSameMonthRevenue: "122878244",
   yoyChangePct: 11.84,
@@ -81,7 +81,8 @@ describe("fetchMonthlyRevenueHistory", () => {
 
     const result = await fetchMonthlyRevenueHistory("2330");
 
-    expect(result).toEqual({ symbol: "2330", total: 60, hasMore: true, entries: RECENT_BODY.entries });
+    // 並存期回應裡補回舊名 reportDate／industry（值同新名）。
+    expect(result).toEqual({ symbol: "2330", total: 60, hasMore: true, entries: RECENT_BODY.entries.map((e) => ({ ...e, reportDate: e.announcementDate, industry: e.sectorName })) });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/monthly-revenue-history?symbol=2330");
   });
@@ -136,6 +137,16 @@ describe("fetchMonthlyRevenueHistory", () => {
     const result = await fetchMonthlyRevenueHistory("2330");
 
     expect(result.entries[0]?.note).toBe("無");
+  });
+
+  // 批次 2c 並存期：部署的 analysis-ts 可能只送舊名。
+  it("reads the pre-2026-10-10 names reportDate／industry when upstream hasn't deployed batch 2c", async () => {
+    const { announcementDate, sectorName, ...rest } = OLDEST_ENTRY;
+    mockFetchOnce({ ok: true, body: { symbol: "2330", total: 60, hasMore: true, entries: [{ ...rest, reportDate: announcementDate, industry: sectorName }] } });
+
+    const result = await fetchMonthlyRevenueHistory("2330");
+
+    expect(result.entries[0]).toMatchObject({ announcementDate: "2021-09-10", sectorName: "半導體業", reportDate: "2021-09-10", industry: "半導體業" });
   });
 
   it("keeps note null when analysis-ts sends null (no remark filed at all)", async () => {

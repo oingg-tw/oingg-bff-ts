@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, passThroughEnum, renamedField } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type { CompanyProfile } from "@/application/proxy/stock/companyProfile.types.js";
 import type { Market } from "@/application/proxy/market/market.types.js";
@@ -86,12 +86,12 @@ function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
     // 缺席給 null 不給 false——理由見 companyProfile.types.ts。上游 PRD 還沒有這個欄位，而把興櫃說成
     // 「不是興櫃」是錯的標籤；null 讓呼叫端知道「還不知道」。
     isEmerging: typeof raw.isEmerging === "boolean" ? raw.isEmerging : null,
-    generatedDate: toStringOrNull(raw.generatedDate ?? raw.reportDate),
+    generatedDate: toStringOrNull(renamedField(raw, "generatedDate", "reportDate")),
     name: toStringOrNull(raw.name),
     shortName: toStringOrNull(raw.shortName),
     foreignRegistrationCountry: toStringOrNull(raw.foreignRegistrationCountry),
-    sectorCode: toStringOrNull(raw.sectorCode ?? raw.industry),
-    sectorName: toStringOrNull(raw.sectorName ?? raw.industryName),
+    sectorCode: toStringOrNull(renamedField(raw, "sectorCode", "industry")),
+    sectorName: toStringOrNull(renamedField(raw, "sectorName", "industryName")),
     address: toStringOrNull(raw.address),
     taxId: toStringOrNull(raw.taxId),
     chairman: toStringOrNull(raw.chairman),
@@ -101,13 +101,13 @@ function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
     deputySpokesperson: toStringOrNull(raw.deputySpokesperson),
     phone: toStringOrNull(raw.phone),
     establishedDate: toStringOrNull(raw.establishedDate),
-    listingDate: toStringOrNull(raw.listingDate ?? raw.listedDate),
+    listingDate: toStringOrNull(renamedField(raw, "listingDate", "listedDate")),
     parValue: toStringOrNull(raw.parValue),
     paidInCapital: toStringOrNull(raw.paidInCapital),
     privatePlacementShares: toStringOrNull(raw.privatePlacementShares),
-    numberOfPreferenceShares: toStringOrNull(raw.numberOfPreferenceShares ?? raw.preferredStockShares),
+    numberOfPreferenceShares: toStringOrNull(renamedField(raw, "numberOfPreferenceShares", "preferredStockShares")),
     // 舊欄位是交易所編碼，要翻過來，不能直接當新值用。
-    declaredDataType: toStringOrNull(raw.declaredDataType) ?? flipDataTypeEncoding(toStringOrNull(raw.financialReportType)),
+    declaredDataType: "declaredDataType" in raw ? toStringOrNull(raw.declaredDataType) : flipDataTypeEncoding(toStringOrNull(raw.financialReportType)),
     financialReportTypeName: toStringOrNull(raw.financialReportTypeName),
     stockTransferAgency: toStringOrNull(raw.stockTransferAgency),
     transferAgencyPhone: toStringOrNull(raw.transferAgencyPhone),

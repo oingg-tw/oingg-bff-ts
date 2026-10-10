@@ -100,13 +100,13 @@ export interface SectorDividendSummaryRow {
 /**
  * 類股的指標分布歷史（analysis-ts GET /industries/{sectorCode}/metric-history，2026-10-09 起代理）。每一期是同一期
  * 對齊、排除興櫃的上市櫃公司在這支指標上的分布；只收季報型、非每股類指標（每股類跨公司取中位數沒有意義，上游回 400）。
- * 原樣轉發，`basis` 是上游的 `timeframe`（跟業務中台其他歷史端點同名）。
+ * 原樣轉發。`timeframe` 2026-10-10 前在這裡叫 basis。
  */
 export interface SectorMetricHistory {
   sectorCode: string;
   sectorName: string;
   metricCode: string;
-  basis: string;
+  timeframe: string;
   /** 由舊到新。 */
   entries: SectorMetricHistoryEntry[];
 }

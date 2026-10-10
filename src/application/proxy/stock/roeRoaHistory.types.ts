@@ -12,7 +12,7 @@ export type RoeRoaHistoryBasis = string;
 
 export interface RoeHistoryResult {
   symbol: string;
-  basis: RoeRoaHistoryBasis;
+  timeframe: RoeRoaHistoryBasis;
   /** Full count available (not just this page) — see historyShared.types.ts's HistoryPageMeta. */
   total: number;
   /** Whether a higher `limit` would return more entries than this call did. */
@@ -24,7 +24,7 @@ export interface RoeHistoryResult {
 
 export interface RoaHistoryResult {
   symbol: string;
-  basis: RoeRoaHistoryBasis;
+  timeframe: RoeRoaHistoryBasis;
   /** Full count available (not just this page) — see historyShared.types.ts's HistoryPageMeta. */
   total: number;
   /** Whether a higher `limit` would return more entries than this call did. */

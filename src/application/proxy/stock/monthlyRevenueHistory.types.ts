@@ -1,9 +1,10 @@
 export interface MonthlyRevenueHistoryEntry {
   /** "YYYY-MM". */
   yearMonth: string;
-  /** MOPS filing date for this month's revenue. */
-  reportDate: string | null;
-  industry: string | null;
+  /** 公告日（2026-10-10 前叫 reportDate）。2021-08 以前與上櫃回填的列是 null。 */
+  announcementDate: string | null;
+  /** 來源原樣的類股名稱（2026-10-10 前叫 industry）。mops 補的月份是 null。 */
+  sectorName: string | null;
   /** Bigint-serialized string (NT$ thousands, per MOPS convention) — avoids precision loss. */
   currentMonthRevenue: string | null;
   lastYearSameMonthRevenue: string | null;

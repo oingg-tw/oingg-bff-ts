@@ -89,7 +89,6 @@ export interface DividendHistoryEntry {
    * 以前那種 fiscalYear 1911、rocFiscalYear null 的空年度列（沒有金額的純除權事件）不再出現。
    */
   fiscalYear: number | null;
-  rocFiscalYear: number | null;
   cashDividend: number;
   /**
    * Same split as on DividendEvent, at the year level. `cashDividend` remains the total.

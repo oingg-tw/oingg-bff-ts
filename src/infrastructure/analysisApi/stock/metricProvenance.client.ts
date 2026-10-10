@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, renamedField } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type {
   MetricProvenanceEntry,
@@ -71,7 +71,7 @@ export async function fetchMetricProvenance(
   fiscalQuarter?: number,
   timeframe?: string,
   asOfDate?: string,
-): Promise<MetricProvenanceResult> {
+): Promise<MetricProvenanceResult & { periodType: string | null }> {
   const searchParams: Record<string, string> = { metricCode };
   // 上游 05967082（2026-10-10）起的參數名：fiscalYear／fiscalQuarter（西元、整數）與 timeframe；舊的 year／season／
   // periodType 2026-10-24 移除。
@@ -110,7 +110,10 @@ export async function fetchMetricProvenance(
     entries: normalizeEntries(body.entries),
     // 上游 2026-10-01 新增。**必須明確接**：它是唯一能讓呼叫端確認「拿到的是我要求的期別」的欄位，
     // 而逐欄位的 normalizer 會把未宣告的欄位靜默丟掉——漏接它等於拿掉偵測器。
-    periodType: toStringOrNull(body.periodType),
+    // 2026-10-10 前上游叫 periodType（批次 2c，2026-10-24 移除）：新名優先、舊名後備。
+    timeframe: toStringOrNull(renamedField(body, "timeframe", "periodType")),
     methodologyNote: toStringOrNull(body.methodologyNote),
+    // 並存期舊名，web-nuxt 改完就刪。
+    periodType: toStringOrNull(renamedField(body, "timeframe", "periodType")),
   };
 }

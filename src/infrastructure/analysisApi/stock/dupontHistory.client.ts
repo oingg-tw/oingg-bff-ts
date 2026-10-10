@@ -63,7 +63,7 @@ export async function fetchDupontHistory(
   symbol: string,
   basis: DupontHistoryBasis,
   limit?: number,
-): Promise<DupontHistoryResult> {
+): Promise<DupontHistoryResult & { basis: string }> {
   const searchParams: Record<string, string> = { symbol, timeframe: basis }; // 上游 05967082 起叫 timeframe（periodType 2026-10-24 移除）
   if (limit !== undefined) {
     searchParams.limit = String(limit);
@@ -80,5 +80,6 @@ export async function fetchDupontHistory(
     throw new AppError("Dupont history endpoint response is missing an entries array", 502);
   }
 
-  return { symbol, basis, ...extractHistoryPageMeta(body), entries: body.entries.map(normalizeEntry) };
+  // basis 是並存期舊名（2026-10-10 起改叫 timeframe），web-nuxt 改完就刪。
+  return { symbol, timeframe: basis, ...extractHistoryPageMeta(body), entries: body.entries.map(normalizeEntry), basis };
 }

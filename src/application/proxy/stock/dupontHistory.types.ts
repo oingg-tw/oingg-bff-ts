@@ -64,7 +64,7 @@ export interface DupontHistoryEntry {
 
 export interface DupontHistoryResult {
   symbol: string;
-  basis: DupontHistoryBasis;
+  timeframe: DupontHistoryBasis;
   /** Full count available (not just this page) — see historyShared.types.ts's HistoryPageMeta. */
   total: number;
   /** Whether a higher `limit` would return more entries than this call did. */

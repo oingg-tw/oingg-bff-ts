@@ -12,12 +12,12 @@ export interface FinancialStatementResult {
   dataType: string | null;
   /** Passed through as-is — empty string for a top-level (non-subsidiary) company in every example seen. */
   subsidiaryCompanyId: string | null;
-  /** ROC year (e.g. "115"), null when found is false. */
-  year: string | null;
-  /** 1-4, null when found is false. */
-  season: string | null;
-  /** "YYYY-MM-DD", null when found is false. */
-  reportDate: string | null;
+  /** 西元年（例如 2026）、整數；found 為 false 時是 null。2026-10-10 前叫 year，是**民國年字串**（"115"）。 */
+  fiscalYear: number | null;
+  /** 1-4、整數；found 為 false 時是 null。2026-10-10 前叫 season，是字串。 */
+  fiscalQuarter: number | null;
+  /** 期末日 "YYYY-MM-DD"；found 為 false 時是 null。2026-10-10 前叫 reportDate。 */
+  fiscalPeriodEndDate: string | null;
   /** false for an unknown symbol or a year/season with no filed statement — still a 200, not a 404. */
   found: boolean;
   /**

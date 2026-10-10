@@ -1,5 +1,5 @@
 import { AppError } from "@/domain/appError.js";
-import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService } from "@/infrastructure/analysisApi/analysisServiceClient.js";
+import { assertAnalysisServiceOk, buildAnalysisServiceUrl, fetchAnalysisService, renamedField } from "@/infrastructure/analysisApi/analysisServiceClient.js";
 import { logger } from "@/shared/logger.js";
 import type {
   MonthlyRevenueHistoryEntry,
@@ -15,20 +15,31 @@ function toNumberOrNull(value: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
 
-function normalizeEntry(raw: unknown): MonthlyRevenueHistoryEntry {
+/** 並存期舊名（2026-10-10 起，analysis-ts 批次 2c；web-nuxt 改完就刪這個型別與回傳裡的兩個舊欄位）。值同新名。 */
+interface LegacyMonthlyRevenueKeys {
+  reportDate: string | null;
+  industry: string | null;
+}
+
+function normalizeEntry(raw: unknown): MonthlyRevenueHistoryEntry & LegacyMonthlyRevenueKeys {
   const r = raw as Record<string, unknown>;
+  // 新名優先、舊名後備：上游舊名 2026-10-24 移除。
+  const announcementDate = toStringOrNull(renamedField(r, "announcementDate", "reportDate"));
+  const sectorName = toStringOrNull(renamedField(r, "sectorName", "industry"));
   return {
     yearMonth: String(r.yearMonth),
-    reportDate: toStringOrNull(r.reportDate),
-    industry: toStringOrNull(r.industry),
+    announcementDate,
+    sectorName,
     currentMonthRevenue: toStringOrNull(r.currentMonthRevenue),
     lastYearSameMonthRevenue: toStringOrNull(r.lastYearSameMonthRevenue),
-    yoyChangePct: toNumberOrNull((r.yoyChangePct ?? r.yoyChangePercent)),
-    momChangePct: toNumberOrNull((r.momChangePct ?? r.momChangePercent)),
+    yoyChangePct: toNumberOrNull(renamedField(r, "yoyChangePct", "yoyChangePercent")),
+    momChangePct: toNumberOrNull(renamedField(r, "momChangePct", "momChangePercent")),
     cumulativeRevenue: toStringOrNull(r.cumulativeRevenue),
     cumulativeLastYearRevenue: toStringOrNull(r.cumulativeLastYearRevenue),
-    cumulativeChangePct: toNumberOrNull((r.cumulativeChangePct ?? r.cumulativeChangePercent)),
+    cumulativeChangePct: toNumberOrNull(renamedField(r, "cumulativeChangePct", "cumulativeChangePercent")),
     note: toStringOrNull(r.note),
+    reportDate: announcementDate,
+    industry: sectorName,
   };
 }
 

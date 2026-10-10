@@ -101,7 +101,7 @@ describe("fetchMetricProvenance", () => {
 
     // ROE_BODY 是 2026-09-15 拿到的真實回應，刻意保留當時的形狀。上游 2026-10-01 新增的 periodType
     // 不在那份樣本裡，所以這一層補 null——其餘欄位仍是逐字 deep-equal，形狀再變這條還是會亮。
-    expect(result).toEqual({ ...ROE_BODY, periodType: null });
+    expect(result).toEqual({ ...ROE_BODY, timeframe: null, periodType: null });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/2330/metric-provenance?metricCode=roe");
   });
@@ -146,7 +146,7 @@ describe("fetchMetricProvenance", () => {
   it("returns found:false with an empty entries array and every other field null for an unknown symbol, without throwing", async () => {
     mockFetchOnce({ ok: true, body: NOT_FOUND_BODY });
 
-    await expect(fetchMetricProvenance("9999999", "roe")).resolves.toEqual({ ...NOT_FOUND_BODY, periodType: null });
+    await expect(fetchMetricProvenance("9999999", "roe")).resolves.toEqual({ ...NOT_FOUND_BODY, timeframe: null, periodType: null });
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
@@ -231,21 +231,21 @@ describe("fetchMetricProvenance 的新參數與新欄位", () => {
     expect(sentUrl()).not.toContain("asOfDate");
   });
 
-  it("回應的 periodType 穿過 normalizer", async () => {
-    mockFetchOnce({ ok: true, body: { ...ROE_BODY, periodType: "TTM" } });
+  it("回應的 timeframe 穿過 normalizer（舊名 periodType 也收，並存期回應兩個都帶）", async () => {
+    mockFetchOnce({ ok: true, body: { ...ROE_BODY, timeframe: "TTM" } });
     const result = await fetchMetricProvenance("2330", "roe");
 
-    expect(result.periodType).toBe("TTM");
+    expect(result).toMatchObject({ timeframe: "TTM", periodType: "TTM" });
   });
 
   /** 逐日與月頻指標的 periodType 是 null，而上游沒送這個欄位時也必須是 null、不能是 undefined。 */
   it("上游沒給 periodType 或給 null 時為 null", async () => {
     mockFetchOnce({ ok: true, body: { ...ROE_BODY, periodType: null } });
-    expect((await fetchMetricProvenance("2330", "roe")).periodType).toBeNull();
+    expect((await fetchMetricProvenance("2330", "roe")).timeframe).toBeNull();
 
     const { periodType: _omitted, ...withoutField } = { ...ROE_BODY, periodType: "TTM" };
     mockFetchOnce({ ok: true, body: withoutField });
-    expect((await fetchMetricProvenance("2330", "roe")).periodType).toBeNull();
+    expect((await fetchMetricProvenance("2330", "roe")).timeframe).toBeNull();
   });
 
   /**
@@ -261,7 +261,7 @@ describe("fetchMetricProvenance 的新參數與新欄位", () => {
 
     expect(result.found).toBe(false);
     expect(result.value).toBeNull();
-    expect(result.periodType).toBe("TTM");
+    expect(result.timeframe).toBe("TTM");
     expect(result.methodologyNote).toContain("只提供 TTM");
   });
 });

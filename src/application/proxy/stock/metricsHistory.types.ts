@@ -58,12 +58,13 @@ export interface MetricsHistoryResult {
   symbol: string;
   metricCodes: string[];
   /**
-   * A single token shared by every metricCode in this request — analysis-ts validates each metricCode
+   * 2026-10-10 前這個回應欄位叫 token（OpenAPI 卻寫成 basis——兩邊不一致），現在跟查詢參數同名。
+   * A single timeframe shared by every metricCode in this request — analysis-ts validates each metricCode
    * supports it (e.g. growth-decomposition codes like netIncomeGrowthRate only support "Q", not "TTM").
    * Not narrowed to a fixed union here (unlike MetricHistoryBasis) since different metricCode combinations
    * need different valid tokens — see GET /metrics' validTokens per metricCode.
    */
-  token: string;
+  timeframe: string;
   /** Full count available (not just this page). */
   total: number;
   /** Whether a higher `limit` would return more entries than this call did. */
