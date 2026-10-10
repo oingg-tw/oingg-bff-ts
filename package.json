@@ -21,6 +21,7 @@
     "seed:preset-templates": "tsx prisma/seedPresetTemplates.ts",
     "seed:column-preset-templates": "tsx prisma/seedColumnPresetTemplates.ts",
     "security:check": "tsx scripts/security-check.ts",
+    "load:test": "tsx scripts/load-test.ts",
     "kill-port": "powershell -ExecutionPolicy Bypass -File ./scripts/kill-port.ps1"
   },
   "license": "ISC",

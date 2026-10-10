@@ -29,11 +29,12 @@
  * up" is the right amount of tooling. Don't grow this into something heavier without a concrete reason.
  */
 import "dotenv/config";
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { cert, initializeApp } from "firebase-admin/app";
-import { getAuth, type Auth } from "firebase-admin/auth";
+import { getAuth } from "firebase-admin/auth";
 import { PrismaClient } from "../src/generated/prisma/client.js";
+import { createEphemeralUser, deleteEphemeralUser } from "./testUsers.js";
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:4000";
 const FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY;
@@ -58,32 +59,6 @@ interface TestUser {
   label: "A" | "B";
   uid: string;
   idToken: string;
-}
-
-async function createEphemeralUser(auth: Auth, label: "A" | "B"): Promise<{ uid: string; password: string; email: string }> {
-  const email = `security-check-${randomUUID()}@oingg-test.internal`;
-  const password = randomBytes(24).toString("base64url");
-  const user = await auth.createUser({ email, password, displayName: `Security Check ${label}` });
-  return { uid: user.uid, password, email };
-}
-
-async function signIn(email: string, password: string): Promise<string> {
-  const response = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_WEB_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, returnSecureToken: true }),
-    },
-  );
-  if (!response.ok) {
-    throw new Error(`Firebase sign-in failed with status ${response.status}`);
-  }
-  const body = (await response.json()) as { idToken?: string };
-  if (!body.idToken) {
-    throw new Error("Firebase sign-in response is missing idToken");
-  }
-  return body.idToken;
 }
 
 async function api(path: string, options: { method?: string; token?: string; body?: unknown } = {}) {
@@ -388,12 +363,11 @@ async function main() {
 
   try {
     console.log("Creating ephemeral test accounts...");
-    const rawA = await createEphemeralUser(auth, "A");
-    const rawB = await createEphemeralUser(auth, "B");
-    createdUids.push(rawA.uid, rawB.uid);
+    const rawA = await createEphemeralUser(auth, "security-check-a", FIREBASE_WEB_API_KEY, createdUids);
+    const rawB = await createEphemeralUser(auth, "security-check-b", FIREBASE_WEB_API_KEY, createdUids);
 
-    const userA: TestUser = { label: "A", uid: rawA.uid, idToken: await signIn(rawA.email, rawA.password) };
-    const userB: TestUser = { label: "B", uid: rawB.uid, idToken: await signIn(rawB.email, rawB.password) };
+    const userA: TestUser = { label: "A", uid: rawA.uid, idToken: rawA.idToken };
+    const userB: TestUser = { label: "B", uid: rawB.uid, idToken: rawB.idToken };
     console.log("Accounts ready. Running checks...\n");
 
     await runBolaSweep(userA, userB);
@@ -401,15 +375,7 @@ async function main() {
   } finally {
     console.log("\nCleaning up ephemeral test accounts...");
     for (const uid of createdUids) {
-      await prisma.stockTransaction.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
-      await prisma.watchlistItem.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
-      await prisma.screenerPreset.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
-      await prisma.columnPreset.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
-      await prisma.userThemePreference.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
-      await prisma.screenerDisplaySettings.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
-      await prisma.pinnedMetricPreferences.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
-      await prisma.holdingColumnPreferences.deleteMany({ where: { firebaseUid: uid } }).catch(() => undefined);
-      await auth.deleteUser(uid).catch(() => undefined);
+      await deleteEphemeralUser(auth, prisma, uid);
     }
     await prisma.$disconnect();
   }

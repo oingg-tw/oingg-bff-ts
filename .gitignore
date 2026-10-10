@@ -146,3 +146,6 @@ vite.config.ts.timestamp-*
 .vite/
 
 /src/generated/prisma
+
+# scripts/load-test.ts 沒給 --out 時的結果檔
+load-test-*.json
