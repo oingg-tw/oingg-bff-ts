@@ -120,7 +120,7 @@ registry.registerPath({
   summary: "類股月營收歷史（同一批公司的年增率）",
   description:
     "analysis-ts 的 GET /industries/{sectorCode}/monthly-revenue-history 原樣轉發（2026-10-09 起）。年增率用同一批公司計算。" +
-    "currentMonthRevenue／lastYearSameMonthRevenue 是新台幣千元的字串（2026-10-10 起的統一用語欄名；舊名 revenue／lastYearRevenue／yoyChangePercent 暫時並存）。limit 1～132（2026-10-10 前是 120），不給時上游預設 60；**起點看第一筆的 yearMonth**（上游正在往 2016-01 回補）；total／hasMore 意義同其他歷史端點。",
+    "currentMonthRevenue／lastYearSameMonthRevenue 是新台幣千元的字串（2026-10-10 起的統一用語欄名）。limit 1～132（2026-10-10 前是 120），不給時上游預設 60；**起點看第一筆的 yearMonth**（上游正在往 2016-01 回補）；total／hasMore 意義同其他歷史端點。",
   tags: ["Industries"],
   request: { params: sectorCodeParam, query: sectorMonthlyRevenueHistoryQuerySchema },
   responses: {
@@ -139,9 +139,6 @@ registry.registerPath({
               lastYearSameMonthRevenue: z.string().nullable(),
               yoyChangePct: z.number().nullable(),
               companyCount: z.number(),
-              revenue: z.string().nullable().openapi({ deprecated: true, description: "舊名，同 currentMonthRevenue。過渡期並存，改讀新名後移除。" }),
-              lastYearRevenue: z.string().nullable().openapi({ deprecated: true, description: "舊名，同 lastYearSameMonthRevenue。" }),
-              yoyChangePercent: z.number().nullable().openapi({ deprecated: true, description: "舊名，同 yoyChangePct。" }),
             })),
           }).openapi("SectorMonthlyRevenueHistory"),
         },

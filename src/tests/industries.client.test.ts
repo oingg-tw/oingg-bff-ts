@@ -199,7 +199,7 @@ describe("fetchSectorMetricHistory", () => {
 });
 
 describe("fetchSectorMonthlyRevenueHistory", () => {
-  it("讀上游的新欄名、對外新舊名並存；營收是千元字串，limit 有給才送", async () => {
+  it("讀上游的新欄名；營收是千元字串，limit 有給才送", async () => {
     mockFetchOnce({
       ok: true,
       body: {
@@ -217,10 +217,6 @@ describe("fetchSectorMonthlyRevenueHistory", () => {
       lastYearSameMonthRevenue: "617857399",
       yoyChangePct: 64.31,
       companyCount: 207,
-      // 過渡期並存的舊名，值必須跟新名一樣（web-nuxt 還在讀）
-      revenue: "1015211100",
-      lastYearRevenue: "617857399",
-      yoyChangePercent: 64.31,
     });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(url.toString()).toBe("http://filters.test/industries/24/monthly-revenue-history?limit=1");
