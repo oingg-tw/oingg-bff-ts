@@ -36,11 +36,49 @@ function normalizeProfileMarket(value: unknown, symbol: string): Market {
 
 const KNOWN_MARKETS: readonly Market[] = ["TWSE", "TPEx"];
 
+/**
+ * 交易所「編製財務報告類型」跟 MOPS dataType 對合併／個別的編號相反：交易所 "1" 合併 = MOPS "2" 合併。
+ * 未知代碼回 null，不猜。
+ */
+function flipDataTypeEncoding(code: string | null): string | null {
+  return code === "1" ? "2" : code === "2" ? "1" : null;
+}
+
+/**
+ * 並存期舊名（2026-10-10 起，跟著 analysis-ts 批次 2b；web-nuxt 改完就刪這個型別、withLegacyProfileKeys 與它的呼叫）。
+ *
+ * 不放進 legacyResponseKeys.ts 那張通用表：sectorCode 的舊名在這裡是 industry，在類股字典是 code；而
+ * financialReportType 不是別名而是**舊編碼**，並存期的意思是舊欄位讀起來跟以前一樣。唯一變好的是 industryName：
+ * 以前上櫃一律 null，現在跟 sectorName 一樣有值。
+ */
+interface LegacyCompanyProfileKeys {
+  reportDate: string | null;
+  industry: string | null;
+  industryName: string | null;
+  listedDate: string | null;
+  preferredStockShares: string | null;
+  financialReportType: string | null;
+}
+
+function withLegacyProfileKeys(profile: CompanyProfile): CompanyProfile & LegacyCompanyProfileKeys {
+  return {
+    ...profile,
+    reportDate: profile.generatedDate,
+    industry: profile.sectorCode,
+    industryName: profile.sectorName,
+    listedDate: profile.listingDate,
+    preferredStockShares: profile.numberOfPreferenceShares,
+    financialReportType: flipDataTypeEncoding(profile.declaredDataType),
+  };
+}
+
 function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
   const metricDataType = passThroughEnum(raw.metricDataType, ["1", "2"] as const, { field: "metricDataType", symbol: raw.symbol });
   if (metricDataType === null) {
     throw new AppError(`Company profile for "${String(raw.symbol)}" is missing metricDataType`, 502);
   }
+  // 批次 2b 的新名優先、舊名後備：舊名 2026-10-24 才從上游消失，而部署的 analysis-ts 不一定已經有新名
+  // （本機跟部署是兩個上游）。上游舊名移除、DEV 也部署之後，把這些「?? 舊名」與舊編碼的翻轉一起刪掉。
   return {
     symbol: String(raw.symbol),
     metricDataType,
@@ -48,12 +86,12 @@ function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
     // 缺席給 null 不給 false——理由見 companyProfile.types.ts。上游 PRD 還沒有這個欄位，而把興櫃說成
     // 「不是興櫃」是錯的標籤；null 讓呼叫端知道「還不知道」。
     isEmerging: typeof raw.isEmerging === "boolean" ? raw.isEmerging : null,
-    reportDate: toStringOrNull(raw.reportDate),
+    generatedDate: toStringOrNull(raw.generatedDate ?? raw.reportDate),
     name: toStringOrNull(raw.name),
     shortName: toStringOrNull(raw.shortName),
     foreignRegistrationCountry: toStringOrNull(raw.foreignRegistrationCountry),
-    industry: toStringOrNull(raw.industry),
-    industryName: toStringOrNull(raw.industryName),
+    sectorCode: toStringOrNull(raw.sectorCode ?? raw.industry),
+    sectorName: toStringOrNull(raw.sectorName ?? raw.industryName),
     address: toStringOrNull(raw.address),
     taxId: toStringOrNull(raw.taxId),
     chairman: toStringOrNull(raw.chairman),
@@ -63,12 +101,13 @@ function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
     deputySpokesperson: toStringOrNull(raw.deputySpokesperson),
     phone: toStringOrNull(raw.phone),
     establishedDate: toStringOrNull(raw.establishedDate),
-    listedDate: toStringOrNull(raw.listedDate),
+    listingDate: toStringOrNull(raw.listingDate ?? raw.listedDate),
     parValue: toStringOrNull(raw.parValue),
     paidInCapital: toStringOrNull(raw.paidInCapital),
     privatePlacementShares: toStringOrNull(raw.privatePlacementShares),
-    preferredStockShares: toStringOrNull(raw.preferredStockShares),
-    financialReportType: toStringOrNull(raw.financialReportType),
+    numberOfPreferenceShares: toStringOrNull(raw.numberOfPreferenceShares ?? raw.preferredStockShares),
+    // 舊欄位是交易所編碼，要翻過來，不能直接當新值用。
+    declaredDataType: toStringOrNull(raw.declaredDataType) ?? flipDataTypeEncoding(toStringOrNull(raw.financialReportType)),
     financialReportTypeName: toStringOrNull(raw.financialReportTypeName),
     stockTransferAgency: toStringOrNull(raw.stockTransferAgency),
     transferAgencyPhone: toStringOrNull(raw.transferAgencyPhone),
@@ -105,5 +144,5 @@ export async function fetchCompanyProfile(symbol: string): Promise<CompanyProfil
     throw new AppError("Company profile endpoint response is missing symbol", 502);
   }
 
-  return normalizeCompanyProfile(body as Record<string, unknown>);
+  return withLegacyProfileKeys(normalizeCompanyProfile(body as Record<string, unknown>));
 }

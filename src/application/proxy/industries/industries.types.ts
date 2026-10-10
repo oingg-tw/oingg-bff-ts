@@ -1,6 +1,8 @@
 export interface SecuritiesSector {
-  code: string;
-  name: string;
+  /** 2026-10-10 前叫 code。 */
+  sectorCode: string;
+  /** 2026-10-10 前叫 name。 */
+  sectorName: string;
   companyCount: number;
 }
 
@@ -27,7 +29,7 @@ export interface SectorMetricStats {
 }
 
 /**
- * 類股層級的股利統計，一列一個證交所類股（sectorCode 同 SecuritiesSector.code）。用途是產業分析散佈圖：
+ * 類股層級的股利統計，一列一個證交所類股（sectorCode 同 SecuritiesSector.sectorCode）。用途是產業分析散佈圖：
  * 一軸殖利率、一軸三年股利成長率。
  *
  * **兩個軸的 count 不同，所以一個點的 x 與 y 是對不同子母體算的。** 2026-09-30 晚間實測 34 個類股（上游當天

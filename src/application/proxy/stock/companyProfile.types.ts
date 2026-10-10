@@ -23,13 +23,18 @@ export interface CompanyProfile {
    * 數字」而不是「尚無資料」——那兩句話對讀者的意思完全不同。
    */
   isEmerging: boolean | null;
-  reportDate: string | null;
+  /** 出表日（2026-10-10 前叫 reportDate）。 */
+  generatedDate: string | null;
   name: string | null;
   shortName: string | null;
   foreignRegistrationCountry: string | null;
-  industry: string | null;
-  /** Human-readable label for `industry` (e.g. "半導體業" for code "24"). TWSE's company_profile has this natively; TPEx's export doesn't (always null there, pending tpex-ts) — analysis-ts deliberately isn't guessing a code table for it. Added 2026-09-02. */
-  industryName: string | null;
+  /** 證交所類股代碼（2026-10-10 前叫 industry），例如 "24"。 */
+  sectorCode: string | null;
+  /**
+   * 類股名稱，例如 "半導體業"（2026-10-10 前叫 industryName）。analysis-ts 875ffaaf 起從類股代碼表取值，所以
+   * **上櫃公司也有值**——舊的 industryName 在 TPEx 一律是 null（TPEx 的匯出沒有這個欄位）。上市 33 組跟舊值實測 0 差異（analysis-ts 2026-10-10）。
+   */
+  sectorName: string | null;
   address: string | null;
   taxId: string | null;
   chairman: string | null;
@@ -39,17 +44,23 @@ export interface CompanyProfile {
   deputySpokesperson: string | null;
   phone: string | null;
   establishedDate: string | null;
-  listedDate: string | null;
+  /** 上市（櫃）日期（2026-10-10 前叫 listedDate）。 */
+  listingDate: string | null;
   /** Par value per share (usually NT$10) — Decimal-backed, normalized to a string like every other numeric value in bff-ts's outward API. */
   parValue: string | null;
   /** BigInt-backed on analysis-ts's side (already a string there) — kept as a string here too, to avoid float-precision loss on very large capital/share-count figures. */
   paidInCapital: string | null;
   privatePlacementShares: string | null;
-  preferredStockShares: string | null;
-  /** The exchange's raw 編製財務報告類型 code: "1" = 合併 (consolidated), "2" = 個別 (individual). Note this is the OPPOSITE numbering from `metricDataType` below. */
-  financialReportType: string | null;
+  /** 特別股股數（2026-10-10 前叫 preferredStockShares）。 */
+  numberOfPreferenceShares: string | null;
   /**
-   * Human-readable label for `financialReportType`. Corrected by analysis-ts 2026-09-22 (21fdd2d4): the
+   * 公司申報的財報類型，**MOPS dataType 編碼，跟 `metricDataType` 同方向**："2" = 合併、"1" = 個別。
+   * 2026-10-10 前叫 financialReportType，用的是交易所「編製財務報告類型」編碼（"1" = 合併），**方向相反**——
+   * 只改名的話，每家公司都會被讀成另一種財報。
+   */
+  declaredDataType: string | null;
+  /**
+   * Human-readable label for `declaredDataType`. Corrected by analysis-ts 2026-09-22 (21fdd2d4): the
    * mapping was originally written backwards ("1" -> 個別), because the exchange's code and MOPS's dataType
    * number the two report types in opposite directions — 2330 (code "1") is now correctly "合併財報".
    */

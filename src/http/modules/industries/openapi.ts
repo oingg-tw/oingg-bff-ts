@@ -6,12 +6,12 @@ import {
   sectorSummaryQuerySchema,
 } from "@/http/modules/industries/route.js";
 
-const securitiesSectorSchema = z.object({ code: z.string(), name: z.string(), companyCount: z.number() });
+const securitiesSectorSchema = z.object({ sectorCode: z.string(), sectorName: z.string(), companyCount: z.number() });
 
 const securitiesSectorListSchema = z
   .object({ sectors: z.array(securitiesSectorSchema) })
   .openapi("SecuritiesSectorList", {
-    example: { sectors: [{ code: "24", name: "半導體業", companyCount: 240 }] },
+    example: { sectors: [{ sectorCode: "24", sectorName: "半導體業", companyCount: 240 }] },
   });
 
 const sectorMetricStatsSchema = z

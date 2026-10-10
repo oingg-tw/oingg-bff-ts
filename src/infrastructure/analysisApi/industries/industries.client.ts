@@ -21,9 +21,15 @@ import type {
 } from "@/application/proxy/industries/industries.types.js";
 import type { IndustriesGatewayPort } from "@/application/ports/industriesGateway.js";
 
-function normalizeSector(raw: unknown): SecuritiesSector {
+/**
+ * code／name 是並存期舊名（2026-10-10 起，跟著 analysis-ts 批次 2b，上游 2026-10-24 移除）：讀新名優先，回應裡把
+ * 舊名補回去給 web-nuxt。web-nuxt 改完就刪掉「?? r.code／r.name」和回傳的 code／name。
+ */
+function normalizeSector(raw: unknown): SecuritiesSector & { code: string; name: string } {
   const r = raw as Record<string, unknown>;
-  return { code: String(r.code), name: String(r.name), companyCount: Number(r.companyCount) };
+  const sectorCode = String(r.sectorCode ?? r.code);
+  const sectorName = String(r.sectorName ?? r.name);
+  return { sectorCode, sectorName, companyCount: Number(r.companyCount), code: sectorCode, name: sectorName };
 }
 
 /**

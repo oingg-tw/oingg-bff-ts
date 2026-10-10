@@ -37,11 +37,11 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// Real shape given directly by analysis-ts (2026-09-11).
+// 2026-10-24 後上游的形狀（只剩 sectorCode／sectorName）。並存期回應裡補回舊名 code／name 給 web-nuxt。
 const SECTORS_RESPONSE = {
   sectors: [
-    { code: "01", name: "水泥工業", companyCount: 8 },
-    { code: "24", name: "半導體業", companyCount: 240 },
+    { sectorCode: "01", sectorName: "水泥工業", companyCount: 8 },
+    { sectorCode: "24", sectorName: "半導體業", companyCount: 240 },
   ],
 };
 
@@ -51,7 +51,7 @@ describe("fetchSecuritiesSectors", () => {
 
     const result = await fetchSecuritiesSectors();
 
-    expect(result).toEqual(SECTORS_RESPONSE);
+    expect(result).toEqual({ sectors: SECTORS_RESPONSE.sectors.map((s) => ({ ...s, code: s.sectorCode, name: s.sectorName })) });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/industries/securities-sectors");
   });

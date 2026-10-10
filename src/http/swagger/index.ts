@@ -39,7 +39,10 @@ function generateDocument() {
         "**2026-10-10 起查詢參數改用生態系統一用語**：期別 `basis`／`periodType` → `timeframe`；查某一季的民國 `year`＋字串 `season` → 西元 `fiscalYear`＋整數 `fiscalQuarter`。" +
         "並存期舊名仍收（舊 year 為民國年、會換算），兩者都給以新名為準；web-nuxt 改完就移除舊名。" +
         "**回應欄位也改了名（只改名、值不變）**：*Percent → *Pct（yoyChangePct、changePct、topPct…）、paidInShares → numberOfSharesIssued。" +
-        "這份文件只列新名；並存期回應裡會同時帶舊名（值相同），web-nuxt 改完就移除。"
+        "個股基本資料（批次 2b）：reportDate → generatedDate、industry → sectorCode、industryName → sectorName（上櫃也有值了）、" +
+        "listedDate → listingDate、preferredStockShares → numberOfPreferenceShares、financialReportType → declaredDataType（**編碼反過來**，改用 MOPS：\"2\" 合併）；" +
+        "類股字典 code／name → sectorCode／sectorName。" +
+        "這份文件只列新名；並存期回應裡會同時帶舊名（值與舊時相同，financialReportType 維持交易所編碼），web-nuxt 改完就移除。"
     },
     servers: [
       {

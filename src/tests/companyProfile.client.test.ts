@@ -28,12 +28,12 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
 const RAW_PROFILE = {
   symbol: "2330",
   market: "TWSE",
-  reportDate: "2026-08-29",
+  generatedDate: "2026-08-29",
   name: "台灣積體電路製造股份有限公司",
   shortName: "台積電",
   foreignRegistrationCountry: null,
-  industry: "24",
-  industryName: "半導體業",
+  sectorCode: "24",
+  sectorName: "半導體業",
   address: "新竹科學園區力行六路8號",
   taxId: "22099131",
   chairman: "魏哲家",
@@ -43,14 +43,13 @@ const RAW_PROFILE = {
   deputySpokesperson: "高孟華",
   phone: "03-5636688",
   establishedDate: "1987-02-21",
-  listedDate: "1994-09-05",
+  listingDate: "1994-09-05",
   parValue: 10,
   paidInCapital: "259323700670",
   privatePlacementShares: "0",
-  preferredStockShares: "0",
-  // financialReportType "1" = 合併 (exchange code), metricDataType "2" = 合併 (MOPS dataType) — opposite
-  // numbering, both correct for 2330. Label corrected by analysis-ts 2026-09-22 (was "個別財報").
-  financialReportType: "1",
+  numberOfPreferenceShares: "0",
+  // declaredDataType 與 metricDataType 同為 MOPS 編碼，"2" = 合併。Label corrected by analysis-ts 2026-09-22 (was "個別財報").
+  declaredDataType: "2",
   financialReportTypeName: "合併財報",
   metricDataType: "2",
   stockTransferAgency: "中國信託商業銀行 代理部",
@@ -67,6 +66,16 @@ const RAW_PROFILE = {
   issuedShares: "25932370067",
 };
 
+// 並存期回應裡補回的舊名：值同新名，但 financialReportType 維持交易所編碼（2330 合併是 "1"）。
+const LEGACY_KEYS = {
+  reportDate: "2026-08-29",
+  industry: "24",
+  industryName: "半導體業",
+  listedDate: "1994-09-05",
+  preferredStockShares: "0",
+  financialReportType: "1",
+};
+
 describe("fetchCompanyProfile", () => {
   it("requests /companies/profile?symbol= and normalizes parValue to a string", async () => {
     mockFetchOnce({ ok: true, body: RAW_PROFILE });
@@ -75,7 +84,7 @@ describe("fetchCompanyProfile", () => {
 
     // RAW_PROFILE 是上游加 isEmerging 之前的樣本，刻意保留當時的形狀——這一層補 null，正好也是
     // 「上游沒送這個欄位時給 null 而不是 false」那條規則的驗證。
-    expect(result).toEqual({ ...RAW_PROFILE, parValue: "10", isEmerging: null });
+    expect(result).toEqual({ ...RAW_PROFILE, parValue: "10", isEmerging: null, ...LEGACY_KEYS });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/profile?symbol=2330");
   });
@@ -86,19 +95,33 @@ describe("fetchCompanyProfile", () => {
     await expect(fetchCompanyProfile("nope")).resolves.toBeNull();
   });
 
-  // TPEx has no englishAddress or industryName field at all on its source side — always null there, not
-  // a query failure. industryName is null on TPEx pending tpex-ts (analysis-ts won't guess a code table).
-  it("keeps englishAddress and industryName null for a TPEx company", async () => {
+  // TPEx has no englishAddress field at all on its source side — always null there, not a query failure.
+  it("keeps englishAddress null for a TPEx company", async () => {
     mockFetchOnce({
       ok: true,
-      body: { ...RAW_PROFILE, market: "TPEx", englishAddress: null, industryName: null },
+      body: { ...RAW_PROFILE, market: "TPEx", englishAddress: null },
     });
 
     const result = await fetchCompanyProfile("8299");
 
     expect(result?.market).toBe("TPEx");
     expect(result?.englishAddress).toBeNull();
-    expect(result?.industryName).toBeNull();
+  });
+
+  // 批次 2b 並存期：部署的 analysis-ts 可能還沒有新名、只送舊名。新名從舊名來，舊的交易所編碼要翻成 MOPS 編碼。
+  it("reads the pre-2026-10-10 names when upstream hasn't deployed batch 2b, flipping the old encoding", async () => {
+    const { generatedDate: _g, sectorCode: _c, sectorName: _n, listingDate: _l, numberOfPreferenceShares: _p, declaredDataType: _d, ...rest } = RAW_PROFILE;
+    mockFetchOnce({ ok: true, body: { ...rest, ...LEGACY_KEYS } });
+
+    await expect(fetchCompanyProfile("2330")).resolves.toMatchObject({
+      generatedDate: "2026-08-29",
+      sectorCode: "24",
+      sectorName: "半導體業",
+      listingDate: "1994-09-05",
+      numberOfPreferenceShares: "0",
+      declaredDataType: "2",
+      financialReportType: "1",
+    });
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
@@ -121,7 +144,7 @@ describe("fetchCompanyProfile", () => {
 
   // metricDataType (2026-09-22) is a required two-value enum upstream — an individual-only filer is "1".
   it("passes through metricDataType '1' for an individual-statement-only filer", async () => {
-    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, symbol: "2816", financialReportType: "2", financialReportTypeName: "個別財報", metricDataType: "1" } });
+    mockFetchOnce({ ok: true, body: { ...RAW_PROFILE, symbol: "2816", declaredDataType: "1", financialReportTypeName: "個別財報", metricDataType: "1" } });
 
     const result = await fetchCompanyProfile("2816");
 
