@@ -11,9 +11,9 @@ function normalizeEntry(raw: unknown): ForeignShareholdingHistoryEntry {
   return {
     tradeDate: String(r.tradeDate),
     // Number(null) 是 0：缺資料的那天會畫成「外資持股 0%」的斷崖（跟 2026-09-27 日線收盤 0 元同一型）。
-    sharesHeldPercent: toNumberOrNull(r.sharesHeldPercent),
-    foreignLimitPercent: toNumberOrNull(r.foreignLimitPercent),
-    availableInvestPercent: toNumberOrNull(r.availableInvestPercent),
+    sharesHeldPct: toNumberOrNull((r.sharesHeldPct ?? r.sharesHeldPercent)),
+    foreignLimitPct: toNumberOrNull((r.foreignLimitPct ?? r.foreignLimitPercent)),
+    availableInvestPct: toNumberOrNull((r.availableInvestPct ?? r.availableInvestPercent)),
   };
 }
 

@@ -335,12 +335,12 @@ describe("fetchCompanyRank", () => {
   it("requests /screener/company-rank with symbol/field/direction and normalizes the result", async () => {
     mockFetchOnce({
       ok: true,
-      body: { symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPercent: 72.8, quintile: 2 },
+      body: { symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPct: 72.8, quintile: 2 },
     });
 
     const result = await fetchCompanyRank("2330", "dividendYield.EOD", "desc", undefined);
 
-    expect(result).toEqual({ symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPercent: 72.8, quintile: 2 });
+    expect(result).toEqual({ symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1152, totalCount: 1583, topPct: 72.8, quintile: 2 });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(url.toString()).toBe("http://filters.test/screener/company-rank?symbol=2330&field=dividendYield.EOD&direction=desc");
   });
@@ -356,7 +356,7 @@ describe("fetchCompanyRank", () => {
   ])("sends excludeZero upstream only when it is true (%s)", async (value, expectedSuffix) => {
     mockFetchOnce({
       ok: true,
-      body: { symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1259, totalCount: 1445, topPercent: 87.1 },
+      body: { symbol: "2330", field: "dividendYield.EOD", found: true, value: 0.92, rank: 1259, totalCount: 1445, topPct: 87.1 },
     });
 
     await fetchCompanyRank("2330", "dividendYield.EOD", "desc", value);
@@ -371,12 +371,12 @@ describe("fetchCompanyRank", () => {
   it("returns found:false with every numeric field null, without throwing", async () => {
     mockFetchOnce({
       ok: true,
-      body: { symbol: "NOPE9999", field: "dividendYield.EOD", found: false, value: null, rank: null, totalCount: null, topPercent: null, quintile: null },
+      body: { symbol: "NOPE9999", field: "dividendYield.EOD", found: false, value: null, rank: null, totalCount: null, topPct: null, quintile: null },
     });
 
     const result = await fetchCompanyRank("NOPE9999", "dividendYield.EOD", "desc", undefined);
 
-    expect(result).toEqual({ symbol: "NOPE9999", field: "dividendYield.EOD", found: false, value: null, rank: null, totalCount: null, topPercent: null, quintile: null });
+    expect(result).toEqual({ symbol: "NOPE9999", field: "dividendYield.EOD", found: false, value: null, rank: null, totalCount: null, topPct: null, quintile: null });
   });
 
   it("relays analysis-ts's 400 message for an unknown field", async () => {

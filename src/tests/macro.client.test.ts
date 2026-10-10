@@ -362,15 +362,15 @@ describe("monthly series (business-cycle-indicator / monetary-aggregate / gov-bo
     mockFetchOnce({
       ok: true,
       body: { entries: [
-        { period: "2026-07", year: 2026, month: 7, listedCompanies: 1083, totalParValue: 7910895, totalMarketValue: 140848179, totalTradingValue: 20732353, avgDailyTradingValue: 942380, avgTaiex: 44366.29, avgTaiexYoyPercent: 93.208 },
-        { period: "1987-05", year: 1987, month: 5, listedCompanies: 130, avgTaiex: 1500.2, avgTaiexYoyPercent: null },
+        { period: "2026-07", year: 2026, month: 7, listedCompanies: 1083, totalParValue: 7910895, totalMarketValue: 140848179, totalTradingValue: 20732353, avgDailyTradingValue: 942380, avgTaiex: 44366.29, avgTaiexYoyPct: 93.208 },
+        { period: "1987-05", year: 1987, month: 5, listedCompanies: 130, avgTaiex: 1500.2, avgTaiexYoyPct: null },
       ] },
     });
 
     const result = await fetchStockMarketSummary();
 
-    expect(result.entries[0]).toMatchObject({ listedCompanies: 1083, avgTaiex: 44366.29, avgTaiexYoyPercent: 93.208 });
-    expect(result.entries[1]).toMatchObject({ avgTaiexYoyPercent: null, totalParValue: null });
+    expect(result.entries[0]).toMatchObject({ listedCompanies: 1083, avgTaiex: 44366.29, avgTaiexYoyPct: 93.208 });
+    expect(result.entries[1]).toMatchObject({ avgTaiexYoyPct: null, totalParValue: null });
   });
 
   it("gov-bond-yield-10y-history normalizes entries", async () => {
@@ -440,12 +440,12 @@ describe("fetchUsdTwdRate", () => {
 
 describe("fetchCpi", () => {
   it("forwards from and category when given, and echoes the resolved category from the response", async () => {
-    mockFetchOnce({ ok: true, body: { category: "food", entries: [{ period: "2026-08", year: 2026, month: 8, indexValue: 119.86, yoyChangePercent: 0.79 }] } });
+    mockFetchOnce({ ok: true, body: { category: "food", entries: [{ period: "2026-08", year: 2026, month: 8, indexValue: 119.86, yoyChangePct: 0.79 }] } });
 
     const result = await fetchCpi("2026-06", "food");
 
     expect(calledUrl().toString()).toBe("http://filters.test/macro/cpi?from=2026-06&category=food");
-    expect(result).toEqual({ category: "food", entries: [{ period: "2026-08", year: 2026, month: 8, indexValue: 119.86, yoyChangePercent: 0.79 }] });
+    expect(result).toEqual({ category: "food", entries: [{ period: "2026-08", year: 2026, month: 8, indexValue: 119.86, yoyChangePct: 0.79 }] });
   });
 
   it("omits both params when not given (upstream defaults category to total)", async () => {
@@ -465,7 +465,7 @@ describe("fetchCpi", () => {
 });
 
 describe("fetchGdp", () => {
-  // Real shape after analysis-ts 7e4b4358 (2026-09-22): contributionPoints only — a yoyChangePercent field
+  // Real shape after analysis-ts 7e4b4358 (2026-09-22): contributionPoints only — a yoyChangePct field
   // existed for a few hours that day and was removed; it must not be re-introduced here.
   it("forwards from (YYYY-Qn) and category, and normalizes quarterly entries", async () => {
     mockFetchOnce({ ok: true, body: { category: "exports", entries: [{ period: "2026-Q2", year: 2026, quarter: 2, contributionPoints: 16.07 }] } });

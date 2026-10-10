@@ -696,7 +696,7 @@ describe("fetchMetricCatalog", () => {
                   author: "Robert Novy-Marx",
                   threshold: {
                     description: "全市場前 20%",
-                    percentileRank: { scope: "market" as const, direction: "desc" as const, topPercent: 20 },
+                    percentileRank: { scope: "market" as const, direction: "desc" as const, topPct: 20 },
                   },
                 },
               },
@@ -711,7 +711,7 @@ describe("fetchMetricCatalog", () => {
     expect(result[0]?.metrics[0]?.badge?.threshold?.percentileRank).toEqual({
       scope: "market",
       direction: "desc",
-      topPercent: 20,
+      topPct: 20,
     });
   });
 
@@ -733,7 +733,7 @@ describe("fetchMetricCatalog", () => {
                   ...SAMPLE_BADGE,
                   threshold: {
                     description: "全市場前 20%",
-                    percentileRank: { scope: "industry", direction: "desc", topPercent: 20 },
+                    percentileRank: { scope: "industry", direction: "desc", topPct: 20 },
                   },
                 },
               },

@@ -23,11 +23,11 @@ function normalizeEntry(raw: unknown): MonthlyRevenueHistoryEntry {
     industry: toStringOrNull(r.industry),
     currentMonthRevenue: toStringOrNull(r.currentMonthRevenue),
     lastYearSameMonthRevenue: toStringOrNull(r.lastYearSameMonthRevenue),
-    yoyChangePercent: toNumberOrNull(r.yoyChangePercent),
-    momChangePercent: toNumberOrNull(r.momChangePercent),
+    yoyChangePct: toNumberOrNull((r.yoyChangePct ?? r.yoyChangePercent)),
+    momChangePct: toNumberOrNull((r.momChangePct ?? r.momChangePercent)),
     cumulativeRevenue: toStringOrNull(r.cumulativeRevenue),
     cumulativeLastYearRevenue: toStringOrNull(r.cumulativeLastYearRevenue),
-    cumulativeChangePercent: toNumberOrNull(r.cumulativeChangePercent),
+    cumulativeChangePct: toNumberOrNull((r.cumulativeChangePct ?? r.cumulativeChangePercent)),
     note: toStringOrNull(r.note),
   };
 }

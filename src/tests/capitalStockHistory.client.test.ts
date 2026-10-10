@@ -27,7 +27,7 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
 
 const RAW_ENTRY_SINGLE_SOURCE = {
   effectiveDate: "2024-08",
-  paidInShares: "25932370067",
+  numberOfSharesIssued: "25932370067",
   paidInCapital: "259323700670",
   changeSource: {
     cashIncrease: "1000000",
@@ -38,7 +38,7 @@ const RAW_ENTRY_SINGLE_SOURCE = {
     other: null,
   },
   remarks: null,
-  sharesChangePercent: -0.59,
+  sharesChangePct: -0.59,
 };
 
 describe("fetchCapitalStockHistory", () => {
@@ -92,16 +92,16 @@ describe("fetchCapitalStockHistory", () => {
     expect(result.entries[0]?.remarks).toBeNull();
   });
 
-  // entries is newest-to-oldest, so the "earlier" entry sharesChangePercent compares against is the
+  // entries is newest-to-oldest, so the "earlier" entry sharesChangePct compares against is the
   // *next* array element, not the previous one — the oldest entry (nothing earlier) is null.
-  it("keeps sharesChangePercent null on the oldest entry (nothing earlier to compare against)", async () => {
-    const oldest = { ...RAW_ENTRY_SINGLE_SOURCE, effectiveDate: "1994-09", sharesChangePercent: null };
+  it("keeps sharesChangePct null on the oldest entry (nothing earlier to compare against)", async () => {
+    const oldest = { ...RAW_ENTRY_SINGLE_SOURCE, effectiveDate: "1994-09", sharesChangePct: null };
     mockFetchOnce({ ok: true, body: { symbol: "2330", entries: [RAW_ENTRY_SINGLE_SOURCE, oldest] } });
 
     const result = await fetchCapitalStockHistory("2330");
 
-    expect(result.entries[0]?.sharesChangePercent).toBe(-0.59);
-    expect(result.entries[1]?.sharesChangePercent).toBeNull();
+    expect(result.entries[0]?.sharesChangePct).toBe(-0.59);
+    expect(result.entries[1]?.sharesChangePct).toBeNull();
   });
 
   it("throws a 502 AppError (not an uncaught exception) when fetch itself fails to connect", async () => {
@@ -119,6 +119,18 @@ describe("fetchCapitalStockHistory", () => {
   it("throws a 502 AppError when the response is missing an entries array", async () => {
     mockFetchOnce({ ok: true, body: { symbol: "2330" } });
 
+    await expect(fetchCapitalStockHistory("2330")).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+// 2026-10-10 上游改名（paidInShares → numberOfSharesIssued、sharesChangePercent → sharesChangePct），舊名 2026-10-24 移除。
+describe("fetchCapitalStockHistory 改名並存", () => {
+  it("上游只給舊名時仍讀得到；兩個都沒有時 502，不會變成字串 \"undefined\"", async () => {
+    mockFetchOnce({ ok: true, body: { symbol: "2330", entries: [{ effectiveDate: "2026-01-01", paidInShares: "25930380458", sharesChangePercent: 0.01 }] } });
+    const result = await fetchCapitalStockHistory("2330");
+    expect(result.entries[0]).toMatchObject({ numberOfSharesIssued: "25930380458", sharesChangePct: 0.01 });
+
+    mockFetchOnce({ ok: true, body: { symbol: "2330", entries: [{ effectiveDate: "2026-01-01" }] } });
     await expect(fetchCapitalStockHistory("2330")).rejects.toMatchObject({ statusCode: 502 });
   });
 });

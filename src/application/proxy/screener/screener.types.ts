@@ -85,10 +85,10 @@ export interface ScreenerValuesResult {
  * One company's rank/percentile against the whole market for a single field — GET /screener/company-rank,
  * added 2026-09-16. Complements GET /screener/ranking's "who's in the top N" with the reverse question
  * ("where does this company rank"). `rank` is 1-based, RANK()-style (ties share a rank). `totalCount` only
- * counts companies with a non-null value for this field. `topPercent` = rank÷totalCount×100 rounded to 1
- * decimal — a SMALLER topPercent means a BETTER rank (5 means "top 5% of the market"), the opposite
+ * counts companies with a non-null value for this field. `topPct` = rank÷totalCount×100 rounded to 1
+ * decimal — a SMALLER topPct means a BETTER rank (5 means "top 5% of the market"), the opposite
  * direction from an ordinary percentile — don't conflate the two. `found: false` (no data for this
- * field/symbol, or the symbol doesn't exist) still returns 200 with value/rank/totalCount/topPercent all
+ * field/symbol, or the symbol doesn't exist) still returns 200 with value/rank/totalCount/topPct all
  * null, not a 404.
  */
 export interface CompanyRankResult {
@@ -98,14 +98,14 @@ export interface CompanyRankResult {
   value: number | null;
   rank: number | null;
   totalCount: number | null;
-  topPercent: number | null;
+  topPct: number | null;
   /**
    * Which fifth of the population this company sits in, 1–5, straight from analysis-ts — added here
    * 2026-09-24 after it turned out they had been sending it for a while and the field-by-field
    * normalizer was silently dropping it (the documented hazard of that pattern).
    *
    * Direction follows `direction`: with `desc`, 5 is the best fifth. Note this is NOT derivable from
-   * `topPercent` by the caller, because ties share a rank (RANK() semantics) — analysis-ts cuts the
+   * `topPct` by the caller, because ties share a rank (RANK() semantics) — analysis-ts cuts the
    * quintile on the real distribution, not on rank÷totalCount. Null whenever `found` is false.
    */
   quintile: number | null;

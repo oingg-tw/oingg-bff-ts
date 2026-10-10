@@ -190,11 +190,11 @@ export async function fetchScreenerValues(
  *
  * `rank` is 1-based and RANK()-style (ties share a rank, so a following rank can skip numbers). `direction`
  * is required upstream (no default — confirmed live, omitting it 400s) — desc means higher values rank
- * better. `totalCount` only counts companies with a non-null value for this field. `topPercent` =
- * rank÷totalCount×100, rounded to 1 decimal — a SMALLER topPercent means a BETTER rank (e.g. 5 means "top
+ * better. `totalCount` only counts companies with a non-null value for this field. `topPct` =
+ * rank÷totalCount×100, rounded to 1 decimal — a SMALLER topPct means a BETTER rank (e.g. 5 means "top
  * 5% of the market"), the opposite direction from an ordinary percentile. `found: false` (the field has no
  * data for this symbol, or the symbol itself doesn't exist) still returns 200 with value/rank/totalCount/
- * topPercent all null, not a 404 — confirmed live, same convention as this domain's other per-symbol calls.
+ * topPct all null, not a 404 — confirmed live, same convention as this domain's other per-symbol calls.
  */
 /**
  * analysis-ts 對 excludeZero 的解析是「有給就算數」，不是布林剖析——實測 2026-09-24：`excludeZero=false`
@@ -216,7 +216,7 @@ export async function fetchCompanyRank(
 ): Promise<CompanyRankResult> {
   const body = await getJson("/screener/company-rank", { symbol, field, direction, ...excludeZeroParam(excludeZero) });
 
-  const b = body as { symbol?: unknown; field?: unknown; found?: unknown; value?: unknown; rank?: unknown; totalCount?: unknown; topPercent?: unknown; quintile?: unknown };
+  const b = body as { symbol?: unknown; field?: unknown; found?: unknown; value?: unknown; rank?: unknown; totalCount?: unknown; topPct?: unknown; topPercent?: unknown; quintile?: unknown };
   if (typeof b.symbol !== "string" || typeof b.field !== "string" || typeof b.found !== "boolean") {
     throw new AppError("Company rank endpoint response is missing symbol/field/found", 502);
   }
@@ -228,7 +228,7 @@ export async function fetchCompanyRank(
     value: typeof b.value === "number" ? b.value : null,
     rank: typeof b.rank === "number" ? b.rank : null,
     totalCount: typeof b.totalCount === "number" ? b.totalCount : null,
-    topPercent: typeof b.topPercent === "number" ? b.topPercent : null,
+    topPct: typeof (b.topPct ?? b.topPercent) === "number" ? ((b.topPct ?? b.topPercent) as number) : null,
     quintile: typeof b.quintile === "number" ? b.quintile : null,
   };
 }

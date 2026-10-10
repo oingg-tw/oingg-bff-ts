@@ -252,11 +252,11 @@ function normalizeMonetaryAggregateEntry(raw: unknown): MonetaryAggregateEntry {
     year: Number(r.year),
     month: Number(r.month),
     m1aAmount: toNumberOrNull(r.m1aAmount),
-    m1aYoyPercent: toNumberOrNull(r.m1aYoyPercent),
+    m1aYoyPct: toNumberOrNull((r.m1aYoyPct ?? r.m1aYoyPercent)),
     m1bAmount: toNumberOrNull(r.m1bAmount),
-    m1bYoyPercent: toNumberOrNull(r.m1bYoyPercent),
+    m1bYoyPct: toNumberOrNull((r.m1bYoyPct ?? r.m1bYoyPercent)),
     m2Amount: toNumberOrNull(r.m2Amount),
-    m2YoyPercent: toNumberOrNull(r.m2YoyPercent),
+    m2YoyPct: toNumberOrNull((r.m2YoyPct ?? r.m2YoyPercent)),
   };
 }
 
@@ -317,7 +317,7 @@ function normalizeStockMarketSummaryEntry(raw: unknown): StockMarketSummaryEntry
     totalTradingValue: toNumberOrNull(r.totalTradingValue),
     avgDailyTradingValue: toNumberOrNull(r.avgDailyTradingValue),
     avgTaiex: toNumberOrNull(r.avgTaiex),
-    avgTaiexYoyPercent: toNumberOrNull(r.avgTaiexYoyPercent),
+    avgTaiexYoyPct: toNumberOrNull((r.avgTaiexYoyPct ?? r.avgTaiexYoyPercent)),
   };
 }
 
@@ -368,7 +368,7 @@ function normalizeCpiEntry(raw: unknown): CpiEntry {
     year: Number(r.year),
     month: Number(r.month),
     indexValue: toNumberOrNull(r.indexValue),
-    yoyChangePercent: toNumberOrNull(r.yoyChangePercent),
+    yoyChangePct: toNumberOrNull((r.yoyChangePct ?? r.yoyChangePercent)),
   };
 }
 

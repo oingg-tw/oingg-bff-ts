@@ -321,11 +321,11 @@ const capitalStockHistorySchema = z
     entries: z.array(
       z.object({
         effectiveDate: z.string(),
-        paidInShares: z.string(),
+        numberOfSharesIssued: z.string(),
         paidInCapital: z.string().nullable(),
         changeSource: changeSourceSchema,
         remarks: z.string().nullable(),
-        sharesChangePercent: z.number().nullable(),
+        sharesChangePct: z.number().nullable(),
       }),
     ),
   })
@@ -336,7 +336,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/capital-stock-history",
   summary: "查詢股本歷史（實收股本/股數變動，含現金增資、公積/盈餘轉增資、合併增資、減資等來源拆解）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/capital-stock-history。entries 由新到舊排序；changeSource 底下 5 個金額欄位固定同時存在（不相關的來源是 \"0\" 而非缺席），可能同時多個來源非零（約 9% 的資料如此），capitalReduction 可能是負數，不要取絕對值。sharesChangePercent 是跟「時間序上更早」那筆比較的流通股數變動百分比——因為 entries 是新到舊排序，「更早」指的是陣列裡的下一筆（index+1），不是上一筆；最舊一筆没有更早的可比較，是 null。查無資料回傳空陣列，不是 404。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/capital-stock-history。entries 由新到舊排序；changeSource 底下 5 個金額欄位固定同時存在（不相關的來源是 \"0\" 而非缺席），可能同時多個來源非零（約 9% 的資料如此），capitalReduction 可能是負數，不要取絕對值。sharesChangePct 是跟「時間序上更早」那筆比較的流通股數變動百分比——因為 entries 是新到舊排序，「更早」指的是陣列裡的下一筆（index+1），不是上一筆；最舊一筆没有更早的可比較，是 null。查無資料回傳空陣列，不是 404。",
   tags: ["Stock"],
   request: { params: symbolParam },
   responses: {
@@ -1155,11 +1155,11 @@ const monthlyRevenueHistoryEntrySchema = z.object({
   industry: z.string().nullable(),
   currentMonthRevenue: z.string().nullable(),
   lastYearSameMonthRevenue: z.string().nullable(),
-  yoyChangePercent: z.number().nullable(),
-  momChangePercent: z.number().nullable(),
+  yoyChangePct: z.number().nullable(),
+  momChangePct: z.number().nullable(),
   cumulativeRevenue: z.string().nullable(),
   cumulativeLastYearRevenue: z.string().nullable(),
-  cumulativeChangePercent: z.number().nullable(),
+  cumulativeChangePct: z.number().nullable(),
   note: z.string().nullable(),
 });
 
@@ -1182,11 +1182,11 @@ const monthlyRevenueHistorySchema = z
           industry: "半導體業",
           currentMonthRevenue: "467580548",
           lastYearSameMonthRevenue: "323165707",
-          yoyChangePercent: 44.69,
-          momChangePercent: 5.62,
+          yoyChangePct: 44.69,
+          momChangePct: 5.62,
           cumulativeRevenue: "2872064238",
           cumulativeLastYearRevenue: "2096211240",
-          cumulativeChangePercent: 37.01,
+          cumulativeChangePct: 37.01,
           note: null,
         },
       ],
@@ -1198,7 +1198,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/monthly-revenue-history",
   summary: "查詢月營收年增率/月增率歷史（月營收年增率圖表用）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/monthly-revenue-history（底層是 twse-ts／tpex-ts 的月營收）。**起點看第一筆的月份，不要寫死**：2026-10-10 時每家都是 2021-09 起 60 個月，上游正在往 2016-01 回補。查無資料回傳空陣列，不是 404。currentMonthRevenue/lastYearSameMonthRevenue/cumulativeRevenue/cumulativeLastYearRevenue 是新台幣千元金額，序列化成字串避免精度問題；yoyChangePercent/momChangePercent/cumulativeChangePercent 是數字，缺乏可比較基期時為 null（例如整個序列最早一個月沒有更早的月份可比，momChangePercent 會是 null，即使 yoyChangePercent 有值）。note 是公司自行揭露的說明文字，analysis-ts 會給字面上的「無」字串（不是 null）代表公司回報「沒有特別說明」，真正的 null 只有在完全沒有揭露欄位時才會出現。limit 是 1-132（2026-10-10 前是 1-120；跟其他歷史類端點的 1-40 不一樣，這支端點自己的上限比較大），不給 limit 預設回傳全部（不像 metric-history 系列預設只給 20 筆）。total/hasMore 意義同 metric-history。entries 由舊到新排序。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/monthly-revenue-history（底層是 twse-ts／tpex-ts 的月營收）。**起點看第一筆的月份，不要寫死**：2026-10-10 時每家都是 2021-09 起 60 個月，上游正在往 2016-01 回補。查無資料回傳空陣列，不是 404。currentMonthRevenue/lastYearSameMonthRevenue/cumulativeRevenue/cumulativeLastYearRevenue 是新台幣千元金額，序列化成字串避免精度問題；yoyChangePct/momChangePct/cumulativeChangePct 是數字，缺乏可比較基期時為 null（例如整個序列最早一個月沒有更早的月份可比，momChangePct 會是 null，即使 yoyChangePct 有值）。note 是公司自行揭露的說明文字，analysis-ts 會給字面上的「無」字串（不是 null）代表公司回報「沒有特別說明」，真正的 null 只有在完全沒有揭露欄位時才會出現。limit 是 1-132（2026-10-10 前是 1-120；跟其他歷史類端點的 1-40 不一樣，這支端點自己的上限比較大），不給 limit 預設回傳全部（不像 metric-history 系列預設只給 20 筆）。total/hasMore 意義同 metric-history。entries 由舊到新排序。",
   tags: ["Stock"],
   request: {
     params: symbolParam,
@@ -1216,9 +1216,9 @@ registry.registerPath({
 
 const foreignShareholdingHistoryEntrySchema = z.object({
   tradeDate: z.string(),
-  sharesHeldPercent: z.number().nullable(),
-  foreignLimitPercent: z.number().nullable(),
-  availableInvestPercent: z.number().nullable(),
+  sharesHeldPct: z.number().nullable(),
+  foreignLimitPct: z.number().nullable(),
+  availableInvestPct: z.number().nullable(),
 });
 
 const foreignShareholdingHistorySchema = z
@@ -1230,8 +1230,8 @@ const foreignShareholdingHistorySchema = z
     example: {
       symbol: "2330",
       entries: [
-        { tradeDate: "2026-09-07", sharesHeldPercent: 69.27, foreignLimitPercent: 100, availableInvestPercent: 30.72 },
-        { tradeDate: "2026-09-04", sharesHeldPercent: 69.21, foreignLimitPercent: 100, availableInvestPercent: 30.78 },
+        { tradeDate: "2026-09-07", sharesHeldPct: 69.27, foreignLimitPct: 100, availableInvestPct: 30.72 },
+        { tradeDate: "2026-09-04", sharesHeldPct: 69.21, foreignLimitPct: 100, availableInvestPct: 30.78 },
       ],
     },
   });
@@ -1241,7 +1241,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/foreign-shareholding-history",
   summary: "查詢外資持股比例每日歷史",
   description:
-    "資料來自 oingg-analysis-ts 自己的 GET /stocks/:symbol/foreign-shareholding-history——跟這個網域其他歷史類端點不同，analysis-ts 這支本來就是 /stocks/:symbol/... 的路徑形狀（不是 /companies/xxx-history?symbol=），沒有 basis 參數。entries 是「新到舊」排序，跟 metric-history/roe-history/roa-history/dupont-history/monthly-revenue-history 的「舊到新」相反，請留意。limit 是 1-1500（確認過是即時資料，遠比其他季度/月度歷史端點的上限大），不給 limit 預設只回 250 筆，不是全部——實測 2330 給 limit=1500 拿到 1224 筆回溯到 2021 年，不給 limit 只有 250 筆回溯到 2025-08，兩者範圍不同，不要假設不給 limit 等於「查全部」。這支端點沒有 total/hasMore 欄位（跟其他 5 支歷史端點不同，已直接向 analysis-ts 確認過回應形狀，不是遺漏）。foreignLimitPercent 是該股票的外資持股上限（法規），100 代表無上限；availableInvestPercent = foreignLimitPercent - sharesHeldPercent，還有多少空間才會觸頂。查無資料（代號不存在）回傳空陣列，不是 404。",
+    "資料來自 oingg-analysis-ts 自己的 GET /stocks/:symbol/foreign-shareholding-history——跟這個網域其他歷史類端點不同，analysis-ts 這支本來就是 /stocks/:symbol/... 的路徑形狀（不是 /companies/xxx-history?symbol=），沒有 basis 參數。entries 是「新到舊」排序，跟 metric-history/roe-history/roa-history/dupont-history/monthly-revenue-history 的「舊到新」相反，請留意。limit 是 1-1500（確認過是即時資料，遠比其他季度/月度歷史端點的上限大），不給 limit 預設只回 250 筆，不是全部——實測 2330 給 limit=1500 拿到 1224 筆回溯到 2021 年，不給 limit 只有 250 筆回溯到 2025-08，兩者範圍不同，不要假設不給 limit 等於「查全部」。這支端點沒有 total/hasMore 欄位（跟其他 5 支歷史端點不同，已直接向 analysis-ts 確認過回應形狀，不是遺漏）。foreignLimitPct 是該股票的外資持股上限（法規），100 代表無上限；availableInvestPct = foreignLimitPct - sharesHeldPct，還有多少空間才會觸頂。查無資料（代號不存在）回傳空陣列，不是 404。",
   tags: ["Stock"],
   request: {
     params: symbolParam,

@@ -115,8 +115,8 @@ const revenueRankingEntrySchema = z.object({
   name: nameField,
   market: marketField,
   currentMonthRevenue: z.string(),
-  momChangePercent: z.string().nullable(),
-  yoyChangePercent: z.string().nullable(),
+  momChangePct: z.string().nullable(),
+  yoyChangePct: z.string().nullable(),
 });
 const revenueRankingResultSchema = z
   .object({
@@ -133,7 +133,7 @@ const revenueRankingResultSchema = z
       metric: "yoy",
       order: "desc",
       limit: 2,
-      rankings: [{ rank: 1, symbol: "4113", name: "聯上", market: "TPEx", currentMonthRevenue: "581140", momChangePercent: "250.1181", yoyChangePercent: "1096390.566" }],
+      rankings: [{ rank: 1, symbol: "4113", name: "聯上", market: "TPEx", currentMonthRevenue: "581140", momChangePct: "250.1181", yoyChangePct: "1096390.566" }],
       warnings: [],
     },
   });
@@ -142,7 +142,7 @@ registry.registerPath({
   method: "get",
   path: "/market/revenue-ranking",
   summary: "月營收排行——依 metric 指定排序依據（YoY／MoM／營收金額）",
-  description: "上市＋上櫃合併（2026-09-01 起）。metric/order 都是必填，沒有預設值。momChangePercent/yoyChangePercent 沒有可比較的前期資料時是 null，不是查詢失敗。",
+  description: "上市＋上櫃合併（2026-09-01 起）。metric/order 都是必填，沒有預設值。momChangePct/yoyChangePct 沒有可比較的前期資料時是 null，不是查詢失敗。",
   tags: ["Market"],
   request: {
     query: z.object({
@@ -172,7 +172,7 @@ const volumeTop20EntrySchema = z.object({
   close: z.string().nullable(),
   dir: z.string().nullable(),
   change: z.string().nullable(),
-  changePercent: z.string().nullable(),
+  changePct: z.string().nullable(),
 });
 const volumeTop20ResultSchema = z
   .object({ tradeDate: z.string().nullable(), rankings: z.array(volumeTop20EntrySchema) })
@@ -180,7 +180,7 @@ const volumeTop20ResultSchema = z
     example: {
       tradeDate: "2026-09-01",
       rankings: [
-        { rank: 1, symbol: "6182", name: "合晶", market: "TPEx", volume: "72836", transaction: null, open: null, high: null, low: null, close: null, dir: null, change: null, changePercent: "-4.09" },
+        { rank: 1, symbol: "6182", name: "合晶", market: "TPEx", volume: "72836", transaction: null, open: null, high: null, low: null, close: null, dir: null, change: null, changePct: "-4.09" },
       ],
     },
   });
@@ -190,7 +190,7 @@ registry.registerPath({
   path: "/market/volume-top20",
   summary: "成交量前20——上市＋上櫃合併，無查詢參數",
   description:
-    "刻意不排除 ETF／衍生性商品，跟本服務其他排行端點不同。TPEx 目前沒有 transaction/open/high/low/close/dir/change 這幾個欄位，會是 null（不是查詢失敗）。changePercent 是單日點對點漲跌幅，analysis-ts 自己用 daily_price 算的（不是來源的 dir/change 欄位），確保上市/上櫃算法一致，資料不足時是 null。",
+    "刻意不排除 ETF／衍生性商品，跟本服務其他排行端點不同。TPEx 目前沒有 transaction/open/high/low/close/dir/change 這幾個欄位，會是 null（不是查詢失敗）。changePct 是單日點對點漲跌幅，analysis-ts 自己用 daily_price 算的（不是來源的 dir/change 欄位），確保上市/上櫃算法一致，資料不足時是 null。",
   tags: ["Market"],
   responses: {
     200: { description: "成交量前20清單。", content: { "application/json": { schema: volumeTop20ResultSchema } } },
@@ -214,7 +214,7 @@ const disposedStockEntrySchema = z.object({
   dispositionMeasures: z.string().nullable(),
   detail: z.string(),
   linkInformation: z.string().nullable(),
-  sixDayChangePercent: z.string().nullable(),
+  sixDayChangePct: z.string().nullable(),
 });
 const disposedStocksResultSchema = z
   .object({ limit: z.number(), items: z.array(disposedStockEntrySchema), warnings: z.array(z.string()) })
@@ -237,7 +237,7 @@ const disposedStocksResultSchema = z
           dispositionMeasures: null,
           detail: "...",
           linkInformation: null,
-          sixDayChangePercent: "42.65",
+          sixDayChangePct: "42.65",
         },
       ],
       warnings: [],
@@ -249,7 +249,7 @@ registry.registerPath({
   path: "/market/disposed-stocks",
   summary: "處置股清單——依公告日期新到舊，上市＋上櫃合併",
   description:
-    "只涵蓋真正的上市/上櫃公司（已比對 company_profile 排除非公司標的）。TPEx 目前沒有 announcementCount/dispositionMeasures/linkInformation 這幾個欄位，會是 null（不是查詢失敗）。reasonTimes 是從 reason 解析出的次數（例如「連續五次」→5），reasonShort 是從 reason 解析出的中文短標籤，部分處置原因本身沒有次數/款次概念時兩者都是 null，不是解析失敗——⚠️ reasonShort 的 TPEx 端款次編號是比對 TWSE 規則名稱推斷的，未來可能修正。dispositionStartDate/dispositionEndDate 是把 dispositionPeriod 拆成的兩個西元日期欄位，dispositionPeriod 原始字串仍保留。sixDayChangePercent 是以 announceDate 為基準日往前推 6 個交易日的累積漲跌幅，資料不足 6 個交易日時是 null。",
+    "只涵蓋真正的上市/上櫃公司（已比對 company_profile 排除非公司標的）。TPEx 目前沒有 announcementCount/dispositionMeasures/linkInformation 這幾個欄位，會是 null（不是查詢失敗）。reasonTimes 是從 reason 解析出的次數（例如「連續五次」→5），reasonShort 是從 reason 解析出的中文短標籤，部分處置原因本身沒有次數/款次概念時兩者都是 null，不是解析失敗——⚠️ reasonShort 的 TPEx 端款次編號是比對 TWSE 規則名稱推斷的，未來可能修正。dispositionStartDate/dispositionEndDate 是把 dispositionPeriod 拆成的兩個西元日期欄位，dispositionPeriod 原始字串仍保留。sixDayChangePct 是以 announceDate 為基準日往前推 6 個交易日的累積漲跌幅，資料不足 6 個交易日時是 null。",
   tags: ["Market"],
   request: { query: limitQuery(MARKET_LIMIT_BOUNDS.disposedStocks) },
   responses: {
@@ -273,7 +273,7 @@ const attentionStockEntrySchema = z.object({
   tradeDate: z.string(),
   criteria: z.string(),
   criteriaDetails: z.array(attentionStockCriteriaDetailSchema),
-  sixDayChangePercent: z.string().nullable(),
+  sixDayChangePct: z.string().nullable(),
 });
 const attentionStocksResultSchema = z
   .object({ limit: z.number(), items: z.array(attentionStockEntrySchema), warnings: z.array(z.string()) })
@@ -288,7 +288,7 @@ const attentionStocksResultSchema = z
           tradeDate: "2026-09-01",
           criteria: "115年8月28日至115年8月31日連續二次",
           criteriaDetails: [{ startDate: "2026-08-28", endDate: "2026-08-31", observationDays: null, times: 2 }],
-          sixDayChangePercent: "41.08",
+          sixDayChangePct: "41.08",
         },
       ],
       warnings: [],
@@ -300,7 +300,7 @@ registry.registerPath({
   path: "/market/attention-stocks",
   summary: "注意股清單——依交易日新到舊，上市＋上櫃合併",
   description:
-    "只涵蓋真正的上市/上櫃公司（已比對 company_profile 排除非公司標的）。criteriaDetails 是 analysis-ts 把 criteria 中文說明解析成的結構化資料（陣列，因為原始文字有時會串接兩個子句）。observationDays 只有「N個營業日內已有M次」格式才有值，解析失敗時是空陣列，criteria 原始文字不受影響。sixDayChangePercent 是以 tradeDate 為基準日往前推 6 個交易日的累積漲跌幅，資料不足 6 個交易日時是 null。",
+    "只涵蓋真正的上市/上櫃公司（已比對 company_profile 排除非公司標的）。criteriaDetails 是 analysis-ts 把 criteria 中文說明解析成的結構化資料（陣列，因為原始文字有時會串接兩個子句）。observationDays 只有「N個營業日內已有M次」格式才有值，解析失敗時是空陣列，criteria 原始文字不受影響。sixDayChangePct 是以 tradeDate 為基準日往前推 6 個交易日的累積漲跌幅，資料不足 6 個交易日時是 null。",
   tags: ["Market"],
   request: { query: limitQuery(MARKET_LIMIT_BOUNDS.attentionStocks) },
   responses: {
@@ -321,7 +321,7 @@ const priceChangeRankingEntrySchema = z.object({
   close: z.string(),
   previousClose: z.string(),
   changeAmount: z.string(),
-  changePercent: z.string(),
+  changePct: z.string(),
 });
 const priceChangeRankingResultSchema = z
   .object({
@@ -333,7 +333,7 @@ const priceChangeRankingResultSchema = z
   .openapi("PriceChangeRankingResult", {
     example: {
       limit: 1,
-      gainers: [{ rank: 1, symbol: "2492", name: "華新科", market: "TWSE", tradeDate: "2026-08-28", previousTradeDate: "2026-08-27", close: "313.5", previousClose: "285", changeAmount: "28.5", changePercent: "10" }],
+      gainers: [{ rank: 1, symbol: "2492", name: "華新科", market: "TWSE", tradeDate: "2026-08-28", previousTradeDate: "2026-08-27", close: "313.5", previousClose: "285", changeAmount: "28.5", changePct: "10" }],
       losers: [],
       warnings: [],
     },

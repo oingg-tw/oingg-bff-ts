@@ -156,11 +156,11 @@ export interface MonetaryAggregateEntry {
   year: number;
   month: number;
   m1aAmount: number | null;
-  m1aYoyPercent: number | null;
+  m1aYoyPct: number | null;
   m1bAmount: number | null;
-  m1bYoyPercent: number | null;
+  m1bYoyPct: number | null;
   m2Amount: number | null;
-  m2YoyPercent: number | null;
+  m2YoyPct: number | null;
 }
 
 export interface MonetaryAggregateResult {
@@ -210,7 +210,7 @@ export interface StockMarketSummaryEntry {
   totalTradingValue: number | null;
   avgDailyTradingValue: number | null;
   avgTaiex: number | null;
-  avgTaiexYoyPercent: number | null;
+  avgTaiexYoyPct: number | null;
 }
 
 export interface StockMarketSummaryResult {
@@ -248,7 +248,7 @@ export interface CpiEntry {
   year: number;
   month: number;
   indexValue: number | null;
-  yoyChangePercent: number | null;
+  yoyChangePct: number | null;
 }
 
 /**
@@ -293,7 +293,7 @@ export type GdpCategory =
 
 /**
  * One quarter of 主計總處 GDP for one expenditure component — its contribution to growth in percentage
- * points. (A yoyChangePercent field existed for a few hours on 2026-09-22 and was removed upstream the same
+ * points. (A yoyChangePct field existed for a few hours on 2026-09-22 and was removed upstream the same
  * day, analysis-ts 7e4b4358 — deliberately not modelled here.)
  */
 export interface GdpEntry {

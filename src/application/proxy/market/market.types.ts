@@ -52,8 +52,8 @@ export interface RevenueRankingEntry {
   market: Market;
   currentMonthRevenue: string;
   /** null when there's no comparable prior month/year to compute a change against — not a query failure. */
-  momChangePercent: string | null;
-  yoyChangePercent: string | null;
+  momChangePct: string | null;
+  yoyChangePct: string | null;
 }
 
 export interface RevenueRankingResult {
@@ -86,7 +86,7 @@ export interface VolumeTop20Entry {
    * source's own dir/change fields, since TPEx doesn't have those natively) — guarantees the same
    * calculation for both markets. Null when there's no comparable prior trading day. Added 2026-09-02.
    */
-  changePercent: string | null;
+  changePct: string | null;
 }
 
 export interface VolumeTop20Result {
@@ -128,7 +128,7 @@ export interface DisposedStockEntry {
    * trading days exist. Added by analysis-ts on 2026-09-02 as price context for why this stock was
    * disposed (exchange thresholds reference exactly this kind of 6-day cumulative move).
    */
-  sixDayChangePercent: string | null;
+  sixDayChangePct: string | null;
 }
 
 export interface DisposedStocksResult {
@@ -164,9 +164,9 @@ export interface AttentionStockEntry {
    * trading days prior — compounded, not a sum of daily changes). Null when fewer than 6 comparable
    * trading days exist. Added by analysis-ts on 2026-09-02 — exchange attention-stock thresholds
    * themselves reference this kind of 6-day cumulative move, so it's price context for why a stock was
-   * flagged, same rationale as DisposedStockEntry's `sixDayChangePercent`.
+   * flagged, same rationale as DisposedStockEntry's `sixDayChangePct`.
    */
-  sixDayChangePercent: string | null;
+  sixDayChangePct: string | null;
 }
 
 export interface AttentionStocksResult {
@@ -194,7 +194,7 @@ export interface PriceChangeRankingEntry {
   close: string;
   previousClose: string;
   changeAmount: string;
-  changePercent: string;
+  changePct: string;
 }
 
 export interface PriceChangeRankingResult {

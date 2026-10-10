@@ -60,7 +60,7 @@ export interface MetricBadgeThreshold {
    * to the fixed-value comparator/value(Min/Max)/compareAgainstFieldId/allPositiveFieldIds fields above
    * (analysis-ts's convention: mutually exclusive with those, a threshold has either a fixed-value shape
    * or this one, never both — not enforced here, just passed through as-is either way). First metric:
-   * novyMarxGpToAssets (scope: market, topPercent 20).
+   * novyMarxGpToAssets (scope: market, topPct 20).
    */
   percentileRank?: MetricBadgePercentileRank;
 }
@@ -68,7 +68,7 @@ export interface MetricBadgeThreshold {
 export interface MetricBadgePercentileRank {
   scope: "market" | "sector";
   direction: "asc" | "desc";
-  topPercent: number;
+  topPct: number;
   /** Whether zero-value rows are excluded from the ranking population before computing the percentile — optional, absent means not excluded. */
   excludeZero?: boolean;
 }

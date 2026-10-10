@@ -59,12 +59,12 @@ export interface ScreenerGatewayPort {
    * 單一公司在全市場的名次／百分位。欄位有效性交給上游判定，這裡沒有本地型錄驗證——這個回應沒有顯示欄位
    * （metricName/fieldName），所以沒有東西需要對本地型錄解析，跟 runScreener/runRanking 不同。
    *
-   * 注意 `topPercent` 越小代表名次越好（5 = 市場前 5%），跟一般百分位方向相反；`found: false`（這個
+   * 注意 `topPct` 越小代表名次越好（5 = 市場前 5%），跟一般百分位方向相反；`found: false`（這個
    * 欄位對這檔沒資料，或這檔根本不存在）仍然是 200，不是 404。
    *
    * `excludeZero` 跟 getDistribution 同一個語意：true 時把該欄位剛好等於 0 的公司排除在母體外。對殖利率
    * 這種欄位差別很大——不配息的公司殖利率是 0，不排除的話「有配息公司中的排名」會被它們稀釋。只影響
-   * totalCount／topPercent，rank 不變（被排除的零值在降冪排序裡本來就排在後面）。
+   * totalCount／topPct，rank 不變（被排除的零值在降冪排序裡本來就排在後面）。
    */
   getCompanyRank(
     symbol: string,

@@ -29,8 +29,8 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
 const RAW_BODY = {
   symbol: "2330",
   entries: [
-    { tradeDate: "2026-09-07", sharesHeldPercent: 69.27, foreignLimitPercent: 100, availableInvestPercent: 30.72 },
-    { tradeDate: "2026-09-04", sharesHeldPercent: 69.21, foreignLimitPercent: 100, availableInvestPercent: 30.78 },
+    { tradeDate: "2026-09-07", sharesHeldPct: 69.27, foreignLimitPct: 100, availableInvestPct: 30.72 },
+    { tradeDate: "2026-09-04", sharesHeldPct: 69.21, foreignLimitPct: 100, availableInvestPct: 30.78 },
   ],
 };
 

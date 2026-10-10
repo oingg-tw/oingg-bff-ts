@@ -4,6 +4,7 @@ import { Router } from "ultimate-express";
 import { AppError } from "@/domain/appError.js";
 import { requestIdOf } from "@/http/requestLogger.js";
 import { clientIpOf, isFromNitro } from "@/http/clientIdentity.js";
+import { withLegacyResponseKeys } from "@/http/legacyResponseKeys.js";
 import { requestContext } from "@/shared/requestContext.js";
 import { openApiSpec } from "@/http/swagger/index.js";
 import { createBillingRouter } from "@/http/modules/billing/route.js";
@@ -87,6 +88,12 @@ export function createRoutes(deps: AppDeps): Router {
   // ——2026-10-08 依 conductor 的《Nuxt Nitro 全端架構下的個人資料保護》：快取採白名單、涉及個資的端點
   // no-store。反過來（預設可快取、個資端點自己記得關）的話，新增一支 per-user 端點時忘了關就會讓中間層
   // （Nitro 的快取、瀏覽器）把一個人的資料存起來給另一個人。
+  // 回應欄位改名並存期：送出前把舊名當別名補回去（見 legacyResponseKeys.ts）。web-nuxt 改完就刪這段與那個檔案。
+  routes.use((_req, res, next) => {
+    const send = res.json.bind(res);
+    res.json = (body: unknown) => send(withLegacyResponseKeys(body));
+    next();
+  });
   routes.use((_req, res, next) => {
     const requestId = requestIdOf(res);
     res.set("X-Request-Id", requestId);

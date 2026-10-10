@@ -110,8 +110,8 @@ function normalizeRevenueRankingEntry(raw: unknown): RevenueRankingEntry {
     name: typeof r.companyName === "string" ? r.companyName : null,
     market: normalizeMarket(r.market),
     currentMonthRevenue: toStringOrEmpty(r.currentMonthRevenue),
-    momChangePercent: toStringOrNull(r.momChangePercent),
-    yoyChangePercent: toStringOrNull(r.yoyChangePercent),
+    momChangePct: toStringOrNull((r.momChangePct ?? r.momChangePercent)),
+    yoyChangePct: toStringOrNull((r.yoyChangePct ?? r.yoyChangePercent)),
   };
 }
 
@@ -130,7 +130,7 @@ function normalizeVolumeTop20Entry(raw: unknown): VolumeTop20Entry {
     close: toStringOrNull(r.close),
     dir: toStringOrNull(r.dir),
     change: toStringOrNull(r.change),
-    changePercent: toStringOrNull(r.changePercent),
+    changePct: toStringOrNull((r.changePct ?? r.changePercent)),
   };
 }
 
@@ -151,7 +151,7 @@ function normalizeDisposedStockEntry(raw: unknown): DisposedStockEntry {
     dispositionMeasures: toStringOrNull(r.dispositionMeasures),
     detail: toStringOrEmpty(r.detail),
     linkInformation: toStringOrNull(r.linkInformation),
-    sixDayChangePercent: toStringOrNull(r.sixDayChangePercent),
+    sixDayChangePct: toStringOrNull((r.sixDayChangePct ?? r.sixDayChangePercent)),
   };
 }
 
@@ -174,7 +174,7 @@ function normalizeAttentionStockEntry(raw: unknown): AttentionStockEntry {
     tradeDate: toStringOrEmpty(r.tradeDate),
     criteria: toStringOrEmpty(r.criteria),
     criteriaDetails: Array.isArray(r.criteriaDetails) ? r.criteriaDetails.map(normalizeAttentionStockCriteriaDetail) : [],
-    sixDayChangePercent: toStringOrNull(r.sixDayChangePercent),
+    sixDayChangePct: toStringOrNull((r.sixDayChangePct ?? r.sixDayChangePercent)),
   };
 }
 
@@ -190,7 +190,7 @@ function normalizePriceChangeRankingEntry(raw: unknown): PriceChangeRankingEntry
     close: toStringOrEmpty(r.close),
     previousClose: toStringOrEmpty(r.previousClose),
     changeAmount: toStringOrEmpty(r.changeAmount),
-    changePercent: toStringOrEmpty(r.changePercent),
+    changePct: toStringOrEmpty((r.changePct ?? r.changePercent)),
   };
 }
 

@@ -22,7 +22,8 @@ function isRawPercentileRank(value: unknown): value is MetricBadgePercentileRank
   return (
     (PERCENTILE_RANK_SCOPES as readonly string[]).includes(p.scope) &&
     (PERCENTILE_RANK_DIRECTIONS as readonly string[]).includes(p.direction) &&
-    typeof p.topPercent === "number" &&
+    // topPct 是 2026-10-10 起的新名，topPercent 上游 2026-10-24 移除；只認一個的話，到期那天整份型錄會同步失敗。
+    typeof (p.topPct ?? (p as { topPercent?: unknown }).topPercent) === "number" &&
     (p.excludeZero === undefined || typeof p.excludeZero === "boolean")
   );
 }

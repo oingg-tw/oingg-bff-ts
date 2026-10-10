@@ -37,11 +37,11 @@ const RECENT_BODY = {
       industry: "半導體業",
       currentMonthRevenue: "442679969",
       lastYearSameMonthRevenue: "263708978",
-      yoyChangePercent: 67.87,
-      momChangePercent: 6.16,
+      yoyChangePct: 67.87,
+      momChangePct: 6.16,
       cumulativeRevenue: "2404483690",
       cumulativeLastYearRevenue: "1773045533",
-      cumulativeChangePercent: 35.61,
+      cumulativeChangePct: 35.61,
       note: "因先進製程產品需求增加所致。",
     },
     {
@@ -50,11 +50,11 @@ const RECENT_BODY = {
       industry: "半導體業",
       currentMonthRevenue: "467580548",
       lastYearSameMonthRevenue: "323165707",
-      yoyChangePercent: 44.69,
-      momChangePercent: 5.62,
+      yoyChangePct: 44.69,
+      momChangePct: 5.62,
       cumulativeRevenue: "2872064238",
       cumulativeLastYearRevenue: "2096211240",
-      cumulativeChangePercent: 37.01,
+      cumulativeChangePct: 37.01,
       note: null,
     },
   ],
@@ -67,11 +67,11 @@ const OLDEST_ENTRY = {
   industry: "半導體業",
   currentMonthRevenue: "137427162",
   lastYearSameMonthRevenue: "122878244",
-  yoyChangePercent: 11.84,
-  momChangePercent: null,
+  yoyChangePct: 11.84,
+  momChangePct: null,
   cumulativeRevenue: "996540313",
   cumulativeLastYearRevenue: "850137262",
-  cumulativeChangePercent: 17.22,
+  cumulativeChangePct: 17.22,
   note: "無",
 };
 
@@ -118,14 +118,14 @@ describe("fetchMonthlyRevenueHistory", () => {
   });
 
   // The earliest month in a symbol's backfilled series has no prior month to compare against —
-  // momChangePercent is null there even though yoyChangePercent (a different comparison) has a value.
-  it("preserves a null momChangePercent on the earliest month while yoyChangePercent still has a value", async () => {
+  // momChangePct is null there even though yoyChangePct (a different comparison) has a value.
+  it("preserves a null momChangePct on the earliest month while yoyChangePct still has a value", async () => {
     mockFetchOnce({ ok: true, body: { symbol: "2330", total: 60, hasMore: true, entries: [OLDEST_ENTRY] } });
 
     const result = await fetchMonthlyRevenueHistory("2330");
 
-    expect(result.entries[0]?.momChangePercent).toBeNull();
-    expect(result.entries[0]?.yoyChangePercent).toBe(11.84);
+    expect(result.entries[0]?.momChangePct).toBeNull();
+    expect(result.entries[0]?.yoyChangePct).toBe(11.84);
   });
 
   // analysis-ts sends the literal string "無" (not null) when a company explicitly reports nothing
@@ -172,5 +172,17 @@ describe("fetchMonthlyRevenueHistory", () => {
     mockFetchOnce({ ok: true, body: { symbol: "2330" } });
 
     await expect(fetchMonthlyRevenueHistory("2330")).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+// 2026-10-10 上游 *Percent → *Pct（舊名 2026-10-24 移除）：先讀新名、沒有才讀舊名。
+describe("fetchMonthlyRevenueHistory 改名並存", () => {
+  it("上游只給舊名時，新名欄位仍有值", async () => {
+    mockFetchOnce({
+      ok: true,
+      body: { symbol: "2330", total: 1, hasMore: false, entries: [{ yearMonth: "2026-08", yoyChangePercent: 33.8, momChangePercent: 4.4, cumulativeChangePercent: 30.1 }] },
+    });
+    const result = await fetchMonthlyRevenueHistory("2330");
+    expect(result.entries[0]).toMatchObject({ yoyChangePct: 33.8, momChangePct: 4.4, cumulativeChangePct: 30.1 });
   });
 });

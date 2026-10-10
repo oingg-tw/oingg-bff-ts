@@ -261,11 +261,11 @@ registry.registerPath({
 const monetaryAggregateEntrySchema = z.object({
   ...monthlyPeriodFields,
   m1aAmount: nullableNumber,
-  m1aYoyPercent: nullableNumber,
+  m1aYoyPct: nullableNumber,
   m1bAmount: nullableNumber,
-  m1bYoyPercent: nullableNumber,
+  m1bYoyPct: nullableNumber,
   m2Amount: nullableNumber,
-  m2YoyPercent: nullableNumber,
+  m2YoyPct: nullableNumber,
 });
 
 const monetaryAggregateResultSchema = z
@@ -273,7 +273,7 @@ const monetaryAggregateResultSchema = z
   .openapi("MonetaryAggregateResult", {
     example: {
       entries: [
-        { period: "2026-07", year: 2026, month: 7, m1aAmount: 12716291, m1aYoyPercent: 8.28, m1bAmount: 30530948, m1bYoyPercent: 7.34, m2Amount: 70224762, m2YoyPercent: 7.42 },
+        { period: "2026-07", year: 2026, month: 7, m1aAmount: 12716291, m1aYoyPct: 8.28, m1bAmount: 30530948, m1bYoyPct: 7.34, m2Amount: 70224762, m2YoyPct: 7.42 },
       ],
     },
   });
@@ -347,7 +347,7 @@ const stockMarketSummaryEntrySchema = z.object({
   totalTradingValue: nullableNumber,
   avgDailyTradingValue: nullableNumber,
   avgTaiex: nullableNumber,
-  avgTaiexYoyPercent: nullableNumber,
+  avgTaiexYoyPct: nullableNumber,
 });
 
 const stockMarketSummaryResultSchema = z
@@ -355,7 +355,7 @@ const stockMarketSummaryResultSchema = z
   .openapi("StockMarketSummaryResult", {
     example: {
       entries: [
-        { period: "2026-07", year: 2026, month: 7, listedCompanies: 1083, totalParValue: 7910895, totalMarketValue: 140848179, totalTradingValue: 20732353, avgDailyTradingValue: 942380, avgTaiex: 44366.29, avgTaiexYoyPercent: 93.208 },
+        { period: "2026-07", year: 2026, month: 7, listedCompanies: 1083, totalParValue: 7910895, totalMarketValue: 140848179, totalTradingValue: 20732353, avgDailyTradingValue: 942380, avgTaiex: 44366.29, avgTaiexYoyPct: 93.208 },
       ],
     },
   });
@@ -364,7 +364,7 @@ registry.registerPath({
   method: "get",
   path: "/macro/stock-market-summary",
   summary: "央行集中市場月摘要（上市家數、市值、成交值、加權指數月平均），月序列，1987-05 起",
-  description: `${SERIES_COMMON_NOTE}來源是 gov-ts 的央行集中市場月摘要（2026-09-22 新增，給大事件年表頁把大盤線往前推到 1987 用——/market/taiex-daily-price 只到 1999）。金額欄位（totalParValue／totalMarketValue／totalTradingValue／avgDailyTradingValue）單位是新台幣百萬元。**avgTaiex 是該月的加權指數「平均」，不是月底收盤**——不能跟 GET /market/taiex-daily-price 的收盤序列接成同一條線；本服務原樣轉發，不做重取樣、不跟日線合併，前端若整條線改用這支請自行標示是月平均。avgTaiexYoyPercent 是 avgTaiex 的年增率百分比。全歷史約 471 筆。${FROM_MONTH_NOTE}`,
+  description: `${SERIES_COMMON_NOTE}來源是 gov-ts 的央行集中市場月摘要（2026-09-22 新增，給大事件年表頁把大盤線往前推到 1987 用——/market/taiex-daily-price 只到 1999）。金額欄位（totalParValue／totalMarketValue／totalTradingValue／avgDailyTradingValue）單位是新台幣百萬元。**avgTaiex 是該月的加權指數「平均」，不是月底收盤**——不能跟 GET /market/taiex-daily-price 的收盤序列接成同一條線；本服務原樣轉發，不做重取樣、不跟日線合併，前端若整條線改用這支請自行標示是月平均。avgTaiexYoyPct 是 avgTaiex 的年增率百分比。全歷史約 471 筆。${FROM_MONTH_NOTE}`,
   tags: ["Macro"],
   request: { query: stockMarketSummaryQuerySchema.openapi("StockMarketSummaryQuery", { example: { from: "1990-01" } }) },
   responses: {
@@ -408,14 +408,14 @@ registry.registerPath({
 });
 
 // --- cpi ---
-const cpiEntrySchema = z.object({ ...monthlyPeriodFields, indexValue: nullableNumber, yoyChangePercent: nullableNumber });
+const cpiEntrySchema = z.object({ ...monthlyPeriodFields, indexValue: nullableNumber, yoyChangePct: nullableNumber });
 
 const cpiResultSchema = z
   .object({ category: z.enum(CPI_CATEGORIES), entries: z.array(cpiEntrySchema) })
   .openapi("CpiResult", {
     example: {
       category: "total",
-      entries: [{ period: "2026-07", year: 2026, month: 7, indexValue: 112.35, yoyChangePercent: 2.54 }, { period: "2026-08", year: 2026, month: 8, indexValue: 112.32, yoyChangePercent: 2.04 }],
+      entries: [{ period: "2026-07", year: 2026, month: 7, indexValue: 112.35, yoyChangePct: 2.54 }, { period: "2026-08", year: 2026, month: 8, indexValue: 112.32, yoyChangePct: 2.04 }],
     },
   });
 
@@ -423,7 +423,7 @@ registry.registerPath({
   method: "get",
   path: "/macro/cpi",
   summary: "主計總處消費者物價指數（CPI），依籃子分類，月序列",
-  description: `${SERIES_COMMON_NOTE}一次查一個分類：category 選填，${CPI_CATEGORIES.join("／")}，預設 total（總指數）——回應頂層會回 category 標明實際套用的是哪一個。indexValue 是指數水準，yoyChangePercent 是年增率百分比。${FROM_MONTH_NOTE}`,
+  description: `${SERIES_COMMON_NOTE}一次查一個分類：category 選填，${CPI_CATEGORIES.join("／")}，預設 total（總指數）——回應頂層會回 category 標明實際套用的是哪一個。indexValue 是指數水準，yoyChangePct 是年增率百分比。${FROM_MONTH_NOTE}`,
   tags: ["Macro"],
   request: { query: cpiQuerySchema.openapi("CpiQuery", { example: { from: "2020-01", category: "food" } }) },
   responses: {
@@ -454,7 +454,7 @@ registry.registerPath({
   method: "get",
   path: "/macro/gdp",
   summary: "主計總處 GDP，依支出面組成項目，季序列",
-  description: `${SERIES_COMMON_NOTE}一次查一個項目：category 選填，${GDP_CATEGORIES.join("／")}，預設 growth_rate——回應頂層會回 category 標明實際套用的是哪一個。contributionPoints 是該項目對經濟成長率的貢獻（百分點）——每筆只有這一個數值欄位（2026-09-22 稍早短暫有過 yoyChangePercent，同日已由 analysis-ts 移除）。季序列每筆 period 是 "YYYY-Qn"，帶 year 跟 quarter。全歷史從 1981-Q1 起（約 182 筆）。from 選填，"YYYY-Qn"（例 2026-Q1），只回 period >= 該季的資料（含）；格式錯誤會 400（本服務先擋，不打上游）。`,
+  description: `${SERIES_COMMON_NOTE}一次查一個項目：category 選填，${GDP_CATEGORIES.join("／")}，預設 growth_rate——回應頂層會回 category 標明實際套用的是哪一個。contributionPoints 是該項目對經濟成長率的貢獻（百分點）——每筆只有這一個數值欄位（2026-09-22 稍早短暫有過 yoyChangePct，同日已由 analysis-ts 移除）。季序列每筆 period 是 "YYYY-Qn"，帶 year 跟 quarter。全歷史從 1981-Q1 起（約 182 筆）。from 選填，"YYYY-Qn"（例 2026-Q1），只回 period >= 該季的資料（含）；格式錯誤會 400（本服務先擋，不打上游）。`,
   tags: ["Macro"],
   request: { query: gdpQuerySchema.openapi("GdpQuery", { example: { from: "2020-Q1", category: "exports" } }) },
   responses: {
