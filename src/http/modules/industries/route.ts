@@ -25,7 +25,8 @@ export const sectorMetricHistoryQuerySchema = z.object({
   limit: limitSchema(1, 40),
 });
 
-export const sectorMonthlyRevenueHistoryQuerySchema = z.object({ limit: limitSchema(1, 120) });
+// 上限跟 analysis-ts 一起從 120 調到 132（2026-10-10，758a2b90）：月營收回補目標是 2016-01，到 2026-08 約 128 個月。
+export const sectorMonthlyRevenueHistoryQuerySchema = z.object({ limit: limitSchema(1, 132) });
 
 /** fields 原樣轉給上游（逗號分隔，最多 10 個由上游驗）；這裡只擋空值。 */
 export const sectorSummaryQuerySchema = z.object({

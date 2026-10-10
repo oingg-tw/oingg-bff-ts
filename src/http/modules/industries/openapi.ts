@@ -120,7 +120,7 @@ registry.registerPath({
   summary: "類股月營收歷史（同一批公司的年增率）",
   description:
     "analysis-ts 的 GET /industries/{sectorCode}/monthly-revenue-history 原樣轉發（2026-10-09 起）。年增率用同一批公司計算。" +
-    "revenue／lastYearRevenue 是新台幣千元的字串。limit 1～120，不給時上游預設 60；total／hasMore 意義同其他歷史端點。",
+    "revenue／lastYearRevenue 是新台幣千元的字串。limit 1～132（2026-10-10 前是 120），不給時上游預設 60；**起點看第一筆的 yearMonth**（上游正在往 2016-01 回補）；total／hasMore 意義同其他歷史端點。",
   tags: ["Industries"],
   request: { params: sectorCodeParam, query: sectorMonthlyRevenueHistoryQuerySchema },
   responses: {
@@ -144,7 +144,7 @@ registry.registerPath({
         },
       },
     },
-    400: errorResponse("limit 超出 1～120。"),
+    400: errorResponse("limit 超出 1～132。"),
     404: errorResponse("類股代碼查無上市櫃公司（code: unknown_sector）。上游路由不存在（部署落後）是 502，不是這個 404。"),
     502: errorResponse("analysis-ts 服務無法連線或回應格式異常。"),
   },

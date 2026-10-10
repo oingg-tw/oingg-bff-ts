@@ -124,7 +124,7 @@ export const dupontHistoryQuerySchema = z.object({
   limit: historyLimitSchema,
 });
 
-// analysis-ts's own bound for this endpoint is 1-120, NOT the same 1-40 as the other history endpoints
+// analysis-ts's own bound for this endpoint is 1-132 (was 1-120 until 2026-10-10), NOT the same 1-40 as the other history endpoints
 // above — confirmed live, 2026-09-07.
 
 /**
@@ -137,7 +137,7 @@ export const valuationRiverQuerySchema = z.object({
 });
 
 export const monthlyRevenueHistoryQuerySchema = z.object({
-  limit: limitSchema(1, 120),
+  limit: limitSchema(1, 132), // 2026-10-10 跟 analysis-ts 758a2b90 一起從 120 調到 132（回補到 2016-01 約 128 個月）
 });
 
 // analysis-ts's own bound for this endpoint is 1-1500 (confirmed live, 2026-09-08) — much wider than

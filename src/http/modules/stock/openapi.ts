@@ -1245,7 +1245,7 @@ registry.registerPath({
   path: "/stocks/{symbol}/monthly-revenue-history",
   summary: "查詢月營收年增率/月增率歷史（月營收年增率圖表用）",
   description:
-    "資料來自 oingg-analysis-ts 的 GET /companies/monthly-revenue-history——一次性 60 個月 backfill（截至 2026-09-07 僅 2330 有資料，其餘代號回傳空陣列，不是 404）。currentMonthRevenue/lastYearSameMonthRevenue/cumulativeRevenue/cumulativeLastYearRevenue 是新台幣千元金額，序列化成字串避免精度問題；yoyChangePercent/momChangePercent/cumulativeChangePercent 是數字，缺乏可比較基期時為 null（例如整個序列最早一個月沒有更早的月份可比，momChangePercent 會是 null，即使 yoyChangePercent 有值）。note 是公司自行揭露的說明文字，analysis-ts 會給字面上的「無」字串（不是 null）代表公司回報「沒有特別說明」，真正的 null 只有在完全沒有揭露欄位時才會出現。limit 是 1-120（跟其他歷史類端點的 1-40 不一樣，這支端點自己的上限比較大），不給 limit 預設回傳全部（不像 metric-history 系列預設只給 20 筆）。total/hasMore 意義同 metric-history。entries 由舊到新排序。",
+    "資料來自 oingg-analysis-ts 的 GET /companies/monthly-revenue-history（底層是 twse-ts／tpex-ts 的月營收）。**起點看第一筆的月份，不要寫死**：2026-10-10 時每家都是 2021-09 起 60 個月，上游正在往 2016-01 回補。查無資料回傳空陣列，不是 404。currentMonthRevenue/lastYearSameMonthRevenue/cumulativeRevenue/cumulativeLastYearRevenue 是新台幣千元金額，序列化成字串避免精度問題；yoyChangePercent/momChangePercent/cumulativeChangePercent 是數字，缺乏可比較基期時為 null（例如整個序列最早一個月沒有更早的月份可比，momChangePercent 會是 null，即使 yoyChangePercent 有值）。note 是公司自行揭露的說明文字，analysis-ts 會給字面上的「無」字串（不是 null）代表公司回報「沒有特別說明」，真正的 null 只有在完全沒有揭露欄位時才會出現。limit 是 1-132（2026-10-10 前是 1-120；跟其他歷史類端點的 1-40 不一樣，這支端點自己的上限比較大），不給 limit 預設回傳全部（不像 metric-history 系列預設只給 20 筆）。total/hasMore 意義同 metric-history。entries 由舊到新排序。",
   tags: ["Stock"],
   request: {
     params: symbolParam,
@@ -1256,7 +1256,7 @@ registry.registerPath({
       description: "月營收歷史，查無資料時 entries 為空陣列。",
       content: { "application/json": { schema: monthlyRevenueHistorySchema } },
     },
-    400: errorResponse("limit 超出 1-120 範圍，或缺少必填參數。"),
+    400: errorResponse("limit 超出 1-132 範圍，或缺少必填參數。"),
     502: unauthorized502,
   },
 });
