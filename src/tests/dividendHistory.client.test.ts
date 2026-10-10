@@ -188,7 +188,7 @@ describe("fetchDividendHistory", () => {
 
     const result = await fetchDividendHistory("2496");
 
-    expect(result.entries.at(-1)).toMatchObject({ fiscalYear: null, rocFiscalYear: null });
+    expect(result.entries.at(-1)).toMatchObject({ fiscalYear: null });
     expect(result.entries[0]!.fiscalYear).toBe(RAW_YEAR.fiscalYear);
   });
 

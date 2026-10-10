@@ -1,6 +1,6 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
-import { parseBody, withLegacyQueryNames } from "@/shared/validation.js";
+import { parseBody, rejectRetiredParams } from "@/shared/validation.js";
 import { runEtfScreener, type EtfScreenerDeps } from "@/application/proxy/etfScreener/etfScreener.service.js";
 import {
   DEFAULT_ETF_SCREENER_PAGE_SIZE,
@@ -42,8 +42,7 @@ export function createEtfScreenerRouter(deps: EtfScreenerDeps): Router {
   });
 
   etfScreenerRouter.post("/", async (req, res) => {
-    // sortOrder 是並存期舊名（2026-10-10 起叫 order，跟 analysis-ts 810da900 同名），web-nuxt 改完就刪這層。
-    const body = parseBody(etfScreenerRequestSchema, withLegacyQueryNames(req.body, { sortOrder: "order" }));
+    const body = parseBody(etfScreenerRequestSchema, rejectRetiredParams(req.body, { sortOrder: "order" }));
     const filters = (body.filters ?? []).map(toEtfScreenerFilter);
     const columns = body.columns ?? [];
     const page = body.page ?? 1;

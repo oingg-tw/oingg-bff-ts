@@ -1,7 +1,7 @@
 import { Router } from "ultimate-express";
 import { z } from "zod";
 import { UUID_PATTERN } from "@/shared/uuid.js";
-import { booleanQueryParam, parseBody, parseQuery, withLegacyQueryNames } from "@/shared/validation.js";
+import { booleanQueryParam, parseBody, parseQuery, rejectRetiredParams } from "@/shared/validation.js";
 import { createOptionalAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { runRanking, runScreener, runScreenerValues, type ScreenerDeps } from "@/application/proxy/screener/screener.service.js";
@@ -156,8 +156,7 @@ export function createScreenerRouter(deps: ColumnPresetsDeps & ScreenerDeps & Au
 
   screenerRouter.post("/", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = req.user?.uid;
-    // sortOrder 是並存期舊名（2026-10-10 起叫 order，跟 analysis-ts 810da900 同名），web-nuxt 改完就刪這層。
-    const body = parseBody(screenerRequestSchema, withLegacyQueryNames(req.body, { sortOrder: "order" }));
+    const body = parseBody(screenerRequestSchema, rejectRetiredParams(req.body, { sortOrder: "order" }));
     const filters = normalizeScreenerFilters(body.filters);
     const pagination = { page: body.page ?? 1, pageSize: body.pageSize ?? DEFAULT_PAGE_SIZE };
     const sort = body.sortField !== undefined ? { field: body.sortField, order: body.order! } : undefined;
@@ -182,8 +181,8 @@ export function createScreenerRouter(deps: ColumnPresetsDeps & ScreenerDeps & Au
   });
 
   screenerRouter.get("/ranking", async (req, res) => {
-    // direction 是並存期舊名（2026-10-10 起叫 order），web-nuxt 改完就刪這層與回應裡的 direction。
-    const query = parseQuery(rankingQuerySchema, withLegacyQueryNames(req.query, { direction: "order" }));
+    // order 選填、預設 desc，所以舊名 direction 要明確擋：靜靜剝掉的話 direction=asc 會回 desc 的排行。
+    const query = parseQuery(rankingQuerySchema, rejectRetiredParams(req.query, { direction: "order" }));
     const order = query.order ?? "desc";
     const limit = query.limit ?? DEFAULT_RANKING_LIMIT;
     const columns = parseRankingColumns(query.columns);
@@ -191,11 +190,11 @@ export function createScreenerRouter(deps: ColumnPresetsDeps & ScreenerDeps & Au
     const excludeSectorCodes = parseSectorCodes(query.excludeSectorCodes);
 
     const result = await runRanking(query.field, order, limit, columns, sectorCodes, excludeSectorCodes, deps);
-    res.json({ ...result, direction: result.order });
+    res.json(result);
   });
 
   screenerRouter.get("/company-rank", async (req, res) => {
-    const query = parseQuery(companyRankQuerySchema, withLegacyQueryNames(req.query, { direction: "order" })); // 並存期舊名，同 /ranking
+    const query = parseQuery(companyRankQuerySchema, rejectRetiredParams(req.query, { direction: "order" }));
     const result = await deps.screenerGateway.getCompanyRank(query.symbol, query.field, query.order, query.excludeZero);
     res.json(result);
   });

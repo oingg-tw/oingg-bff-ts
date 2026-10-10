@@ -16,7 +16,7 @@ export type IndustriesDeps = Pick<AppDeps, "industriesGateway">;
  * 請求 0 次，但那個窗的採樣有缺口（他們的站台檢查只涵蓋腳本 ROUTES 清單裡的 69 條路由，不是全站頁面）。
  */
 /**
- * 類股分布三支（2026-10-09）。驗證只做到形狀：metricCode／timeframe 不列舉（timeframe 2026-10-10 前叫 basis，並存期仍收）——哪些指標、哪些期別合法由上游判斷
+ * 類股分布三支（2026-10-09）。驗證只做到形狀：metricCode／timeframe 不列舉（timeframe 2026-10-10 前叫 basis；舊名 2026-10-11 起不收，timeframe 必填所以給舊名會 400）——哪些指標、哪些期別合法由上游判斷
  * （每股類、非季報型回 400 並帶 code），在這裡列舉等於每加一支指標就要動業務中台。對外跟上游同名 timeframe。
  */
 export const sectorMetricHistoryQuerySchema = z.object({

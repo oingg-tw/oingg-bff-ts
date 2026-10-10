@@ -57,7 +57,7 @@ describe("fetchRoeHistory", () => {
 
     const result = await fetchRoeHistory("2330", "TTM");
 
-    expect(result).toEqual({ symbol: "2330", timeframe: "TTM", basis: "TTM", total: 20, hasMore: true, coverage: null, entries: ROE_BODY.entries });
+    expect(result).toEqual({ symbol: "2330", timeframe: "TTM", total: 20, hasMore: true, coverage: null, entries: ROE_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/roe-history?symbol=2330&timeframe=TTM");
   });
@@ -94,7 +94,6 @@ describe("fetchRoeHistory", () => {
     await expect(fetchRoeHistory("ZZZZ", "TTM")).resolves.toEqual({
       symbol: "ZZZZ",
       timeframe: "TTM",
-      basis: "TTM",
       total: 0,
       hasMore: false,
       coverage: null,
@@ -124,7 +123,7 @@ describe("fetchRoaHistory", () => {
 
     const result = await fetchRoaHistory("2330", "TTM");
 
-    expect(result).toEqual({ symbol: "2330", timeframe: "TTM", basis: "TTM", total: 20, hasMore: true, coverage: null, entries: ROA_BODY.entries });
+    expect(result).toEqual({ symbol: "2330", timeframe: "TTM", total: 20, hasMore: true, coverage: null, entries: ROA_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/roa-history?symbol=2330&timeframe=TTM");
   });

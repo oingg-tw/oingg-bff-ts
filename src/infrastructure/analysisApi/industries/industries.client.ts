@@ -22,15 +22,12 @@ import type {
 } from "@/application/proxy/industries/industries.types.js";
 import type { IndustriesGatewayPort } from "@/application/ports/industriesGateway.js";
 
-/**
- * code／name 是並存期舊名（2026-10-10 起，跟著 analysis-ts 批次 2b，上游 2026-10-24 移除）：讀新名優先，回應裡把
- * 舊名補回去給 web-nuxt。web-nuxt 改完就刪掉回傳的 code／name；上游舊名移除後把 renamedField 換回直接讀新名。
- */
-function normalizeSector(raw: unknown): SecuritiesSector & { code: string; name: string } {
+/** code／name 是上游 2026-10-10 前的名字（2026-10-24 移除）：新名優先；上游舊名移除後把 renamedField 換回直接讀新名。 */
+function normalizeSector(raw: unknown): SecuritiesSector {
   const r = raw as Record<string, unknown>;
   const sectorCode = String(renamedField(r, "sectorCode", "code"));
   const sectorName = String(renamedField(r, "sectorName", "name"));
-  return { sectorCode, sectorName, companyCount: Number(r.companyCount), code: sectorCode, name: sectorName };
+  return { sectorCode, sectorName, companyCount: Number(r.companyCount) };
 }
 
 /**
@@ -160,7 +157,7 @@ async function relayUnknownSector(response: Response): Promise<void> {
   throw new AppError(detail, 404, undefined, "unknown_sector");
 }
 
-function normalizeSectorMetricHistory(body: unknown): SectorMetricHistory & { basis: string } {
+function normalizeSectorMetricHistory(body: unknown): SectorMetricHistory {
   const b = asRecord(body);
   const label = "Sector metric history";
   if (!Array.isArray(b.entries)) {
@@ -171,8 +168,6 @@ function normalizeSectorMetricHistory(body: unknown): SectorMetricHistory & { ba
     sectorName: requireString(b.sectorName, "sectorName", label),
     metricCode: requireString(b.metricCode, "metricCode", label),
     timeframe: requireString(b.timeframe, "timeframe", label),
-    // 並存期舊名（2026-10-10 起改叫 timeframe），web-nuxt 改完就刪。
-    basis: requireString(b.timeframe, "timeframe", label),
     entries: b.entries.map((raw) => {
       const e = asRecord(raw);
       return {
@@ -188,7 +183,7 @@ function normalizeSectorMetricHistory(body: unknown): SectorMetricHistory & { ba
   };
 }
 
-export async function fetchSectorMetricHistory(sectorCode: string, metricCode: string, basis: string, limit?: number): Promise<SectorMetricHistory & { basis: string }> {
+export async function fetchSectorMetricHistory(sectorCode: string, metricCode: string, basis: string, limit?: number): Promise<SectorMetricHistory> {
   const params: Record<string, string> = { metricCode, timeframe: basis };
   if (limit !== undefined) {
     params.limit = String(limit);

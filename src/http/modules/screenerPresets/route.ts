@@ -2,7 +2,7 @@ import { Router } from "ultimate-express";
 import { z } from "zod";
 import { AppError } from "@/domain/appError.js";
 import { UUID_PATTERN, parseUuidParam } from "@/shared/uuid.js";
-import { parseBody, parseQuery, withLegacyQueryNames } from "@/shared/validation.js";
+import { parseBody, parseQuery, rejectRetiredParams } from "@/shared/validation.js";
 import { createRequireAuth, type AuthMiddlewareDeps } from "@/http/middleware/auth.middleware.js";
 import type { AuthenticatedRequest } from "@/http/authenticatedRequest.js";
 import { DEFAULT_PAGE_SIZE, paginationSchema } from "@/application/proxy/screener/pagination.js";
@@ -159,7 +159,7 @@ export function createScreenerPresetsRouter(deps: ScreenerPresetsRouterDeps): Ro
   screenerPresetsRouter.get("/:id/run", async (req: AuthenticatedRequest, res) => {
     const firebaseUid = requireUser(req);
     const id = parseId(req.params.id ?? "");
-    const query = parseQuery(runPresetQuerySchema, withLegacyQueryNames(req.query, { sortOrder: "order" })); // 並存期舊名（2026-10-10 起叫 order）
+    const query = parseQuery(runPresetQuerySchema, rejectRetiredParams(req.query, { sortOrder: "order" }));
     const pagination = { page: query.page ?? 1, pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE };
     const sort = query.sortField !== undefined ? { field: query.sortField, order: query.order! } : undefined;
     const result = await runPreset(firebaseUid, id, pagination, query.columnPresetId, sort, deps);

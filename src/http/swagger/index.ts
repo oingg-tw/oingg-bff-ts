@@ -47,7 +47,7 @@ function generateDocument() {
         "歷史端點回應裡的期別回聲 basis／token → timeframe（跟查詢參數同名）。" +
         "排序方向（批次 3）：POST /screener、POST /etf-screener、GET /screener/presets/{id}/run 的 sortOrder → order；" +
         "GET /screener/ranking、/screener/company-rank 的 direction → order（ranking 回應裡的 direction 也是）；/metrics 徽章 percentileRank.direction → order。" +
-        "批次 2b、2c、3 還在並存期：這份文件只列新名，回應裡同時帶舊名（值與舊時相同，financialReportType 維持交易所編碼）、舊的請求參數照收（兩者都給以新名為準），web-nuxt 改完就移除。"
+        "批次 2b、2c、3 的舊名並存到 2026-10-11（web-nuxt 確認改完）：回應只剩新名，舊的請求參數（sortOrder、direction）給了會 400 並指出新名。"
     },
     servers: [
       {

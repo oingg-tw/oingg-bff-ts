@@ -71,7 +71,7 @@ export async function fetchMetricProvenance(
   fiscalQuarter?: number,
   timeframe?: string,
   asOfDate?: string,
-): Promise<MetricProvenanceResult & { periodType: string | null }> {
+): Promise<MetricProvenanceResult> {
   const searchParams: Record<string, string> = { metricCode };
   // 上游 05967082（2026-10-10）起的參數名：fiscalYear／fiscalQuarter（西元、整數）與 timeframe；舊的 year／season／
   // periodType 2026-10-24 移除。
@@ -113,7 +113,5 @@ export async function fetchMetricProvenance(
     // 2026-10-10 前上游叫 periodType（批次 2c，2026-10-24 移除）：新名優先、舊名後備。
     timeframe: toStringOrNull(renamedField(body, "timeframe", "periodType")),
     methodologyNote: toStringOrNull(body.methodologyNote),
-    // 並存期舊名，web-nuxt 改完就刪。
-    periodType: toStringOrNull(renamedField(body, "timeframe", "periodType")),
   };
 }

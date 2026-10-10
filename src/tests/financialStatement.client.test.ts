@@ -65,8 +65,7 @@ describe("fetchFinancialStatement", () => {
 
     const result = await fetchFinancialStatement("2330", "balanceSheet");
 
-    // 並存期回應裡補回的舊名維持舊值：year 是民國年字串、season 是字串。
-    expect(result).toEqual({ ...BALANCE_SHEET_BODY, year: "115", season: "2", reportDate: "2026-06-30" });
+    expect(result).toEqual(BALANCE_SHEET_BODY);
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/financial-statement?symbol=2330&statementType=balanceSheet");
   });
@@ -96,7 +95,7 @@ describe("fetchFinancialStatement", () => {
   it("returns found:false with a null statement for an unknown symbol or a quarter with no filing, without throwing", async () => {
     mockFetchOnce({ ok: true, body: NOT_FOUND_BODY });
 
-    await expect(fetchFinancialStatement("9999", "balanceSheet")).resolves.toEqual({ ...NOT_FOUND_BODY, year: null, season: null, reportDate: null });
+    await expect(fetchFinancialStatement("9999", "balanceSheet")).resolves.toEqual(NOT_FOUND_BODY);
   });
 
   // 批次 2c 並存期：部署的 analysis-ts 可能只送舊名，舊 year 是民國年字串，要換算成西元整數。
@@ -108,13 +107,11 @@ describe("fetchFinancialStatement", () => {
       fiscalYear: 2026,
       fiscalQuarter: 2,
       fiscalPeriodEndDate: "2026-06-30",
-      year: "115",
-      season: "2",
     });
   });
 
-  // found 為 false 時上游新名是 null、舊 year 卻回顯查詢的年度（實測 2026-10-10）。新名在就以新名為準（null 也算），
-  // 舊名在就原樣轉發——兩邊都不能拿對方補。
+  // found 為 false 時上游新名曾是 null、舊 year 卻回顯查詢的年度（實測 2026-10-10，上游 fb65b1b1 已改成一致）。
+  // 新名在就以新名為準（null 也算），不能拿舊名的回顯補。
   it("keeps fiscalYear null on found:false even though the old year echoes the requested year", async () => {
     mockFetchOnce({ ok: true, body: { ...NOT_FOUND_BODY, symbol: "6488", year: "108", season: "4", reportDate: null } });
 
@@ -122,8 +119,6 @@ describe("fetchFinancialStatement", () => {
       found: false,
       fiscalYear: null,
       fiscalQuarter: null,
-      year: "108",
-      season: "4",
     });
   });
 

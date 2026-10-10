@@ -85,7 +85,7 @@ describe("fetchDupontHistory", () => {
 
     const result = await fetchDupontHistory("2330", "Q");
 
-    expect(result).toEqual({ symbol: "2330", timeframe: "Q", basis: "Q", total: 20, hasMore: true, entries: Q_BODY.entries });
+    expect(result).toEqual({ symbol: "2330", timeframe: "Q", total: 20, hasMore: true, entries: Q_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/dupont-history?symbol=2330&timeframe=Q");
   });
@@ -151,7 +151,6 @@ describe("fetchDupontHistory", () => {
     await expect(fetchDupontHistory("ZZZZ", "Q")).resolves.toEqual({
       symbol: "ZZZZ",
       timeframe: "Q",
-      basis: "Q",
       total: 0,
       hasMore: false,
       entries: [],

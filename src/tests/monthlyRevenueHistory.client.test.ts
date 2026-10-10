@@ -81,8 +81,7 @@ describe("fetchMonthlyRevenueHistory", () => {
 
     const result = await fetchMonthlyRevenueHistory("2330");
 
-    // 並存期回應裡補回舊名 reportDate／industry（值同新名）。
-    expect(result).toEqual({ symbol: "2330", total: 60, hasMore: true, entries: RECENT_BODY.entries.map((e) => ({ ...e, reportDate: e.announcementDate, industry: e.sectorName })) });
+    expect(result).toEqual({ symbol: "2330", total: 60, hasMore: true, entries: RECENT_BODY.entries });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/monthly-revenue-history?symbol=2330");
   });
@@ -146,7 +145,7 @@ describe("fetchMonthlyRevenueHistory", () => {
 
     const result = await fetchMonthlyRevenueHistory("2330");
 
-    expect(result.entries[0]).toMatchObject({ announcementDate: "2021-09-10", sectorName: "半導體業", reportDate: "2021-09-10", industry: "半導體業" });
+    expect(result.entries[0]).toMatchObject({ announcementDate: "2021-09-10", sectorName: "半導體業" });
   });
 
   it("keeps note null when analysis-ts sends null (no remark filed at all)", async () => {

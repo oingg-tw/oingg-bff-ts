@@ -18,34 +18,6 @@ function flipDataTypeEncoding(code: string | null): string | null {
   return code === "1" ? "2" : code === "2" ? "1" : null;
 }
 
-/**
- * 並存期舊名（2026-10-10 起，跟著 analysis-ts 批次 2b；web-nuxt 改完就刪這個型別、withLegacyProfileKeys 與它的呼叫）。
- *
- * 不用一張通用的「新名→舊名」對照表：sectorCode 的舊名在這裡是 industry，在類股字典是 code；而
- * financialReportType 不是別名而是**舊編碼**，並存期的意思是舊欄位讀起來跟以前一樣。唯一變好的是 industryName：
- * 以前上櫃一律 null，現在跟 sectorName 一樣有值。
- */
-interface LegacyCompanyProfileKeys {
-  reportDate: string | null;
-  industry: string | null;
-  industryName: string | null;
-  listedDate: string | null;
-  preferredStockShares: string | null;
-  financialReportType: string | null;
-}
-
-function withLegacyProfileKeys(profile: CompanyProfile): CompanyProfile & LegacyCompanyProfileKeys {
-  return {
-    ...profile,
-    reportDate: profile.generatedDate,
-    industry: profile.sectorCode,
-    industryName: profile.sectorName,
-    listedDate: profile.listingDate,
-    preferredStockShares: profile.numberOfPreferenceShares,
-    financialReportType: flipDataTypeEncoding(profile.declaredDataType),
-  };
-}
-
 function normalizeCompanyProfile(raw: Record<string, unknown>): CompanyProfile {
   const metricDataType = passThroughEnum(raw.metricDataType, ["1", "2"] as const, { field: "metricDataType", symbol: raw.symbol });
   if (metricDataType === null) {
@@ -117,5 +89,5 @@ export async function fetchCompanyProfile(symbol: string): Promise<CompanyProfil
     throw new AppError("Company profile endpoint response is missing symbol", 502);
   }
 
-  return withLegacyProfileKeys(normalizeCompanyProfile(body as Record<string, unknown>));
+  return normalizeCompanyProfile(body as Record<string, unknown>);
 }

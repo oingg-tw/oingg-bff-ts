@@ -15,21 +15,13 @@ function toNumberOrNull(value: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
 
-/** 並存期舊名（2026-10-10 起，analysis-ts 批次 2c；web-nuxt 改完就刪這個型別與回傳裡的兩個舊欄位）。值同新名。 */
-interface LegacyMonthlyRevenueKeys {
-  reportDate: string | null;
-  industry: string | null;
-}
-
-function normalizeEntry(raw: unknown): MonthlyRevenueHistoryEntry & LegacyMonthlyRevenueKeys {
+function normalizeEntry(raw: unknown): MonthlyRevenueHistoryEntry {
   const r = raw as Record<string, unknown>;
   // 新名優先、舊名後備：上游舊名 2026-10-24 移除。
-  const announcementDate = toStringOrNull(renamedField(r, "announcementDate", "reportDate"));
-  const sectorName = toStringOrNull(renamedField(r, "sectorName", "industry"));
   return {
     yearMonth: String(r.yearMonth),
-    announcementDate,
-    sectorName,
+    announcementDate: toStringOrNull(renamedField(r, "announcementDate", "reportDate")),
+    sectorName: toStringOrNull(renamedField(r, "sectorName", "industry")),
     currentMonthRevenue: toStringOrNull(r.currentMonthRevenue),
     lastYearSameMonthRevenue: toStringOrNull(r.lastYearSameMonthRevenue),
     yoyChangePct: toNumberOrNull(renamedField(r, "yoyChangePct", "yoyChangePercent")),
@@ -38,8 +30,6 @@ function normalizeEntry(raw: unknown): MonthlyRevenueHistoryEntry & LegacyMonthl
     cumulativeLastYearRevenue: toStringOrNull(r.cumulativeLastYearRevenue),
     cumulativeChangePct: toNumberOrNull(renamedField(r, "cumulativeChangePct", "cumulativeChangePercent")),
     note: toStringOrNull(r.note),
-    reportDate: announcementDate,
-    industry: sectorName,
   };
 }
 

@@ -37,7 +37,7 @@ function mockFetchOnce(response: { ok: boolean; status?: number; body: unknown }
   }) as unknown as typeof fetch;
 }
 
-// 2026-10-24 後上游的形狀（只剩 sectorCode／sectorName）。並存期回應裡補回舊名 code／name 給 web-nuxt。
+// 2026-10-24 後上游的形狀（只剩 sectorCode／sectorName）。
 const SECTORS_RESPONSE = {
   sectors: [
     { sectorCode: "01", sectorName: "水泥工業", companyCount: 8 },
@@ -51,7 +51,7 @@ describe("fetchSecuritiesSectors", () => {
 
     const result = await fetchSecuritiesSectors();
 
-    expect(result).toEqual({ sectors: SECTORS_RESPONSE.sectors.map((s) => ({ ...s, code: s.sectorCode, name: s.sectorName })) });
+    expect(result).toEqual(SECTORS_RESPONSE);
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/industries/securities-sectors");
   });
@@ -178,7 +178,7 @@ describe("fetchSectorMetricHistory", () => {
     const result = await fetchSectorMetricHistory("17", "operatingMargin", "Q");
 
     expect(result).toEqual({
-      sectorCode: "17", sectorName: "金融保險業", metricCode: "operatingMargin", timeframe: "Q", basis: "Q",
+      sectorCode: "17", sectorName: "金融保險業", metricCode: "operatingMargin", timeframe: "Q",
       entries: [{ fiscalYear: 2026, fiscalQuarter: 2, count: 0, median: null, q1: null, q3: null, nullReason: "not_applicable_industry" }],
     });
     const url = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;

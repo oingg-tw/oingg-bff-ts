@@ -66,7 +66,7 @@ const RAW_PROFILE = {
   issuedShares: "25932370067",
 };
 
-// 並存期回應裡補回的舊名：值同新名，但 financialReportType 維持交易所編碼（2330 合併是 "1"）。
+// 上游 2026-10-10 前的名字（2026-10-24 移除）；financialReportType 是交易所編碼（2330 合併是 "1"）。
 const LEGACY_KEYS = {
   reportDate: "2026-08-29",
   industry: "24",
@@ -84,7 +84,7 @@ describe("fetchCompanyProfile", () => {
 
     // RAW_PROFILE 是上游加 isEmerging／marketCode 之前的樣本，刻意保留當時的形狀：舊編碼的 TWSE 換算成
     // TYPEK 'sii'，而上市不可能是興櫃，所以 isEmerging 是 false（TPEx 才會是 null，見下面的 isEmerging 測試）。
-    expect(result).toEqual({ ...RAW_PROFILE, parValue: "10", marketCode: "sii", isEmerging: false, ...LEGACY_KEYS });
+    expect(result).toEqual({ ...RAW_PROFILE, parValue: "10", marketCode: "sii", isEmerging: false });
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0]?.[0] as URL;
     expect(calledUrl.toString()).toBe("http://filters.test/companies/profile?symbol=2330");
   });
@@ -120,7 +120,6 @@ describe("fetchCompanyProfile", () => {
       listingDate: "1994-09-05",
       numberOfPreferenceShares: "0",
       declaredDataType: "2",
-      financialReportType: "1",
     });
   });
 

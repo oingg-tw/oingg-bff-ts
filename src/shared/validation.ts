@@ -107,27 +107,7 @@ export function limitSchema(min: number, max: number, name = "limit") {
 }
 
 /**
- * 公開查詢參數改名的並存期（2026-10-10 起，跟著 analysis-ts 的統一用語改名；使用者核准、對 web-nuxt 並存 14 天）。
- * 把舊名搬到新名再交給 schema，所以 schema 與 OpenAPI 只宣告新名。**兩個都給時以新名為準**（跟 analysis-ts 同一條規則）。
- * web-nuxt 全部改用新名後，刪掉各 route 的這一層與這支函式。
- */
-export function withLegacyQueryNames(query: unknown, renames: Record<string, string>): Record<string, unknown> {
-  // 也用在 JSON body 上：不是物件就原樣交給 schema 去擋——展開陣列會變成一個「合法的空物件」。
-  if (typeof query !== "object" || query === null || Array.isArray(query)) {
-    return query as Record<string, unknown>;
-  }
-  const q: Record<string, unknown> = { ...(query as Record<string, unknown>) };
-  for (const [legacy, current] of Object.entries(renames)) {
-    if (q[current] === undefined && q[legacy] !== undefined) {
-      q[current] = q[legacy];
-    }
-    delete q[legacy];
-  }
-  return q;
-}
-
-/**
- * 並存期結束、已退役的查詢參數名：給了就 400 並指出新名。**不能讓 schema 靜靜剝掉**——這幾個參數都是選填，
+ * 並存期結束、已退役的參數名（query 或 JSON body）：給了就 400 並指出新名。**不能讓 schema 靜靜剝掉**——這幾個參數都是選填，
  * 丟掉的結果不是錯誤，而是「改查最新一季／預設期別」，一個看起來正常的錯答案（例如還在送民國 year=114 的呼叫端
  * 會拿到最新一季）。必填的新名（例如歷史端點的 timeframe）不需要這層：少了它本來就會 400。
  */
